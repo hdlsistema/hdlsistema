@@ -1,0 +1,26 @@
+:root {
+  --color-page: #f2ece2;
+  --color-page-deep: #ebe2d5;
+  --color-panel: #fffaf3;
+  --color-panel-strong: #fffdf8;
+  --color-soft: #f4ecdf;
+  --color-line: #dccab5;
+  --color-line-strong: #c8ab88;
+  --color-ink: #2b1d18;
+  --color-muted: #7f6a59;
+  --color-muted-strong: #5f463a;
+  --color-burgundy: #4f0f1f;
+  --color-burgundy-soft: #6b1b2f;
+  --color-burgundy-deep: #2f0913;
+  --color-gold: #b48a55;
+  --color-gold-soft: #dbc59d;
+  --color-positive: #3d7a4d;
+  --color-alert: #9d473f;
+  --radius-card: 1.15rem;
+  --shadow-soft: 0 12px 30px rgba(64, 33, 19, 0.07);
+  --shadow-card: 0 10px 24px rgba(74, 38, 20, 0.06);
+  --font-display: "Montserrat", sans-serif;
+  --font-body: "Montserrat", sans-serif;
+  background: var(--color-page);
+  color: var(--color-ink);
+}

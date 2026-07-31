@@ -1,0 +1,178 @@
+export type Customer = {
+  id: string
+  name: string
+  segment: string
+  city: string
+  phone: string
+  email: string
+  registrationDate: string
+  lastPurchase: string
+  reservations: number
+  eventsVisited: number
+  totalSpent: string
+  averageTicket: string
+  frequency: string
+  preference: string
+  favoriteWine: string
+  favoriteExperience: string
+  originChannel: string
+  loyaltyLevel: string
+  points: number
+  coupons: number
+  wineClub: string
+  opportunity: string
+  lastVisit: string
+}
+
+export const customers: Customer[] = [
+  {
+    id: 'c1',
+    name: 'Valeria Montes',
+    segment: 'Miembro Wine Club',
+    city: 'CDMX',
+    phone: '+52 55 2871 4481',
+    email: 'valeria.montes@correo.mx',
+    registrationDate: '12 Ene 2024',
+    lastPurchase: '18 Jun 2026',
+    reservations: 8,
+    eventsVisited: 5,
+    totalSpent: '$28,400',
+    averageTicket: '$2,360',
+    frequency: 'Mensual',
+    preference: 'Tintos de guarda',
+    favoriteWine: '3 Mosqueteros',
+    favoriteExperience: 'Cata de vinos',
+    originChannel: 'Instagram',
+    loyaltyLevel: 'Gran Reserva',
+    points: 1820,
+    coupons: 3,
+    wineClub: 'Activo anual',
+    opportunity: 'Invitar a vendimia premium',
+    lastVisit: '22 Jun 2026',
+  },
+  {
+    id: 'c2',
+    name: 'Rodrigo Leon',
+    segment: 'Cliente recurrente',
+    city: 'Monterrey',
+    phone: '+52 81 2274 6602',
+    email: 'rodrigo.leon@correo.mx',
+    registrationDate: '03 May 2024',
+    lastPurchase: '14 Jun 2026',
+    reservations: 4,
+    eventsVisited: 2,
+    totalSpent: '$14,650',
+    averageTicket: '$1,920',
+    frequency: 'Bimestral',
+    preference: 'Experiencias de cava',
+    favoriteWine: 'El Greco',
+    favoriteExperience: 'Recorrido por viñedos',
+    originChannel: 'Web',
+    loyaltyLevel: 'Reserva',
+    points: 960,
+    coupons: 1,
+    wineClub: 'Sin membresía',
+    opportunity: 'Recompra a 45 días',
+    lastVisit: '19 Jun 2026',
+  },
+  {
+    id: 'c3',
+    name: 'Mariana Rivas',
+    segment: 'Cliente ocasional',
+    city: 'Guadalajara',
+    phone: '+52 33 2901 7704',
+    email: 'mariana.rivas@correo.mx',
+    registrationDate: '18 Nov 2025',
+    lastPurchase: '02 Jun 2026',
+    reservations: 2,
+    eventsVisited: 1,
+    totalSpent: '$6,280',
+    averageTicket: '$1,570',
+    frequency: 'Trimestral',
+    preference: 'Rosados y brunch',
+    favoriteWine: 'Ruby - Amor Eterno',
+    favoriteExperience: 'Picnic entre viñedos',
+    originChannel: 'TikTok',
+    loyaltyLevel: 'Selección',
+    points: 420,
+    coupons: 2,
+    wineClub: 'Invitación pendiente',
+    opportunity: 'Promo para parejas',
+    lastVisit: '15 Jun 2026',
+  },
+  {
+    id: 'c4',
+    name: 'Grupo Astra',
+    segment: 'Cliente corporativo',
+    city: 'Aguascalientes',
+    phone: '+52 44 9912 4088',
+    email: 'compras@grupoastra.mx',
+    registrationDate: '05 Ago 2023',
+    lastPurchase: '28 May 2026',
+    reservations: 6,
+    eventsVisited: 3,
+    totalSpent: '$94,300',
+    averageTicket: '$11,780',
+    frequency: 'Semestral',
+    preference: 'Eventos privados',
+    favoriteWine: 'DArtagnan',
+    favoriteExperience: 'Cena de maridaje',
+    originChannel: 'Ventas directas',
+    loyaltyLevel: 'Gran Reserva',
+    points: 3400,
+    coupons: 0,
+    wineClub: 'Corporativo',
+    opportunity: 'Cotización cierre anual',
+    lastVisit: '12 Jun 2026',
+  },
+  {
+    id: 'c5',
+    name: 'Fernanda Ruiz',
+    segment: 'Cliente en riesgo',
+    city: 'León',
+    phone: '+52 47 7340 2219',
+    email: 'fernanda.ruiz@correo.mx',
+    registrationDate: '22 Mar 2024',
+    lastPurchase: '05 Feb 2026',
+    reservations: 1,
+    eventsVisited: 1,
+    totalSpent: '$4,120',
+    averageTicket: '$1,030',
+    frequency: 'Irregular',
+    preference: 'Vinos blancos',
+    favoriteWine: 'Muscat',
+    favoriteExperience: 'Restaurante',
+    originChannel: 'Google',
+    loyaltyLevel: 'Esencial',
+    points: 180,
+    coupons: 4,
+    wineClub: 'Inactivo',
+    opportunity: 'Campaña de reactivación',
+    lastVisit: '02 Feb 2026',
+  },
+  {
+    id: 'c6',
+    name: 'Luis Mendoza',
+    segment: 'Cliente de alto valor',
+    city: 'Querétaro',
+    phone: '+52 44 2220 7814',
+    email: 'luis.mendoza@correo.mx',
+    registrationDate: '11 Sep 2023',
+    lastPurchase: '20 Jun 2026',
+    reservations: 7,
+    eventsVisited: 6,
+    totalSpent: '$42,700',
+    averageTicket: '$3,880',
+    frequency: 'Mensual',
+    preference: 'Tintos premium',
+    favoriteWine: 'Precioso Regalo',
+    favoriteExperience: 'Cenas románticas',
+    originChannel: 'Referido',
+    loyaltyLevel: 'Reserva',
+    points: 2100,
+    coupons: 2,
+    wineClub: 'Activo trimestral',
+    opportunity: 'Upgrade a club anual',
+    lastVisit: '20 Jun 2026',
+  },
+]
