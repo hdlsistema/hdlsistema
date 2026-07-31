@@ -57,7 +57,7 @@ Estado: implementada a nivel base de datos.
 
 ## Fase 3
 
-Estado: implementada localmente; aprobacion productiva pendiente de prueba admin real.
+Estado: implementada y validada localmente; aprobacion productiva bloqueada por validacion JWT en Railway.
 
 ### Autenticacion
 
@@ -87,13 +87,16 @@ Estado: implementada localmente; aprobacion productiva pendiente de prueba admin
 - Frontend tests: 9/9.
 - Cliente real controlado `cliente.prueba@alqia.tech`: login OK, profile OK, customer OK, rol `customer` OK.
 - Recuperacion real solicitada para cliente de prueba sin imprimir enlace ni tokens.
+- Usuario admin inicial `pgaribay@alqia.tech`: creado en Supabase Auth, email confirmado, profile/customer creados, rol `super_admin` asignado por script seguro, sin duplicados y con audit log.
+- Backend local compilado con token real admin: `/api/auth/me`, `/api/auth/roles`, `/api/auth/profile`, `/api/admin/users` responden 200.
+- Customer real bloqueado en endpoint admin con 403.
+- Supabase Auth configurado con Site URL productiva, redirect URLs local/productiva, email/password, recovery, refresh token rotation y secure password change.
 
 ### Riesgos Pendientes Fase 3
 
-- Falta ejecutar prueba real admin porque no se proporciono correo autorizado objetivo.
-- Supabase Auth debe tener configuradas las Redirect URLs documentadas.
+- Railway produccion rechaza con 401 tokens JWT que Supabase y backend local validan correctamente; probable desalineacion de `SUPABASE_ANON_KEY` productiva o variables Auth en Railway.
 - No se agrego E2E con navegador porque el repo no tiene Playwright/Cypress configurado.
 
 ## Siguiente Fase
 
-Completar validacion admin real de Fase 3 antes de iniciar Fase 4.
+Corregir variables Auth de Railway y repetir validacion productiva admin antes de iniciar Fase 4.

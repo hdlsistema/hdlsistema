@@ -163,9 +163,11 @@ No crear:
 - Backend: auth sin token, auth con token mockeado, admin protegido, health y schema.
 - Frontend: signup sin payload administrativo, reset password con redirect seguro, API wrapper.
 - Prueba real: cliente controlado `cliente.prueba@alqia.tech` con contraseña temporal en memoria.
+- Prueba admin: `pgaribay@alqia.tech` creado/encontrado en Supabase Auth, `super_admin` asignado con `assign-super-admin.mjs`, profile/customer/roles/audit validados.
+- Backend local compilado valida token real admin y permite endpoints auth/admin.
+- Produccion Railway responde 401 con token real admin; revisar `SUPABASE_ANON_KEY`/variables Auth productivas en Railway.
 
 ## Riesgos
 
-- Falta prueba real admin hasta recibir correo autorizado objetivo.
-- Confirmar en Supabase Dashboard que email/password, verificacion y recovery esten configurados segun politica operativa.
+- Validacion productiva admin bloqueada hasta alinear variables Auth en Railway.
 - No hay E2E con navegador configurado en este repo.
