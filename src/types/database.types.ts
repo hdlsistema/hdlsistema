@@ -224,43 +224,82 @@ export type Database = {
       }
       campaigns: {
         Row: {
+          archived_at: string | null
           audience_definition: Json
           channel: string
           content: Json
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           id: string
+          locale: string
+          metadata: Json
           name: string
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           scheduled_at: string | null
           sent_at: string | null
+          sort_order: number
           status: Database["public"]["Enums"]["campaign_status"]
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
           audience_definition?: Json
           channel: string
           content?: Json
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           name: string
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           scheduled_at?: string | null
           sent_at?: string | null
+          sort_order?: number
           status?: Database["public"]["Enums"]["campaign_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
           audience_definition?: Json
           channel?: string
           content?: Json
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           name?: string
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           scheduled_at?: string | null
           sent_at?: string | null
+          sort_order?: number
           status?: Database["public"]["Enums"]["campaign_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
@@ -383,6 +422,293 @@ export type Database = {
             columns: ["access_pass_id"]
             isOneToOne: false
             referencedRelation: "access_passes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_preview_tokens: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          entity_type: string
+          expires_at: string
+          id: string
+          locale: string
+          metadata: Json
+          revoked_at: string | null
+          token_hash: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          entity_type: string
+          expires_at: string
+          id?: string
+          locale?: string
+          metadata?: Json
+          revoked_at?: string | null
+          token_hash: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          expires_at?: string
+          id?: string
+          locale?: string
+          metadata?: Json
+          revoked_at?: string | null
+          token_hash?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
+      content_publication_jobs: {
+        Row: {
+          action: string
+          attempts: number
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          last_error: string | null
+          last_error_code: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          metadata: Json
+          processed_at: string | null
+          run_at: string
+          status: string
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          last_error?: string | null
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          metadata?: Json
+          processed_at?: string | null
+          run_at: string
+          status?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          attempts?: number
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          last_error?: string | null
+          last_error_code?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          metadata?: Json
+          processed_at?: string | null
+          run_at?: string
+          status?: string
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      content_publication_requirements: {
+        Row: {
+          active: boolean
+          created_at: string
+          entity_type: string
+          id: string
+          label: string
+          metadata: Json
+          requirement_key: string
+          severity: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          entity_type: string
+          id?: string
+          label: string
+          metadata?: Json
+          requirement_key: string
+          severity?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          entity_type?: string
+          id?: string
+          label?: string
+          metadata?: Json
+          requirement_key?: string
+          severity?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      content_translations: {
+        Row: {
+          archived_at: string | null
+          benefits: Json | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          description: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          locale: string
+          metadata: Json
+          notes: string | null
+          promotional_message: string | null
+          publication_status: Database["public"]["Enums"]["content_status"]
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
+          seo: Json
+          short_description: string | null
+          slug: string | null
+          subtitle: string | null
+          title: string | null
+          translation_status: string
+          unpublish_at: string | null
+          updated_at: string
+          updated_by: string | null
+          version: number
+          visible_in_app: boolean
+        }
+        Insert: {
+          archived_at?: string | null
+          benefits?: Json | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          locale: string
+          metadata?: Json
+          notes?: string | null
+          promotional_message?: string | null
+          publication_status?: Database["public"]["Enums"]["content_status"]
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          seo?: Json
+          short_description?: string | null
+          slug?: string | null
+          subtitle?: string | null
+          title?: string | null
+          translation_status?: string
+          unpublish_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+        }
+        Update: {
+          archived_at?: string | null
+          benefits?: Json | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          locale?: string
+          metadata?: Json
+          notes?: string | null
+          promotional_message?: string | null
+          publication_status?: Database["public"]["Enums"]["content_status"]
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          seo?: Json
+          short_description?: string | null
+          slug?: string | null
+          subtitle?: string | null
+          title?: string | null
+          translation_status?: string
+          unpublish_at?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+        }
+        Relationships: []
+      }
+      content_versions: {
+        Row: {
+          action: string
+          created_at: string
+          created_by: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json
+          reason: string | null
+          request_id: string | null
+          restored_from_version_id: string | null
+          snapshot: Json
+          version: number
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          created_by?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          request_id?: string | null
+          restored_from_version_id?: string | null
+          snapshot: Json
+          version: number
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          created_by?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json
+          reason?: string | null
+          request_id?: string | null
+          restored_from_version_id?: string | null
+          snapshot?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_versions_restored_from_version_id_fkey"
+            columns: ["restored_from_version_id"]
+            isOneToOne: false
+            referencedRelation: "content_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -618,70 +944,157 @@ export type Database = {
       }
       documents: {
         Row: {
+          archived_at: string | null
           category: string
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           expires_at: string | null
           id: string
+          locale: string
+          metadata: Json
           mime_type: string | null
           name: string
           owner_id: string
           owner_type: string
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           size_bytes: number | null
+          sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
           storage_path: string
+          unpublish_at: string | null
+          updated_by: string | null
           uploaded_by: string | null
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
           category: string
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           expires_at?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           mime_type?: string | null
           name: string
           owner_id: string
           owner_type: string
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           size_bytes?: number | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
           storage_path: string
+          unpublish_at?: string | null
+          updated_by?: string | null
           uploaded_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
           category?: string
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           expires_at?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           mime_type?: string | null
           name?: string
           owner_id?: string
           owner_type?: string
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           size_bytes?: number | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
           storage_path?: string
+          unpublish_at?: string | null
+          updated_by?: string | null
           uploaded_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
       event_images: {
         Row: {
           alt_text: string | null
+          archived_at: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           event_id: string
           id: string
+          locale: string
+          metadata: Json
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
+          updated_by: string | null
           url: string
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
           alt_text?: string | null
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           event_id: string
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
+          updated_by?: string | null
           url: string
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
           alt_text?: string | null
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           event_id?: string
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
+          updated_by?: string | null
           url?: string
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: [
           {
@@ -696,45 +1109,90 @@ export type Database = {
       event_ticket_types: {
         Row: {
           active: boolean
+          archived_at: string | null
           capacity: number
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           description: string | null
           event_id: string
           id: string
+          locale: string
+          metadata: Json
           name: string
           price: number
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           sales_end_at: string | null
           sales_start_at: string | null
           sold_count: number
+          sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
           active?: boolean
+          archived_at?: string | null
           capacity: number
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           event_id: string
           id?: string
+          locale?: string
+          metadata?: Json
           name: string
           price?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sales_end_at?: string | null
           sales_start_at?: string | null
           sold_count?: number
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
           active?: boolean
+          archived_at?: string | null
           capacity?: number
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           event_id?: string
           id?: string
+          locale?: string
+          metadata?: Json
           name?: string
           price?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sales_end_at?: string | null
           sales_start_at?: string | null
           sold_count?: number
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: [
           {
@@ -748,64 +1206,103 @@ export type Database = {
       }
       events: {
         Row: {
+          archived_at: string | null
           capacity: number
           cover_image_url: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           description: string | null
           end_at: string
           featured: boolean
           id: string
+          locale: string
+          metadata: Json
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           sales_enabled: boolean
           short_description: string | null
           slug: string
           sold_count: number
+          sort_order: number
           start_at: string
           status: Database["public"]["Enums"]["event_status"]
           subtitle: string | null
           title: string
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
           venue: string | null
+          version: number
           visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
           capacity: number
           cover_image_url?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_at: string
           featured?: boolean
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sales_enabled?: boolean
           short_description?: string | null
           slug: string
           sold_count?: number
+          sort_order?: number
           start_at: string
           status?: Database["public"]["Enums"]["event_status"]
           subtitle?: string | null
           title: string
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
           venue?: string | null
+          version?: number
           visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
           capacity?: number
           cover_image_url?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           end_at?: string
           featured?: boolean
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sales_enabled?: boolean
           short_description?: string | null
           slug?: string
           sold_count?: number
+          sort_order?: number
           start_at?: string
           status?: Database["public"]["Enums"]["event_status"]
           subtitle?: string | null
           title?: string
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
           venue?: string | null
+          version?: number
           visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
@@ -850,27 +1347,69 @@ export type Database = {
       experience_images: {
         Row: {
           alt_text: string | null
+          archived_at: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           experience_id: string
           id: string
+          locale: string
+          metadata: Json
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
+          updated_by: string | null
           url: string
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
           alt_text?: string | null
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           experience_id: string
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
+          updated_by?: string | null
           url: string
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
           alt_text?: string | null
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           experience_id?: string
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
+          updated_by?: string | null
           url?: string
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: [
           {
@@ -884,43 +1423,85 @@ export type Database = {
       }
       experience_slots: {
         Row: {
+          archived_at: string | null
           capacity: number
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           end_at: string
           experience_id: string
           id: string
+          locale: string
+          metadata: Json
           notes: string | null
           price_override: number | null
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           reserved_count: number
+          sort_order: number
           start_at: string
           status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
           capacity: number
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           end_at: string
           experience_id: string
           id?: string
+          locale?: string
+          metadata?: Json
           notes?: string | null
           price_override?: number | null
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           reserved_count?: number
+          sort_order?: number
           start_at: string
           status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
           capacity?: number
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           end_at?: string
           experience_id?: string
           id?: string
+          locale?: string
+          metadata?: Json
           notes?: string | null
           price_override?: number | null
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           reserved_count?: number
+          sort_order?: number
           start_at?: string
           status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: [
           {
@@ -934,61 +1515,103 @@ export type Database = {
       }
       experiences: {
         Row: {
+          archived_at: string | null
           base_price: number
           capacity: number
           cover_image_url: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           description: string | null
           duration_minutes: number
           featured: boolean
           id: string
+          locale: string
           location: string | null
           max_people: number
+          metadata: Json
           min_people: number
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           short_description: string | null
           slug: string
+          sort_order: number
           status: Database["public"]["Enums"]["content_status"]
           subtitle: string | null
           title: string
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
           base_price?: number
           capacity?: number
           cover_image_url?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           duration_minutes: number
           featured?: boolean
           id?: string
+          locale?: string
           location?: string | null
           max_people?: number
+          metadata?: Json
           min_people?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           short_description?: string | null
           slug: string
+          sort_order?: number
           status?: Database["public"]["Enums"]["content_status"]
           subtitle?: string | null
           title: string
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
           base_price?: number
           capacity?: number
           cover_image_url?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           duration_minutes?: number
           featured?: boolean
           id?: string
+          locale?: string
           location?: string | null
           max_people?: number
+          metadata?: Json
           min_people?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           short_description?: string | null
           slug?: string
+          sort_order?: number
           status?: Database["public"]["Enums"]["content_status"]
           subtitle?: string | null
           title?: string
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
@@ -1193,42 +1816,87 @@ export type Database = {
       membership_plans: {
         Row: {
           active: boolean
+          archived_at: string | null
           benefits: Json
           billing_period: string
           code: string
           created_at: string
+          created_by: string | null
           daily_sommelier_limit: number
+          deleted_at: string | null
           description: string | null
           id: string
+          locale: string
+          metadata: Json
           name: string
           price: number
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
           active?: boolean
+          archived_at?: string | null
           benefits?: Json
           billing_period: string
           code: string
           created_at?: string
+          created_by?: string | null
           daily_sommelier_limit?: number
+          deleted_at?: string | null
           description?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           name: string
           price?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
           active?: boolean
+          archived_at?: string | null
           benefits?: Json
           billing_period?: string
           code?: string
           created_at?: string
+          created_by?: string | null
           daily_sommelier_limit?: number
+          deleted_at?: string | null
           description?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           name?: string
           price?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
@@ -1721,64 +2389,106 @@ export type Database = {
       }
       promotions: {
         Row: {
+          archived_at: string | null
           code: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           description: string | null
           discount_type: string
           discount_value: number
           ends_at: string | null
           id: string
+          locale: string
           maximum_discount: number | null
+          metadata: Json
           minimum_amount: number
           name: string
           promotion_type: string
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
           starts_at: string | null
           status: Database["public"]["Enums"]["content_status"]
           target_segment: string | null
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
           usage_limit: number | null
           usage_per_customer: number | null
           used_count: number
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
           code?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           discount_type: string
           discount_value: number
           ends_at?: string | null
           id?: string
+          locale?: string
           maximum_discount?: number | null
+          metadata?: Json
           minimum_amount?: number
           name: string
           promotion_type: string
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
           starts_at?: string | null
           status?: Database["public"]["Enums"]["content_status"]
           target_segment?: string | null
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
           usage_limit?: number | null
           usage_per_customer?: number | null
           used_count?: number
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
           code?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           discount_type?: string
           discount_value?: number
           ends_at?: string | null
           id?: string
+          locale?: string
           maximum_discount?: number | null
+          metadata?: Json
           minimum_amount?: number
           name?: string
           promotion_type?: string
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
           starts_at?: string | null
           status?: Database["public"]["Enums"]["content_status"]
           target_segment?: string | null
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
           usage_limit?: number | null
           usage_per_customer?: number | null
           used_count?: number
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
@@ -2266,28 +2976,70 @@ export type Database = {
       }
       system_settings: {
         Row: {
+          archived_at: string | null
+          created_by: string | null
+          deleted_at: string | null
           description: string | null
           id: string
           key: string
+          locale: string
+          metadata: Json
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
+          sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
           updated_at: string
           updated_by: string | null
           value: Json
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
         }
         Insert: {
+          archived_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           id?: string
           key: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
           updated_by?: string | null
           value?: Json
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Update: {
+          archived_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           id?: string
           key?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
           updated_at?: string
           updated_by?: string | null
           value?: Json
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
         }
         Relationships: []
       }
@@ -2389,26 +3141,68 @@ export type Database = {
       wine_images: {
         Row: {
           alt_text: string | null
+          archived_at: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           id: string
+          locale: string
+          metadata: Json
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           sort_order: number
+          status: Database["public"]["Enums"]["content_status"]
+          unpublish_at: string | null
+          updated_by: string | null
           url: string
+          version: number
+          visible_in_app: boolean
+          visible_in_control: boolean
           wine_id: string
         }
         Insert: {
           alt_text?: string | null
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
+          updated_by?: string | null
           url: string
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
           wine_id: string
         }
         Update: {
           alt_text?: string | null
+          archived_at?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           sort_order?: number
+          status?: Database["public"]["Enums"]["content_status"]
+          unpublish_at?: string | null
+          updated_by?: string | null
           url?: string
+          version?: number
+          visible_in_app?: boolean
+          visible_in_control?: boolean
           wine_id?: string
         }
         Relationships: [
@@ -2494,83 +3288,125 @@ export type Database = {
       wines: {
         Row: {
           alcohol_percentage: number | null
+          archived_at: string | null
           category_id: string | null
           compare_at_price: number | null
           cost: number | null
           cover_image_url: string | null
           created_at: string
+          created_by: string | null
+          deleted_at: string | null
           description: string | null
           featured: boolean
           grape_variety: string | null
           id: string
+          locale: string
+          metadata: Json
           name: string
           origin: string | null
           pairing_notes: string | null
           price: number
+          publish_at: string | null
+          published_at: string | null
+          published_by: string | null
           serving_temperature: string | null
           sku: string
           slug: string
+          sort_order: number
           status: Database["public"]["Enums"]["content_status"]
           stock_control_enabled: boolean
           stock_quantity: number
           subtitle: string | null
           tasting_notes: string | null
+          unpublish_at: string | null
           updated_at: string
+          updated_by: string | null
+          version: number
           vintage: number | null
+          visible_in_app: boolean
+          visible_in_control: boolean
           volume_ml: number | null
         }
         Insert: {
           alcohol_percentage?: number | null
+          archived_at?: string | null
           category_id?: string | null
           compare_at_price?: number | null
           cost?: number | null
           cover_image_url?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           featured?: boolean
           grape_variety?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           name: string
           origin?: string | null
           pairing_notes?: string | null
           price?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           serving_temperature?: string | null
           sku: string
           slug: string
+          sort_order?: number
           status?: Database["public"]["Enums"]["content_status"]
           stock_control_enabled?: boolean
           stock_quantity?: number
           subtitle?: string | null
           tasting_notes?: string | null
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
           vintage?: number | null
+          visible_in_app?: boolean
+          visible_in_control?: boolean
           volume_ml?: number | null
         }
         Update: {
           alcohol_percentage?: number | null
+          archived_at?: string | null
           category_id?: string | null
           compare_at_price?: number | null
           cost?: number | null
           cover_image_url?: string | null
           created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
           description?: string | null
           featured?: boolean
           grape_variety?: string | null
           id?: string
+          locale?: string
+          metadata?: Json
           name?: string
           origin?: string | null
           pairing_notes?: string | null
           price?: number
+          publish_at?: string | null
+          published_at?: string | null
+          published_by?: string | null
           serving_temperature?: string | null
           sku?: string
           slug?: string
+          sort_order?: number
           status?: Database["public"]["Enums"]["content_status"]
           stock_control_enabled?: boolean
           stock_quantity?: number
           subtitle?: string | null
           tasting_notes?: string | null
+          unpublish_at?: string | null
           updated_at?: string
+          updated_by?: string | null
+          version?: number
           vintage?: number | null
+          visible_in_app?: boolean
+          visible_in_control?: boolean
           volume_ml?: number | null
         }
         Relationships: [
@@ -2588,13 +3424,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_manage_content:
+        | { Args: { entity_type: string }; Returns: boolean }
+        | { Args: { action: string; entity_type: string }; Returns: boolean }
+      can_publish_content: { Args: { entity_type: string }; Returns: boolean }
+      can_restore_content: { Args: { entity_type: string }; Returns: boolean }
       current_customer_id: { Args: never; Returns: string }
       has_any_role: { Args: { role_codes: string[] }; Returns: boolean }
       has_role: { Args: { role_code: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      is_content_live: {
+        Args: {
+          archived_at_value: string
+          deleted_at_value: string
+          publish_at_value: string
+          status_value: string
+          unpublish_at_value: string
+          visible_value: boolean
+        }
+        Returns: boolean
+      }
+      normalize_content_entity_type: {
+        Args: { raw_entity_type: string }
+        Returns: string
+      }
       reserve_experience_slot: {
         Args: { p_people_count: number; p_slot_id: string }
         Returns: boolean
+      }
+      translation_publication_state: {
+        Args: { target_entity_id: string; target_entity_type: string }
+        Returns: string
       }
     }
     Enums: {
@@ -2605,13 +3465,21 @@ export type Database = {
         | "paused"
         | "completed"
         | "cancelled"
-      content_status: "draft" | "published" | "archived" | "inactive"
+      content_status:
+        | "draft"
+        | "published"
+        | "archived"
+        | "inactive"
+        | "scheduled"
       event_status:
         | "draft"
         | "published"
         | "sold_out"
         | "cancelled"
         | "completed"
+        | "scheduled"
+        | "inactive"
+        | "archived"
       membership_status:
         | "pending"
         | "active"
@@ -3234,13 +4102,22 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
-      content_status: ["draft", "published", "archived", "inactive"],
+      content_status: [
+        "draft",
+        "published",
+        "archived",
+        "inactive",
+        "scheduled",
+      ],
       event_status: [
         "draft",
         "published",
         "sold_out",
         "cancelled",
         "completed",
+        "scheduled",
+        "inactive",
+        "archived",
       ],
       membership_status: [
         "pending",

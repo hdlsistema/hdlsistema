@@ -1,8 +1,33 @@
 # Authentication - Hacienda de Letras OS
 
+## Aclaración Arquitectónica
+
+La PWA corresponde exclusivamente al Centro de Control administrativo.
+
+Rutas administrativas:
+
+- `/login`
+- `/recuperar`
+- `/reset-password`
+- `/control/*`
+
+La PWA no tendrá registro público, registro libre, Google, Apple ni autoasignación de roles. Las cuentas administrativas se crean previamente por ALQIA o por un `super_admin` autorizado, con rol específico, estado habilitado/deshabilitado y auditoría.
+
+Rutas cliente:
+
+- `/app/login`
+- `/app/registro`
+- `/app/recuperar`
+- `/app/auth/callback`
+- `/app/*`
+
+La app cliente tendrá registro con rol fijo `customer`. Google y Apple quedan preparados como requerimiento arquitectónico para fases posteriores; no se implementan en Fase 4B.
+
+La app cliente debe operar completamente en español e inglés. El contenido público se administrará desde el Centro de Control con modelo bilingüe y fallback a español.
+
 ## Arquitectura
 
-La autenticacion usa Supabase Auth con email/password. El frontend usa solo `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` mediante `src/lib/supabase.ts`.
+La autenticación usa Supabase Auth con email/password. El frontend usa solo `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` mediante `src/lib/supabase.ts`.
 
 El backend valida Bearer tokens con el cliente anon y usa service role solo en rutas administrativas del servidor.
 
@@ -29,7 +54,7 @@ El contexto expone:
 
 ## Registro
 
-`signUpCustomer()` registra usuarios publicos con metadata minima:
+`signUpCustomer()` registra usuarios públicos con metadata mínima:
 
 - first_name
 - last_name
@@ -37,11 +62,11 @@ El contexto expone:
 - phone
 - preferred_language
 
-No acepta `role`, `is_admin`, `permissions` ni `service_role`. La asignacion real de rol ocurre en la base mediante trigger.
+No acepta `role`, `is_admin`, `permissions` ni `service_role`. La asignación real de rol ocurre en la base mediante trigger.
 
 ## Login
 
-`signIn()` usa Supabase Auth y carga roles desde `user_roles`. La redireccion respeta prioridad administrativa:
+`signIn()` usa Supabase Auth y carga roles desde `user_roles`. La redirección respeta prioridad administrativa:
 
 1. `super_admin`
 2. `admin`
@@ -53,7 +78,7 @@ No acepta `role`, `is_admin`, `permissions` ni `service_role`. La asignacion rea
 
 Roles administrativos entran a `/control/dashboard`; customer entra a `/app/home`.
 
-## Recuperacion
+## Recuperación
 
 Rutas:
 
@@ -67,7 +92,7 @@ Redirect URLs requeridas:
 
 Supabase procesa la sesion temporal por `detectSessionInUrl`; no se muestran tokens.
 
-## Verificacion de Correo
+## Verificación de Correo
 
 Tras registro se muestra mensaje para verificar correo y opcion de reenviar. URLs recomendadas en Supabase Auth:
 
@@ -122,7 +147,7 @@ Solo `super_admin` y `admin` pueden administrar usuarios.
 - `customers`
 - `user_roles` con rol `customer`
 
-No permite autoasignacion administrativa.
+No permite autoasignación administrativa.
 
 ## Primer Super Admin
 
@@ -134,7 +159,7 @@ Uso seguro:
 
 `node scripts/assign-super-admin.mjs correo-autorizado@dominio.com`
 
-El usuario debe existir previamente en Supabase Auth. El script no imprime secretos, no crea usuarios automaticamente y registra auditoria.
+El usuario debe existir previamente en Supabase Auth. El script no imprime secretos, no crea usuarios automáticamente y registra auditoría.
 
 ## Variables
 
@@ -173,5 +198,5 @@ No crear:
 
 ## Riesgos
 
-- No hay E2E con navegador configurado en este repo; la validacion productiva se hizo con navegador headless, sesiones reales nuevas y salida saneada.
-- No registrar ni documentar contrasenas, JWT, service role, anon key, headers ni valores de variables.
+- No hay E2E con navegador configurado en este repo; la validación productiva se hizo con navegador headless, sesiones reales nuevas y salida saneada.
+- No registrar ni documentar contraseñas, JWT, service role, anon key, headers ni valores de variables.

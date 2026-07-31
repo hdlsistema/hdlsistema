@@ -5,6 +5,8 @@ import { createApp } from '../src/app'
 import { env } from '../src/config/env'
 import { checkSupabaseReachable } from '../src/config/supabase'
 import { errorHandler, type AppError } from '../src/middleware/errorHandler'
+import { canAccessContent } from '../src/modules/content/content.permissions'
+import { parseContentPatch } from '../src/modules/content/content.schemas'
 import { execSync } from 'child_process'
 import { resolve } from 'path'
 
@@ -12,6 +14,7 @@ const supabaseMock = vi.hoisted(() => ({
   error: null as unknown,
   throwError: null as unknown,
   authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null } | null,
+  tableData: {} as Record<string, unknown[]>,
 }))
 
 vi.mock('@supabase/supabase-js', () => ({
@@ -30,16 +33,75 @@ vi.mock('@supabase/supabase-js', () => ({
         updateUserById: vi.fn(async () => ({ data: { user: null }, error: null })),
       },
     },
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        limit: vi.fn(() => ({
-          abortSignal: vi.fn(async () => {
-            if (supabaseMock.throwError) throw supabaseMock.throwError
-            return { data: [], error: supabaseMock.error }
-          }),
-        })),
-      })),
-    })),
+    from: vi.fn((table: string) => {
+      const state = {
+        table,
+        filters: [] as Array<{ column: string; value: unknown }>,
+        inFilters: [] as Array<{ column: string; values: unknown[] }>,
+        payload: null as unknown,
+      }
+      const run = () => {
+        if (supabaseMock.throwError) throw supabaseMock.throwError
+        if (supabaseMock.error) return { data: null, error: supabaseMock.error, count: null }
+        const rows = [...(supabaseMock.tableData[state.table] ?? [])]
+        const data = rows.filter((row) => {
+          if (!row || typeof row !== 'object') return false
+          return state.filters.every((filter) => (row as Record<string, unknown>)[filter.column] === filter.value)
+        })
+        return { data, error: null, count: data.length }
+      }
+      const builder: Record<string, unknown> = {
+        select: vi.fn(() => builder),
+        insert: vi.fn((payload: unknown) => {
+          state.payload = payload
+          return builder
+        }),
+        update: vi.fn((payload: unknown) => {
+          state.payload = payload
+          return builder
+        }),
+        upsert: vi.fn((payload: unknown) => {
+          state.payload = payload
+          return builder
+        }),
+        eq: vi.fn((column: string, value: unknown) => {
+          state.filters.push({ column, value })
+          return builder
+        }),
+        is: vi.fn(() => builder),
+        in: vi.fn((column: string, values: unknown[]) => {
+          state.inFilters.push({ column, values })
+          return builder
+        }),
+        lte: vi.fn(() => builder),
+        gte: vi.fn(() => builder),
+        or: vi.fn(() => builder),
+        order: vi.fn(() => builder),
+        range: vi.fn(async () => run()),
+        limit: vi.fn(() => builder),
+        abortSignal: vi.fn(async () => {
+          if (supabaseMock.throwError) throw supabaseMock.throwError
+          return { data: [], error: supabaseMock.error }
+        }),
+        maybeSingle: vi.fn(async () => {
+          const result = run()
+          return { ...result, data: Array.isArray(result.data) ? result.data[0] ?? null : null }
+        }),
+        single: vi.fn(async () => {
+          if (supabaseMock.throwError) throw supabaseMock.throwError
+          if (supabaseMock.error) return { data: null, error: supabaseMock.error }
+          const payload = Array.isArray(state.payload) ? state.payload[0] : state.payload
+          return {
+            data: {
+              id: '00000000-0000-0000-0000-000000000099',
+              ...(payload && typeof payload === 'object' ? payload : {}),
+            },
+            error: null,
+          }
+        }),
+      }
+      return builder
+    }),
   })),
 }))
 
@@ -52,6 +114,7 @@ beforeEach(() => {
   supabaseMock.error = null
   supabaseMock.throwError = null
   supabaseMock.authUser = null
+  supabaseMock.tableData = {}
   ;(env as Record<string, string>).SUPABASE_URL = originalSupabaseUrl
   ;(env as Record<string, string>).SUPABASE_ANON_KEY = originalSupabaseAnonKey
   ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY =
@@ -181,6 +244,83 @@ describe('Fase 3 auth API', () => {
     const res = await request(app).get('/api/admin/users')
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+})
+
+describe('Fase 4B content API', () => {
+  it('rechaza endpoints editoriales administrativos sin sesión', async () => {
+    const res = await request(app).get('/api/admin/wines')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('bloquea customer en endpoints editoriales administrativos', async () => {
+    supabaseMock.authUser = {
+      id: '00000000-0000-0000-0000-000000000010',
+      email: 'cliente.prueba@alqia.tech',
+      created_at: '2026-07-31T00:00:00.000Z',
+      email_confirmed_at: '2026-07-31T00:00:00.000Z',
+    }
+    supabaseMock.tableData.user_roles = [{ roles: { code: 'customer' } }]
+
+    const res = await request(app)
+      .get('/api/admin/wines')
+      .set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+
+  it('valida payloads estrictos por entidad', () => {
+    expect(() => parseContentPatch('wines', { name: 'Gran Reserva', is_admin: true })).toThrow()
+    expect(parseContentPatch('wines', { name: 'Gran Reserva', locale: 'es-MX' })).toMatchObject({
+      name: 'Gran Reserva',
+      locale: 'es-MX',
+    })
+  })
+
+  it('mantiene allowlist de permisos editoriales por rol', () => {
+    expect(canAccessContent(['viewer'], 'wine', 'read')).toBe(true)
+    expect(canAccessContent(['viewer'], 'wine', 'update')).toBe(false)
+    expect(canAccessContent(['customer'], 'wine', 'read')).toBe(false)
+    expect(canAccessContent(['marketing'], 'promotion', 'publish')).toBe(true)
+    expect(canAccessContent(['operations'], 'promotion', 'publish')).toBe(false)
+    expect(canAccessContent(['super_admin'], 'campaign', 'delete')).toBe(true)
+  })
+
+  it('devuelve contenido público con caché corta y sin credenciales', async () => {
+    supabaseMock.tableData.wines = [
+      {
+        id: '00000000-0000-0000-0000-000000000020',
+        slug: 'vino-publico',
+        name: 'Vino Público',
+        status: 'published',
+        locale: 'es-MX',
+      },
+    ]
+
+    const res = await request(app).get('/api/public/wines')
+
+    expect(res.status).toBe(200)
+    expect(res.body.ok).toBe(true)
+    expect(res.headers['cache-control']).toContain('max-age=60')
+    expect(JSON.stringify(res.body)).not.toContain('SERVICE_ROLE')
+    expect(JSON.stringify(res.body)).not.toContain('eyJhbGci')
+  })
+
+  it('rechaza entidades públicas no permitidas', async () => {
+    const res = await request(app).get('/api/public/system-settings')
+    expect(res.status).toBe(404)
+    expect(res.body.error.code).toBe('NOT_FOUND')
+  })
+
+  it('aplica rate limit a preview', async () => {
+    let lastStatus = 0
+    for (let i = 0; i < 61; i += 1) {
+      const res = await request(app).get('/api/preview/token-invalido-fase-4b')
+      lastStatus = res.status
+    }
+    expect(lastStatus).toBe(429)
   })
 })
 

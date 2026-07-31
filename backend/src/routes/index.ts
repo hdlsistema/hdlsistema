@@ -4,6 +4,11 @@ import { versionRouter } from '../modules/version/version.routes'
 import { publicRouter } from '../modules/public/status.routes'
 import { authRouter } from '../modules/auth/auth.routes'
 import { adminUsersRouter } from '../modules/admin/users.routes'
+import {
+  adminContentRouter,
+  previewContentRouter,
+  publicContentRouter,
+} from '../modules/content/content.routes'
 
 /**
  * Registro central de rutas API.
@@ -17,6 +22,9 @@ router.use('/version', versionRouter)
 router.use('/public', publicRouter)
 router.use('/auth', authRouter)
 router.use('/admin', adminUsersRouter)
+router.use('/admin', adminContentRouter)
+router.use('/public', publicContentRouter)
+router.use('/preview', previewContentRouter)
 
 // Próximas rutas — descomenta cuando estén listos los módulos:
 // router.use('/reservaciones', reservacionesRouter)

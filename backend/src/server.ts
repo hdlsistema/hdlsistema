@@ -9,11 +9,13 @@
 import 'dotenv/config'
 import { env } from './config/env'
 import { createApp } from './app'
+import { startPublicationWorker } from './modules/content/publicationWorker'
 
 async function main() {
   console.log(`[server] Iniciando en modo ${env.NODE_ENV}...`)
 
   const app = createApp()
+  const publicationWorker = startPublicationWorker()
 
   const server = app.listen(env.PORT, '0.0.0.0', () => {
     console.log(`[server] Escuchando en puerto ${env.PORT}`)
@@ -23,6 +25,7 @@ async function main() {
 
   const shutdown = (signal: string) => {
     console.log(`[server] ${signal} recibido — cerrando servidor...`)
+    publicationWorker.stop()
     server.close(() => {
       console.log('[server] Servidor cerrado correctamente')
       process.exit(0)
