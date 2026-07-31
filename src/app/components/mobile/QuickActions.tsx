@@ -6,10 +6,10 @@ export function QuickActions() {
   const { isEnglish } = useAppPreferences()
 
   const actions = [
-    { label: isEnglish ? 'Buy wine' : 'Comprar vino', to: '/control/app/tienda', icon: ShoppingBag },
-    { label: isEnglish ? 'Book experience' : 'Reservar experiencia', to: '/control/app/reservacion', icon: CalendarDays },
-    { label: isEnglish ? 'Events' : 'Eventos', to: '/control/app/eventos', icon: CalendarDays },
-    { label: 'Wine Club', to: '/control/app/club', icon: Grape },
+    { label: isEnglish ? 'Buy wine' : 'Comprar vino', to: '/app/tienda', icon: ShoppingBag },
+    { label: isEnglish ? 'Book experience' : 'Reservar experiencia', to: '/app/reservacion', icon: CalendarDays },
+    { label: isEnglish ? 'Events' : 'Eventos', to: '/app/eventos', icon: CalendarDays },
+    { label: 'Wine Club', to: '/app/club', icon: Grape },
   ]
 
   return (

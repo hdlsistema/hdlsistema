@@ -68,7 +68,7 @@ export function StoreScreen() {
       </section>
 
       <Link
-        to="/control/app/club"
+        to="/app/club"
         className="relative block overflow-hidden rounded-[1.35rem] bg-[linear-gradient(135deg,#5c0f23,#8e1f37)] p-5 text-white shadow-[0_18px_38px_rgba(93,15,35,0.2)]"
       >
         <div className="absolute -right-10 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full border border-white/10" />

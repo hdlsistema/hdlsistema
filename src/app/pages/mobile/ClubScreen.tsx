@@ -101,7 +101,7 @@ export function ClubScreen() {
             ? 'Early access for two people and a special selection of seasonal labels.'
             : 'Acceso anticipado para dos personas y selección especial de etiquetas de temporada.'}
         </p>
-        <Link to="/control/app/eventos" className="mt-4 inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-burgundy)]">
+        <Link to="/app/eventos" className="mt-4 inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-burgundy)]">
           {isEnglish ? 'View invitation' : 'Ver invitación'}
           <Sparkles size={14} />
         </Link>

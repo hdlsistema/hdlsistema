@@ -6,11 +6,11 @@ export function BottomTabs() {
   const { isEnglish } = useAppPreferences()
 
   const tabs = [
-    { to: '/control/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Home },
-    { to: '/control/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
-    { to: '/control/app/experiencias', label: isEnglish ? 'Experiences' : 'Experiencias', icon: Wine },
-    { to: '/control/app/club', label: 'Club', icon: Grape },
-    { to: '/control/app/perfil', label: isEnglish ? 'Account' : 'Mi cuenta', icon: UserRound },
+    { to: '/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Home },
+    { to: '/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
+    { to: '/app/experiencias', label: isEnglish ? 'Experiences' : 'Experiencias', icon: Wine },
+    { to: '/app/club', label: 'Club', icon: Grape },
+    { to: '/app/perfil', label: isEnglish ? 'Account' : 'Mi cuenta', icon: UserRound },
   ]
 
   return (

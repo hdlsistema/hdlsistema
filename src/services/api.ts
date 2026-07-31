@@ -1,0 +1,94 @@
+/**
+ * Servicio de comunicación con el backend en Railway.
+ * Lee VITE_API_BASE_URL del entorno Vite.
+ *
+ * SEGURIDAD: nunca incluir secretos (service role, OPENAI_API_KEY, etc.) aquí.
+ * Solo variables con prefijo VITE_ son expuestas al bundle del frontend.
+ */
+
+const RAW_BASE: string = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
+
+/** URL base del backend sin slash final. */
+export const API_BASE: string = RAW_BASE.replace(/\/+$/, '')
+
+const DEFAULT_TIMEOUT_MS = 10_000
+
+export interface ApiFetchError extends Error {
+  status?: number
+  body?: unknown
+}
+
+/**
+ * Wrapper sobre fetch que:
+ * - Construye la URL completa a partir de API_BASE
+ * - Aplica timeout configurable
+ * - Lanza un error tipado en respuestas HTTP no exitosas
+ * - No incluye ningún secreto en las cabeceras
+ */
+export async function apiFetch<T = unknown>(
+  path: string,
+  options: RequestInit & { timeoutMs?: number } = {},
+): Promise<T> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, ...fetchOptions } = options
+
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const url = `${API_BASE}${normalizedPath}`
+
+  const controller = new AbortController()
+  const tid = setTimeout(() => controller.abort(), timeoutMs)
+
+  let response: Response
+  try {
+    response = await fetch(url, { ...fetchOptions, signal: controller.signal })
+  } catch (err) {
+    clearTimeout(tid)
+    if (err instanceof Error && err.name === 'AbortError') {
+      const timeoutError: ApiFetchError = new Error(
+        `Request timeout after ${timeoutMs}ms`,
+      )
+      timeoutError.status = 408
+      throw timeoutError
+    }
+    throw err
+  } finally {
+    clearTimeout(tid)
+  }
+
+  if (!response.ok) {
+    let body: unknown = null
+    try {
+      body = await response.json()
+    } catch {
+      // Respuesta sin JSON válido — ok, body queda null
+    }
+    const error: ApiFetchError = new Error(
+      `HTTP ${response.status}: ${response.statusText}`,
+    )
+    error.status = response.status
+    error.body = body
+    throw error
+  }
+
+  return response.json() as Promise<T>
+}
+
+/**
+ * Comprueba que el frontend puede comunicarse con el backend en Railway.
+ * Útil para diagnóstico en el panel de control.
+ */
+export async function checkBackendStatus(): Promise<{
+  ok: boolean
+  reachable: boolean
+  error?: string
+}> {
+  try {
+    const data = await apiFetch<{ ok: boolean; frontendConnection: boolean }>(
+      '/api/public/status',
+      { timeoutMs: 5000 },
+    )
+    return { ok: data.ok, reachable: true }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error'
+    return { ok: false, reachable: false, error: message }
+  }
+}

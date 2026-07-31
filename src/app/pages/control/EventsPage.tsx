@@ -456,7 +456,7 @@ export function EventsPage() {
           </button>
 
           <Link
-            to="/control/app/eventos"
+            to="/app/eventos"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold shadow-[0_12px_25px_rgba(79,15,31,0.18)] transition hover:-translate-y-0.5"
             style={{
               color: '#ffffff',
@@ -607,7 +607,7 @@ export function EventsPage() {
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    to={`/control/app/eventos/${selectedEvent.id}`}
+                    to={`/app/eventos/${selectedEvent.id}`}
                     className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold"
                     style={{
                       color: '#681126',

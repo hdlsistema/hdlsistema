@@ -91,7 +91,7 @@ export function EventDetailScreen() {
           </div>
         </div>
         <div className="mt-5">
-          <PrimaryButton to="/control/app/carrito">{isEnglish ? 'Buy tickets' : 'Comprar boletos'}</PrimaryButton>
+          <PrimaryButton to="/app/carrito">{isEnglish ? 'Buy tickets' : 'Comprar boletos'}</PrimaryButton>
         </div>
       </section>
     </div>

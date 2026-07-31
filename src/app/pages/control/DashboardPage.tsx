@@ -620,7 +620,7 @@ export function DashboardPage() {
               </Link>
 
               <Link
-                to="/control/app/home"
+                to="/control/app"
                 className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full border border-white/20 bg-white/8 px-4 text-[11px] font-semibold text-white backdrop-blur transition hover:bg-white/13"
                 style={{
                   color: '#ffffff',

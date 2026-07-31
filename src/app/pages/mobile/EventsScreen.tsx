@@ -478,7 +478,7 @@ export function EventsScreen() {
       {featuredEvent ? (
         <section className="mt-6">
           <Link
-            to={`/control/app/eventos/${featuredEvent.id}`}
+            to={`/app/eventos/${featuredEvent.id}`}
             className="block overflow-hidden rounded-[1.75rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_24px_54px_rgba(64,28,19,0.14)]"
           >
             <div className="relative h-[330px] overflow-hidden bg-[#d8c6b3]">
@@ -571,7 +571,7 @@ export function EventsScreen() {
           return (
             <Link
               key={event.id}
-              to={`/control/app/eventos/${event.id}`}
+              to={`/app/eventos/${event.id}`}
               className="block overflow-hidden rounded-[1.6rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_18px_40px_rgba(64,28,19,0.1)]"
             >
               <div className="relative h-[245px] overflow-hidden bg-[#d8c6b3]">
@@ -654,7 +654,7 @@ export function EventsScreen() {
           {seasonalEvents.map((seasonalEvent) => (
             <Link
               key={seasonalEvent.id}
-              to="/control/app/reservacion"
+              to="/app/reservacion"
               state={{
                 eventTitle: seasonalEvent.title,
                 eventType: 'Evento de temporada',
@@ -732,7 +732,7 @@ export function EventsScreen() {
           </p>
 
           <Link
-            to="/control/app/reservacion"
+            to="/app/reservacion"
             state={{
               eventType: 'Evento privado',
               eventTitle: 'Solicitud de evento privado',

@@ -465,7 +465,7 @@ export function ExperiencesPage() {
           </button>
 
           <Link
-            to="/control/app/experiencias"
+            to="/app/experiencias"
             className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold shadow-[0_12px_25px_rgba(79,15,31,0.18)] transition hover:-translate-y-0.5"
             style={{
               color: '#ffffff',
@@ -616,7 +616,7 @@ export function ExperiencesPage() {
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <Link
-                    to="/control/app/experiencias"
+                    to="/app/experiencias"
                     className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold"
                     style={{
                       color: '#681126',

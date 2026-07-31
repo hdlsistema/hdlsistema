@@ -180,7 +180,7 @@ export function WineCard({
   wine,
   badge = 'Selección',
 }: WineCardProps) {
-  const detailPath = `/control/app/tienda/${wine.id}`
+  const detailPath = `/app/tienda/${wine.id}`
 
   return (
     <article className="flex min-w-0 flex-col overflow-hidden rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white p-3 shadow-[0_16px_32px_rgba(74,32,28,0.07)]">
@@ -233,7 +233,7 @@ export function WineCard({
           </span>
 
           <CompactAddButton
-            to="/control/app/carrito"
+            to="/app/carrito"
             ariaLabel={`Agregar ${wine.name} al carrito`}
           />
         </div>

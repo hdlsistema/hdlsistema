@@ -118,7 +118,7 @@ export function SommelierScreen() {
                 <p className="mt-1 text-[10px] text-[var(--color-muted)]">{featuredWine.kind}</p>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <span className="text-[13px] font-semibold text-[var(--color-burgundy)]">{featuredWine.price}</span>
-                  <Link to="/control/app/carrito" className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
+                  <Link to="/app/carrito" className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
                     <ShoppingBag size={12} />
                     {isEnglish ? 'Add' : 'Agregar'}
                   </Link>

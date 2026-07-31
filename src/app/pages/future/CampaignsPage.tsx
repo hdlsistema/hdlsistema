@@ -293,7 +293,7 @@ export function CampaignsPage() {
     startDate: '2026-07-01',
     endDate: '2026-07-15',
     capacity: '60',
-    link: '/control/app/reservacion',
+    link: '/app/reservacion',
   })
 
   const [message, setMessage] = useState({

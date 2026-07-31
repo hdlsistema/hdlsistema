@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { PhoneFrame } from '../../components/mobile/PhoneFrame'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 
@@ -13,12 +13,16 @@ export function AppPreviewPage() {
         />
         <div className="mx-auto max-w-[470px]">
           <PhoneFrame>
-            <Outlet />
+            <iframe
+              src="/app/home"
+              title="Hacienda de Letras App"
+              className="h-full w-full border-0"
+            />
           </PhoneFrame>
         </div>
       </div>
       <div className="md:hidden">
-        <Outlet />
+        <Navigate to="/app/home" replace />
       </div>
     </>
   )

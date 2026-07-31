@@ -18,7 +18,7 @@ export function ProductCard({ id, image, title, meta, price }: ProductCardProps)
       )}
       <div className="mt-3 flex flex-1 flex-col">
         {id ? (
-          <Link to={`/control/app/tienda/${id}`} className="block min-w-0 text-[11px] font-medium leading-[1.2] text-[var(--color-ink)]">
+          <Link to={`/app/tienda/${id}`} className="block min-w-0 text-[11px] font-medium leading-[1.2] text-[var(--color-ink)]">
             {title}
           </Link>
         ) : (

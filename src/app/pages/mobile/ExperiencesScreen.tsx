@@ -373,7 +373,7 @@ export function ExperiencesScreen() {
                 </div>
 
                 <Link
-                  to="/control/app/reservacion"
+                  to="/app/reservacion"
                   state={{
                     experienceId: experience.id,
                     experienceTitle: experience.title,
@@ -472,7 +472,7 @@ export function ExperiencesScreen() {
           </p>
 
           <Link
-            to="/control/app/sommelier"
+            to="/app/sommelier"
             className="mt-5 inline-flex items-center gap-2 text-[12px] font-bold"
             style={{
               color: '#e5c58f',

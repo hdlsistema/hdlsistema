@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useParams } from 'react-router-dom'
 import { MobileShell } from '../components/mobile/MobileShell'
 import { ControlLayout } from '../layout/ControlLayout'
 import { AppPreviewPage } from '../pages/control/AppPreviewPage'
@@ -30,11 +30,39 @@ import { LogisticsPage } from '../pages/future/LogisticsPage'
 import { ReportsPage } from '../pages/future/ReportsPage'
 import { CampaignsPage } from '../pages/future/CampaignsPage'
 
+function RedirectWineDetail() {
+  const { wineId } = useParams<{ wineId: string }>()
+  return <Navigate to={`/app/tienda/${wineId ?? ''}`} replace />
+}
+
+function RedirectEventDetail() {
+  const { eventId } = useParams<{ eventId: string }>()
+  return <Navigate to={`/app/eventos/${eventId ?? ''}`} replace />
+}
+
 export function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
 
+      {/* App móvil del huésped — independiente del Centro de Control */}
+      <Route path="/app" element={<MobileShell />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<HomeScreen />} />
+        <Route path="tienda" element={<StoreScreen />} />
+        <Route path="tienda/:wineId" element={<WineDetailScreen />} />
+        <Route path="experiencias" element={<ExperiencesScreen />} />
+        <Route path="eventos" element={<EventsScreen />} />
+        <Route path="eventos/:eventId" element={<EventDetailScreen />} />
+        <Route path="reservacion" element={<ReservationScreen />} />
+        <Route path="mapa" element={<MapScreen />} />
+        <Route path="club" element={<ClubScreen />} />
+        <Route path="sommelier" element={<SommelierScreen />} />
+        <Route path="carrito" element={<CartScreen />} />
+        <Route path="perfil" element={<ProfileScreen />} />
+      </Route>
+
+      {/* Centro de Control administrativo */}
       <Route path="/control" element={<ControlLayout />}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
@@ -46,25 +74,23 @@ export function AppRouter() {
         <Route path="disponibilidad" element={<AvailabilityPage />} />
         <Route path="reportes" element={<ReportsPage />} />
         <Route path="configuracion" element={<SettingsPage />} />
+        <Route path="app" element={<AppPreviewPage />} />
 
-        <Route path="app" element={<AppPreviewPage />}>
-          <Route element={<MobileShell />}>
-            <Route index element={<Navigate to="home" replace />} />
-            <Route path="home" element={<HomeScreen />} />
-            <Route path="tienda" element={<StoreScreen />} />
-            <Route path="tienda/:wineId" element={<WineDetailScreen />} />
-            <Route path="experiencias" element={<ExperiencesScreen />} />
-            <Route path="eventos" element={<EventsScreen />} />
-            <Route path="eventos/:eventId" element={<EventDetailScreen />} />
-            <Route path="reservacion" element={<ReservationScreen />} />
-            <Route path="mapa" element={<MapScreen />} />
-            <Route path="club" element={<ClubScreen />} />
-            <Route path="sommelier" element={<SommelierScreen />} />
-            <Route path="carrito" element={<CartScreen />} />
-            <Route path="perfil" element={<ProfileScreen />} />
-          </Route>
-        </Route>
+        {/* Redirecciones temporales: rutas antiguas /control/app/* → /app/* */}
+        <Route path="app/home" element={<Navigate to="/app/home" replace />} />
+        <Route path="app/tienda" element={<Navigate to="/app/tienda" replace />} />
+        <Route path="app/tienda/:wineId" element={<RedirectWineDetail />} />
+        <Route path="app/experiencias" element={<Navigate to="/app/experiencias" replace />} />
+        <Route path="app/eventos" element={<Navigate to="/app/eventos" replace />} />
+        <Route path="app/eventos/:eventId" element={<RedirectEventDetail />} />
+        <Route path="app/reservacion" element={<Navigate to="/app/reservacion" replace />} />
+        <Route path="app/mapa" element={<Navigate to="/app/mapa" replace />} />
+        <Route path="app/club" element={<Navigate to="/app/club" replace />} />
+        <Route path="app/sommelier" element={<Navigate to="/app/sommelier" replace />} />
+        <Route path="app/carrito" element={<Navigate to="/app/carrito" replace />} />
+        <Route path="app/perfil" element={<Navigate to="/app/perfil" replace />} />
 
+        {/* Módulos futuros */}
         <Route path="futuro/inventario" element={<InventoryPage />} />
         <Route
           path="futuro/vinedos"

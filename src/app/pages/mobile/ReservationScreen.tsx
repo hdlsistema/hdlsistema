@@ -144,7 +144,7 @@ export function ReservationScreen() {
         </div>
       </section>
 
-      <PrimaryButton to="/control/app/carrito">
+      <PrimaryButton to="/app/carrito">
         <CalendarDays size={16} />
         {isEnglish ? 'Continue with booking' : 'Continuar con la reserva'}
       </PrimaryButton>

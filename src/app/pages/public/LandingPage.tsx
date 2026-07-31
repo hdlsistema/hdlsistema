@@ -31,7 +31,7 @@ const experiences = [
       'Conoce nuestras etiquetas, camina entre viñedos y descubre el origen de cada botella.',
     image: '/turismo.jpeg',
     icon: Wine,
-    link: '/control/app/experiencias',
+    link: '/app/experiencias',
   },
   {
     title: 'Eventos inolvidables',
@@ -39,7 +39,7 @@ const experiences = [
       'Vendimias, celebraciones, encuentros empresariales y momentos diseñados a la medida.',
     image: '/boda 2.webp',
     icon: PartyPopper,
-    link: '/control/app/eventos',
+    link: '/app/eventos',
   },
   {
     title: 'Bodas entre viñedos',
@@ -47,7 +47,7 @@ const experiences = [
       'Espacios con historia, paisaje y carácter para celebrar uno de los días más importantes.',
     image: '/bodas.webp',
     icon: Gift,
-    link: '/control/app/eventos',
+    link: '/app/eventos',
   },
 ]
 
@@ -106,12 +106,12 @@ export function LandingPage() {
     }
 
     closeAuth()
-    navigate('/control/app/home')
+    navigate('/app/home')
   }
 
   const finishOnboarding = () => {
     setOnboardingStep(null)
-    navigate('/control/app/home')
+    navigate('/app/home')
   }
 
   return (
@@ -269,7 +269,7 @@ export function LandingPage() {
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
                 <Link
-                  to="/control/app/experiencias"
+                  to="/app/experiencias"
                   className="inline-flex min-h-[54px] items-center justify-center gap-3 rounded-full bg-[#8c1732] px-7 text-[14px] font-bold text-white shadow-[0_18px_40px_rgba(30,5,13,0.3)] transition hover:-translate-y-1 hover:bg-[#a51d3c]"
                 >
                   Reservar una experiencia
@@ -277,7 +277,7 @@ export function LandingPage() {
                 </Link>
 
                 <Link
-                  to="/control/app/tienda"
+                  to="/app/tienda"
                   className="inline-flex min-h-[54px] items-center justify-center gap-3 rounded-full border border-white/40 bg-white/8 px-7 text-[14px] font-semibold text-white backdrop-blur transition hover:-translate-y-1 hover:bg-white/16"
                 >
                   Descubrir nuestros vinos
@@ -344,7 +344,7 @@ export function LandingPage() {
                 </div>
 
                 <Link
-                  to="/control/app/home"
+                  to="/app/home"
                   className="mt-7 inline-flex items-center gap-2 text-[13px] font-bold text-[#dbc59d]"
                 >
                   Explorar la app
@@ -480,7 +480,7 @@ export function LandingPage() {
             </div>
 
             <Link
-              to="/control/app/home"
+              to="/app/home"
               className="mt-10 inline-flex items-center gap-3 rounded-full border border-[#681126] px-6 py-3.5 text-[13px] font-bold text-[#681126] transition hover:bg-[#681126] hover:text-white"
             >
               Conocer Hacienda de Letras
@@ -512,7 +512,7 @@ export function LandingPage() {
               </div>
 
               <Link
-                to="/control/app/experiencias"
+                to="/app/experiencias"
                 className="inline-flex items-center gap-2 text-[13px] font-bold text-[#dbc59d]"
               >
                 Ver todas las experiencias
@@ -606,7 +606,7 @@ export function LandingPage() {
 
             <div className="mt-10 flex flex-col gap-3 sm:flex-row">
               <Link
-                to="/control/app/tienda"
+                to="/app/tienda"
                 className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full bg-[#681126] px-7 text-[14px] font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#7d1730]"
                 style={{ color: '#ffffff' }}
               >
@@ -615,7 +615,7 @@ export function LandingPage() {
               </Link>
 
               <Link
-                to="/control/app/sommelier"
+                to="/app/sommelier"
                 className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full border border-[#681126] px-7 text-[14px] font-bold text-[#681126] transition hover:bg-[#681126] hover:text-white"
               >
                 Encontrar mi vino
@@ -700,7 +700,7 @@ export function LandingPage() {
               </div>
 
               <Link
-                to="/control/app/sommelier"
+                to="/app/sommelier"
                 className="mt-9 inline-flex min-h-[52px] w-fit items-center gap-3 rounded-full bg-[#dbc59d] px-7 text-[14px] font-bold text-[#3a0a16] transition hover:-translate-y-0.5 hover:bg-white"
               >
                 Hablar con el Sommelier
@@ -750,7 +750,7 @@ export function LandingPage() {
             </div>
 
             <Link
-              to="/control/app/club"
+              to="/app/club"
               className="mt-10 inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full bg-[#681126] px-7 text-[14px] font-bold text-white transition hover:-translate-y-0.5"
             >
               Conocer Wine Club
@@ -869,7 +869,7 @@ export function LandingPage() {
 
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  to="/control/app/home"
+                  to="/app/home"
                   className="inline-flex min-h-[52px] items-center justify-center gap-3 rounded-full bg-[#681126] px-7 text-[14px] font-bold text-white"
                   style={{ color: '#ffffff' }}
                 >
@@ -927,7 +927,7 @@ export function LandingPage() {
 
               <div className="mt-10 flex flex-col justify-center gap-4 sm:flex-row">
                 <Link
-                  to="/control/app/reservacion"
+                  to="/app/reservacion"
                   className="inline-flex min-h-[54px] items-center justify-center gap-3 rounded-full bg-[#b48a55] px-8 text-[14px] font-bold text-[#2f0913]"
                 >
                   Reservar ahora
@@ -935,7 +935,7 @@ export function LandingPage() {
                 </Link>
 
                 <Link
-                  to="/control/app/mapa"
+                  to="/app/mapa"
                   className="inline-flex min-h-[54px] items-center justify-center gap-3 rounded-full border border-white/35 bg-white/8 px-8 text-[14px] font-bold text-white backdrop-blur"
                 >
                   Cómo llegar
@@ -981,10 +981,10 @@ export function LandingPage() {
             </p>
 
             <div className="mt-5 flex flex-col gap-3 text-[13px] text-white/65">
-              <Link to="/control/app/reservacion">Reservaciones</Link>
-              <Link to="/control/app/eventos">Próximos eventos</Link>
-              <Link to="/control/app/mapa">Cómo llegar</Link>
-              <Link to="/control/app/sommelier">ALQIA Sommelier</Link>
+              <Link to="/app/reservacion">Reservaciones</Link>
+              <Link to="/app/eventos">Próximos eventos</Link>
+              <Link to="/app/mapa">Cómo llegar</Link>
+              <Link to="/app/sommelier">ALQIA Sommelier</Link>
             </div>
           </div>
 
@@ -1011,7 +1011,7 @@ export function LandingPage() {
               </button>
 
               <Link
-                to="/control/app/home"
+                to="/app/home"
                 className="text-[13px] text-white/65"
               >
                 Abrir la app

@@ -15,14 +15,12 @@ import {
   Wine,
   WineOff,
 } from 'lucide-react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet } from 'react-router-dom'
 import { ControlSidebar } from '../components/control/ControlSidebar'
 import { ControlTopbar } from '../components/control/ControlTopbar'
 import { useAppPreferences } from '../context/AppPreferencesContext'
 
 export function ControlLayout() {
-  const location = useLocation()
-  const isAppRoute = location.pathname.startsWith('/control/app')
   const { isEnglish } = useAppPreferences()
 
   const sidebarGroups = [
@@ -115,20 +113,10 @@ export function ControlLayout() {
 
   return (
     <div className="min-h-screen bg-[var(--color-page)] text-[var(--color-ink)]">
-      <div className={isAppRoute ? 'hidden md:block' : 'block'}>
-        <ControlTopbar />
-      </div>
-      <div
-        className={
-          isAppRoute
-            ? 'mx-auto md:grid md:max-w-[1500px] md:grid-cols-[292px_minmax(0,1fr)] md:gap-6 md:px-6 md:py-6 xl:px-8'
-            : 'mx-auto grid max-w-[1560px] gap-6 px-4 py-6 md:grid-cols-[270px_minmax(0,1fr)] xl:px-8'
-        }
-      >
-        <div className={isAppRoute ? 'hidden md:block' : 'block'}>
-          <ControlSidebar groups={sidebarGroups} />
-        </div>
-        <main className={`min-w-0 ${isAppRoute ? 'md:pt-0' : ''}`}>
+      <ControlTopbar />
+      <div className="mx-auto grid max-w-[1560px] gap-6 px-4 py-6 md:grid-cols-[270px_minmax(0,1fr)] xl:px-8">
+        <ControlSidebar groups={sidebarGroups} />
+        <main className="min-w-0">
           <Outlet />
         </main>
       </div>

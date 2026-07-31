@@ -57,7 +57,7 @@ export function WineDetailScreen() {
           </div>
 
           <div className="mt-5">
-            <PrimaryButton to="/control/app/carrito">{isEnglish ? 'Add to cart' : 'Agregar al carrito'}</PrimaryButton>
+            <PrimaryButton to="/app/carrito">{isEnglish ? 'Add to cart' : 'Agregar al carrito'}</PrimaryButton>
           </div>
         </div>
       </section>

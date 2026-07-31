@@ -8,15 +8,15 @@ export function AppHeader() {
   const [open, setOpen] = useState(false)
 
   const menuItems = [
-    { to: '/control/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Sparkles },
-    { to: '/control/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
-    { to: '/control/app/experiencias', label: isEnglish ? 'Experience booking' : 'Reservación de experiencias', icon: Wine },
-    { to: '/control/app/eventos', label: isEnglish ? 'Events and QR tickets' : 'Eventos y boletos QR', icon: Ticket },
-    { to: '/control/app/club', label: 'Wine Club', icon: Grape },
-    { to: '/control/app/sommelier', label: isEnglish ? 'AI Sommelier' : 'Sommelier con IA', icon: Sparkles },
-    { to: '/control/app/mapa', label: isEnglish ? '3D map with GPS' : 'Mapa 3D con GPS', icon: MapPinned },
-    { to: '/control/app/reservacion', label: isEnglish ? 'My bookings' : 'Mis reservaciones', icon: CalendarDays },
-    { to: '/control/app/perfil', label: isEnglish ? 'Profile' : 'Perfil', icon: UserRound },
+    { to: '/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Sparkles },
+    { to: '/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
+    { to: '/app/experiencias', label: isEnglish ? 'Experience booking' : 'Reservación de experiencias', icon: Wine },
+    { to: '/app/eventos', label: isEnglish ? 'Events and QR tickets' : 'Eventos y boletos QR', icon: Ticket },
+    { to: '/app/club', label: 'Wine Club', icon: Grape },
+    { to: '/app/sommelier', label: isEnglish ? 'AI Sommelier' : 'Sommelier con IA', icon: Sparkles },
+    { to: '/app/mapa', label: isEnglish ? '3D map with GPS' : 'Mapa 3D con GPS', icon: MapPinned },
+    { to: '/app/reservacion', label: isEnglish ? 'My bookings' : 'Mis reservaciones', icon: CalendarDays },
+    { to: '/app/perfil', label: isEnglish ? 'Profile' : 'Perfil', icon: UserRound },
   ]
 
   return (
@@ -57,7 +57,7 @@ export function AppHeader() {
               2
             </span>
           </button>
-          <Link to="/control/app/carrito" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-white outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
+          <Link to="/app/carrito" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-white outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
             <ShoppingBag size={22} strokeWidth={1.8} />
           </Link>
         </div>

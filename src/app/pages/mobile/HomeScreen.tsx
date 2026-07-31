@@ -11,25 +11,25 @@ export function HomeScreen() {
     {
       label: isEnglish ? 'Buy wine' : 'Comprar vino',
       detail: isEnglish ? 'Explore the cellar' : 'Explora la cava',
-      to: '/control/app/tienda',
+      to: '/app/tienda',
       icon: Wine,
     },
     {
       label: isEnglish ? 'Book' : 'Reservar',
       detail: isEnglish ? 'Tastings & tours' : 'Catas y recorridos',
-      to: '/control/app/reservacion',
+      to: '/app/reservacion',
       icon: CalendarDays,
     },
     {
       label: isEnglish ? 'Events' : 'Eventos',
       detail: isEnglish ? 'Tickets & agenda' : 'Boletos y agenda',
-      to: '/control/app/eventos',
+      to: '/app/eventos',
       icon: Ticket,
     },
     {
       label: 'Wine Club',
       detail: isEnglish ? 'Exclusive benefits' : 'Beneficios exclusivos',
-      to: '/control/app/club',
+      to: '/app/club',
       icon: Grape,
     },
   ]
@@ -47,7 +47,7 @@ export function HomeScreen() {
             {isEnglish ? 'Tradition, landscape and experiences made to be enjoyed at your own pace.' : 'Tradición, paisaje y experiencias creadas para disfrutarse sin prisa.'}
           </p>
           <Link
-            to="/control/app/experiencias"
+            to="/app/experiencias"
             className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 py-2.5 text-[12px] font-semibold text-white shadow-lg"
           >
             {isEnglish ? 'Discover the experience' : 'Descubre la experiencia'}
@@ -80,7 +80,7 @@ export function HomeScreen() {
           eyebrow={isEnglish ? 'The cellar' : 'La cava'}
           title={isEnglish ? 'Featured wines' : 'Vinos destacados'}
           action={
-            <Link to="/control/app/tienda" className="text-[12px] font-semibold text-[var(--color-gold)]">
+            <Link to="/app/tienda" className="text-[12px] font-semibold text-[var(--color-gold)]">
               {isEnglish ? 'View all' : 'Ver todos'}
             </Link>
           }
@@ -93,7 +93,7 @@ export function HomeScreen() {
       </section>
 
       <Link
-        to="/control/app/sommelier"
+        to="/app/sommelier"
         className="relative block overflow-hidden rounded-[1.4rem] bg-[linear-gradient(135deg,#5c0f23,#8e1f37)] p-5 text-white shadow-[0_18px_40px_rgba(93,15,35,0.22)]"
       >
         <div className="absolute -right-8 -top-8 h-28 w-28 rounded-full border border-white/10" />
@@ -118,7 +118,7 @@ export function HomeScreen() {
       </Link>
 
       <Link
-        to="/control/app/mapa"
+        to="/app/mapa"
         className="grid min-h-[150px] grid-cols-[0.9fr_1.1fr] overflow-hidden rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_16px_34px_rgba(74,32,28,0.07)]"
       >
         <div className="relative overflow-hidden bg-[#efe3d2]">
