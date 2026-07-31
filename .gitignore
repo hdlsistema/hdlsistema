@@ -18,6 +18,7 @@ dist-ssr
 # Backend
 backend/node_modules
 backend/dist
+backend/supabase/.temp
 backend/.env
 backend/.env.local
 backend/.env.*.local
