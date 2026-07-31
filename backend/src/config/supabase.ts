@@ -29,21 +29,21 @@ export const supabaseAdminClient = createClient(
 )
 
 /**
- * Verifica conectividad real con Supabase mediante una petición HTTP.
- * No depende de tablas específicas — válido antes de correr migraciones.
- * Respuesta < 500 indica que el servicio está en pie.
+ * Verifica conectividad real con Supabase mediante una consulta al
+ * cliente administrativo. Usa la tabla system_health creada en la migración.
+ * Cualquier respuesta válida (datos o array vacío) indica que Supabase
+ * está activo y responde correctamente.
  */
 export async function checkSupabaseReachable(): Promise<boolean> {
   try {
-    const controller = new AbortController()
-    const tid = setTimeout(() => controller.abort(), 4000)
-    const res = await fetch(`${env.SUPABASE_URL}/rest/v1/`, {
-      method: 'HEAD',
-      headers: { apikey: env.SUPABASE_ANON_KEY },
-      signal: controller.signal,
-    })
-    clearTimeout(tid)
-    return res.status < 500
+    const { error } = await supabaseAdminClient
+      .from('system_health')
+      .select('id')
+      .limit(1)
+    // error de tipo PGRST (PostgREST) = Supabase responde — sigue siendo reachable
+    // error de tipo de red = Supabase no responde — not reachable
+    if (error && error.code?.startsWith('PGRST')) return true
+    return !error
   } catch {
     return false
   }
