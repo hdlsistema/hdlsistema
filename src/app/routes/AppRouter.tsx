@@ -1,4 +1,7 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { adminRoles } from '../../contexts/AuthContext'
+import { ProtectedRoute } from '../../routes/ProtectedRoute'
+import { RoleRoute } from '../../routes/RoleRoute'
 import { MobileShell } from '../components/mobile/MobileShell'
 import { ControlLayout } from '../layout/ControlLayout'
 import { AppPreviewPage } from '../pages/control/AppPreviewPage'
@@ -11,6 +14,12 @@ import { PromotionsPage } from '../pages/control/PromotionsPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
 import { LandingPage } from '../pages/public/LandingPage'
+import {
+  LoginPage,
+  RecoverPage,
+  RegisterPage,
+  ResetPasswordPage,
+} from '../pages/public/AuthPages'
 import { EventsScreen } from '../pages/mobile/EventsScreen'
 import { ExperiencesScreen } from '../pages/mobile/ExperiencesScreen'
 import { HomeScreen } from '../pages/mobile/HomeScreen'
@@ -44,6 +53,10 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/registro" element={<RegisterPage />} />
+      <Route path="/recuperar" element={<RecoverPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* App móvil del huésped — independiente del Centro de Control */}
       <Route path="/app" element={<MobileShell />}>
@@ -54,16 +67,51 @@ export function AppRouter() {
         <Route path="experiencias" element={<ExperiencesScreen />} />
         <Route path="eventos" element={<EventsScreen />} />
         <Route path="eventos/:eventId" element={<EventDetailScreen />} />
-        <Route path="reservacion" element={<ReservationScreen />} />
+        <Route
+          path="reservacion"
+          element={
+            <ProtectedRoute>
+              <ReservationScreen />
+            </ProtectedRoute>
+          }
+        />
         <Route path="mapa" element={<MapScreen />} />
-        <Route path="club" element={<ClubScreen />} />
+        <Route
+          path="club"
+          element={
+            <ProtectedRoute>
+              <ClubScreen />
+            </ProtectedRoute>
+          }
+        />
         <Route path="sommelier" element={<SommelierScreen />} />
-        <Route path="carrito" element={<CartScreen />} />
-        <Route path="perfil" element={<ProfileScreen />} />
+        <Route
+          path="carrito"
+          element={
+            <ProtectedRoute>
+              <CartScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="perfil"
+          element={
+            <ProtectedRoute>
+              <ProfileScreen />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       {/* Centro de Control administrativo */}
-      <Route path="/control" element={<ControlLayout />}>
+      <Route
+        path="/control"
+        element={
+          <RoleRoute allowedRoles={adminRoles}>
+            <ControlLayout />
+          </RoleRoute>
+        }
+      >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reservaciones" element={<ReservationsPage />} />

@@ -22,6 +22,12 @@ import {
   Wine,
   X,
 } from 'lucide-react'
+import { useAuth } from '../../../contexts/AuthContext'
+import {
+  resendVerification,
+  signUpCustomer,
+  type AuthServiceError,
+} from '../../../services/auth.service'
 type AuthMode = 'login' | 'register' | null
 
 const experiences = [
@@ -85,28 +91,77 @@ const onboardingScreens = [
 
 export function LandingPage() {
   const navigate = useNavigate()
+  const { signIn } = useAuth()
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState<number | null>(null)
+  const [authError, setAuthError] = useState('')
+  const [authNotice, setAuthNotice] = useState('')
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState('')
 
   const closeAuth = () => {
     setAuthMode(null)
     setShowPassword(false)
+    setAuthError('')
+    setAuthNotice('')
+    setVerificationEmail('')
   }
 
-  const handleAuthSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (isSubmittingAuth) return
 
-    if (authMode === 'register') {
+    const form = new FormData(event.currentTarget)
+    const email = String(form.get('email') ?? '').trim().toLowerCase()
+    const password = String(form.get('password') ?? '')
+    setAuthError('')
+    setAuthNotice('')
+    setIsSubmittingAuth(true)
+
+    try {
+      if (authMode === 'register') {
+        const fullName = String(form.get('fullName') ?? '').trim()
+        const [firstName, ...lastNameParts] = fullName.split(/\s+/)
+        const confirmPassword = String(form.get('confirmPassword') ?? '')
+
+        if (password.length < 8) {
+          setAuthError('La contraseña debe tener al menos 8 caracteres.')
+          return
+        }
+
+        if (password !== confirmPassword) {
+          setAuthError('Las contraseñas no coinciden.')
+          return
+        }
+
+        await signUpCustomer({
+          email,
+          password,
+          firstName: firstName || 'Cliente',
+          lastName: lastNameParts.join(' ') || 'Hacienda',
+          phone: String(form.get('phone') ?? ''),
+        })
+
+        setVerificationEmail(email)
+        setAuthNotice('Cuenta creada. Revisa tu correo para verificarla antes de iniciar sesión.')
+        return
+      }
+
+      const nextRoles = await signIn(email, password)
       closeAuth()
-      setOnboardingStep(0)
-      return
+      navigate(nextRoles.some((role) => role !== 'customer') ? '/control/dashboard' : '/app/home')
+    } catch (error) {
+      const message =
+        error && typeof error === 'object' && 'message' in error
+          ? String((error as AuthServiceError).message)
+          : 'No fue posible completar la operación.'
+      setAuthError(message)
+    } finally {
+      setIsSubmittingAuth(false)
     }
-
-    closeAuth()
-    navigate('/app/home')
   }
 
   const finishOnboarding = () => {
@@ -1093,6 +1148,7 @@ export function LandingPage() {
 
                       <input
                         required
+                        name="fullName"
                         type="text"
                         placeholder="Escribe tu nombre"
                         className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
@@ -1110,6 +1166,7 @@ export function LandingPage() {
 
                       <input
                         required
+                        name="phone"
                         type="tel"
                         placeholder="Tu número de contacto"
                         className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
@@ -1129,6 +1186,7 @@ export function LandingPage() {
 
                   <input
                     required
+                    name="email"
                     type="email"
                     placeholder="nombre@correo.com"
                     className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
@@ -1146,6 +1204,7 @@ export function LandingPage() {
 
                   <input
                     required
+                    name="password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="Escribe tu contraseña"
                     className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
@@ -1165,9 +1224,29 @@ export function LandingPage() {
               </label>
 
               {authMode === 'register' ? (
+                <>
+                  <label className="block">
+                    <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
+                      Confirmar contraseña
+                    </span>
+
+                    <div className="flex items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
+                      <LockKeyhole size={17} className="text-[#8a6c59]" />
+
+                      <input
+                        required
+                        name="confirmPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Confirma tu contraseña"
+                        className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+                      />
+                    </div>
+                  </label>
+
                 <label className="flex items-start gap-3 text-[11px] leading-5 text-[#6f5a4d]">
                   <input
                     required
+                    name="terms"
                     type="checkbox"
                     className="mt-1 accent-[#681126]"
                   />
@@ -1177,20 +1256,46 @@ export function LandingPage() {
                     términos, condiciones y aviso de privacidad.
                   </span>
                 </label>
+                </>
               ) : (
-                <button
-                  type="button"
+                <Link
+                  to="/recuperar"
+                  onClick={closeAuth}
                   className="text-[12px] font-semibold text-[#681126]"
                 >
                   ¿Olvidaste tu contraseña?
-                </button>
+                </Link>
               )}
+
+              {authError ? (
+                <p className="rounded-[0.8rem] bg-[#fff1f2] px-3 py-2 text-[12px] text-[#9f1239]">
+                  {authError}
+                </p>
+              ) : null}
+
+              {authNotice ? (
+                <div className="rounded-[0.8rem] bg-[#f7efe4] px-3 py-2 text-[12px] text-[#5f463a]">
+                  <p>{authNotice}</p>
+                  {verificationEmail ? (
+                    <button
+                      type="button"
+                      onClick={() => resendVerification(verificationEmail)}
+                      className="mt-2 font-bold text-[#681126]"
+                    >
+                      Reenviar verificación
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
 
               <button
                 type="submit"
-                className="inline-flex min-h-[53px] w-full items-center justify-center gap-3 rounded-full bg-[#681126] px-6 text-[14px] font-bold text-white shadow-[0_14px_30px_rgba(104,17,38,0.2)]"
+                disabled={isSubmittingAuth}
+                className="inline-flex min-h-[53px] w-full items-center justify-center gap-3 rounded-full bg-[#681126] px-6 text-[14px] font-bold text-white shadow-[0_14px_30px_rgba(104,17,38,0.2)] disabled:opacity-60"
               >
-                {authMode === 'register'
+                {isSubmittingAuth
+                  ? 'Procesando...'
+                  : authMode === 'register'
                   ? 'Crear mi cuenta'
                   : 'Iniciar sesión'}
                 <ArrowRight size={17} />

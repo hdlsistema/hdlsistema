@@ -11,10 +11,25 @@ import { resolve } from 'path'
 const supabaseMock = vi.hoisted(() => ({
   error: null as unknown,
   throwError: null as unknown,
+  authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null } | null,
 }))
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
+    auth: {
+      getUser: vi.fn(async () => {
+        if (!supabaseMock.authUser) {
+          return { data: { user: null }, error: new Error('invalid token') }
+        }
+        return { data: { user: supabaseMock.authUser }, error: null }
+      }),
+      admin: {
+        listUsers: vi.fn(async () => ({ data: { users: [] }, error: null })),
+        getUserById: vi.fn(async () => ({ data: { user: null }, error: new Error('not found') })),
+        createUser: vi.fn(async () => ({ data: { user: null }, error: new Error('blocked') })),
+        updateUserById: vi.fn(async () => ({ data: { user: null }, error: null })),
+      },
+    },
     from: vi.fn(() => ({
       select: vi.fn(() => ({
         limit: vi.fn(() => ({
@@ -36,6 +51,7 @@ const originalSupabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
 beforeEach(() => {
   supabaseMock.error = null
   supabaseMock.throwError = null
+  supabaseMock.authUser = null
   ;(env as Record<string, string>).SUPABASE_URL = originalSupabaseUrl
   ;(env as Record<string, string>).SUPABASE_ANON_KEY = originalSupabaseAnonKey
   ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY =
@@ -129,6 +145,42 @@ describe('checkSupabaseReachable', () => {
       healthy: false,
       status: 'network_error',
     })
+  })
+})
+
+describe('Fase 3 auth API', () => {
+  it('/api/auth/me rechaza solicitudes sin bearer token', async () => {
+    const res = await request(app).get('/api/auth/me')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('/api/auth/me devuelve usuario seguro con bearer token valido', async () => {
+    supabaseMock.authUser = {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: 'cliente.prueba@alqia.tech',
+      created_at: '2026-07-31T00:00:00.000Z',
+      email_confirmed_at: '2026-07-31T00:00:00.000Z',
+    }
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer valid-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body).toMatchObject({
+      id: '00000000-0000-0000-0000-000000000001',
+      email: 'cliente.prueba@alqia.tech',
+      emailVerified: true,
+    })
+    expect(JSON.stringify(res.body)).not.toContain('valid-token')
+    expect(JSON.stringify(res.body)).not.toContain('refresh')
+  })
+
+  it('/api/admin/users requiere autenticacion', async () => {
+    const res = await request(app).get('/api/admin/users')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
   })
 })
 

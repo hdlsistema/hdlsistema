@@ -2,6 +2,8 @@ import { Router } from 'express'
 import { healthRouter } from '../modules/health/health.routes'
 import { versionRouter } from '../modules/version/version.routes'
 import { publicRouter } from '../modules/public/status.routes'
+import { authRouter } from '../modules/auth/auth.routes'
+import { adminUsersRouter } from '../modules/admin/users.routes'
 
 /**
  * Registro central de rutas API.
@@ -13,9 +15,10 @@ const router = Router()
 router.use('/health', healthRouter)
 router.use('/version', versionRouter)
 router.use('/public', publicRouter)
+router.use('/auth', authRouter)
+router.use('/admin', adminUsersRouter)
 
 // Próximas rutas — descomenta cuando estén listos los módulos:
-// router.use('/auth',          authRouter)
 // router.use('/reservaciones', reservacionesRouter)
 // router.use('/experiencias',  experienciasRouter)
 // router.use('/eventos',       eventosRouter)
