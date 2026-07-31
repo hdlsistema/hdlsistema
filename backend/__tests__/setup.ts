@@ -7,4 +7,12 @@
 import { config } from 'dotenv'
 import { resolve } from 'path'
 
-config({ path: resolve(__dirname, '../.env') })
+const requiredEnvKeys = [
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY',
+]
+
+if (!requiredEnvKeys.every((key) => Boolean(process.env[key]))) {
+  config({ path: resolve(__dirname, '../.env') })
+}

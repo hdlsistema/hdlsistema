@@ -1,13 +1,46 @@
-import { describe, it, expect, beforeAll } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import request from 'supertest'
 import express from 'express'
 import { createApp } from '../src/app'
+import { env } from '../src/config/env'
+import { checkSupabaseReachable } from '../src/config/supabase'
 import { errorHandler, type AppError } from '../src/middleware/errorHandler'
 import { execSync } from 'child_process'
-import { existsSync } from 'fs'
 import { resolve } from 'path'
 
+const supabaseMock = vi.hoisted(() => ({
+  error: null as unknown,
+  throwError: null as unknown,
+}))
+
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        limit: vi.fn(() => ({
+          abortSignal: vi.fn(async () => {
+            if (supabaseMock.throwError) throw supabaseMock.throwError
+            return { data: [], error: supabaseMock.error }
+          }),
+        })),
+      })),
+    })),
+  })),
+}))
+
 const app = createApp()
+const originalSupabaseUrl = env.SUPABASE_URL
+const originalSupabaseAnonKey = env.SUPABASE_ANON_KEY
+const originalSupabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+
+beforeEach(() => {
+  supabaseMock.error = null
+  supabaseMock.throwError = null
+  ;(env as Record<string, string>).SUPABASE_URL = originalSupabaseUrl
+  ;(env as Record<string, string>).SUPABASE_ANON_KEY = originalSupabaseAnonKey
+  ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY =
+    originalSupabaseServiceRoleKey
+})
 
 // ─── 1. GET /api/health devuelve 200 ────────────────────────────────────────
 describe('GET /api/health', () => {
@@ -19,6 +52,83 @@ describe('GET /api/health', () => {
     expect(typeof res.body.timestamp).toBe('string')
     expect(typeof res.body.supabase?.configured).toBe('boolean')
     expect(typeof res.body.supabase?.reachable).toBe('boolean')
+    expect(typeof res.body.supabase?.healthy).toBe('boolean')
+    expect(typeof res.body.supabase?.status).toBe('string')
+  })
+
+  it('reporta Supabase ok cuando la consulta tecnica no devuelve error', async () => {
+    const res = await request(app).get('/api/health')
+    expect(res.body.supabase).toMatchObject({
+      configured: true,
+      reachable: true,
+      healthy: true,
+      status: 'ok',
+    })
+  })
+
+  it('reporta configuracion faltante sin llamar la consulta tecnica', async () => {
+    try {
+      ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY = ''
+
+      const res = await request(app).get('/api/health')
+
+      expect(res.body.supabase).toMatchObject({
+        configured: false,
+        reachable: false,
+        healthy: false,
+        status: 'missing_configuration',
+      })
+    } finally {
+      ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY =
+        originalSupabaseServiceRoleKey
+    }
+  })
+})
+
+describe('checkSupabaseReachable', () => {
+  it('clasifica 42P01 como tabla faltante, no healthy', async () => {
+    supabaseMock.error = { code: '42P01' }
+    await expect(checkSupabaseReachable()).resolves.toEqual({
+      reachable: true,
+      healthy: false,
+      status: 'table_missing',
+    })
+  })
+
+  it('clasifica 42501 como permiso denegado, no healthy', async () => {
+    supabaseMock.error = { code: '42501' }
+    await expect(checkSupabaseReachable()).resolves.toEqual({
+      reachable: true,
+      healthy: false,
+      status: 'permission_denied',
+    })
+  })
+
+  it('clasifica error de autenticacion', async () => {
+    supabaseMock.error = { status: 401, message: 'Invalid JWT' }
+    await expect(checkSupabaseReachable()).resolves.toEqual({
+      reachable: true,
+      healthy: false,
+      status: 'authentication_failed',
+    })
+  })
+
+  it('clasifica timeout', async () => {
+    supabaseMock.throwError = new Error('request timeout')
+    await expect(checkSupabaseReachable()).resolves.toEqual({
+      reachable: false,
+      healthy: false,
+      status: 'timeout',
+    })
+  })
+
+  it('clasifica error de red', async () => {
+    supabaseMock.throwError = new TypeError('fetch failed')
+    await expect(checkSupabaseReachable()).resolves.toEqual({
+      reachable: false,
+      healthy: false,
+      status: 'network_error',
+    })
   })
 })
 
