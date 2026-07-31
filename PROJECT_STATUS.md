@@ -57,7 +57,7 @@ Estado: implementada a nivel base de datos.
 
 ## Fase 3
 
-Estado: implementada y validada localmente; aprobacion productiva bloqueada por validacion JWT en Railway.
+Estado: aprobada en produccion.
 
 ### Autenticacion
 
@@ -91,12 +91,18 @@ Estado: implementada y validada localmente; aprobacion productiva bloqueada por 
 - Backend local compilado con token real admin: `/api/auth/me`, `/api/auth/roles`, `/api/auth/profile`, `/api/admin/users` responden 200.
 - Customer real bloqueado en endpoint admin con 403.
 - Supabase Auth configurado con Site URL productiva, redirect URLs local/productiva, email/password, recovery, refresh token rotation y secure password change.
+- Railway produccion corregido: `SUPABASE_ANON_KEY` alineada con el mismo proyecto que `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
+- Backend productivo validado: admin real responde 200 en endpoints auth/admin; customer responde 403 en `/api/admin/users`.
+- Netlify corregido: el dominio productivo usaba un deploy manual anterior sin `build_id` ni `commit_ref`; quedo publicado el deploy GitHub desde `main`.
+- Netlify produccion validado: sitio `haciendadeletras`, repo `hdlsistema/hdlsistema`, rama `main`, commit `5724395d0be1acbca12fc03eb4b05ac9543c7e83`.
+- Rutas auth productivas validadas: `/login`, `/registro`, `/recuperar`, `/reset-password`, `/app/home`, `/app/perfil` y `/control/dashboard`.
+- Customer queda bloqueado visualmente en `/control/dashboard`; super_admin accede al Centro de Control.
+- Recargas directas SPA validadas con 200 y sin redirects HTTP inesperados.
 
 ### Riesgos Pendientes Fase 3
 
-- Railway produccion rechaza con 401 tokens JWT que Supabase y backend local validan correctamente; probable desalineacion de `SUPABASE_ANON_KEY` productiva o variables Auth en Railway.
-- No se agrego E2E con navegador porque el repo no tiene Playwright/Cypress configurado.
+- No hay E2E con navegador configurado en el repo; la validacion productiva se hizo con navegador headless y sesiones reales saneadas.
 
 ## Siguiente Fase
 
-Corregir variables Auth de Railway y repetir validacion productiva admin antes de iniciar Fase 4.
+Centro de Control como sistema de autogestion.

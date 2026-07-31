@@ -164,10 +164,14 @@ No crear:
 - Frontend: signup sin payload administrativo, reset password con redirect seguro, API wrapper.
 - Prueba real: cliente controlado `cliente.prueba@alqia.tech` con contraseña temporal en memoria.
 - Prueba admin: `pgaribay@alqia.tech` creado/encontrado en Supabase Auth, `super_admin` asignado con `assign-super-admin.mjs`, profile/customer/roles/audit validados.
-- Backend local compilado valida token real admin y permite endpoints auth/admin.
-- Produccion Railway responde 401 con token real admin; revisar `SUPABASE_ANON_KEY`/variables Auth productivas en Railway.
+- Backend productivo valida tokens reales nuevos.
+- Admin productivo: `/api/auth/me`, `/api/auth/roles`, `/api/auth/profile` y `/api/admin/users` responden 200.
+- Customer productivo: `/api/auth/me`, `/api/auth/roles` y `/api/auth/profile` responden 200; `/api/admin/users` responde 403.
+- Frontend productivo: `/login`, `/registro`, `/recuperar`, `/reset-password`, `/app/home`, `/app/perfil` y `/control/dashboard` validados.
+- Customer queda bloqueado en `/control/dashboard`; `super_admin` entra al Centro de Control.
+- El despliegue Netlify valido viene de GitHub `main` en el commit `5724395d0be1acbca12fc03eb4b05ac9543c7e83`.
 
 ## Riesgos
 
-- Validacion productiva admin bloqueada hasta alinear variables Auth en Railway.
-- No hay E2E con navegador configurado en este repo.
+- No hay E2E con navegador configurado en este repo; la validacion productiva se hizo con navegador headless, sesiones reales nuevas y salida saneada.
+- No registrar ni documentar contrasenas, JWT, service role, anon key, headers ni valores de variables.
