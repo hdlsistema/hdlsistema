@@ -9,8 +9,15 @@ import {
   Users,
   Wine,
 } from 'lucide-react'
-import { experiences } from '../../data/experiences'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import {
+  contentRouteId,
+  formatCurrency,
+  imageField,
+  numberField,
+  textField,
+} from '../../utils/publicContent'
 
 type Category =
   | 'Todas'
@@ -147,6 +154,7 @@ function getBadge(title: string, index: number, isEnglish: boolean) {
 
 export function ExperiencesScreen() {
   const { isEnglish } = useAppPreferences()
+  const { records: experiences, loading, error } = usePublicContent('experiences')
   const [activeCategory, setActiveCategory] =
     useState<Category>(isEnglish ? 'All' : 'Todas')
 
@@ -159,9 +167,9 @@ export function ExperiencesScreen() {
 
     return experiences.filter(
       (experience) =>
-        getCategory(experience.title) === activeCategory ||
+        getCategory(textField(experience, 'title')) === activeCategory ||
         (isEnglish && (() => {
-          const esCategory = getCategory(experience.title)
+          const esCategory = getCategory(textField(experience, 'title'))
           const enMap: Record<Category, Category> = {
             'Catas': 'Tastings',
             'Recorridos': 'Tours',
@@ -177,7 +185,7 @@ export function ExperiencesScreen() {
           return enMap[esCategory] === activeCategory
         })()),
     )
-  }, [activeCategory, isEnglish])
+  }, [activeCategory, experiences, isEnglish])
 
   return (
     <div className="pb-8">
@@ -276,9 +284,23 @@ export function ExperiencesScreen() {
         </div>
       </section>
 
-      <section className="mt-5 space-y-6">
+      {loading ? (
+        <section className="mt-5 rounded-[1.5rem] border border-[#dfcdb8] bg-[#fffaf3] p-7 text-center text-[12px] text-[#7f6a59]">
+          {isEnglish ? 'Loading published experiences...' : 'Cargando experiencias publicadas...'}
+        </section>
+      ) : error ? (
+        <section className="mt-5 rounded-[1.5rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-7 text-center text-[12px] text-[var(--color-alert)]">
+          {error}
+        </section>
+      ) : (
+        <section className="mt-5 space-y-6">
         {filteredExperiences.map((experience, index) => {
-          const image = experience.image
+          const title = textField(experience, 'title', isEnglish ? 'Experience' : 'Experiencia')
+          const image = imageField(experience, '/turismo.jpeg')
+          const price = formatCurrency(numberField(experience, 'base_price'))
+          const summary = textField(experience, 'short_description') || textField(experience, 'description')
+          const durationMinutes = numberField(experience, 'duration_minutes')
+          const capacity = numberField(experience, 'capacity')
 
           return (
             <article
@@ -288,7 +310,7 @@ export function ExperiencesScreen() {
               <div className="relative h-[255px] overflow-hidden bg-[#eadfce]">
                 <img
                   src={image}
-                  alt={experience.title}
+                  alt={title}
                   className="h-full w-full object-cover"
                   onError={(event) => {
                     event.currentTarget.src = '/turismo.jpeg'
@@ -298,7 +320,7 @@ export function ExperiencesScreen() {
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.04)_0%,rgba(35,5,13,0.16)_42%,rgba(35,5,13,0.95)_100%)]" />
 
                 <span className="absolute left-4 top-4 rounded-full border border-white/35 bg-white/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-[#681126] shadow-sm">
-                  {getBadge(experience.title, index, isEnglish)}
+                  {getBadge(title, index, isEnglish)}
                 </span>
 
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
@@ -314,12 +336,12 @@ export function ExperiencesScreen() {
                         'var(--font-display)',
                     }}
                   >
-                    {experience.title}
+                    {title}
                   </h3>
 
                   <div className="mt-4 flex items-end justify-between gap-3">
                     <span className="text-[18px] font-bold text-white">
-                      {experience.price}
+                      {price}
                     </span>
 
                     <span className="max-w-[130px] text-right text-[9px] font-semibold leading-4 text-white/68">
@@ -339,7 +361,7 @@ export function ExperiencesScreen() {
                     overflow: 'hidden',
                   }}
                 >
-                  {experience.summary}
+                  {summary}
                 </p>
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
@@ -353,7 +375,9 @@ export function ExperiencesScreen() {
                     </div>
 
                     <p className="mt-2 text-[11px] font-semibold text-[#4e3930]">
-                      {getDuration(experience.title, isEnglish)}
+                      {durationMinutes > 0
+                        ? `${durationMinutes} ${isEnglish ? 'minutes' : 'minutos'}`
+                        : getDuration(title, isEnglish)}
                     </p>
                   </div>
 
@@ -367,7 +391,9 @@ export function ExperiencesScreen() {
                     </div>
 
                     <p className="mt-2 text-[11px] font-semibold text-[#4e3930]">
-                      {getCapacity(experience.title, isEnglish)}
+                      {capacity > 0
+                        ? `${capacity} ${isEnglish ? 'people' : 'personas'}`
+                        : getCapacity(title, isEnglish)}
                     </p>
                   </div>
                 </div>
@@ -375,8 +401,8 @@ export function ExperiencesScreen() {
                 <Link
                   to="/app/reservacion"
                   state={{
-                    experienceId: experience.id,
-                    experienceTitle: experience.title,
+                    experienceId: contentRouteId(experience),
+                    experienceTitle: title,
                   }}
                   className="mt-5 flex min-h-[52px] w-full items-center justify-between rounded-full bg-[#681126] px-5 shadow-[0_13px_26px_rgba(104,17,38,0.2)] transition hover:-translate-y-0.5"
                   style={{
@@ -417,8 +443,9 @@ export function ExperiencesScreen() {
           )
         })}
       </section>
+      )}
 
-      {filteredExperiences.length === 0 ? (
+      {!loading && !error && filteredExperiences.length === 0 ? (
         <section className="mt-6 rounded-[1.5rem] border border-[#dfcdb8] bg-[#fffaf3] p-7 text-center">
           <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#681126] text-[#e5c58f]">
             <Wine size={20} />

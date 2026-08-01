@@ -1,8 +1,20 @@
 import { useMemo, useState } from 'react'
-import { Check, CreditCard, Minus, Plus, ShieldCheck, Trash2 } from 'lucide-react'
+import { Minus, Plus, Trash2 } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
-import { wines } from '../../data/wines'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+
+type CartWine = {
+  id: string | number
+  name: string
+  kind: string
+  price: string
+  image: string
+}
+
+type CartItem = {
+  wine: CartWine
+  quantity: number
+}
 
 function parsePrice(value: string) {
   return Number(value.replace(/[^0-9.]/g, '')) || 0
@@ -14,9 +26,7 @@ function formatCurrency(value: number) {
 
 export function CartScreen() {
   const { isEnglish } = useAppPreferences()
-  const initialItems = wines.slice(0, 3)
-  const [items, setItems] = useState(() => initialItems.map((wine, index) => ({ wine, quantity: index === 0 ? 2 : 1 })))
-  const [paymentConfirmed, setPaymentConfirmed] = useState(false)
+  const [items, setItems] = useState<CartItem[]>([])
 
   const subtotal = useMemo(
     () => items.reduce((sum, item) => sum + parsePrice(item.wine.price) * item.quantity, 0),
@@ -43,6 +53,13 @@ export function CartScreen() {
       <SectionHeading eyebrow={isEnglish ? 'Your selection' : 'Tu selección'} title={isEnglish ? `My cart (${items.length})` : `Mi carrito (${items.length})`} />
 
       <section className="space-y-3">
+        {items.length === 0 ? (
+          <article className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] leading-5 text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+            {isEnglish
+              ? 'Your cart is empty. Add published wines from the store to continue.'
+              : 'Tu carrito está vacío. Agrega vinos publicados desde la tienda para continuar.'}
+          </article>
+        ) : null}
         {items.map(({ wine, quantity }) => (
           <article
             key={wine.id}
@@ -143,30 +160,8 @@ export function CartScreen() {
         </div>
       </section>
 
-      <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f7ece2] text-[var(--color-burgundy)]">
-            <CreditCard size={18} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-[var(--color-ink)]">{isEnglish ? 'Visa ending in 1845' : 'Visa terminación 1845'}</p>
-            <p className="mt-1 text-[11px] text-[var(--color-muted)]">{isEnglish ? 'Secure payment · Apple Pay available' : 'Pago protegido · Apple Pay disponible'}</p>
-          </div>
-          <ShieldCheck size={18} className="shrink-0 text-[#477553]" />
-        </div>
-      </section>
-
-      {paymentConfirmed ? (
-        <div className="flex items-center gap-3 rounded-[1rem] bg-[#edf5ed] px-4 py-3 text-[13px] font-semibold text-[#3f6f4b]">
-          <Check size={17} />
-          {isEnglish ? 'Payment authorized. Your order was registered.' : 'Pago autorizado. Tu pedido fue registrado.'}
-        </div>
-      ) : null}
-
-      <PrimaryButton onClick={() => setPaymentConfirmed(true)} disabled={items.length === 0 || paymentConfirmed}>
-        {isEnglish
-          ? (paymentConfirmed ? 'Purchase confirmed' : 'Complete purchase')
-          : (paymentConfirmed ? 'Compra confirmada' : 'Finalizar compra')}
+      <PrimaryButton disabled>
+        {isEnglish ? 'Checkout unavailable' : 'Checkout no disponible'}
       </PrimaryButton>
     </div>
   )

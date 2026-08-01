@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
 import { Grape, SlidersHorizontal, Sparkles } from 'lucide-react'
 import { PillRow, SearchField, SectionHeading, WineCard } from '../../components/mobile/PremiumMobileUi'
-import { wines } from '../../data/wines'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function StoreScreen() {
   const { isEnglish } = useAppPreferences()
+  const { records: wines, loading, error } = usePublicContent('wines')
+
   return (
     <div className="space-y-6 pb-3">
       <section className="overflow-hidden rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-[linear-gradient(135deg,#fffaf4,#f2dfc9)] p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
@@ -50,21 +53,41 @@ export function StoreScreen() {
           eyebrow={isEnglish ? 'Hacienda de Letras Cellar' : 'Cava Hacienda de Letras'}
           title={isEnglish ? 'Available wines' : 'Vinos disponibles'}
         />
-        <div className="grid grid-cols-2 gap-3">
-          {wines.map((wine, index) => (
-            <WineCard
-              key={wine.id}
-              wine={wine}
-              badge={
-                index === 0
-                  ? (isEnglish ? 'Best seller' : 'Más vendido')
-                  : index === 2
-                  ? (isEnglish ? 'Special edition' : 'Edición especial')
-                  : (isEnglish ? 'Available' : 'Disponible')
-              }
-            />
-          ))}
-        </div>
+        {loading ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published wines...' : 'Cargando vinos publicados...'}
+          </div>
+        ) : error ? (
+          <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
+            {error}
+          </div>
+        ) : wines.length === 0 ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'No published wines available.' : 'No hay vinos publicados disponibles.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {wines.map((wine, index) => (
+              <WineCard
+                key={wine.id}
+                wine={{
+                  id: contentRouteId(wine),
+                  name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
+                  kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
+                  price: formatCurrency(numberField(wine, 'price')),
+                  image: imageField(wine, '/Logo-HDL-2.svg'),
+                  varietal: textField(wine, 'grape_variety'),
+                  harvest: textField(wine, 'vintage'),
+                }}
+                badge={
+                  index === 0
+                    ? (isEnglish ? 'Featured' : 'Destacado')
+                    : textField(wine, 'status') || (isEnglish ? 'Available' : 'Disponible')
+                }
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <Link

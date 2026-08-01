@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { CalendarDays, Grape, MapPin, Sparkles, Ticket, Wine } from 'lucide-react'
 import { SectionHeading, WineCard } from '../../components/mobile/PremiumMobileUi'
-import { wines } from '../../data/wines'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function HomeScreen() {
   const { isEnglish } = useAppPreferences()
+  const { records: wines, loading: loadingWines, error: winesError } = usePublicContent('wines')
 
   const actions = [
     {
@@ -85,11 +87,37 @@ export function HomeScreen() {
             </Link>
           }
         />
-        <div className="grid grid-cols-2 gap-3">
-          {wines.slice(0, 4).map((wine, index) => (
-            <WineCard key={wine.id} wine={wine} badge={index === 0 ? (isEnglish ? 'Best seller' : 'Más vendido') : (isEnglish ? 'Selection' : 'Selección')} />
-          ))}
-        </div>
+        {loadingWines ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published wines...' : 'Cargando vinos publicados...'}
+          </div>
+        ) : winesError ? (
+          <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
+            {winesError}
+          </div>
+        ) : wines.length === 0 ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'No featured wines available.' : 'No hay vinos destacados disponibles.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {wines.slice(0, 4).map((wine, index) => (
+              <WineCard
+                key={wine.id}
+                wine={{
+                  id: contentRouteId(wine),
+                  name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
+                  kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
+                  price: formatCurrency(numberField(wine, 'price')),
+                  image: imageField(wine, '/Logo-HDL-2.svg'),
+                  varietal: textField(wine, 'grape_variety'),
+                  harvest: textField(wine, 'vintage'),
+                }}
+                badge={index === 0 ? (isEnglish ? 'Featured' : 'Destacado') : (isEnglish ? 'Selection' : 'Selección')}
+              />
+            ))}
+          </div>
+        )}
       </section>
 
       <Link

@@ -38,14 +38,19 @@ export function ControlLayout() {
           icon: CalendarDays,
         },
         {
+          to: '/control/vinos',
+          label: isEnglish ? 'Wines' : 'Vinos',
+          icon: Wine,
+        },
+        {
           to: '/control/experiencias',
           label: isEnglish ? 'Experiences' : 'Experiencias',
-          icon: Wine,
+          icon: Sparkles,
         },
         {
           to: '/control/eventos',
           label: isEnglish ? 'Events' : 'Eventos',
-          icon: Sparkles,
+          icon: CalendarDays,
         },
         {
           to: '/control/clientes',
@@ -56,6 +61,16 @@ export function ControlLayout() {
           to: '/control/promociones',
           label: isEnglish ? 'Promotions' : 'Promociones',
           icon: Gift,
+        },
+        {
+          to: '/control/membresias',
+          label: isEnglish ? 'Membership Plans' : 'Planes de membresía',
+          icon: PackageSearch,
+        },
+        {
+          to: '/control/campanas',
+          label: isEnglish ? 'Campaigns' : 'Campañas',
+          icon: Megaphone,
         },
         {
           to: '/control/disponibilidad',
@@ -89,13 +104,8 @@ export function ControlLayout() {
         },
         {
           to: '/control/futuro/logistica',
-          label: isEnglish ? 'Logistics' : 'Logistica',
+          label: isEnglish ? 'Logistics' : 'Logística',
           icon: PackageSearch,
-        },
-        {
-          to: '/control/futuro/campanas',
-          label: isEnglish ? 'Campaigns' : 'Campañas',
-          icon: Megaphone,
         },
         {
           to: '/control/futuro/intelligence',
@@ -104,7 +114,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/configuracion',
-          label: isEnglish ? 'Settings' : 'Configuracion',
+          label: isEnglish ? 'Settings' : 'Configuración',
           icon: Cog,
         },
       ],

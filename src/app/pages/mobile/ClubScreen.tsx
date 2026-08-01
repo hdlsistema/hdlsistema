@@ -2,9 +2,13 @@ import { Link } from 'react-router-dom'
 import { CalendarDays, Crown, Gift, Grape, Sparkles, Star, Ticket, Wine } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import { formatCurrency, numberField, textField } from '../../utils/publicContent'
 
 export function ClubScreen() {
   const { isEnglish } = useAppPreferences()
+  const { records: plans, loading, error } = usePublicContent('membership-plans')
+  const featuredPlan = plans[0]
 
   const benefits = [
     { icon: Wine, title: isEnglish ? 'Special selections' : 'Selecciones especiales', detail: isEnglish ? 'Labels reserved for members.' : 'Etiquetas reservadas para miembros.' },
@@ -35,32 +39,48 @@ export function ClubScreen() {
       </section>
 
       <section className="rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_16px_34px_rgba(74,32,28,0.07)]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Current membership' : 'Membresía actual'}</p>
-            <h2 className="mt-1 text-[1.9rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>
-              {isEnglish ? 'Gold Reserve' : 'Reserva Oro'}
-            </h2>
-            <p className="mt-2 text-[12px] text-[var(--color-muted)]">{isEnglish ? 'Annual plan · Active' : 'Plan anual · Activo'}</p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf5ed] px-3 py-1.5 text-[10px] font-semibold text-[#3f6f4b]">
-            <Star size={12} fill="currentColor" />
-            {isEnglish ? 'Active' : 'Activo'}
-          </span>
-        </div>
-
-        <div className="mt-5 grid grid-cols-3 gap-2">
-          {[
-            ['850', isEnglish ? 'Points' : 'Puntos'],
-            ['12', isEnglish ? 'Benefits' : 'Beneficios'],
-            ['18 dic', isEnglish ? 'Renewal' : 'Renovación'],
-          ].map(([value, label]) => (
-            <div key={label} className="rounded-[1rem] bg-[#fff8f1] p-3 text-center">
-              <p className="text-[18px] font-semibold text-[var(--color-burgundy)]">{value}</p>
-              <p className="mt-1 text-[9px] uppercase tracking-[0.08em] text-[var(--color-muted)]">{label}</p>
+        {loading ? (
+          <p className="text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published plans...' : 'Cargando planes publicados...'}
+          </p>
+        ) : error ? (
+          <p className="text-[12px] text-[var(--color-alert)]">{error}</p>
+        ) : featuredPlan ? (
+          <>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Available membership' : 'Membresía disponible'}</p>
+                <h2 className="mt-1 text-[1.9rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>
+                  {textField(featuredPlan, 'name', isEnglish ? 'Membership plan' : 'Plan de membresía')}
+                </h2>
+                <p className="mt-2 text-[12px] text-[var(--color-muted)]">
+                  {textField(featuredPlan, 'billing_period') || (isEnglish ? 'Billing period to be confirmed' : 'Periodo por confirmar')}
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#edf5ed] px-3 py-1.5 text-[10px] font-semibold text-[#3f6f4b]">
+                <Star size={12} fill="currentColor" />
+                {textField(featuredPlan, 'status') || (isEnglish ? 'Published' : 'Publicado')}
+              </span>
             </div>
-          ))}
-        </div>
+
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {[
+                [formatCurrency(numberField(featuredPlan, 'price')), isEnglish ? 'Price' : 'Precio'],
+                [String(numberField(featuredPlan, 'daily_sommelier_limit')), isEnglish ? 'Sommelier' : 'Sommelier'],
+                [plans.length.toString(), isEnglish ? 'Plans' : 'Planes'],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-[1rem] bg-[#fff8f1] p-3 text-center">
+                  <p className="text-[18px] font-semibold text-[var(--color-burgundy)]">{value}</p>
+                  <p className="mt-1 text-[9px] uppercase tracking-[0.08em] text-[var(--color-muted)]">{label}</p>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <p className="text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'No published membership plans available.' : 'No hay planes de membresía publicados disponibles.'}
+          </p>
+        )}
       </section>
 
       <section className="space-y-4">

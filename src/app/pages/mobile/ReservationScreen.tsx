@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Minus, Plus, Users } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
-import { experiences } from '../../data/experiences'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const times = ['11:00 AM', '1:00 PM', '3:00 PM', '5:00 PM']
@@ -12,7 +13,9 @@ export function ReservationScreen() {
   const { isEnglish } = useAppPreferences()
   const location = useLocation()
   const experienceId = (location.state as { experienceId?: string } | null)?.experienceId
-  const featuredExperience = experiences.find((e) => e.id === experienceId) ?? experiences[0]
+  const { records: experiences, loading, error } = usePublicContent('experiences')
+  const featuredExperience =
+    experiences.find((experience) => contentRouteId(experience) === experienceId) ?? experiences[0]
   const [selectedDay, setSelectedDay] = useState(18)
   const [selectedTime, setSelectedTime] = useState('1:00 PM')
   const [people, setPeople] = useState(2)
@@ -29,20 +32,42 @@ export function ReservationScreen() {
       </section>
 
       <section className="overflow-hidden rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
-        <div className="relative h-[175px] overflow-hidden">
-          <img src={featuredExperience.image} alt={featuredExperience.title} className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(40,14,17,0.78))]" />
-          <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#f0cf92]">{isEnglish ? 'Selected experience' : 'Experiencia seleccionada'}</p>
-            <h2 className="mt-1 text-[1.9rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
-              {featuredExperience.title}
-            </h2>
+        {loading ? (
+          <div className="p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published experiences...' : 'Cargando experiencias publicadas...'}
           </div>
-        </div>
-        <div className="p-4">
-          <p className="text-[12px] leading-5 text-[var(--color-muted)]">{featuredExperience.summary}</p>
-          <p className="mt-3 text-[14px] font-semibold text-[var(--color-burgundy)]">{featuredExperience.price} {isEnglish ? 'per person' : 'por persona'}</p>
-        </div>
+        ) : error ? (
+          <div className="p-5 text-[12px] text-[var(--color-alert)]">{error}</div>
+        ) : featuredExperience ? (
+          <>
+            <div className="relative h-[175px] overflow-hidden">
+              <img
+                src={imageField(featuredExperience, '/turismo.jpeg')}
+                alt={textField(featuredExperience, 'title', isEnglish ? 'Experience' : 'Experiencia')}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(40,14,17,0.78))]" />
+              <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#f0cf92]">{isEnglish ? 'Selected experience' : 'Experiencia seleccionada'}</p>
+                <h2 className="mt-1 text-[1.9rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+                  {textField(featuredExperience, 'title', isEnglish ? 'Experience' : 'Experiencia')}
+                </h2>
+              </div>
+            </div>
+            <div className="p-4">
+              <p className="text-[12px] leading-5 text-[var(--color-muted)]">
+                {textField(featuredExperience, 'short_description') || textField(featuredExperience, 'description')}
+              </p>
+              <p className="mt-3 text-[14px] font-semibold text-[var(--color-burgundy)]">
+                {formatCurrency(numberField(featuredExperience, 'base_price'))} {isEnglish ? 'per person' : 'por persona'}
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'No published experiences available.' : 'No hay experiencias publicadas disponibles.'}
+          </div>
+        )}
       </section>
 
       <section className="grid grid-cols-4 gap-2">

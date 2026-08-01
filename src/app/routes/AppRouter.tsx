@@ -8,9 +8,7 @@ import { AppPreviewPage } from '../pages/control/AppPreviewPage'
 import { AvailabilityPage } from '../pages/control/AvailabilityPage'
 import { CustomersPage } from '../pages/control/CustomersPage'
 import { DashboardPage } from '../pages/control/DashboardPage'
-import { EventsPage } from '../pages/control/EventsPage'
-import { ExperiencesPage } from '../pages/control/ExperiencesPage'
-import { PromotionsPage } from '../pages/control/PromotionsPage'
+import { EditorialContentPage } from '../pages/control/EditorialContentPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
 import { LandingPage } from '../pages/public/LandingPage'
@@ -34,10 +32,8 @@ import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
 import { DistributorsPage } from '../pages/future/DistributorsPage'
 import { IntelligencePage } from '../pages/future/IntelligencePage'
-import { InventoryPage } from '../pages/future/InventoryPage'
 import { LogisticsPage } from '../pages/future/LogisticsPage'
 import { ReportsPage } from '../pages/future/ReportsPage'
-import { CampaignsPage } from '../pages/future/CampaignsPage'
 
 function RedirectWineDetail() {
   const { wineId } = useParams<{ wineId: string }>()
@@ -115,10 +111,13 @@ export function AppRouter() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reservaciones" element={<ReservationsPage />} />
-        <Route path="experiencias" element={<ExperiencesPage />} />
-        <Route path="eventos" element={<EventsPage />} />
+        <Route path="vinos" element={<EditorialContentPage entity="wines" />} />
+        <Route path="experiencias" element={<EditorialContentPage entity="experiences" />} />
+        <Route path="eventos" element={<EditorialContentPage entity="events" />} />
         <Route path="clientes" element={<CustomersPage />} />
-        <Route path="promociones" element={<PromotionsPage />} />
+        <Route path="promociones" element={<EditorialContentPage entity="promotions" />} />
+        <Route path="membresias" element={<EditorialContentPage entity="membership-plans" />} />
+        <Route path="campanas" element={<EditorialContentPage entity="campaigns" />} />
         <Route path="disponibilidad" element={<AvailabilityPage />} />
         <Route path="reportes" element={<ReportsPage />} />
         <Route path="configuracion" element={<SettingsPage />} />
@@ -139,7 +138,7 @@ export function AppRouter() {
         <Route path="app/perfil" element={<Navigate to="/app/perfil" replace />} />
 
         {/* Módulos futuros */}
-        <Route path="futuro/inventario" element={<InventoryPage />} />
+        <Route path="futuro/inventario" element={<Navigate to="/control/vinos" replace />} />
         <Route
           path="futuro/vinedos"
           element={<Navigate to="/control/futuro/inventario" replace />}
@@ -155,7 +154,7 @@ export function AppRouter() {
         />
         <Route
           path="futuro/campanas"
-          element={<CampaignsPage />}
+          element={<Navigate to="/control/campanas" replace />}
         />
         <Route path="futuro/reportes" element={<ReportsPage />} />
       </Route>

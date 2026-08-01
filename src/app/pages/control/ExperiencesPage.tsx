@@ -1089,7 +1089,7 @@ export function ExperiencesPage() {
 
             <p className="mt-2 text-sm text-[var(--color-muted)]">
               {isEnglish
-                ? 'Changes are reflected in this Control Center mockup.'
+                ? 'Changes are reflected in this Control Center view.'
                 : 'Los cambios se reflejan en esta maqueta del Centro de Control.'}
             </p>
 

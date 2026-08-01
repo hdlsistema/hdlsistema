@@ -1,15 +1,73 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Award, Grape, MapPin, Minus, Plus, Sparkles, Star, UtensilsCrossed, Wine } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
-import { wines } from '../../data/wines'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { publicContentClient, type ContentRecord } from '../../../services/content.service'
+import { formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function WineDetailScreen() {
   const { wineId } = useParams()
   const { isEnglish } = useAppPreferences()
-  const wine = useMemo(() => wines.find((item) => String(item.id) === wineId) ?? wines[0], [wineId])
+  const [wine, setWine] = useState<ContentRecord | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(1)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    if (!wineId) {
+      setWine(null)
+      setError(isEnglish ? 'Wine not found.' : 'Vino no encontrado.')
+      setLoading(false)
+      return
+    }
+
+    publicContentClient
+      .getBySlug('wines', wineId, 'es-MX')
+      .then((response) => {
+        if (active) setWine(response.data)
+      })
+      .catch(() => {
+        if (active) {
+          setWine(null)
+          setError(isEnglish ? 'Wine not available.' : 'Vino no disponible.')
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [isEnglish, wineId])
+
+  if (loading) {
+    return (
+      <div className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-white p-6 text-[13px] text-[var(--color-muted)]">
+        {isEnglish ? 'Loading wine...' : 'Cargando vino...'}
+      </div>
+    )
+  }
+
+  if (error || !wine) {
+    return (
+      <div className="rounded-[1.3rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-6 text-[13px] text-[var(--color-alert)]">
+        {error}
+      </div>
+    )
+  }
+
+  const wineName = textField(wine, 'name', isEnglish ? 'Wine' : 'Vino')
+  const wineImage = imageField(wine, '/Logo-HDL-2.svg')
+  const wineSubtitle = textField(wine, 'subtitle') || textField(wine, 'origin')
+  const wineVarietal = textField(wine, 'grape_variety')
+  const wineVintage = textField(wine, 'vintage')
+  const winePrice = formatCurrency(numberField(wine, 'price'))
 
   return (
     <div className="space-y-6 pb-3">
@@ -18,16 +76,16 @@ export function WineDetailScreen() {
           <span className="absolute left-4 top-4 rounded-full bg-white/[0.92] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.13em] text-[var(--color-burgundy)] shadow-sm">
             {isEnglish ? "Estate's selection" : 'Selección de la casa'}
           </span>
-          <img src={wine.image} alt={wine.name} className="max-h-[285px] w-auto object-contain drop-shadow-[0_24px_18px_rgba(67,26,22,0.22)]" />
+          <img src={wineImage} alt={wineName} className="max-h-[285px] w-auto object-contain drop-shadow-[0_24px_18px_rgba(67,26,22,0.22)]" />
         </div>
 
         <div className="p-5">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{wine.kind}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{wineSubtitle}</p>
           <h1 className="mt-2 break-words text-[2.55rem] leading-[0.88] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-            {wine.name}
+            {wineName}
           </h1>
           <p className="mt-3 text-[12px] leading-5 text-[var(--color-muted)]">
-            {wine.varietal || (isEnglish ? 'Special selection' : 'Selección especial')}{wine.harvest ? ` · ${wine.harvest}` : ''}
+            {wineVarietal || (isEnglish ? 'Special selection' : 'Selección especial')}{wineVintage ? ` · ${wineVintage}` : ''}
           </p>
 
           <div className="mt-4 flex items-center gap-2 text-[11px] text-[var(--color-muted)]">
@@ -42,7 +100,7 @@ export function WineDetailScreen() {
             <div>
               <p className="text-[10px] text-[var(--color-muted)]">{isEnglish ? 'Price' : 'Precio'}</p>
               <p className="mt-1 text-[2.15rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>
-                {wine.price}
+                {winePrice}
               </p>
             </div>
             <div className="flex items-center gap-1 rounded-full border border-[rgba(104,13,36,0.13)] bg-[#fffaf5] p-1.5">
@@ -63,11 +121,11 @@ export function WineDetailScreen() {
       </section>
 
       <section className="grid grid-cols-2 gap-3">
-        {[
-          { icon: Grape, label: isEnglish ? 'Grape' : 'Uva', value: wine.varietal || (isEnglish ? "Estate's selection" : 'Selección de la casa') },
-          { icon: Award, label: isEnglish ? 'Vintage' : 'Cosecha', value: wine.harvest || (isEnglish ? 'Current edition' : 'Edición actual') },
-          { icon: MapPin, label: isEnglish ? 'Origin' : 'Origen', value: 'Aguascalientes' },
-          { icon: Wine, label: isEnglish ? 'Service' : 'Servicio', value: '16–18 °C' },
+          {[
+            { icon: Grape, label: isEnglish ? 'Grape' : 'Uva', value: wineVarietal || (isEnglish ? "Estate's selection" : 'Selección de la casa') },
+            { icon: Award, label: isEnglish ? 'Vintage' : 'Cosecha', value: wineVintage || (isEnglish ? 'Current edition' : 'Edición actual') },
+            { icon: MapPin, label: isEnglish ? 'Origin' : 'Origen', value: textField(wine, 'origin', 'Aguascalientes') },
+            { icon: Wine, label: isEnglish ? 'Service' : 'Servicio', value: textField(wine, 'serving_temperature', '16-18 °C') },
         ].map((item) => {
           const Icon = item.icon
           return (
@@ -83,9 +141,7 @@ export function WineDetailScreen() {
       <section className="space-y-3">
         <SectionHeading eyebrow={isEnglish ? 'Sensory profile' : 'Perfil sensorial'} title={isEnglish ? 'Tasting notes' : 'Notas de cata'} />
         <article className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[13px] leading-6 text-[var(--color-muted)] shadow-[0_16px_34px_rgba(74,32,28,0.06)]">
-          {isEnglish
-            ? 'Aromas of ripe dark fruits, vanilla and spices. On the palate it is balanced, with soft tannins and a persistent finish.'
-            : 'Aromas a frutos negros maduros, vainilla y especias. En boca es equilibrado, con taninos suaves y un final persistente.'}
+          {textField(wine, 'tasting_notes') || textField(wine, 'description') || (isEnglish ? 'Tasting notes to be confirmed.' : 'Notas de cata por confirmar.')}
         </article>
       </section>
 
@@ -118,7 +174,7 @@ export function WineDetailScreen() {
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#efcf93]">ALQIA Sommelier</p>
             <h3 className="mt-1 text-[1.45rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>{isEnglish ? 'Is this the ideal wine for your occasion?' : '¿Es el vino ideal para tu ocasión?'}</h3>
-            <p className="mt-2 text-[11px] leading-4 text-white/[0.76]">{isEnglish ? 'Tell us what you are going to eat or celebrate and receive a personalized recommendation.' : 'Cuéntanos qué vas a comer o celebrar y recibe una recomendación personalizada.'}</p>
+            <p className="mt-2 text-[11px] leading-4 text-white/[0.76]">{textField(wine, 'pairing_notes') || (isEnglish ? 'Tell us what you are going to eat or celebrate and receive a personalized recommendation.' : 'Cuéntanos qué vas a comer o celebrar y recibe una recomendación personalizada.')}</p>
           </div>
         </div>
       </section>

@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom'
 import { Grape, Send, ShoppingBag, Sparkles, Wine } from 'lucide-react'
 import { SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
-import { wines } from '../../data/wines'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function SommelierScreen() {
   const { isEnglish } = useAppPreferences()
+  const { records: wines, loading, error } = usePublicContent('wines')
   const featuredWine = wines[0]
   const [question, setQuestion] = useState('')
 
@@ -95,36 +97,44 @@ export function SommelierScreen() {
           </span>
           <div className="max-w-[86%] rounded-[1rem] rounded-tl-sm bg-white p-3 shadow-sm">
             <p className="text-[12px] leading-5 text-[var(--color-ink)]">
-              {isEnglish ? (
-                <>
-                  I recommend <strong>{featuredWine.name}</strong>. Its structure works especially well with red meat and bold flavors.
-                </>
-              ) : (
-                <>
-                  Te recomiendo <strong>{featuredWine.name}</strong>. Su estructura acompaña muy bien carnes rojas y sabores intensos.
-                </>
-              )}
+              {loading
+                ? (isEnglish ? 'Reviewing published wines...' : 'Revisando vinos publicados...')
+                : error
+                  ? error
+                  : featuredWine
+                    ? (isEnglish ? 'I found a published wine that can guide your choice.' : 'Encontré un vino publicado que puede orientar tu elección.')
+                    : (isEnglish ? 'No published wines are available for recommendations.' : 'No hay vinos publicados disponibles para recomendaciones.')}
             </p>
 
-            <article className="mt-3 grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-[0.95rem] border border-[rgba(220,202,181,0.72)] bg-[#fffaf5] p-3">
-              <div className="flex h-[92px] items-center justify-center rounded-[0.8rem] bg-[#f2e4d3]">
-                <img src={featuredWine.image} alt={featuredWine.name} className="max-h-[78px] w-auto object-contain" />
-              </div>
-              <div className="flex min-w-0 flex-col justify-center">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{isEnglish ? 'Recommendation' : 'Recomendación'}</p>
-                <h3 className="mt-1 break-words text-[1.1rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-                  {featuredWine.name}
-                </h3>
-                <p className="mt-1 text-[10px] text-[var(--color-muted)]">{featuredWine.kind}</p>
-                <div className="mt-3 flex items-center justify-between gap-2">
-                  <span className="text-[13px] font-semibold text-[var(--color-burgundy)]">{featuredWine.price}</span>
-                  <Link to="/app/carrito" className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
-                    <ShoppingBag size={12} />
-                    {isEnglish ? 'Add' : 'Agregar'}
-                  </Link>
+            {featuredWine ? (
+              <article className="mt-3 grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-[0.95rem] border border-[rgba(220,202,181,0.72)] bg-[#fffaf5] p-3">
+                <div className="flex h-[92px] items-center justify-center rounded-[0.8rem] bg-[#f2e4d3]">
+                  <img
+                    src={imageField(featuredWine, '/Logo-HDL-2.svg')}
+                    alt={textField(featuredWine, 'name', isEnglish ? 'Wine' : 'Vino')}
+                    className="max-h-[78px] w-auto object-contain"
+                  />
                 </div>
-              </div>
-            </article>
+                <div className="flex min-w-0 flex-col justify-center">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{isEnglish ? 'Recommendation' : 'Recomendación'}</p>
+                  <h3 className="mt-1 break-words text-[1.1rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+                    {textField(featuredWine, 'name', isEnglish ? 'Wine' : 'Vino')}
+                  </h3>
+                  <p className="mt-1 text-[10px] text-[var(--color-muted)]">
+                    {textField(featuredWine, 'subtitle') || textField(featuredWine, 'grape_variety')}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between gap-2">
+                    <span className="text-[13px] font-semibold text-[var(--color-burgundy)]">
+                      {formatCurrency(numberField(featuredWine, 'price'))}
+                    </span>
+                    <Link to={`/app/tienda/${contentRouteId(featuredWine)}`} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
+                      <ShoppingBag size={12} />
+                      {isEnglish ? 'View' : 'Ver'}
+                    </Link>
+                  </div>
+                </div>
+              </article>
+            ) : null}
           </div>
         </div>
       </section>

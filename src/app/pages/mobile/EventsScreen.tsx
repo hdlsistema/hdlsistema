@@ -9,8 +9,16 @@ import {
   Sparkles,
   Ticket,
 } from 'lucide-react'
-import { events } from '../../data/events'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicContent } from '../../hooks/usePublicContent'
+import {
+  contentRouteId,
+  formatCurrency,
+  formatPublicDate,
+  imageField,
+  numberField,
+  textField,
+} from '../../utils/publicContent'
 
 type EventCategory =
   | 'Todos'
@@ -336,6 +344,7 @@ function EventArtwork({
 
 export function EventsScreen() {
   const { isEnglish } = useAppPreferences()
+  const { records: events, loading, error } = usePublicContent('events')
   const [activeCategory, setActiveCategory] =
     useState<EventCategory>('Todos')
 
@@ -349,11 +358,24 @@ export function EventsScreen() {
 
     return events.filter(
       (event) =>
-        getEventCategory(event.title) === activeCategory,
+        getEventCategory(textField(event, 'title')) === activeCategory,
     )
-  }, [activeCategory])
+  }, [activeCategory, events])
 
   const [featuredEvent, ...remainingEvents] = filteredEvents
+  const featuredTitle = featuredEvent ? textField(featuredEvent, 'title', isEnglish ? 'Event' : 'Evento') : ''
+  const featuredVenue = featuredEvent ? textField(featuredEvent, 'venue', 'Hacienda de Letras') : ''
+  const featuredDate = featuredEvent ? formatPublicDate(featuredEvent.start_at) : ''
+  const featuredPriceAmount = featuredEvent ? numberField(featuredEvent, 'price') : 0
+  const featuredPrice = featuredPriceAmount > 0
+    ? formatCurrency(featuredPriceAmount)
+    : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
+  const featuredVisual = featuredEvent
+    ? {
+        type: 'photo' as const,
+        asset: imageField(featuredEvent, getEventVisual(featuredTitle, 0).type === 'photo' ? getEventVisual(featuredTitle, 0).asset : '/romantic%20dinners%20evento.webp'),
+      }
+    : null
 
   return (
     <div className="min-w-0 overflow-x-hidden pb-9">
@@ -397,7 +419,7 @@ export function EventsScreen() {
       <section className="mt-7">
         <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#a77b45]">
           <span className="h-px w-7 bg-[#b48a55]" />
-          {isEnglish ? 'Iconic festivals' : 'Festivales emblématicos'}
+          {isEnglish ? 'Iconic festivals' : 'Festivales emblemáticos'}
         </p>
 
         <h2
@@ -475,28 +497,36 @@ export function EventsScreen() {
         </div>
       </section>
 
-      {featuredEvent ? (
+      {loading ? (
+        <section className="mt-6 rounded-[1.5rem] border border-[#dfcdb8] bg-[#fffaf3] p-7 text-center text-[12px] text-[#7f6a59]">
+          {isEnglish ? 'Loading published events...' : 'Cargando eventos publicados...'}
+        </section>
+      ) : error ? (
+        <section className="mt-6 rounded-[1.5rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-7 text-center text-[12px] text-[var(--color-alert)]">
+          {error}
+        </section>
+      ) : featuredEvent && featuredVisual ? (
         <section className="mt-6">
           <Link
-            to={`/app/eventos/${featuredEvent.id}`}
+            to={`/app/eventos/${contentRouteId(featuredEvent)}`}
             className="block overflow-hidden rounded-[1.75rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_24px_54px_rgba(64,28,19,0.14)]"
           >
             <div className="relative h-[330px] overflow-hidden bg-[#d8c6b3]">
               <EventArtwork
-                visual={getEventVisual(featuredEvent.title, 0)}
-                title={featuredEvent.title}
+                visual={featuredVisual}
+                title={featuredTitle}
               />
 
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.02)_0%,rgba(35,5,13,0.08)_40%,rgba(35,5,13,0.95)_100%)]" />
 
               <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#681126] shadow-sm">
-                {getEventBadge(featuredEvent.title, 0, isEnglish)}
+                {getEventBadge(featuredTitle, 0, isEnglish)}
               </span>
 
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.15em] text-[#e8c78e]">
                   <CalendarDays size={12} />
-                  {featuredEvent.date}
+                  {featuredDate}
                 </p>
 
                 <h3
@@ -506,19 +536,19 @@ export function EventsScreen() {
                       'var(--font-display)',
                   }}
                 >
-                  {featuredEvent.title}
+                  {featuredTitle}
                 </h3>
 
                 <p className="mt-3 flex items-center gap-2 text-[10px] text-white/75">
                   <MapPin size={12} />
-                  {featuredEvent.venue}
+                  {featuredVenue}
                 </p>
 
                 <div className="mt-5 flex items-end justify-between gap-4">
                   <div>
                     <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-white/55">
-                      {isEnglish ? 'Access from' : 'Acceso desde'}
-                      {featuredEvent.price}
+                      {isEnglish ? 'Access' : 'Acceso'} · {' '}
+                      {featuredPrice}
                     </p>
                   </div>
 
@@ -539,7 +569,7 @@ export function EventsScreen() {
                 </div>
 
                 <p className="mt-2 text-[10px] font-semibold leading-4 text-[#4e3930]">
-                  {getAvailability(featuredEvent.title, 0, isEnglish)}
+                  {getAvailability(featuredTitle, 0, isEnglish)}
                 </p>
               </div>
 
@@ -552,7 +582,7 @@ export function EventsScreen() {
                 </div>
 
                 <p className="mt-2 text-[10px] font-semibold leading-4 text-[#4e3930]">
-                  {getDuration(featuredEvent.title, isEnglish)}
+                  {getDuration(featuredTitle, isEnglish)}
                 </p>
               </div>
             </div>
@@ -563,30 +593,41 @@ export function EventsScreen() {
       <section className="mt-6 space-y-5">
         {remainingEvents.map((event, index) => {
           const actualIndex = index + 1
-          const visual = getEventVisual(
-            event.title,
-            actualIndex,
-          )
+          const eventTitle = textField(event, 'title', isEnglish ? 'Event' : 'Evento')
+          const fallbackVisual = getEventVisual(eventTitle, actualIndex)
+          const eventVisual = {
+            type: 'photo' as const,
+            asset: imageField(
+              event,
+              fallbackVisual.type === 'photo' ? fallbackVisual.asset : '/romantic%20dinners%20evento.webp',
+            ),
+          }
+          const eventVenue = textField(event, 'venue', 'Hacienda de Letras')
+          const eventDate = formatPublicDate(event.start_at)
+          const eventPriceAmount = numberField(event, 'price')
+          const eventPrice = eventPriceAmount > 0
+            ? formatCurrency(eventPriceAmount)
+            : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
 
           return (
             <Link
               key={event.id}
-              to={`/app/eventos/${event.id}`}
+              to={`/app/eventos/${contentRouteId(event)}`}
               className="block overflow-hidden rounded-[1.6rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_18px_40px_rgba(64,28,19,0.1)]"
             >
               <div className="relative h-[245px] overflow-hidden bg-[#d8c6b3]">
-                <EventArtwork visual={visual} title={event.title} />
+                <EventArtwork visual={eventVisual} title={eventTitle} />
 
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.02)_0%,rgba(35,5,13,0.08)_38%,rgba(35,5,13,0.94)_100%)]" />
 
                 <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#681126] shadow-sm">
-                    {getEventBadge(event.title, actualIndex, isEnglish)}
+                    {getEventBadge(eventTitle, actualIndex, isEnglish)}
                 </span>
 
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                   <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.14em] text-[#e8c78e]">
                     <CalendarDays size={12} />
-                    {event.date}
+                    {eventDate}
                   </p>
 
                   <h3
@@ -596,7 +637,7 @@ export function EventsScreen() {
                         'var(--font-display)',
                     }}
                   >
-                    {event.title}
+                    {eventTitle}
                   </h3>
 
                   <div className="mt-4 flex items-end justify-between gap-4">
@@ -604,13 +645,13 @@ export function EventsScreen() {
                       <p className="flex items-center gap-2 truncate text-[10px] text-white/72">
                         <MapPin size={12} className="shrink-0" />
                         <span className="truncate">
-                          {event.venue}
+                          {eventVenue}
                         </span>
                       </p>
 
                       <p className="mt-2 flex items-center gap-2 text-[14px] font-bold text-white">
                         <Ticket size={13} />
-                        {event.price}
+                        {eventPrice}
                       </p>
                     </div>
 
@@ -623,7 +664,7 @@ export function EventsScreen() {
 
               <div className="flex items-center justify-between gap-3 px-5 py-4">
                 <span className="text-[10px] font-semibold text-[#7f6a59]">
-                  {getAvailability(event.title, actualIndex, isEnglish)}
+                  {getAvailability(eventTitle, actualIndex, isEnglish)}
                 </span>
 
                 <span className="text-[11px] font-bold text-[#681126]">
@@ -749,7 +790,7 @@ export function EventsScreen() {
         </div>
       </section>
 
-      {filteredEvents.length === 0 ? (
+      {!loading && !error && filteredEvents.length === 0 ? (
         <section className="mt-6 rounded-[1.5rem] border border-[#dfcdb8] bg-[#fffaf3] p-7 text-center">
           <CalendarDays
             size={23}
