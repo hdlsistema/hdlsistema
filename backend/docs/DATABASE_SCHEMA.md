@@ -30,6 +30,7 @@ No conecta pantallas, no implementa pagos reales y no integra OpenAI.
 20. `020_preview_and_scheduling.sql`: preview seguro y jobs de publicación.
 21. `021_content_audit_and_versions.sql`: permisos editoriales, versionado, triggers y realtime.
 22. `022_content_translations.sql`: traducciones bilingües por entidad e idioma.
+23. `023_copy_corrections.sql`: correcciones ortográficas no destructivas en datos seed visibles.
 
 ## Entidades Principales
 

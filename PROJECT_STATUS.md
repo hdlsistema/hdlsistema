@@ -119,7 +119,7 @@ Estado: implementada y validada técnicamente.
 
 ### Modelo Editorial
 
-- Migraciones aplicadas e idempotentes: `019_editorial_publication_model.sql`, `020_preview_and_scheduling.sql`, `021_content_audit_and_versions.sql`, `022_content_translations.sql`.
+- Migraciones aplicadas e idempotentes: `019_editorial_publication_model.sql`, `020_preview_and_scheduling.sql`, `021_content_audit_and_versions.sql`, `022_content_translations.sql`, `023_copy_corrections.sql`.
 - Entidades iniciales: vinos, experiencias, eventos, promociones, planes de membresía y campañas.
 - Modelo común: visibilidad, orden, ventanas de publicación, autoría, publicación, archivado, borrado lógico, versión, locale y metadata.
 - `content_translations` soporta español/inglés, fallback a español, slug por idioma, estado de traducción, publicación por idioma, auditoría y versionado.
@@ -144,6 +144,7 @@ Estado: implementada y validada técnicamente.
 - Preview real: token guardado como hash, no impreso y revocable.
 - Scheduler real: worker procesó jobs vencidos.
 - Tipos TypeScript regenerados desde Supabase.
+- Copia seed visible corregida con acentos donde aplicaba.
 - Ningún secreto fue impreso.
 
 ### Riesgos Pendientes Fase 4B

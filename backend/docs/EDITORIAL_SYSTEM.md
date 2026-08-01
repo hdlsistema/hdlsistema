@@ -161,13 +161,14 @@ La invalidación operativa ocurre al publicar, editar, despublicar o archivar po
 
 Validado:
 
-- Migraciones 019-022 aplicadas e idempotentes.
+- Migraciones 019-023 aplicadas e idempotentes.
 - Columnas, constraints, índices, funciones, triggers, policies, RLS y realtime.
 - Backend con typecheck y pruebas automatizadas.
 - Prueba real controlada con vino, experiencia y evento.
 - Preview hash-only y revocable.
 - Scheduler ejecutado una vez contra jobs vencidos.
 - Sin secretos impresos.
+- Copia seed visible corregida con acentos donde aplicaba.
 
 ## Riesgos Pendientes
 

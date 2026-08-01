@@ -135,7 +135,7 @@ describe('GET /api/health', () => {
     expect(typeof res.body.supabase?.status).toBe('string')
   })
 
-  it('reporta Supabase ok cuando la consulta tecnica no devuelve error', async () => {
+  it('reporta Supabase ok cuando la consulta técnica no devuelve error', async () => {
     const res = await request(app).get('/api/health')
     expect(res.body.supabase).toMatchObject({
       configured: true,
@@ -145,7 +145,7 @@ describe('GET /api/health', () => {
     })
   })
 
-  it('reporta configuracion faltante sin llamar la consulta tecnica', async () => {
+  it('reporta configuración faltante sin llamar la consulta técnica', async () => {
     try {
       ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY = ''
 
@@ -183,7 +183,7 @@ describe('checkSupabaseReachable', () => {
     })
   })
 
-  it('clasifica error de autenticacion', async () => {
+  it('clasifica error de autenticación', async () => {
     supabaseMock.error = { status: 401, message: 'Invalid JWT' }
     await expect(checkSupabaseReachable()).resolves.toEqual({
       reachable: true,
@@ -240,7 +240,7 @@ describe('Fase 3 auth API', () => {
     expect(JSON.stringify(res.body)).not.toContain('refresh')
   })
 
-  it('/api/admin/users requiere autenticacion', async () => {
+  it('/api/admin/users requiere autenticación', async () => {
     const res = await request(app).get('/api/admin/users')
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('UNAUTHORIZED')
