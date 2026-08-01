@@ -328,8 +328,8 @@ export function EditorialFormShell({
                 type="button"
                 onClick={onPreview}
                 disabled={isBusy}
-                title="Vista previa"
-                aria-label="Vista previa"
+                title="Ver preview"
+                aria-label="Ver preview"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white text-[var(--color-muted)] transition hover:text-[var(--color-burgundy)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Eye size={16} />
@@ -338,8 +338,8 @@ export function EditorialFormShell({
                 type="button"
                 onClick={onVersions}
                 disabled={isBusy}
-                title="Versiones"
-                aria-label="Versiones"
+                title="Ver versiones"
+                aria-label="Ver versiones"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white text-[var(--color-muted)] transition hover:text-[var(--color-burgundy)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <History size={16} />
@@ -352,7 +352,7 @@ export function EditorialFormShell({
             className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--color-burgundy)] px-3 text-[13px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-55"
           >
             {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-            Guardar
+            Guardar borrador
           </button>
         </div>
       </div>

@@ -21,6 +21,15 @@ import {
   type PublicationAction,
 } from '../../../services/content.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { EditorialConfirmDialog } from './editorial/EditorialConfirmDialog'
+import {
+  actionErrorMessage,
+  buildEditorialConfirmState,
+  runConfirmedEditorialAction,
+  validateEditorialSchedule,
+  type EditorialConfirmAction,
+  type EditorialConfirmState,
+} from './editorial/EditorialConfirmDialog.logic'
 import { CampaignEditorialForm } from './editorial/forms/CampaignEditorialForm'
 import { EventEditorialForm } from './editorial/forms/EventEditorialForm'
 import { ExperienceEditorialForm } from './editorial/forms/ExperienceEditorialForm'
@@ -46,6 +55,10 @@ type UiError = {
   fieldErrors?: EditorialFieldErrors
 }
 
+type PendingConfirmation = EditorialConfirmState & {
+  execute: () => Promise<void>
+}
+
 function getSafeError(error: unknown, fieldErrors: EditorialFieldErrors = {}): UiError {
   if (error && typeof error === 'object') {
     const maybeStatus = 'status' in error ? Number((error as { status?: unknown }).status) : undefined
@@ -57,6 +70,20 @@ function getSafeError(error: unknown, fieldErrors: EditorialFieldErrors = {}): U
   }
 
   return { message: 'No fue posible completar la operación.', fieldErrors }
+}
+
+function publicationActionAfterStatus(action: PublicationAction) {
+  if (action === 'publish') return 'Publicado'
+  if (action === 'unpublish') return 'Despublicado'
+  if (action === 'archive') return 'Archivado'
+  return 'Borrador'
+}
+
+function confirmationTypeForPublicationAction(action: PublicationAction): EditorialConfirmAction {
+  if (action === 'publish') return 'publish'
+  if (action === 'unpublish') return 'unpublish'
+  if (action === 'archive') return 'archive'
+  return 'restore'
 }
 
 function StatusPill({ status, label }: { status?: string | null; label: string }) {
@@ -93,6 +120,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const [versions, setVersions] = useState<Array<{ version: number; created_at?: string | null }> | null>(null)
   const [scheduleAction, setScheduleAction] = useState<PublicationAction>('publish')
   const [scheduleAt, setScheduleAt] = useState('')
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null)
+  const [confirmationError, setConfirmationError] = useState<string | null>(null)
+  const [confirmingAction, setConfirmingAction] = useState(false)
 
   const statusOptions = useMemo(() => getStatusOptions(entity), [entity])
 
@@ -158,6 +188,27 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     })
   }
 
+  function closeConfirmation() {
+    if (confirmingAction) return
+    setPendingConfirmation(null)
+    setConfirmationError(null)
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingConfirmation) return
+    setConfirmingAction(true)
+    setConfirmationError(null)
+
+    try {
+      await runConfirmedEditorialAction(pendingConfirmation.execute)
+      setPendingConfirmation(null)
+    } catch (confirmError) {
+      setConfirmationError(actionErrorMessage(confirmError))
+    } finally {
+      setConfirmingAction(false)
+    }
+  }
+
   async function saveRecord(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSaving(true)
@@ -189,7 +240,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     }
   }
 
-  async function runAction(action: PublicationAction) {
+  async function executePublicationAction(action: PublicationAction) {
     if (!selected) return
     setBusyAction(action)
     setError(null)
@@ -213,12 +264,41 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       const backendFieldErrors = extractFieldErrorsFromBackend(actionError, config)
       setFieldErrors(backendFieldErrors)
       setError(getSafeError(actionError, backendFieldErrors))
+      throw actionError
     } finally {
       setBusyAction(null)
     }
   }
 
-  async function scheduleRecord() {
+  function requestPublicationAction(action: PublicationAction) {
+    if (!selected) return
+    setError(null)
+    setSuccess(null)
+    setFieldErrors({})
+
+    if (action === 'publish') {
+      const validation = validateEditorialForm(config, form, 'publish')
+      if (!validation.valid) {
+        setFieldErrors(validation.fieldErrors)
+        setError({ message: validation.generalMessage ?? 'Faltan campos antes de publicar.' })
+        return
+      }
+    }
+
+    setConfirmationError(null)
+    setPendingConfirmation({
+      ...buildEditorialConfirmState({
+        action: confirmationTypeForPublicationAction(action),
+        contentLabel: selectedTitle,
+        currentStatus: statusLabel(config, selected.status),
+        afterStatus: publicationActionAfterStatus(action),
+        visibleAfter: action === 'publish',
+      }),
+      execute: () => executePublicationAction(action),
+    })
+  }
+
+  async function executeScheduleRecord() {
     if (!selected || !scheduleAt) return
     setBusyAction('schedule')
     setError(null)
@@ -226,9 +306,11 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     setFieldErrors({})
 
     try {
-      if (new Date(scheduleAt).getTime() <= Date.now()) {
-        setError({ message: 'La programación debe ser futura.' })
-        return
+      const scheduleError = validateEditorialSchedule(scheduleAt)
+      if (scheduleError) {
+        const validationError = Object.assign(new Error(scheduleError), { status: 422 })
+        setError({ message: scheduleError })
+        throw validationError
       }
       await adminContentClient.schedule(
         entity,
@@ -243,12 +325,52 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       const backendFieldErrors = extractFieldErrorsFromBackend(scheduleError, config)
       setFieldErrors(backendFieldErrors)
       setError(getSafeError(scheduleError, backendFieldErrors))
+      throw scheduleError
     } finally {
       setBusyAction(null)
     }
   }
 
-  async function duplicateRecord() {
+  function requestScheduleRecord() {
+    if (!selected) return
+    setError(null)
+    setSuccess(null)
+    setFieldErrors({})
+
+    const scheduleError = validateEditorialSchedule(scheduleAt)
+    if (scheduleError) {
+      setError({ message: scheduleError })
+      return
+    }
+
+    if (scheduleAction === 'publish') {
+      const validation = validateEditorialForm(config, form, 'publish')
+      if (!validation.valid) {
+        setFieldErrors(validation.fieldErrors)
+        setError({ message: validation.generalMessage ?? 'Faltan campos antes de publicar.' })
+        return
+      }
+    }
+
+    const scheduledLabel = `${selectedTitle} · ${formatDate(new Date(scheduleAt).toISOString())}`
+    setConfirmationError(null)
+    setPendingConfirmation({
+      ...buildEditorialConfirmState({
+        action: 'schedule',
+        contentLabel: scheduledLabel,
+        currentStatus: statusLabel(config, selected.status),
+        afterStatus: 'Programado',
+        visibleAfter: scheduleAction === 'publish',
+      }),
+      message: scheduleAction === 'publish'
+        ? 'El contenido se publicará automáticamente en la fecha y hora indicada.'
+        : 'La acción editorial se ejecutará automáticamente en la fecha y hora indicada.',
+      confirmLabel: scheduleAction === 'publish' ? 'Programar publicación' : 'Programar acción',
+      execute: executeScheduleRecord,
+    })
+  }
+
+  async function executeDuplicateRecord() {
     if (!selected) return
     setBusyAction('duplicate')
     setError(null)
@@ -261,12 +383,26 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       await loadRecords()
     } catch (duplicateError) {
       setError(getSafeError(duplicateError))
+      throw duplicateError
     } finally {
       setBusyAction(null)
     }
   }
 
-  async function removeRecord() {
+  function requestDuplicateRecord() {
+    if (!selected) return
+    setConfirmationError(null)
+    setPendingConfirmation({
+      ...buildEditorialConfirmState({
+        action: 'duplicate',
+        contentLabel: selectedTitle,
+        currentStatus: statusLabel(config, selected.status),
+      }),
+      execute: executeDuplicateRecord,
+    })
+  }
+
+  async function executeRemoveRecord() {
     if (!selected) return
     setBusyAction('remove')
     setError(null)
@@ -279,9 +415,23 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       await loadRecords()
     } catch (removeError) {
       setError(getSafeError(removeError))
+      throw removeError
     } finally {
       setBusyAction(null)
     }
+  }
+
+  function requestRemoveRecord() {
+    if (!selected) return
+    setConfirmationError(null)
+    setPendingConfirmation({
+      ...buildEditorialConfirmState({
+        action: 'retire',
+        contentLabel: selectedTitle,
+        currentStatus: statusLabel(config, selected.status),
+      }),
+      execute: executeRemoveRecord,
+    })
   }
 
   async function loadVersions() {
@@ -300,7 +450,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     }
   }
 
-  async function restoreVersion(version: number) {
+  async function executeRestoreVersion(version: number) {
     if (!selected) return
     setBusyAction(`version-${version}`)
     setError(null)
@@ -314,9 +464,23 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       await loadVersions()
     } catch (restoreError) {
       setError(getSafeError(restoreError))
+      throw restoreError
     } finally {
       setBusyAction(null)
     }
+  }
+
+  function requestRestoreVersion(version: number) {
+    if (!selected) return
+    setConfirmationError(null)
+    setPendingConfirmation({
+      ...buildEditorialConfirmState({
+        action: 'restoreVersion',
+        contentLabel: `${selectedTitle} · Versión ${version}`,
+        currentStatus: statusLabel(config, selected.status),
+      }),
+      execute: () => executeRestoreVersion(version),
+    })
   }
 
   async function openPreview() {
@@ -352,7 +516,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <button
           type="button"
-          onClick={() => void runAction('publish')}
+          onClick={() => requestPublicationAction('publish')}
           disabled={isBusy}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-[13px] font-semibold text-[var(--color-positive)] disabled:opacity-45"
         >
@@ -361,7 +525,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         </button>
         <button
           type="button"
-          onClick={() => void runAction('unpublish')}
+          onClick={() => requestPublicationAction('unpublish')}
           disabled={isBusy}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-[13px] font-semibold text-[var(--color-gold)] disabled:opacity-45"
         >
@@ -370,7 +534,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         </button>
         <button
           type="button"
-          onClick={() => void runAction('archive')}
+          onClick={() => requestPublicationAction('archive')}
           disabled={isBusy}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-[13px] font-semibold text-[var(--color-alert)] disabled:opacity-45"
         >
@@ -379,7 +543,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         </button>
         <button
           type="button"
-          onClick={() => void runAction('restore')}
+          onClick={() => requestPublicationAction('restore')}
           disabled={isBusy}
           className="inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-[13px] font-semibold text-[var(--color-burgundy)] disabled:opacity-45"
         >
@@ -407,7 +571,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         />
         <button
           type="button"
-          onClick={() => void scheduleRecord()}
+          onClick={() => requestScheduleRecord()}
           disabled={isBusy || !scheduleAt}
           className="inline-flex items-center justify-center gap-2 rounded-lg bg-[var(--color-ink)] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-45"
         >
@@ -422,16 +586,16 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={() => void duplicateRecord()}
+          onClick={() => requestDuplicateRecord()}
           disabled={isBusy}
           className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-[13px] font-semibold text-[var(--color-muted)] disabled:opacity-45"
         >
           <Copy size={16} />
-          Duplicar
+          Duplicar como borrador
         </button>
         <button
           type="button"
-          onClick={() => void removeRecord()}
+          onClick={() => requestRemoveRecord()}
           disabled={isBusy}
           className="inline-flex items-center gap-2 rounded-lg border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.06)] px-3 py-2 text-[13px] font-semibold text-[var(--color-alert)] disabled:opacity-45"
         >
@@ -461,7 +625,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
               </span>
               <button
                 type="button"
-                onClick={() => void restoreVersion(version.version)}
+                onClick={() => requestRestoreVersion(version.version)}
                 disabled={isBusy}
                 className="inline-flex items-center gap-2 rounded-lg border border-[var(--color-line)] px-3 py-1.5 text-[13px] font-semibold text-[var(--color-burgundy)] disabled:opacity-45"
               >
@@ -592,6 +756,13 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
           {...formProps}
         />
       </div>
+      <EditorialConfirmDialog
+        state={pendingConfirmation}
+        loading={confirmingAction}
+        error={confirmationError}
+        onCancel={closeConfirmation}
+        onConfirm={() => void confirmPendingAction()}
+      />
     </section>
   )
 }
