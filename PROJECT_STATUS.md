@@ -105,7 +105,7 @@ Estado: aprobada en producción.
 
 ## Fase 4B
 
-Estado: implementada y validada técnicamente.
+Estado: cerrada en producción.
 
 ### Aclaración Arquitectónica
 
@@ -145,6 +145,7 @@ Estado: implementada y validada técnicamente.
 - Scheduler real: worker procesó jobs vencidos.
 - Tipos TypeScript regenerados desde Supabase.
 - Copia seed visible corregida con acentos donde aplicaba.
+- Validación productiva autenticada: admin real/autorizado recibió 200 en endpoints editoriales; customer-only recibió 403 en endpoint admin; sin sesión recibió 401.
 - Ningún secreto fue impreso.
 
 ### Riesgos Pendientes Fase 4B
