@@ -150,10 +150,35 @@ Estado: cerrada en producción.
 
 ### Riesgos Pendientes Fase 4B
 
-- No se conectaron todavía todos los formularios del Centro de Control.
+- Los formularios especializados del Centro de Control quedaron conectados y validados en Fase 6B.
 - Google y Apple Auth quedan documentados para la app cliente, no implementados.
 - La experiencia bilingüe completa requiere conexión frontend posterior.
 
+## Fase 6
+
+Estado: cerrada en producción.
+
+### Validación Productiva
+
+- Fase 6B desplegada: formularios especializados editoriales para vinos, experiencias, eventos, promociones, membresías y campañas.
+- Fase 6C desplegada: confirmaciones críticas para publicar, despublicar, archivar, restaurar, restaurar versión, duplicar como borrador, programar y retirar contenido.
+- Commits presentes en `origin/main`:
+  - `e4156e8 feat: add specialized editorial forms`
+  - `13fd995 feat: add editorial action confirmations`
+- Validación manual `super_admin` completada por la usuaria en producción.
+- Rutas validadas con sesión `super_admin`: `/control/vinos`, `/control/experiencias`, `/control/eventos`, `/control/promociones`, `/control/membresias` y `/control/campanas`.
+- `ControlLayout` carga correctamente en las rutas editoriales.
+- Las rutas no redirigen a `/app/home`, no dan 404 y no presentan pantalla blanca.
+- Los formularios especializados de Fase 6B aparecen correctamente.
+- Las confirmaciones críticas de Fase 6C aparecen correctamente y cancelar no ejecuta acciones.
+- No se observaron errores críticos visibles en producción.
+- Frontend tests: 40/40.
+- Backend tests: 31/31.
+- Builds frontend y backend exitosos.
+- Railway health OK: `/api/health` con Supabase configurado, alcanzable, saludable y `status: ok`.
+- Netlify HTTP 200.
+- No se imprimieron secretos, tokens, contraseñas ni credenciales.
+
 ## Siguiente Fase
 
-Centro de Control conectado como sistema de autogestión.
+Fase 7 — Centro de Control conectado como sistema de autogestión.
