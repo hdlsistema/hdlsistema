@@ -8,6 +8,7 @@ import {
   Megaphone,
   Package,
   PackageSearch,
+  QrCode,
   ShoppingBag,
   Sparkles,
   Users,
@@ -78,14 +79,24 @@ export function ControlLayout() {
           icon: Package,
         },
         {
+          to: '/control/ordenes',
+          label: isEnglish ? 'Orders' : 'Órdenes',
+          icon: ShoppingBag,
+        },
+        {
+          to: '/control/pagos',
+          label: isEnglish ? 'Payments' : 'Pagos',
+          icon: PackageSearch,
+        },
+        {
+          to: '/control/check-in',
+          label: 'Check-in',
+          icon: QrCode,
+        },
+        {
           to: '/control/app',
           label: isEnglish ? 'App View' : 'Vista App',
           icon: WineOff,
-        },
-        {
-          to: '/control/dashboard',
-          label: isEnglish ? 'Sales' : 'Ventas',
-          icon: ShoppingBag,
         },
         {
           to: '/control/reportes',

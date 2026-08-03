@@ -38,6 +38,22 @@ export function normalizeDatabaseError(error: unknown): never {
   if (rawMessage.includes('INVALID_PEOPLE_COUNT')) throw httpError(422, 'Número de personas inválido')
   if (rawMessage.includes('INVALID_SLOT')) throw httpError(422, 'Horario inválido')
   if (rawMessage.includes('CUSTOMER_REQUIRED')) throw httpError(422, 'Datos del cliente requeridos')
+  if (rawMessage.includes('ORDER_ITEMS_REQUIRED')) throw httpError(422, 'La orden requiere al menos una partida')
+  if (rawMessage.includes('INVALID_ORDER_ITEM')) throw httpError(422, 'Partida de orden inválida')
+  if (rawMessage.includes('INVALID_PAYMENT')) throw httpError(422, 'Pago inválido')
+  if (rawMessage.includes('PAYMENT_EXCEEDS_TOTAL')) throw httpError(409, 'El pago excede el total de la orden')
+  if (rawMessage.includes('REFUND_EXCEEDS_PAYMENT')) throw httpError(409, 'El reembolso excede el monto disponible')
+  if (rawMessage.includes('ORDER_NOT_PAID')) throw httpError(409, 'La orden aún no está pagada')
+  if (rawMessage.includes('INVALID_QR_TOKEN')) throw httpError(422, 'Código QR inválido')
+  if (rawMessage.includes('PASS_OWNER_REQUIRED')) throw httpError(422, 'El pase requiere orden o reservación')
+  if (rawMessage.includes('PASS_ALREADY_USED')) throw httpError(409, 'El pase ya fue utilizado')
+  if (rawMessage.includes('PASS_REVOKED')) throw httpError(409, 'El pase está revocado')
+  if (rawMessage.includes('PASS_NOT_VALID')) throw httpError(409, 'El pase no está vigente')
+  if (rawMessage.includes('CHECKIN_ALREADY_REVERSED')) throw httpError(409, 'El check-in ya fue revertido')
+  if (rawMessage.includes('ORDER_NOT_FOUND')) throw httpError(404, 'Orden no encontrada')
+  if (rawMessage.includes('PAYMENT_NOT_FOUND')) throw httpError(404, 'Pago no encontrado')
+  if (rawMessage.includes('PASS_NOT_FOUND')) throw httpError(404, 'Pase no encontrado')
+  if (rawMessage.includes('CHECKIN_NOT_FOUND')) throw httpError(404, 'Check-in no encontrado')
 
   throw httpError(500, 'No fue posible completar la operación')
 }
@@ -72,14 +88,19 @@ export function sendOperationError(res: Response, error: unknown) {
     404: 'NOT_FOUND',
     409: 'CONFLICT',
     422: 'UNPROCESSABLE',
+    503: 'SERVICE_UNAVAILABLE',
   }
+  const isOperational =
+    error && typeof error === 'object' && 'isOperational' in error
+      ? Boolean((error as { isOperational?: unknown }).isOperational)
+      : false
 
   res.status(safeStatus).json({
     ok: false,
     error: {
       code: codeMap[safeStatus] ?? 'INTERNAL_ERROR',
       message:
-        error instanceof Error && safeStatus < 500
+        error instanceof Error && (safeStatus < 500 || isOperational)
           ? error.message
           : 'No fue posible completar la operación',
       requestId: (res.locals.requestId as string | undefined) ?? null,

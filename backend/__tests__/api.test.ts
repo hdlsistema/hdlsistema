@@ -129,6 +129,7 @@ vi.mock('@supabase/supabase-js', () => ({
         }),
         lte: vi.fn(() => builder),
         gte: vi.fn(() => builder),
+        not: vi.fn(() => builder),
         or: vi.fn(() => builder),
         order: vi.fn(() => builder),
         range: vi.fn(async () => run()),
@@ -793,6 +794,264 @@ describe('Fase 7C customers CRM API', () => {
     expect(res.text).toContain('CUST-FASE7C')
     expect(res.text).not.toContain(customerId)
     expect(res.text).not.toContain('notes')
+  })
+})
+
+describe('Fase 7D orders, payments and check-in API', () => {
+  const adminUser = {
+    id: '33333333-3333-4333-8333-333333333070',
+    email: 'admin@alqia.tech',
+    created_at: '2026-08-03T00:00:00.000Z',
+    email_confirmed_at: '2026-08-03T00:00:00.000Z',
+  }
+  const customerId = '33333333-3333-4333-8333-333333333071'
+  const orderId = '33333333-3333-4333-8333-333333333072'
+  const paymentId = '33333333-3333-4333-8333-333333333073'
+  const passId = '33333333-3333-4333-8333-333333333074'
+  const checkinId = '33333333-3333-4333-8333-333333333075'
+
+  function signInAs(role: string) {
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: role } }]
+  }
+
+  function seedOrder(status = 'pending_payment') {
+    supabaseMock.tableData.orders = [{
+      id: orderId,
+      order_number: 'ORD-FASE7D',
+      customer_id: customerId,
+      reservation_id: null,
+      subtotal: 1200,
+      discount_total: 0,
+      tax_total: 0,
+      shipping_total: 0,
+      total: 1200,
+      currency: 'MXN',
+      status,
+      source: 'Centro de control',
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+      customers: { display_name: 'Cliente Fase 7D', first_name: 'Cliente', last_name: 'Fase 7D' },
+    }]
+  }
+
+  function seedPayment(status = 'paid') {
+    supabaseMock.tableData.payments = [{
+      id: paymentId,
+      order_id: orderId,
+      provider: 'manual',
+      amount: 1200,
+      currency: 'MXN',
+      status,
+      payment_method_type: 'transferencia',
+      payment_reference: 'QA-FASE7D',
+      refunded_amount: status === 'refunded' ? 1200 : 0,
+      provider_environment: 'manual',
+      paid_at: '2026-08-03T00:00:00.000Z',
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+      orders: {
+        order_number: 'ORD-FASE7D',
+        total: 1200,
+        status: 'paid',
+        customers: { display_name: 'Cliente Fase 7D', first_name: 'Cliente', last_name: 'Fase 7D' },
+      },
+    }]
+  }
+
+  function seedPass() {
+    supabaseMock.tableData.access_passes = [{
+      id: passId,
+      reservation_id: '33333333-3333-4333-8333-333333333076',
+      order_id: orderId,
+      pass_number: 'PASS-FASE7D',
+      status: 'published',
+      valid_from: null,
+      valid_until: null,
+      used_at: null,
+      issued_at: '2026-08-03T00:00:00.000Z',
+      created_at: '2026-08-03T00:00:00.000Z',
+      reservations: {
+        reservation_number: 'RES-FASE7D',
+        people_count: 2,
+        customers: { display_name: 'Cliente Fase 7D', first_name: 'Cliente', last_name: 'Fase 7D' },
+        experiences: { title: 'Cata real' },
+      },
+      orders: { order_number: 'ORD-FASE7D', status: 'paid' },
+    }]
+  }
+
+  it('rechaza órdenes administrativas sin sesión y bloquea customer', async () => {
+    const unauth = await request(app).get('/api/admin/orders')
+    expect(unauth.status).toBe(401)
+
+    signInAs('customer')
+    const customer = await request(app).get('/api/admin/orders').set('Authorization', 'Bearer customer-token')
+    expect(customer.status).toBe(403)
+  })
+
+  it('lista órdenes reales, partidas y exportación sin UUIDs internos', async () => {
+    signInAs('viewer')
+    seedOrder()
+    seedPayment()
+    supabaseMock.tableData.order_items = [{
+      id: '33333333-3333-4333-8333-333333333077',
+      order_id: orderId,
+      item_type: 'manual',
+      name_snapshot: 'Cata privada',
+      quantity: 2,
+      unit_price: 600,
+      subtotal: 1200,
+      created_at: '2026-08-03T00:00:00.000Z',
+    }]
+
+    const list = await request(app).get('/api/admin/orders').set('Authorization', 'Bearer viewer-token')
+    const items = await request(app).get(`/api/admin/orders/${orderId}/items`).set('Authorization', 'Bearer viewer-token')
+    const exported = await request(app).get('/api/admin/orders/export').set('Authorization', 'Bearer viewer-token')
+
+    expect(list.status).toBe(200)
+    expect(list.body.data[0]).toMatchObject({ orderNumber: 'ORD-FASE7D', paidAmount: 1200 })
+    expect(items.status).toBe(200)
+    expect(items.body.data[0].nameSnapshot).toBe('Cata privada')
+    expect(exported.status).toBe(200)
+    expect(exported.text).toContain('order_number')
+    expect(exported.text).not.toContain(orderId)
+  })
+
+  it('crea orden mediante RPC e impide payloads inválidos', async () => {
+    signInAs('operations')
+    seedOrder()
+    supabaseMock.rpcData.create_order_admin = orderId
+
+    const invalid = await request(app)
+      .post('/api/admin/orders')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ customerId, items: [{ nameSnapshot: 'Sin cantidad', quantity: 0, unitPrice: 100 }] })
+    const created = await request(app)
+      .post('/api/admin/orders')
+      .set('Authorization', 'Bearer operations-token')
+      .send({
+        customerId,
+        items: [{ nameSnapshot: 'Cata privada', quantity: 2, unitPrice: 600 }],
+      })
+
+    expect(invalid.status).toBe(422)
+    expect(created.status).toBe(201)
+    expect(created.body.data.orderNumber).toBe('ORD-FASE7D')
+  })
+
+  it('registra pago manual, reembolso y webhook deshabilitado sin simular cobros', async () => {
+    signInAs('finance')
+    seedOrder('paid')
+    seedPayment()
+    supabaseMock.rpcData.record_manual_payment = paymentId
+    supabaseMock.rpcData.register_refund = paymentId
+
+    const manual = await request(app)
+      .post('/api/admin/payments/manual')
+      .set('Authorization', 'Bearer finance-token')
+      .send({
+        orderId,
+        amount: 1200,
+        paymentMethodType: 'transferencia',
+        paymentReference: 'QA-FASE7D',
+        notes: 'Pago controlado',
+      })
+    const refund = await request(app)
+      .post(`/api/admin/payments/${paymentId}/refund`)
+      .set('Authorization', 'Bearer finance-token')
+      .send({ amount: 100, reason: 'Ajuste controlado' })
+    const webhook = await request(app)
+      .post('/api/webhooks/payments/provider')
+      .send({ providerEventId: 'evt_1', eventType: 'payment.updated', payloadHash: 'abcdef1234567890' })
+
+    expect(manual.status).toBe(201)
+    expect(manual.body.data.providerEnvironment).toBe('manual')
+    expect(refund.status).toBe(200)
+    expect(webhook.status).toBe(503)
+    expect(webhook.body.error.message).toBe('Proveedor de pago no configurado')
+  })
+
+  it('emite pase QR, valida acceso, registra check-in y bloquea doble uso', async () => {
+    signInAs('operations')
+    seedPass()
+    supabaseMock.tableData.checkins = [{
+      id: checkinId,
+      access_pass_id: passId,
+      checked_in_at: '2026-08-03T00:00:00.000Z',
+      notes: 'Check-in real',
+      reversed_at: null,
+      created_at: '2026-08-03T00:00:00.000Z',
+      access_passes: {
+        pass_number: 'PASS-FASE7D',
+        reservations: { reservation_number: 'RES-FASE7D', experiences: { title: 'Cata real' } },
+      },
+    }]
+    supabaseMock.rpcData.issue_access_pass = passId
+    supabaseMock.rpcData.validate_access_pass = {
+      valid: true,
+      accessPassId: passId,
+      passNumber: 'PASS-FASE7D',
+      guestName: 'Cliente Fase 7D',
+      peopleCount: 2,
+    }
+    supabaseMock.rpcData.register_checkin = checkinId
+
+    const pass = await request(app)
+      .post('/api/admin/access-passes')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ reservationId: '33333333-3333-4333-8333-333333333076' })
+    const validate = await request(app)
+      .post('/api/admin/access-passes/validate')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ code: 'hdl_token_seguro_de_prueba' })
+    const checkin = await request(app)
+      .post('/api/admin/checkins')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ accessPassId: passId })
+
+    supabaseMock.rpcError = new Error('PASS_ALREADY_USED')
+    const duplicated = await request(app)
+      .post('/api/admin/checkins')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ accessPassId: passId })
+
+    expect(pass.status).toBe(201)
+    expect(pass.body.data.qrToken).toMatch(/^hdl_/)
+    expect(JSON.stringify(pass.body)).not.toContain('qr_token_hash')
+    expect(validate.status).toBe(200)
+    expect(validate.body.data.valid).toBe(true)
+    expect(checkin.status).toBe(201)
+    expect(duplicated.status).toBe(409)
+  })
+
+  it('revoca pase y revierte check-in con autorización', async () => {
+    signInAs('operations')
+    seedPass()
+    supabaseMock.tableData.checkins = [{
+      id: checkinId,
+      access_pass_id: passId,
+      checked_in_at: '2026-08-03T00:00:00.000Z',
+      reversed_at: '2026-08-03T01:00:00.000Z',
+      reversal_reason: 'Prueba controlada',
+      created_at: '2026-08-03T00:00:00.000Z',
+      access_passes: { pass_number: 'PASS-FASE7D' },
+    }]
+    supabaseMock.rpcData.revoke_access_pass = passId
+    supabaseMock.rpcData.reverse_checkin = checkinId
+
+    const revoke = await request(app)
+      .post(`/api/admin/access-passes/${passId}/revoke`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ reason: 'Prueba controlada' })
+    const reverse = await request(app)
+      .post(`/api/admin/checkins/${checkinId}/reverse`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ reason: 'Prueba controlada' })
+
+    expect(revoke.status).toBe(200)
+    expect(reverse.status).toBe(200)
+    expect(reverse.body.data.status).toBe('reversed')
   })
 })
 

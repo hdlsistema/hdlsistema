@@ -6,9 +6,12 @@ import { MobileShell } from '../components/mobile/MobileShell'
 import { ControlLayout } from '../layout/ControlLayout'
 import { AppPreviewPage } from '../pages/control/AppPreviewPage'
 import { AvailabilityPage } from '../pages/control/AvailabilityPage'
+import { CheckInPage } from '../pages/control/CheckInPage'
 import { CustomersPage } from '../pages/control/CustomersPage'
 import { DashboardPage } from '../pages/control/DashboardPage'
 import { EditorialContentPage } from '../pages/control/EditorialContentPage'
+import { OrdersPage } from '../pages/control/OrdersPage'
+import { PaymentsPage } from '../pages/control/PaymentsPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
 import { LandingPage } from '../pages/public/LandingPage'
@@ -119,6 +122,9 @@ export function AppRouter() {
         <Route path="membresias" element={<EditorialContentPage entity="membership-plans" />} />
         <Route path="campanas" element={<EditorialContentPage entity="campaigns" />} />
         <Route path="disponibilidad" element={<AvailabilityPage />} />
+        <Route path="ordenes" element={<OrdersPage />} />
+        <Route path="pagos" element={<PaymentsPage />} />
+        <Route path="check-in" element={<CheckInPage />} />
         <Route path="reportes" element={<ReportsPage />} />
         <Route path="configuracion" element={<SettingsPage />} />
         <Route path="app" element={<AppPreviewPage />} />

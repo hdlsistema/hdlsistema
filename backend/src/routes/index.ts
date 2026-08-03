@@ -5,7 +5,10 @@ import { publicRouter } from '../modules/public/status.routes'
 import { authRouter } from '../modules/auth/auth.routes'
 import { adminUsersRouter } from '../modules/admin/users.routes'
 import { adminAvailabilityRouter } from '../modules/availability/availability.routes'
+import { adminCheckinRouter } from '../modules/checkin/checkin.routes'
 import { adminCustomersRouter } from '../modules/customers/customers.routes'
+import { adminOrdersRouter } from '../modules/orders/orders.routes'
+import { adminPaymentsRouter, paymentWebhooksRouter } from '../modules/payments/payments.routes'
 import { adminReservationsRouter } from '../modules/reservations/reservations.routes'
 import {
   adminContentRouter,
@@ -28,6 +31,10 @@ router.use('/admin', adminUsersRouter)
 router.use('/admin', adminAvailabilityRouter)
 router.use('/admin', adminReservationsRouter)
 router.use('/admin', adminCustomersRouter)
+router.use('/admin', adminOrdersRouter)
+router.use('/admin', adminPaymentsRouter)
+router.use('/admin', adminCheckinRouter)
+router.use('/webhooks', paymentWebhooksRouter)
 router.use('/admin', adminContentRouter)
 router.use('/public', publicContentRouter)
 router.use('/preview', previewContentRouter)
