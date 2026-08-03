@@ -323,6 +323,50 @@ Estado: aprobada en producción.
   - Netlify sirve el bundle nuevo `index-CC25RzLF.js`.
   - No se imprimieron secretos, tokens, headers sensibles ni credenciales.
 
+## Fase 7E
+
+Estado: aprobada en producción.
+
+### Wine Club, Inventario, Logística y Distribuidores
+
+- Migración aplicada en Supabase productivo: `027_wineclub_inventory_logistics_distributors.sql`.
+- Migración reaplicada sin efectos destructivos para validar idempotencia.
+- Commit funcional desplegado: `f9209a5 feat: connect wine club inventory logistics and distributors`.
+- Backend conectado a datos reales:
+  - Wine Club administrativo en `/api/admin/memberships`.
+  - Inventario administrativo en `/api/admin/inventory`.
+  - Logística administrativa en `/api/admin/shipments`.
+  - Distribuidores y órdenes de distribuidores en `/api/admin/distributors` y `/api/admin/distributor-orders`.
+- Frontend conectado a API real:
+  - `/control/wine-club`
+  - `/control/inventario`
+  - `/control/logistica`
+  - `/control/distribuidores`
+- Permisos productivos validados:
+  - Admin `super_admin`: lectura y escritura operativa aprobadas.
+  - Customer: bloqueado con 403 en endpoints administrativos.
+  - Sin sesión: bloqueado con 401.
+- Prueba real local contra Supabase productivo:
+  - Datos temporales `QA_FASE7E_` creados para validación y limpiados al finalizar.
+  - Validó membresías, puntos, inventario, movimientos, logística, distribuidores, órdenes y exportaciones seguras.
+- Validación productiva:
+  - Railway `/api/health`: HTTP 200 con Supabase `status: ok`.
+  - Railway runner productivo Fase 7E: aprobado.
+  - Netlify HTTP 200 en `/control/wine-club`, `/control/inventario`, `/control/logistica` y `/control/distribuidores`.
+  - Netlify sirve el bundle `index-BJV4wwsd.js`.
+  - Las rutas de Centro de Control están presentes en el bundle desplegado y no dependen de mocks visibles.
+- Pruebas locales:
+  - Frontend tests: 58/58.
+  - Backend tests: 61/61.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+  - Lint: exitoso con warnings preexistentes.
+  - `git diff --check`: limpio.
+- Seguridad:
+  - No se imprimieron secretos, JWT, tokens, headers sensibles ni variables de entorno.
+  - No se crearon datos productivos permanentes.
+  - La mutación productiva se limitó a datos temporales `QA_FASE7E_` y la limpieza quedó completada.
+
 ## Siguiente Fase
 
-Fase 7D — Profundización operativa del Centro de Control. No iniciada.
+Fase 7F — No iniciada.
