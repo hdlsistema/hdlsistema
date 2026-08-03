@@ -5,6 +5,7 @@ import { publicRouter } from '../modules/public/status.routes'
 import { authRouter } from '../modules/auth/auth.routes'
 import { adminUsersRouter } from '../modules/admin/users.routes'
 import { adminAvailabilityRouter } from '../modules/availability/availability.routes'
+import { adminCustomersRouter } from '../modules/customers/customers.routes'
 import { adminReservationsRouter } from '../modules/reservations/reservations.routes'
 import {
   adminContentRouter,
@@ -26,6 +27,7 @@ router.use('/auth', authRouter)
 router.use('/admin', adminUsersRouter)
 router.use('/admin', adminAvailabilityRouter)
 router.use('/admin', adminReservationsRouter)
+router.use('/admin', adminCustomersRouter)
 router.use('/admin', adminContentRouter)
 router.use('/public', publicContentRouter)
 router.use('/preview', previewContentRouter)

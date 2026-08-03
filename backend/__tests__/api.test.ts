@@ -39,7 +39,9 @@ vi.mock('@supabase/supabase-js', () => ({
       const state = {
         table,
         filters: [] as Array<{ column: string; value: unknown }>,
+        nullFilters: [] as string[],
         inFilters: [] as Array<{ column: string; values: unknown[] }>,
+        operation: 'select' as 'select' | 'insert' | 'update' | 'delete' | 'upsert',
         payload: null as unknown,
       }
       const run = () => {
@@ -48,22 +50,68 @@ vi.mock('@supabase/supabase-js', () => ({
         const rows = [...(supabaseMock.tableData[state.table] ?? [])]
         const data = rows.filter((row) => {
           if (!row || typeof row !== 'object') return false
-          return state.filters.every((filter) => (row as Record<string, unknown>)[filter.column] === filter.value)
+          const record = row as Record<string, unknown>
+          return state.filters.every((filter) => record[filter.column] === filter.value) &&
+            state.nullFilters.every((column) => record[column] === null || record[column] === undefined) &&
+            state.inFilters.every((filter) => filter.values.includes(record[filter.column]))
         })
         return { data, error: null, count: data.length }
+      }
+      const payloadRecord = () => {
+        const payload = Array.isArray(state.payload) ? state.payload[0] : state.payload
+        return payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
+      }
+      const insertRecord = () => {
+        const next = {
+          id: '00000000-0000-0000-0000-000000000099',
+          created_at: '2026-08-03T00:00:00.000Z',
+          updated_at: '2026-08-03T00:00:00.000Z',
+          ...payloadRecord(),
+        }
+        supabaseMock.tableData[state.table] = [...(supabaseMock.tableData[state.table] ?? []), next]
+        return next
+      }
+      const updateRecord = () => {
+        const rows = [...(supabaseMock.tableData[state.table] ?? [])]
+        const patch = payloadRecord()
+        const index = rows.findIndex((row) => {
+          if (!row || typeof row !== 'object') return false
+          const record = row as Record<string, unknown>
+          return state.filters.every((filter) => record[filter.column] === filter.value)
+        })
+        const current = index >= 0 && rows[index] && typeof rows[index] === 'object'
+          ? rows[index] as Record<string, unknown>
+          : {}
+        const next = {
+          id: current.id ?? '00000000-0000-0000-0000-000000000099',
+          created_at: current.created_at ?? '2026-08-03T00:00:00.000Z',
+          updated_at: '2026-08-03T00:00:00.000Z',
+          ...current,
+          ...patch,
+        }
+        if (index >= 0) rows[index] = next
+        else rows.push(next)
+        supabaseMock.tableData[state.table] = rows
+        return next
       }
       const builder: Record<string, unknown> = {
         select: vi.fn(() => builder),
         insert: vi.fn((payload: unknown) => {
+          state.operation = 'insert'
           state.payload = payload
           return builder
         }),
         update: vi.fn((payload: unknown) => {
+          state.operation = 'update'
           state.payload = payload
           return builder
         }),
-        delete: vi.fn(() => builder),
+        delete: vi.fn(() => {
+          state.operation = 'delete'
+          return builder
+        }),
         upsert: vi.fn((payload: unknown) => {
+          state.operation = 'upsert'
           state.payload = payload
           return builder
         }),
@@ -71,7 +119,10 @@ vi.mock('@supabase/supabase-js', () => ({
           state.filters.push({ column, value })
           return builder
         }),
-        is: vi.fn(() => builder),
+        is: vi.fn((column: string, value: unknown) => {
+          if (value === null) state.nullFilters.push(column)
+          return builder
+        }),
         in: vi.fn((column: string, values: unknown[]) => {
           state.inFilters.push({ column, values })
           return builder
@@ -87,7 +138,13 @@ vi.mock('@supabase/supabase-js', () => ({
           return { data: [], error: supabaseMock.error }
         }),
         then: vi.fn((resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
-          Promise.resolve(run()).then(resolve, reject),
+          Promise.resolve(
+            state.operation === 'insert'
+              ? { data: insertRecord(), error: null, count: 1 }
+              : state.operation === 'update'
+                ? { data: updateRecord(), error: null, count: 1 }
+                : run(),
+          ).then(resolve, reject),
         ),
         maybeSingle: vi.fn(async () => {
           const result = run()
@@ -96,14 +153,13 @@ vi.mock('@supabase/supabase-js', () => ({
         single: vi.fn(async () => {
           if (supabaseMock.throwError) throw supabaseMock.throwError
           if (supabaseMock.error) return { data: null, error: supabaseMock.error }
-          const payload = Array.isArray(state.payload) ? state.payload[0] : state.payload
-          return {
-            data: {
-              id: '00000000-0000-0000-0000-000000000099',
-              ...(payload && typeof payload === 'object' ? payload : {}),
-            },
-            error: null,
+          if (state.operation === 'insert') return { data: insertRecord(), error: null }
+          if (state.operation === 'update') return { data: updateRecord(), error: null }
+          if (state.operation === 'delete') {
+            const data = run().data
+            return { data: Array.isArray(data) ? data[0] ?? null : null, error: null }
           }
+          return { data: run().data?.[0] ?? { id: '00000000-0000-0000-0000-000000000099' }, error: null }
         }),
       }
       return builder
@@ -508,6 +564,235 @@ describe('Fase 7B operations API', () => {
 
     expect(res.status).toBe(409)
     expect(res.body.error.message).toBe('No hay cupo suficiente')
+  })
+})
+
+describe('Fase 7C customers CRM API', () => {
+  const adminUser = {
+    id: '22222222-2222-4222-8222-222222222070',
+    email: 'admin@alqia.tech',
+    created_at: '2026-08-03T00:00:00.000Z',
+    email_confirmed_at: '2026-08-03T00:00:00.000Z',
+  }
+  const customerId = '22222222-2222-4222-8222-222222222071'
+  const tagId = '22222222-2222-4222-8222-222222222072'
+
+  function signInAs(role: string) {
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: role } }]
+  }
+
+  function seedCustomer() {
+    supabaseMock.tableData.customers = [{
+      id: customerId,
+      customer_number: 'CUST-FASE7C',
+      first_name: 'Cliente',
+      last_name: 'CRM',
+      display_name: 'Cliente CRM',
+      email: 'cliente.crm@example.com',
+      phone: '+524491234567',
+      phone_normalized: '+524491234567',
+      source: 'Centro de control',
+      segment: 'vip',
+      total_spend: 1000,
+      total_visits: 2,
+      status: 'published',
+      marketing_email_consent: true,
+      marketing_push_consent: false,
+      preferred_language: 'es',
+      archived_at: null,
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+  }
+
+  it('rechaza CRM administrativo sin sesión', async () => {
+    const res = await request(app).get('/api/admin/customers')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('bloquea customer en CRM administrativo', async () => {
+    signInAs('customer')
+
+    const res = await request(app)
+      .get('/api/admin/customers')
+      .set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+
+  it('permite lectura real de clientes a viewer sin exponer identificador auth', async () => {
+    signInAs('viewer')
+    seedCustomer()
+    supabaseMock.tableData.customer_tag_assignments = [{
+      customer_id: customerId,
+      tag_id: tagId,
+      customer_tags: {
+        id: tagId,
+        name: 'VIP',
+        slug: 'vip',
+        color: '#681126',
+        status: 'published',
+        created_at: '2026-08-03T00:00:00.000Z',
+      },
+    }]
+    supabaseMock.tableData.orders = [{
+      id: '22222222-2222-4222-8222-222222222073',
+      customer_id: customerId,
+      order_number: 'ORD-FASE7C',
+      total: 1450,
+      currency: 'MXN',
+      status: 'paid',
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.reservations = [{
+      id: '22222222-2222-4222-8222-222222222074',
+      customer_id: customerId,
+      reservation_number: 'RES-FASE7C',
+      people_count: 2,
+      total: 1200,
+      currency: 'MXN',
+      status: 'confirmed',
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .get('/api/admin/customers')
+      .set('Authorization', 'Bearer viewer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data[0]).toMatchObject({
+      displayName: 'Cliente CRM',
+      ordersCount: 1,
+      reservationsCount: 1,
+      totalSpend: 1450,
+    })
+    expect(JSON.stringify(res.body)).not.toContain('user_id')
+  })
+
+  it('crea cliente real desde CRM con normalización y auditoría', async () => {
+    signInAs('operations')
+
+    const res = await request(app)
+      .post('/api/admin/customers')
+      .set('Authorization', 'Bearer operations-token')
+      .send({
+        firstName: 'QA',
+        lastName: 'Fase 7C',
+        email: 'QA.FASE7C@example.com',
+        phone: '+52 449 123 4567',
+        marketingEmailConsent: true,
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data).toMatchObject({
+      displayName: 'QA Fase 7C',
+      email: 'qa.fase7c@example.com',
+      marketingEmailConsent: true,
+    })
+    expect(supabaseMock.tableData.audit_logs?.length).toBeGreaterThan(0)
+  })
+
+  it('evita duplicados por correo o teléfono', async () => {
+    signInAs('operations')
+    seedCustomer()
+
+    const res = await request(app)
+      .post('/api/admin/customers')
+      .set('Authorization', 'Bearer operations-token')
+      .send({
+        firstName: 'Duplicado',
+        email: 'cliente.crm@example.com',
+      })
+
+    expect(res.status).toBe(409)
+    expect(res.body.error.code).toBe('CONFLICT')
+  })
+
+  it('edita segmento y consentimiento sin sobrescribir nombre visible', async () => {
+    signInAs('operations')
+    seedCustomer()
+
+    const res = await request(app)
+      .patch(`/api/admin/customers/${customerId}`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({
+        segment: 'recurrente',
+        marketingPushConsent: true,
+      })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toMatchObject({
+      displayName: 'Cliente CRM',
+      segment: 'recurrente',
+      marketingPushConsent: true,
+    })
+  })
+
+  it('valida payload y teléfono antes de escribir', async () => {
+    signInAs('operations')
+
+    const res = await request(app)
+      .post('/api/admin/customers')
+      .set('Authorization', 'Bearer operations-token')
+      .send({
+        firstName: 'QA',
+        phone: '12',
+      })
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.code).toBe('UNPROCESSABLE')
+  })
+
+  it('opera notas y etiquetas con permisos administrativos', async () => {
+    signInAs('marketing')
+    seedCustomer()
+    supabaseMock.tableData.customer_tags = [{
+      id: tagId,
+      name: 'Seguimiento',
+      slug: 'seguimiento',
+      color: '#681126',
+      status: 'published',
+      deleted_at: null,
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.customer_tag_assignments = [{ customer_id: customerId, tag_id: tagId }]
+
+    const noteRes = await request(app)
+      .post(`/api/admin/customers/${customerId}/notes`)
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ note: 'Seguimiento comercial real' })
+    const assignRes = await request(app)
+      .post(`/api/admin/customers/${customerId}/tags`)
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ tagId })
+    const removeRes = await request(app)
+      .delete(`/api/admin/customers/${customerId}/tags/${tagId}`)
+      .set('Authorization', 'Bearer marketing-token')
+
+    expect(noteRes.status).toBe(201)
+    expect(assignRes.status).toBe(201)
+    expect(removeRes.status).toBe(200)
+  })
+
+  it('exporta CSV sin UUIDs internos ni notas privadas', async () => {
+    signInAs('finance')
+    seedCustomer()
+
+    const res = await request(app)
+      .get('/api/admin/customers/export')
+      .set('Authorization', 'Bearer finance-token')
+
+    expect(res.status).toBe(200)
+    expect(res.text).toContain('customer_number')
+    expect(res.text).toContain('CUST-FASE7C')
+    expect(res.text).not.toContain(customerId)
+    expect(res.text).not.toContain('notes')
   })
 })
 

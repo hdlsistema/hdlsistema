@@ -1,54 +1,102 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
-  ArrowRight,
-  BadgeDollarSign,
-  BarChart3,
-  Bell,
-  CalendarDays,
-  CheckCircle2,
-  ChevronRight,
+  Archive,
+  BadgeCheck,
   Download,
-  Filter,
+  FileClock,
   Mail,
-  MapPin,
-  MessageSquareText,
+  MessageSquarePlus,
+  Pencil,
   Phone,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Save,
   Search,
-  Sparkles,
-  Star,
-  Target,
-  TrendingUp,
+  Tag,
+  UserRound,
   Users,
-  WalletCards,
-  Wine,
-  type LucideIcon,
+  X,
 } from 'lucide-react'
-import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { useAuth } from '../../../contexts/AuthContext'
+import {
+  customersClient,
+  type CustomerHistoryItem,
+  type CustomerNote,
+  type CustomerPayload,
+  type CustomerRecord,
+  type CustomerRelationItem,
+  type CustomerSegment,
+  type CustomerTag,
+} from '../../../services/customers.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
-import { customers } from '../../data/customers'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
-type CustomerItem = (typeof customers)[number]
-
-type CustomerValueBand = 'VIP' | 'Alto valor' | 'Recurrente' | 'En desarrollo'
-
-function normalizeText(value: string | number | undefined) {
-  return String(value ?? '')
-    .toLocaleLowerCase('es-MX')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+type CustomerForm = {
+  id?: string
+  firstName: string
+  lastName: string
+  displayName: string
+  email: string
+  phone: string
+  birthDate: string
+  source: string
+  segment: CustomerSegment
+  preferredLanguage: 'es' | 'en'
+  marketingEmailConsent: boolean
+  marketingPushConsent: boolean
+  notes: string
 }
 
-function moneyToNumber(value: string | number | undefined) {
-  if (typeof value === 'number') {
-    return value
-  }
-
-  return Number(String(value ?? '').replace(/[^\d.-]/g, '')) || 0
+const emptyCustomerForm: CustomerForm = {
+  firstName: '',
+  lastName: '',
+  displayName: '',
+  email: '',
+  phone: '',
+  birthDate: '',
+  source: 'Centro de control',
+  segment: 'new',
+  preferredLanguage: 'es',
+  marketingEmailConsent: false,
+  marketingPushConsent: false,
+  notes: '',
 }
 
-function formatCurrency(value: number) {
+const segments: Array<{ value: CustomerSegment; label: string }> = [
+  { value: 'new', label: 'Nuevo' },
+  { value: 'recurrente', label: 'Recurrente' },
+  { value: 'vip', label: 'VIP' },
+  { value: 'alto_valor', label: 'Alto valor' },
+  { value: 'en_riesgo', label: 'En riesgo' },
+  { value: 'inactivo', label: 'Inactivo' },
+  { value: 'wine_club', label: 'Wine Club' },
+  { value: 'corporativo', label: 'Corporativo' },
+  { value: 'customer', label: 'Cliente' },
+]
+
+function canWrite(roles: string[]) {
+  return roles.some((role) => ['super_admin', 'admin', 'operations', 'marketing'].includes(role))
+}
+
+function canManageTags(roles: string[]) {
+  return roles.some((role) => ['super_admin', 'admin', 'marketing'].includes(role))
+}
+
+function canExport(roles: string[]) {
+  return roles.some((role) => ['super_admin', 'admin', 'operations', 'marketing', 'finance'].includes(role))
+}
+
+function segmentLabel(value: string) {
+  return segments.find((item) => item.value === value)?.label ?? value
+}
+
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'Sin fecha'
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function money(value: number) {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
@@ -56,11 +104,7 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('es-MX').format(value)
-}
-
-function getInitials(name: string) {
+function initials(name: string) {
   return name
     .split(' ')
     .filter(Boolean)
@@ -70,1073 +114,838 @@ function getInitials(name: string) {
     .toUpperCase()
 }
 
-function getValueBand(customer: CustomerItem): CustomerValueBand {
-  const totalSpent = moneyToNumber(customer.totalSpent)
-  const reservations = Number(customer.reservations) || 0
-  const eventsVisited = Number(customer.eventsVisited) || 0
-  const wineClub = normalizeText(customer.wineClub)
-
-  if (
-    totalSpent >= 25000 ||
-    wineClub.includes('activo') ||
-    wineClub.includes('si')
-  ) {
-    return 'VIP'
+function formFromCustomer(customer: CustomerRecord): CustomerForm {
+  return {
+    id: customer.id,
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    displayName: customer.displayName,
+    email: customer.email ?? '',
+    phone: customer.phone ?? '',
+    birthDate: customer.birthDate ?? '',
+    source: customer.source ?? 'Centro de control',
+    segment: customer.segment,
+    preferredLanguage: customer.preferredLanguage,
+    marketingEmailConsent: customer.marketingEmailConsent,
+    marketingPushConsent: customer.marketingPushConsent,
+    notes: customer.notes ?? '',
   }
-
-  if (totalSpent >= 12000 || reservations + eventsVisited >= 7) {
-    return 'Alto valor'
-  }
-
-  if (reservations + eventsVisited >= 3) {
-    return 'Recurrente'
-  }
-
-  return 'En desarrollo'
 }
 
-function getBandStyles(band: CustomerValueBand) {
-  const styles: Record<CustomerValueBand, string> = {
-    VIP: 'bg-[#efe3cf] text-[#805821]',
-    'Alto valor': 'bg-[#eee4e8] text-[#7a2a42]',
-    Recurrente: 'bg-[#e8f0e7] text-[#5f7d63]',
-    'En desarrollo': 'bg-[#f3ede6] text-[#7d6d61]',
+function payloadFromForm(form: CustomerForm): CustomerPayload {
+  return {
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim() || null,
+    displayName: form.displayName.trim() || null,
+    email: form.email.trim() || null,
+    phone: form.phone.trim() || null,
+    birthDate: form.birthDate || null,
+    source: form.source.trim() || 'Centro de control',
+    segment: form.segment,
+    preferredLanguage: form.preferredLanguage,
+    marketingEmailConsent: form.marketingEmailConsent,
+    marketingPushConsent: form.marketingPushConsent,
+    notes: form.notes.trim() || null,
   }
-
-  return styles[band]
 }
 
-function getCustomerScore(customer: CustomerItem) {
-  const totalSpent = moneyToNumber(customer.totalSpent)
-  const reservations = Number(customer.reservations) || 0
-  const events = Number(customer.eventsVisited) || 0
-  const points = Number(customer.points) || 0
-  const wineClub = normalizeText(customer.wineClub)
-
-  const score =
-    Math.min(totalSpent / 400, 45) +
-    Math.min(reservations * 4, 24) +
-    Math.min(events * 3, 15) +
-    Math.min(points / 250, 8) +
-    (wineClub.includes('activo') || wineClub.includes('si') ? 8 : 0)
-
-  return Math.max(12, Math.min(Math.round(score), 100))
-}
-
-function downloadCustomersCsv(items: CustomerItem[]) {
-  const headers = [
-    'ID',
-    'Nombre',
-    'Segmento',
-    'Ciudad',
-    'Teléfono',
-    'Correo',
-    'Registro',
-    'Última compra',
-    'Reservaciones',
-    'Eventos',
-    'Total gastado',
-    'Ticket promedio',
-    'Frecuencia',
-    'Preferencia',
-    'Vino favorito',
-    'Experiencia favorita',
-    'Canal de origen',
-    'Nivel',
-    'Puntos',
-    'Cupones',
-    'Wine Club',
-    'Última visita',
-    'Oportunidad',
-  ]
-
-  const rows = items.map((item) => [
-    item.id,
-    item.name,
-    item.segment,
-    item.city,
-    item.phone,
-    item.email,
-    item.registrationDate,
-    item.lastPurchase,
-    item.reservations,
-    item.eventsVisited,
-    item.totalSpent,
-    item.averageTicket,
-    item.frequency,
-    item.preference,
-    item.favoriteWine,
-    item.favoriteExperience,
-    item.originChannel,
-    item.loyaltyLevel,
-    item.points,
-    item.coupons,
-    item.wineClub,
-    item.lastVisit,
-    item.opportunity,
-  ])
-
-  const csv = [headers, ...rows]
-    .map((row) =>
-      row
-        .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-        .join(','),
-    )
-    .join('\n')
-
-  const blob = new Blob([`\uFEFF${csv}`], {
-    type: 'text/csv;charset=utf-8;',
-  })
-
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-
-  link.href = url
-  link.download = 'clientes-hacienda-de-letras.csv'
-  link.click()
-
-  URL.revokeObjectURL(url)
-}
-
-function MetricCard({
-  label,
-  value,
-  note,
-  icon: Icon,
-  emphasized = false,
-}: {
-  label: string
-  value: string
-  note: string
-  icon: typeof Users
-  emphasized?: boolean
-}) {
+function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <article
-      className={`relative min-w-0 overflow-hidden rounded-[1.15rem] border p-5 shadow-[var(--shadow-card)] ${
-        emphasized
-          ? 'border-[rgba(104,17,38,0.18)] bg-[linear-gradient(145deg,#681126,#3b0816)]'
-          : 'border-[var(--color-line)] bg-[var(--color-panel)]'
-      }`}
-    >
-      <div
-        className={`absolute -right-8 -top-8 h-24 w-24 rounded-full border ${
-          emphasized
-            ? 'border-white/10'
-            : 'border-[rgba(180,138,85,0.14)]'
-        }`}
-      />
-
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p
-            className={`truncate text-xs ${
-              emphasized
-                ? 'text-white/64'
-                : 'text-[var(--color-muted)]'
-            }`}
-          >
-            {label}
-          </p>
-
-          <p
-            className={`mt-3 text-[2rem] leading-none ${
-              emphasized
-                ? 'text-white'
-                : 'text-[var(--color-ink)]'
-            }`}
-            style={{
-              fontFamily: 'var(--font-display)',
-            }}
-          >
-            {value}
-          </p>
-        </div>
-
-        <span
-          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-            emphasized
-              ? 'bg-white/10 text-[#e5c58f]'
-              : 'bg-[var(--color-soft)] text-[var(--color-burgundy)]'
-          }`}
-        >
-          <Icon size={18} />
-        </span>
-      </div>
-
-      <p
-        className={`relative mt-4 truncate text-[11px] ${
-          emphasized
-            ? 'text-white/55'
-            : 'text-[var(--color-muted)]'
-        }`}
-      >
-        {note}
-      </p>
-    </article>
+    <section className={`border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)] ${className}`}>
+      {children}
+    </section>
   )
 }
 
-function ProgressBar({
-  value,
+function Field({
   label,
-  meta,
+  children,
 }: {
-  value: number
   label: string
-  meta: string
+  children: ReactNode
 }) {
   return (
-    <div>
+    <label className="grid gap-2 text-xs font-semibold uppercase text-[var(--color-muted)]">
+      {label}
+      {children}
+    </label>
+  )
+}
+
+function inputClass() {
+  return 'min-h-11 w-full rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-burgundy)]'
+}
+
+function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Users }) {
+  return (
+    <Panel className="rounded-lg">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-semibold text-[var(--color-ink)]">
-            {label}
-          </p>
-          <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">
-            {meta}
-          </p>
+          <p className="truncate text-xs text-[var(--color-muted)]">{label}</p>
+          <p className="mt-2 text-2xl font-semibold text-[var(--color-ink)]">{value}</p>
         </div>
-
-        <span className="shrink-0 text-xs font-bold text-[var(--color-burgundy)]">
-          {value}%
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]">
+          <Icon size={18} />
         </span>
       </div>
-
-      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-soft)]">
-        <div
-          className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-gold),var(--color-burgundy))]"
-          style={{ width: `${Math.min(value, 100)}%` }}
-        />
-      </div>
-    </div>
+    </Panel>
   )
 }
 
 export function CustomersPage() {
   const { isEnglish } = useAppPreferences()
-  const [selectedCustomerId, setSelectedCustomerId] = useState(
-    customers[0]?.id ?? '',
-  )
-  const [searchTerm, setSearchTerm] = useState('')
-  const [segmentFilter, setSegmentFilter] = useState('Todos')
-  const [cityFilter, setCityFilter] = useState('Todas')
-  const [valueFilter, setValueFilter] = useState('Todos')
-  const [channelFilter, setChannelFilter] = useState('Todos')
+  const { session, roles } = useAuth()
+  const token = session?.access_token
+  const writable = canWrite(roles)
+  const tagWritable = canManageTags(roles)
+  const exportable = canExport(roles)
 
-  const segments = useMemo(
-    () => [
-      'Todos',
-      ...Array.from(
-        new Set(customers.map((customer) => customer.segment)),
-      ),
-    ],
-    [],
-  )
+  const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [tags, setTags] = useState<CustomerTag[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedDetail, setSelectedDetail] = useState<CustomerRecord | null>(null)
+  const [reservations, setReservations] = useState<CustomerRelationItem[]>([])
+  const [orders, setOrders] = useState<CustomerRelationItem[]>([])
+  const [memberships, setMemberships] = useState<CustomerRelationItem[]>([])
+  const [history, setHistory] = useState<CustomerHistoryItem[]>([])
+  const [search, setSearch] = useState('')
+  const [segmentFilter, setSegmentFilter] = useState('')
+  const [tagFilter, setTagFilter] = useState('')
+  const [consentFilter, setConsentFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const [form, setForm] = useState<CustomerForm | null>(null)
+  const [note, setNote] = useState('')
+  const [editingNote, setEditingNote] = useState<CustomerNote | null>(null)
+  const [tagName, setTagName] = useState('')
+  const [tagColor, setTagColor] = useState('#681126')
+  const [assignTagId, setAssignTagId] = useState('')
 
-  const cities = useMemo(
-    () => [
-      'Todas',
-      ...Array.from(new Set(customers.map((customer) => customer.city))),
-    ],
-    [],
-  )
+  const selected = selectedDetail ?? customers.find((item) => item.id === selectedId) ?? customers[0] ?? null
 
-  const channels = useMemo(
-    () => [
-      'Todos',
-      ...Array.from(
-        new Set(customers.map((customer) => customer.originChannel)),
-      ),
-    ],
-    [],
-  )
-
-  const filteredCustomers = useMemo(() => {
-    const query = normalizeText(searchTerm)
-
-    return customers.filter((customer) => {
-      const matchesSearch =
-        query.length === 0 ||
-        [
-          customer.name,
-          customer.email,
-          customer.phone,
-          customer.city,
-          customer.segment,
-          customer.favoriteWine,
-          customer.favoriteExperience,
-        ].some((value) => normalizeText(value).includes(query))
-
-      const matchesSegment =
-        segmentFilter === 'Todos' ||
-        customer.segment === segmentFilter
-
-      const matchesCity =
-        cityFilter === 'Todas' || customer.city === cityFilter
-
-      const matchesValue =
-        valueFilter === 'Todos' ||
-        getValueBand(customer) === valueFilter
-
-      const matchesChannel =
-        channelFilter === 'Todos' ||
-        customer.originChannel === channelFilter
-
-      return (
-        matchesSearch &&
-        matchesSegment &&
-        matchesCity &&
-        matchesValue &&
-        matchesChannel
-      )
-    })
-  }, [
-    searchTerm,
-    segmentFilter,
-    cityFilter,
-    valueFilter,
-    channelFilter,
-  ])
-
-  const selectedCustomer =
-    filteredCustomers.find(
-      (customer) => customer.id === selectedCustomerId,
-    ) ??
-    filteredCustomers[0] ??
-    customers[0]
-
-  const totals = useMemo(() => {
-    const totalSpent = customers.reduce(
-      (sum, customer) => sum + moneyToNumber(customer.totalSpent),
-      0,
-    )
-
-    const averageTicket =
-      customers.length > 0
-        ? Math.round(
-            customers.reduce(
-              (sum, customer) =>
-                sum + moneyToNumber(customer.averageTicket),
-              0,
-            ) / customers.length,
-          )
-        : 0
-
-    const recurring = customers.filter(
-      (customer) =>
-        Number(customer.reservations) +
-          Number(customer.eventsVisited) >=
-        3,
-    ).length
-
-    const wineClub = customers.filter((customer) => {
-      const value = normalizeText(customer.wineClub)
-      return value.includes('activo') || value.includes('si')
-    }).length
-
-    return {
-      totalSpent,
-      averageTicket,
-      recurring,
-      wineClub,
+  const loadCustomers = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [customerResponse, tagResponse] = await Promise.all([
+        customersClient.list(token, {
+          search: search || undefined,
+          segment: segmentFilter || undefined,
+          tagId: tagFilter || undefined,
+          consent: consentFilter || undefined,
+          perPage: 100,
+        }),
+        customersClient.tags(token),
+      ])
+      setCustomers(customerResponse.data)
+      setTags(tagResponse.data)
+      setSelectedId((current) => current ?? customerResponse.data[0]?.id ?? null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible cargar clientes.')
+    } finally {
+      setLoading(false)
     }
-  }, [])
+  }, [consentFilter, search, segmentFilter, tagFilter, token])
 
-  const segmentSummary = useMemo(() => {
-    const groups: Record<CustomerValueBand, number> = {
-      VIP: 0,
-      'Alto valor': 0,
-      Recurrente: 0,
-      'En desarrollo': 0,
+  const loadDetail = useCallback(async (id: string) => {
+    setDetailLoading(true)
+    try {
+      const [detail, customerReservations, customerOrders, customerMemberships, customerHistory] = await Promise.all([
+        customersClient.get(token, id),
+        customersClient.reservations(token, id),
+        customersClient.orders(token, id),
+        customersClient.memberships(token, id),
+        customersClient.history(token, id),
+      ])
+      setSelectedDetail(detail.data)
+      setReservations(customerReservations.data)
+      setOrders(customerOrders.data)
+      setMemberships(customerMemberships.data)
+      setHistory(customerHistory.data)
+      setAssignTagId('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible cargar el expediente del cliente.')
+    } finally {
+      setDetailLoading(false)
     }
+  }, [token])
 
-    customers.forEach((customer) => {
-      groups[getValueBand(customer)] += 1
-    })
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadCustomers(), 300)
+    return () => window.clearTimeout(timer)
+  }, [loadCustomers])
 
-    return groups
-  }, [])
+  useEffect(() => {
+    if (!selectedId) {
+      setSelectedDetail(null)
+      setReservations([])
+      setOrders([])
+      setMemberships([])
+      setHistory([])
+      return
+    }
+    void loadDetail(selectedId)
+  }, [loadDetail, selectedId])
 
-  const topOpportunities = useMemo(
-    () =>
-      [...customers]
-        .sort(
-          (a, b) =>
-            getCustomerScore(b) - getCustomerScore(a),
-        )
-        .slice(0, 4),
-    [],
-  )
+  const metrics = useMemo(() => ({
+    total: customers.length,
+    vip: customers.filter((item) => item.segment === 'vip' || item.activeMembershipsCount > 0).length,
+    revenue: customers.reduce((sum, item) => sum + item.totalSpend, 0),
+    consent: customers.filter((item) => item.marketingEmailConsent || item.marketingPushConsent).length,
+  }), [customers])
 
-  const selectedScore = selectedCustomer
-    ? getCustomerScore(selectedCustomer)
-    : 0
-
-  const selectedBand = selectedCustomer
-    ? getValueBand(selectedCustomer)
-    : 'En desarrollo'
-
-  const clearFilters = () => {
-    setSearchTerm('')
-    setSegmentFilter('Todos')
-    setCityFilter('Todas')
-    setValueFilter('Todos')
-    setChannelFilter('Todos')
+  const openCreate = () => {
+    setForm(emptyCustomerForm)
+    setError('')
   }
 
+  const openEdit = (customer: CustomerRecord) => {
+    setForm(formFromCustomer(customer))
+    setError('')
+  }
+
+  const submitCustomer = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!form || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const payload = payloadFromForm(form)
+      const response = form.id
+        ? await customersClient.update(token, form.id, payload)
+        : await customersClient.create(token, payload)
+      setForm(null)
+      setSelectedId(response.data.id)
+      setToast(form.id ? 'Cliente actualizado en Supabase.' : 'Cliente creado en Supabase.')
+      await loadCustomers()
+      await loadDetail(response.data.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible guardar el cliente.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const runAction = async (message: string, action: () => Promise<unknown>, confirmMessage: string) => {
+    if (!writable || saving) return
+    if (!window.confirm(confirmMessage)) return
+    setSaving(true)
+    setError('')
+    try {
+      await action()
+      setToast(message)
+      await loadCustomers()
+      if (selectedId) await loadDetail(selectedId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const submitNote = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selected || !note.trim() || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      if (editingNote) {
+        await customersClient.updateNote(token, selected.id, editingNote.id, note)
+      } else {
+        await customersClient.addNote(token, selected.id, note)
+      }
+      setNote('')
+      setEditingNote(null)
+      setToast('Nota guardada en Supabase.')
+      await loadDetail(selected.id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible guardar la nota.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const submitTag = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!tagWritable || !tagName.trim() || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const response = await customersClient.createTag(token, { name: tagName, color: tagColor })
+      setTags((current) => [...current, response.data].sort((a, b) => a.name.localeCompare(b.name, 'es-MX')))
+      setTagName('')
+      setToast('Etiqueta creada en Supabase.')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible crear la etiqueta.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const assignTag = async () => {
+    if (!selected || !assignTagId || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await customersClient.assignTag(token, selected.id, assignTagId)
+      setToast('Etiqueta asignada.')
+      await loadDetail(selected.id)
+      await loadCustomers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible asignar la etiqueta.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const exportCsv = async () => {
+    if (!exportable) return
+    setError('')
+    try {
+      const response = await customersClient.exportCsv(token, {
+        search: search || undefined,
+        segment: segmentFilter || undefined,
+        tagId: tagFilter || undefined,
+        consent: consentFilter || undefined,
+      })
+      if (!response.ok) throw new Error('No fue posible exportar clientes.')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'clientes-hacienda-de-letras.csv'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible exportar clientes.')
+    }
+  }
+
+  const pageTitle = isEnglish ? 'Customers' : 'Clientes'
+  const pageDescription = isEnglish
+    ? 'Operational CRM connected to customer records, relations and audit trail.'
+    : 'CRM operativo conectado a clientes, relaciones e historial real.'
+
   return (
-    <div className="min-w-0 space-y-6">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle
-          eyebrow={isEnglish ? 'App control center' : 'Centro de control de la app'}
-          title={isEnglish ? 'Customers' : 'Clientes'}
-          subtitle={isEnglish
-            ? 'Commercial base, loyalty and opportunities built from real behavior inside the app.'
-            : 'Base comercial, fidelización y oportunidades construidas con el comportamiento real dentro de la app.'}
-        />
+    <div className="min-h-full bg-[var(--color-bg)] px-4 py-6 text-[var(--color-ink)] sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-[1480px] gap-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <SectionTitle
+            eyebrow="CRM"
+            title={pageTitle}
+            subtitle={pageDescription}
+          />
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => downloadCustomersCsv(filteredCustomers)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)] shadow-sm transition hover:-translate-y-0.5"
-          >
-            <Download size={16} />
-            {isEnglish ? 'Export customers' : 'Exportar clientes'}
-          </button>
-
-          <Link
-            to="/control/futuro/campanas"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold shadow-[0_12px_25px_rgba(79,15,31,0.18)] transition hover:-translate-y-0.5"
-            style={{
-              color: '#ffffff',
-              textDecoration: 'none',
-            }}
-          >
-            <MegaphoneIcon />
-            {isEnglish ? 'Create campaign' : 'Crear campaña'}
-          </Link>
-        </div>
-      </div>
-
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard
-          label={isEnglish ? 'Registered customers' : 'Clientes registrados'}
-          value={formatNumber(customers.length)}
-          note={isEnglish ? 'Active profiles in digital channel' : 'Perfiles activos en el canal digital'}
-          icon={Users}
-        />
-
-        <MetricCard
-          label={isEnglish ? 'Recurring customers' : 'Clientes recurrentes'}
-          value={formatNumber(totals.recurring)}
-          note={isEnglish ? 'Three or more interactions' : 'Tres interacciones o más'}
-          icon={TrendingUp}
-        />
-
-        <MetricCard
-          label={isEnglish ? 'Generated value' : 'Valor generado'}
-          value={formatCurrency(totals.totalSpent)}
-          note={isEnglish ? 'Accumulated purchase & reservation' : 'Compra y reservación acumulada'}
-          icon={WalletCards}
-          emphasized
-        />
-
-        <MetricCard
-          label={isEnglish ? 'Average ticket' : 'Ticket promedio'}
-          value={formatCurrency(totals.averageTicket)}
-          note={`${totals.wineClub} ${isEnglish ? 'Wine Club members' : 'miembros Wine Club'}`}
-          icon={BadgeDollarSign}
-        />
-      </section>
-
-      <section className="rounded-[1.2rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
-            <Filter
-              size={16}
-              className="text-[var(--color-burgundy)]"
-            />
-
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-muted-strong)]">
-              {isEnglish ? 'Customer base' : 'Base de clientes'}
-            </p>
-
-            <span className="rounded-full bg-[var(--color-soft)] px-3 py-1.5 text-[10px] font-semibold text-[var(--color-muted)]">
-              {filteredCustomers.length} {isEnglish ? 'results' : 'resultados'}
-            </span>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.15fr)_repeat(4,minmax(0,0.72fr))_minmax(104px,0.38fr)]">
-            <label className="flex min-h-11 min-w-0 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4">
-              <Search
-                size={16}
-                className="shrink-0 text-[var(--color-muted)]"
-              />
-
-              <input
-                type="search"
-                value={searchTerm}
-                onChange={(event) =>
-                  setSearchTerm(event.target.value)
-                }
-                placeholder={isEnglish ? 'Search customer, email or preference...' : 'Buscar cliente, correo o preferencia...'}
-                className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)]"
-              />
-            </label>
-
-            <CrystalSelect
-              value={segmentFilter}
-              onChange={setSegmentFilter}
-              options={segments.map((segment) => ({
-                value: segment,
-                label: segment,
-              }))}
-              className="min-w-0"
-              menuClassName="xl:min-w-[250px]"
-            />
-
-            <CrystalSelect
-              value={cityFilter}
-              onChange={setCityFilter}
-              options={cities.map((city) => ({
-                value: city,
-                label: city,
-              }))}
-              className="min-w-0"
-              menuClassName="xl:min-w-[220px]"
-            />
-
-            <CrystalSelect
-              value={valueFilter}
-              onChange={setValueFilter}
-              options={[
-                'Todos',
-                'VIP',
-                'Alto valor',
-                'Recurrente',
-                'En desarrollo',
-              ].map((value) => ({
-                value,
-                label: value,
-              }))}
-              className="min-w-0"
-              menuClassName="xl:min-w-[220px]"
-            />
-
-            <CrystalSelect
-              value={channelFilter}
-              onChange={setChannelFilter}
-              options={channels.map((channel) => ({
-                value: channel,
-                label: channel,
-              }))}
-              className="min-w-0"
-              menuClassName="xl:min-w-[260px]"
-            />
-
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={clearFilters}
-              className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-transparent px-4 text-sm font-semibold text-[var(--color-burgundy)]"
+              onClick={() => void loadCustomers()}
+              className="inline-flex h-11 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-4 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-burgundy)]"
             >
-              {isEnglish ? 'Clear' : 'Limpiar'}
+              <RefreshCw size={16} />
+              Actualizar
+            </button>
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={!exportable}
+              className="inline-flex h-11 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-4 text-sm font-semibold text-[var(--color-ink)] transition hover:border-[var(--color-burgundy)] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Download size={16} />
+              Exportar
+            </button>
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={!writable}
+              className="inline-flex h-11 items-center gap-2 rounded-md bg-[var(--color-burgundy)] px-4 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Plus size={16} />
+              Nuevo cliente
             </button>
           </div>
         </div>
-      </section>
 
-      <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
-        <div className="overflow-hidden rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-          <div className="flex flex-col gap-3 border-b border-[var(--color-line)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3
-                className="text-[1.45rem] text-[var(--color-ink)]"
-                style={{
-                  fontFamily: 'var(--font-display)',
-                }}
-              >
-                {isEnglish ? 'Commercial relationship' : 'Relación comercial'}
-              </h3>
-
-              <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-                {isEnglish ? 'Select a customer to open their profile.' : 'Selecciona un cliente para abrir su expediente.'}
-              </p>
-            </div>
-
-            <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-              {isEnglish ? 'Updated today' : 'Actualizado hoy'}
-            </span>
+        {toast ? (
+          <div className="rounded-md border border-[#b7d7bd] bg-[#eef8f0] px-4 py-3 text-sm font-medium text-[#35623d]">
+            {toast}
           </div>
-
-          <div className="hidden grid-cols-[minmax(220px,1.2fr)_120px_110px_110px_120px_34px] gap-4 bg-[var(--color-soft)] px-5 py-3 text-[9px] font-semibold uppercase tracking-[0.11em] text-[var(--color-muted)] xl:grid">
-            <span>{isEnglish ? 'Customer' : 'Cliente'}</span>
-            <span>{isEnglish ? 'Value' : 'Valor'}</span>
-            <span>{isEnglish ? 'Total' : 'Total'}</span>
-            <span>{isEnglish ? 'Frequency' : 'Frecuencia'}</span>
-            <span>{isEnglish ? 'Last visit' : 'Última visita'}</span>
-            <span />
-          </div>
-
-          <div className="divide-y divide-[var(--color-line)]">
-            {filteredCustomers.map((customer) => {
-              const band = getValueBand(customer)
-              const selected = selectedCustomer?.id === customer.id
-
-              return (
-                <button
-                  key={customer.id}
-                  type="button"
-                  onClick={() => setSelectedCustomerId(customer.id)}
-                  className="grid w-full gap-3 px-5 py-4 text-left transition xl:grid-cols-[minmax(220px,1.2fr)_120px_110px_110px_120px_34px] xl:items-center"
-                  style={{
-                    backgroundColor: selected
-                      ? 'rgba(104,17,38,0.045)'
-                      : 'transparent',
-                    outline: 'none',
-                  }}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(145deg,#eadbc8,#b99060)] text-sm font-bold text-[#5f2e20]">
-                      {getInitials(customer.name)}
-                    </span>
-
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-[var(--color-ink)]">
-                        {customer.name}
-                      </p>
-
-                      <p className="mt-1 flex items-center gap-1.5 truncate text-[10px] text-[var(--color-muted)]">
-                        <MapPin size={11} className="shrink-0" />
-                        <span className="truncate">
-                          {customer.city} · {customer.segment}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`w-fit rounded-full px-3 py-1.5 text-[9px] font-semibold ${getBandStyles(
-                      band,
-                    )}`}
-                  >
-                    {band}
-                  </span>
-
-                  <p className="text-sm font-bold text-[var(--color-ink)]">
-                    {customer.totalSpent}
-                  </p>
-
-                  <p className="text-xs text-[var(--color-muted-strong)]">
-                    {customer.frequency}
-                  </p>
-
-                  <p className="text-xs text-[var(--color-muted)]">
-                    {customer.lastVisit}
-                  </p>
-
-                  <ChevronRight
-                    size={17}
-                    className="hidden text-[var(--color-muted)] xl:block"
-                  />
-                </button>
-              )
-            })}
-          </div>
-
-          {filteredCustomers.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <Search
-                size={24}
-                className="mx-auto text-[var(--color-muted)]"
-              />
-              <p className="mt-4 text-sm font-semibold text-[var(--color-ink)]">
-                {isEnglish ? 'No customers match those filters.' : 'No encontramos clientes con esos filtros.'}
-              </p>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="mt-3 text-xs font-semibold text-[var(--color-burgundy)]"
-              >
-                {isEnglish ? 'Reset search' : 'Restablecer búsqueda'}
-              </button>
-            </div>
-          ) : null}
-        </div>
-
-        {selectedCustomer ? (
-          <aside className="space-y-4">
-            <article className="rounded-[1.3rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <div className="flex items-start gap-4">
-                <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(145deg,#eadbc8,#b99060)] text-lg font-bold text-[#5f2e20]">
-                  {getInitials(selectedCustomer.name)}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3
-                      className="truncate text-[1.55rem] leading-tight text-[var(--color-ink)]"
-                      style={{
-                        fontFamily:
-                          'var(--font-display)',
-                      }}
-                    >
-                      {selectedCustomer.name}
-                    </h3>
-
-                    <span
-                      className={`rounded-full px-3 py-1.5 text-[9px] font-semibold ${getBandStyles(
-                        selectedBand,
-                      )}`}
-                    >
-                      {selectedBand}
-                    </span>
-                  </div>
-
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">
-                    {selectedCustomer.segment} · {selectedCustomer.city}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-[1rem] bg-[var(--color-panel-strong)] p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
-                      Score comercial
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-[var(--color-ink)]">
-                      {selectedScore}/100
-                    </p>
-                  </div>
-
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-[var(--color-burgundy)] shadow-sm">
-                    <BarChart3 size={18} />
-                  </span>
-                </div>
-
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-                  <div
-                    className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-gold),var(--color-burgundy))]"
-                    style={{ width: `${selectedScore}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-4">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.11em] text-[var(--color-muted)]">
-                    {isEnglish ? 'Total spent' : 'Total gastado'}
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-[var(--color-ink)]">
-                    {selectedCustomer.totalSpent}
-                  </p>
-                </div>
-
-                <div className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-4">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.11em] text-[var(--color-muted)]">
-                    {isEnglish ? 'Average ticket' : 'Ticket promedio'}
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-[var(--color-ink)]">
-                    {selectedCustomer.averageTicket}
-                  </p>
-                </div>
-
-                <div className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-4">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.11em] text-[var(--color-muted)]">
-                    {isEnglish ? 'Reservations' : 'Reservaciones'}
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-[var(--color-ink)]">
-                    {selectedCustomer.reservations}
-                  </p>
-                </div>
-
-                <div className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-4">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.11em] text-[var(--color-muted)]">
-                    {isEnglish ? 'Points' : 'Puntos'}
-                  </p>
-                  <p className="mt-2 text-lg font-bold text-[var(--color-ink)]">
-                    {formatNumber(Number(selectedCustomer.points) || 0)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                <a
-                  href={`mailto:${selectedCustomer.email}`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-3 text-xs font-semibold text-[var(--color-ink)]"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Mail size={14} />
-                  {isEnglish ? 'Email' : 'Correo'}
-                </a>
-
-                <a
-                  href={`tel:${selectedCustomer.phone}`}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-3 text-xs font-semibold text-[var(--color-ink)]"
-                  style={{ textDecoration: 'none' }}
-                >
-                  <Phone size={14} />
-                  {isEnglish ? 'Call' : 'Llamar'}
-                </a>
-
-                <Link
-                  to="/control/futuro/campanas"
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-3 text-xs font-semibold"
-                  style={{
-                    color: '#ffffff',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Bell size={14} color="#ffffff" />
-                  {isEnglish ? 'Activate' : 'Activar'}
-                </Link>
-              </div>
-            </article>
-
-            <article className="rounded-[1.3rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <div className="flex items-center gap-3">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]">
-                  <Wine size={18} />
-                </span>
-
-                <div>
-                  <p className="text-sm font-semibold text-[var(--color-ink)]">
-                    {isEnglish ? 'Preferences' : 'Preferencias'}
-                  </p>
-                  <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-                    {isEnglish ? 'What resonates most with this customer' : 'Lo que más conecta con este cliente'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-3">
-                {[
-                  {
-                    label: isEnglish ? 'Favorite wine' : 'Vino favorito',
-                    value: selectedCustomer.favoriteWine,
-                    icon: Wine,
-                  },
-                  {
-                    label: isEnglish ? 'Favorite experience' : 'Experiencia favorita',
-                    value: selectedCustomer.favoriteExperience,
-                    icon: CalendarDays,
-                  },
-                  {
-                    label: isEnglish ? 'Preference' : 'Preferencia',
-                    value: selectedCustomer.preference,
-                    icon: Star,
-                  },
-                  {
-                    label: isEnglish ? 'Origin channel' : 'Canal de origen',
-                    value: selectedCustomer.originChannel,
-                    icon: Target,
-                  },
-                ].map(({ label, value, icon: ItemIcon }: {
-                  label: string
-                  value: string
-                  icon: LucideIcon
-                }) => {
-
-                  return (
-                    <div
-                      key={label}
-                      className="flex items-center gap-3 rounded-xl bg-[var(--color-panel-strong)] px-4 py-3"
-                    >
-                      <ItemIcon
-                        size={15}
-                        className="shrink-0 text-[var(--color-burgundy)]"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-[9px] uppercase tracking-[0.1em] text-[var(--color-muted)]">
-                          {label}
-                        </p>
-                        <p className="mt-1 text-xs font-semibold leading-5 text-[var(--color-ink)]">
-                          {value}
-                        </p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </article>
-
-            <article className="rounded-[1.3rem] border border-[rgba(180,138,85,0.24)] bg-[#fbf6ee] p-5">
-              <div className="flex items-start gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[var(--color-burgundy)] shadow-sm">
-                  <Sparkles size={18} />
-                </span>
-
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">
-                    {isEnglish ? 'Suggested opportunity' : 'Oportunidad sugerida'}
-                  </p>
-
-                  <p className="mt-3 text-sm font-semibold leading-5 text-[var(--color-ink)]">
-                    {selectedCustomer.opportunity}
-                  </p>
-
-                  <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted-strong)]">
-                    {isEnglish ? 'Last visit:' : 'Última visita:'} {selectedCustomer.lastVisit}. {isEnglish ? 'Current level:' : 'Nivel actual:'}
-                    {' '}
-                    {selectedCustomer.loyaltyLevel}.
-                  </p>
-
-                  <Link
-                    to="/control/futuro/campanas"
-                    className="mt-4 inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-burgundy)]"
-                    style={{ textDecoration: 'none' }}
-                  >
-                    {isEnglish ? 'Create personalized campaign' : 'Crear campaña personalizada'}
-                    <ArrowRight size={14} />
-                  </Link>
-                </div>
-              </div>
-            </article>
-          </aside>
         ) : null}
-      </section>
 
-      <section className="grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
-        <article className="rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]">
-              <Users size={18} />
-            </span>
-
-            <div>
-              <p className="text-sm font-semibold text-[var(--color-ink)]">
-                {isEnglish ? 'Value segmentation' : 'Segmentación de valor'}
-              </p>
-              <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-                {isEnglish ? 'Commercial base distribution' : 'Distribución de la base comercial'}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 space-y-5">
-            {(
-              [
-                ['VIP', segmentSummary.VIP],
-                ['Alto valor', segmentSummary['Alto valor']],
-                ['Recurrente', segmentSummary.Recurrente],
-                ['En desarrollo', segmentSummary['En desarrollo']],
-              ] as Array<[CustomerValueBand, number]>
-            ).map(([label, value]) => {
-              const percent =
-                customers.length > 0
-                  ? Math.round((value / customers.length) * 100)
-                  : 0
-
-              return (
-                <ProgressBar
-                  key={label}
-                  label={label}
-                  value={percent}
-                  meta={`${formatNumber(value)} ${isEnglish ? 'customers' : 'clientes'}`}
-                />
-              )
-            })}
-          </div>
-        </article>
-
-        <article className="rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]">
-                <Target size={18} />
-              </span>
-
-              <div>
-                <p className="text-sm font-semibold text-[var(--color-ink)]">
-                  {isEnglish ? 'Priority opportunities' : 'Oportunidades prioritarias'}
-                </p>
-                <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-                  {isEnglish ? 'Customers with highest response probability' : 'Clientes con mayor probabilidad de respuesta'}
-                </p>
-              </div>
-            </div>
-
-            <Link
-              to="/control/futuro/campanas"
-              className="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-burgundy)]"
-              style={{ textDecoration: 'none' }}
+        {error ? (
+          <div className="flex flex-col gap-3 rounded-md border border-[#e2b6b6] bg-[#fff4f4] px-4 py-3 text-sm text-[#8c2f2f] sm:flex-row sm:items-center sm:justify-between">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={() => void loadCustomers()}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-[#d78d8d] px-3 font-semibold"
             >
-              {isEnglish ? 'Create segment' : 'Crear segmento'}
-              <ArrowRight size={14} />
-            </Link>
+              Reintentar
+            </button>
           </div>
+        ) : null}
 
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {topOpportunities.map((customer) => (
-              <button
-                key={customer.id}
-                type="button"
-                onClick={() => setSelectedCustomerId(customer.id)}
-                className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-4 text-left transition hover:-translate-y-0.5"
-              >
-                <div className="flex items-start justify-between gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Metric label="Clientes visibles" value={String(metrics.total)} icon={Users} />
+          <Metric label="VIP o membresía activa" value={String(metrics.vip)} icon={BadgeCheck} />
+          <Metric label="Valor histórico" value={money(metrics.revenue)} icon={UserRound} />
+          <Metric label="Consentimiento marketing" value={String(metrics.consent)} icon={Mail} />
+        </div>
+
+        <Panel className="rounded-lg">
+          <div className="grid gap-3 lg:grid-cols-[1fr_190px_190px_190px]">
+            <label className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className={`${inputClass()} pl-10`}
+                placeholder="Buscar por nombre, correo, teléfono o número"
+              />
+            </label>
+            <select value={segmentFilter} onChange={(event) => setSegmentFilter(event.target.value)} className={inputClass()}>
+              <option value="">Todos los segmentos</option>
+              {segments.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </select>
+            <select value={tagFilter} onChange={(event) => setTagFilter(event.target.value)} className={inputClass()}>
+              <option value="">Todas las etiquetas</option>
+              {tags.map((item) => (
+                <option key={item.id} value={item.id}>{item.name}</option>
+              ))}
+            </select>
+            <select value={consentFilter} onChange={(event) => setConsentFilter(event.target.value)} className={inputClass()}>
+              <option value="">Todo consentimiento</option>
+              <option value="email">Correo autorizado</option>
+              <option value="push">Push autorizado</option>
+              <option value="none">Sin consentimiento</option>
+            </select>
+          </div>
+        </Panel>
+
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+          <Panel className="rounded-lg">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-[var(--color-ink)]">Directorio</h2>
+                <p className="text-sm text-[var(--color-muted)]">Datos leídos desde Supabase.</p>
+              </div>
+              {loading ? <RefreshCw className="animate-spin text-[var(--color-burgundy)]" size={18} /> : null}
+            </div>
+
+            {loading ? (
+              <div className="grid gap-3">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="h-24 animate-pulse rounded-lg bg-[var(--color-soft)]" />
+                ))}
+              </div>
+            ) : customers.length ? (
+              <div className="grid gap-3">
+                {customers.map((customer) => (
+                  <button
+                    key={customer.id}
+                    type="button"
+                    onClick={() => setSelectedId(customer.id)}
+                    className={`grid gap-3 rounded-lg border p-4 text-left transition hover:border-[var(--color-burgundy)] md:grid-cols-[auto_1fr_auto] md:items-center ${
+                      selected?.id === customer.id
+                        ? 'border-[var(--color-burgundy)] bg-[var(--color-soft)]'
+                        : 'border-[var(--color-line)] bg-white'
+                    }`}
+                  >
+                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-[var(--color-burgundy)] text-sm font-bold text-white">
+                      {initials(customer.displayName)}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-[var(--color-ink)]">{customer.displayName}</span>
+                        <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[var(--color-burgundy)]">
+                          {segmentLabel(customer.segment)}
+                        </span>
+                      </span>
+                      <span className="mt-2 grid gap-1 text-sm text-[var(--color-muted)] md:grid-cols-2">
+                        <span className="inline-flex min-w-0 items-center gap-2">
+                          <Mail size={14} />
+                          <span className="truncate">{customer.email ?? 'Sin correo'}</span>
+                        </span>
+                        <span className="inline-flex min-w-0 items-center gap-2">
+                          <Phone size={14} />
+                          <span className="truncate">{customer.phone ?? 'Sin teléfono'}</span>
+                        </span>
+                      </span>
+                    </span>
+                    <span className="grid gap-1 text-right text-sm">
+                      <span className="font-semibold text-[var(--color-ink)]">{money(customer.totalSpend)}</span>
+                      <span className="text-[var(--color-muted)]">{customer.reservationsCount} reservaciones</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="grid min-h-48 place-items-center rounded-lg border border-dashed border-[var(--color-line)] bg-white p-8 text-center">
+                <div>
+                  <Users className="mx-auto text-[var(--color-muted)]" size={28} />
+                  <p className="mt-3 font-semibold text-[var(--color-ink)]">Sin clientes para estos filtros</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">Ajusta la búsqueda o crea un cliente desde el Centro de Control.</p>
+                </div>
+              </div>
+            )}
+          </Panel>
+
+          <Panel className="rounded-lg">
+            {selected ? (
+              <div className="grid gap-5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[var(--color-ink)]">
-                      {customer.name}
-                    </p>
-                    <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">
-                      {customer.opportunity}
-                    </p>
+                    <p className="text-xs font-semibold uppercase text-[var(--color-muted)]">{selected.customerNumber}</p>
+                    <h2 className="mt-1 text-2xl font-semibold text-[var(--color-ink)]">{selected.displayName}</h2>
+                    <p className="mt-1 text-sm text-[var(--color-muted)]">Actualizado: {formatDate(selected.updatedAt)}</p>
                   </div>
-
-                  <span className="rounded-full bg-white px-3 py-1.5 text-[9px] font-bold text-[var(--color-burgundy)] shadow-sm">
-                    {getCustomerScore(customer)}/100
-                  </span>
+                  {detailLoading ? <RefreshCw className="animate-spin text-[var(--color-burgundy)]" size={18} /> : null}
                 </div>
 
-                <div className="mt-4 flex items-center justify-between gap-3">
-                  <span className="text-[10px] text-[var(--color-muted)]">
-                    {customer.originChannel}
-                  </span>
-                  <span className="text-xs font-bold text-[var(--color-ink)]">
-                    {customer.totalSpent}
-                  </span>
+                <div className="flex flex-wrap gap-2">
+                  {selected.tags.map((item) => (
+                    <span
+                      key={item.id}
+                      className="inline-flex items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 py-1 text-xs font-semibold"
+                    >
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
+                      {item.name}
+                    </span>
+                  ))}
+                  {!selected.tags.length ? <span className="text-sm text-[var(--color-muted)]">Sin etiquetas internas.</span> : null}
                 </div>
-              </button>
-            ))}
-          </div>
-        </article>
-      </section>
 
-      <section className="rounded-[1.15rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-          <div className="flex min-w-0 items-start gap-4">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]">
-              <MessageSquareText size={19} />
-            </span>
+                <div className="grid grid-cols-2 gap-3">
+                  <MiniStat label="Reservaciones" value={String(selected.reservationsCount)} />
+                  <MiniStat label="Órdenes" value={String(selected.ordersCount)} />
+                  <MiniStat label="Membresías activas" value={String(selected.activeMembershipsCount)} />
+                  <MiniStat label="Ticket promedio" value={money(selected.averageTicket)} />
+                </div>
 
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-[var(--color-ink)]">
-                {isEnglish
-                  ? 'The customer base feeds campaigns and loyalty'
-                  : 'La base de clientes alimenta campañas y fidelización'}
-              </p>
+                <div className="grid gap-2 text-sm">
+                  <InfoRow icon={Mail} label="Correo" value={selected.email ?? 'Sin correo'} />
+                  <InfoRow icon={Phone} label="Teléfono" value={selected.phone ?? 'Sin teléfono'} />
+                  <InfoRow icon={Tag} label="Origen" value={selected.source ?? 'Sin origen'} />
+                  <InfoRow icon={BadgeCheck} label="Consentimiento" value={[
+                    selected.marketingEmailConsent ? 'correo' : '',
+                    selected.marketingPushConsent ? 'push' : '',
+                  ].filter(Boolean).join(', ') || 'sin autorización'} />
+                </div>
 
-              <p className="mt-2 max-w-4xl text-xs leading-6 text-[var(--color-muted)]">
-                {isEnglish
-                  ? 'Every purchase, reservation, event and preference recorded in the app improves segmentation. The Campaigns Center uses this same data to send relevant promotions, not mass blind messages.'
-                  : 'Cada compra, reservación, evento y preferencia registrada en la app mejora la segmentación. El Centro de Campañas usa esta misma información para enviar promociones relevantes, no mensajes masivos a ciegas.'}
-              </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(selected)}
+                    disabled={!writable}
+                    className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <Pencil size={15} />
+                    Editar
+                  </button>
+                  {selected.archivedAt ? (
+                    <button
+                      type="button"
+                      onClick={() => void runAction(
+                        'Cliente restaurado.',
+                        () => customersClient.restore(token, selected.id),
+                        '¿Restaurar este cliente al directorio activo?',
+                      )}
+                      disabled={!writable || saving}
+                      className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      <RotateCcw size={15} />
+                      Restaurar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void runAction(
+                        'Cliente archivado.',
+                        () => customersClient.archive(token, selected.id),
+                        '¿Archivar este cliente? Sus relaciones históricas se conservan.',
+                      )}
+                      disabled={!writable || saving}
+                      className="inline-flex h-10 items-center gap-2 rounded-md border border-[#d5b2b2] bg-white px-3 text-sm font-semibold text-[#8c2f2f] disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      <Archive size={15} />
+                      Archivar
+                    </button>
+                  )}
+                </div>
+
+                <form onSubmit={submitNote} className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-semibold text-[var(--color-ink)]">Notas internas</h3>
+                    {editingNote ? (
+                      <button type="button" onClick={() => { setEditingNote(null); setNote('') }} className="text-sm font-semibold text-[var(--color-burgundy)]">
+                        Cancelar edición
+                      </button>
+                    ) : null}
+                  </div>
+                  <textarea
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    className={`${inputClass()} min-h-24 py-3`}
+                    placeholder="Registrar seguimiento, preferencia o contexto comercial"
+                    disabled={!writable}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!writable || saving || !note.trim()}
+                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[var(--color-burgundy)] px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    <MessageSquarePlus size={15} />
+                    Guardar nota
+                  </button>
+                  <div className="grid gap-2">
+                    {(selected.recentNotes ?? []).map((item) => (
+                      <div key={item.id} className="rounded-md bg-[var(--color-soft)] p-3 text-sm">
+                        <p className="text-[var(--color-ink)]">{item.note}</p>
+                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--color-muted)]">
+                          <span>{formatDate(item.createdAt)}</span>
+                          <button type="button" onClick={() => { setEditingNote(item); setNote(item.note) }} disabled={!writable} className="font-semibold text-[var(--color-burgundy)] disabled:opacity-45">
+                            Editar
+                          </button>
+                          <button type="button" onClick={() => {
+                            if (window.confirm('¿Eliminar esta nota interna?')) {
+                              void customersClient.deleteNote(token, selected.id, item.id)
+                                .then(() => loadDetail(selected.id))
+                                .catch((err: unknown) => setError(err instanceof Error ? err.message : 'No fue posible eliminar la nota.'))
+                            }
+                          }} disabled={!writable} className="font-semibold text-[#8c2f2f] disabled:opacity-45">
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {!(selected.recentNotes ?? []).length ? <p className="text-sm text-[var(--color-muted)]">Sin notas internas registradas.</p> : null}
+                  </div>
+                </form>
+
+                <div className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
+                  <h3 className="font-semibold text-[var(--color-ink)]">Etiquetas</h3>
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <select value={assignTagId} onChange={(event) => setAssignTagId(event.target.value)} className={inputClass()} disabled={!writable}>
+                      <option value="">Seleccionar etiqueta</option>
+                      {tags.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
+                    </select>
+                    <button type="button" onClick={assignTag} disabled={!writable || saving || !assignTagId} className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--color-line)] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">
+                      <Tag size={15} />
+                      Asignar
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {selected.tags.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => void runAction(
+                          'Etiqueta retirada.',
+                          () => customersClient.unassignTag(token, selected.id, item.id),
+                          '¿Retirar esta etiqueta del cliente?',
+                        )}
+                        disabled={!writable || saving}
+                        className="rounded-md border border-[var(--color-line)] px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {item.name} ×
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <RelatedPanel title="Reservaciones" items={reservations} empty="Sin reservaciones asociadas." />
+                <RelatedPanel title="Órdenes" items={orders} empty="Sin órdenes asociadas." />
+                <RelatedPanel title="Membresías" items={memberships} empty="Sin membresías asociadas." />
+                <HistoryPanel items={history} />
+              </div>
+            ) : (
+              <div className="grid min-h-80 place-items-center text-center">
+                <div>
+                  <UserRound className="mx-auto text-[var(--color-muted)]" size={32} />
+                  <p className="mt-3 font-semibold text-[var(--color-ink)]">Selecciona un cliente</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">El expediente se mostrará con relaciones reales.</p>
+                </div>
+              </div>
+            )}
+          </Panel>
+        </div>
+
+        <Panel className="rounded-lg">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+            <form onSubmit={submitTag} className="grid gap-3">
+              <h2 className="font-semibold text-[var(--color-ink)]">Catálogo de etiquetas</h2>
+              <div className="grid gap-3 sm:grid-cols-[1fr_120px_auto]">
+                <input value={tagName} onChange={(event) => setTagName(event.target.value)} className={inputClass()} placeholder="Nombre de etiqueta" disabled={!tagWritable} />
+                <input type="color" value={tagColor} onChange={(event) => setTagColor(event.target.value)} className="h-11 w-full rounded-md border border-[var(--color-line)] bg-white p-1 disabled:opacity-45" disabled={!tagWritable} />
+                <button type="submit" disabled={!tagWritable || saving || !tagName.trim()} className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-[var(--color-burgundy)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">
+                  <Plus size={16} />
+                  Crear
+                </button>
+              </div>
+            </form>
+            <div className="flex flex-wrap gap-2 self-end">
+              {tags.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    if (!tagWritable) return
+                    const next = window.prompt('Nuevo nombre de etiqueta', item.name)
+                    if (!next?.trim()) return
+                    void customersClient.updateTag(token, item.id, { name: next.trim() })
+                      .then(() => loadCustomers())
+                      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'No fue posible actualizar la etiqueta.'))
+                  }}
+                  className="inline-flex items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 py-2 text-xs font-semibold"
+                >
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
+                  {item.name}
+                </button>
+              ))}
             </div>
           </div>
+        </Panel>
+      </div>
 
-          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 py-2 text-[10px] font-semibold text-[var(--color-burgundy)]">
-            <CheckCircle2 size={13} />
-            {isEnglish ? 'Single data source' : 'Fuente única de datos'}
-          </span>
+      {form ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+          <form onSubmit={submitCustomer} className="grid max-h-[92vh] w-full max-w-3xl gap-4 overflow-auto rounded-lg bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-[var(--color-ink)]">{form.id ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+                <p className="text-sm text-[var(--color-muted)]">Registro administrativo sin crear usuario Auth.</p>
+              </div>
+              <button type="button" onClick={() => setForm(null)} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-line)]">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="Nombre">
+                <input required value={form.firstName} onChange={(event) => setForm({ ...form, firstName: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Apellido">
+                <input value={form.lastName} onChange={(event) => setForm({ ...form, lastName: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Nombre visible">
+                <input value={form.displayName} onChange={(event) => setForm({ ...form, displayName: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Correo">
+                <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Teléfono">
+                <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Nacimiento">
+                <input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Origen">
+                <input value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} className={inputClass()} />
+              </Field>
+              <Field label="Segmento">
+                <select value={form.segment} onChange={(event) => setForm({ ...form, segment: event.target.value as CustomerSegment })} className={inputClass()}>
+                  {segments.map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Idioma">
+                <select value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value as 'es' | 'en' })} className={inputClass()}>
+                  <option value="es">Español</option>
+                  <option value="en">Inglés</option>
+                </select>
+              </Field>
+              <div className="grid gap-3 rounded-lg border border-[var(--color-line)] p-3">
+                <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--color-ink)]">
+                  <input type="checkbox" checked={form.marketingEmailConsent} onChange={(event) => setForm({ ...form, marketingEmailConsent: event.target.checked })} />
+                  Autoriza correo
+                </label>
+                <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--color-ink)]">
+                  <input type="checkbox" checked={form.marketingPushConsent} onChange={(event) => setForm({ ...form, marketingPushConsent: event.target.checked })} />
+                  Autoriza notificaciones
+                </label>
+              </div>
+              <Field label="Notas">
+                <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} className={`${inputClass()} min-h-24 py-3`} />
+              </Field>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setForm(null)} className="inline-flex h-10 items-center justify-center rounded-md border border-[var(--color-line)] px-4 text-sm font-semibold">
+                Cancelar
+              </button>
+              <button type="submit" disabled={saving || !writable} className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[var(--color-burgundy)] px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45">
+                <Save size={16} />
+                {saving ? 'Guardando' : 'Guardar'}
+              </button>
+            </div>
+          </form>
         </div>
-      </section>
+      ) : null}
     </div>
   )
 }
 
-function MegaphoneIcon() {
-  return <Sparkles size={16} color="#ffffff" />
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[var(--color-line)] bg-white p-3">
+      <p className="text-xs text-[var(--color-muted)]">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-[var(--color-ink)]">{value}</p>
+    </div>
+  )
+}
+
+function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-md bg-[var(--color-soft)] p-3">
+      <Icon className="shrink-0 text-[var(--color-burgundy)]" size={16} />
+      <span className="min-w-0">
+        <span className="block text-xs text-[var(--color-muted)]">{label}</span>
+        <span className="block truncate font-medium text-[var(--color-ink)]">{value}</span>
+      </span>
+    </div>
+  )
+}
+
+function RelatedPanel({ title, items, empty }: { title: string; items: CustomerRelationItem[]; empty: string }) {
+  return (
+    <div className="grid gap-2 rounded-lg border border-[var(--color-line)] bg-white p-3">
+      <h3 className="font-semibold text-[var(--color-ink)]">{title}</h3>
+      {items.length ? items.slice(0, 5).map((item) => (
+        <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[var(--color-soft)] px-3 py-2 text-sm">
+          <span className="min-w-0">
+            <span className="block truncate font-semibold text-[var(--color-ink)]">
+              {item.reservationNumber ?? item.orderNumber ?? item.membershipNumber ?? item.plan?.name ?? 'Registro'}
+            </span>
+            <span className="text-xs text-[var(--color-muted)]">{item.createdAt ? formatDate(item.createdAt) : item.startsAt ? formatDate(item.startsAt) : 'Sin fecha'}</span>
+          </span>
+          <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[var(--color-burgundy)]">{item.status}</span>
+        </div>
+      )) : <p className="text-sm text-[var(--color-muted)]">{empty}</p>}
+    </div>
+  )
+}
+
+function HistoryPanel({ items }: { items: CustomerHistoryItem[] }) {
+  return (
+    <div className="grid gap-2 rounded-lg border border-[var(--color-line)] bg-white p-3">
+      <div className="flex items-center gap-2">
+        <FileClock size={16} className="text-[var(--color-burgundy)]" />
+        <h3 className="font-semibold text-[var(--color-ink)]">Historial</h3>
+      </div>
+      {items.length ? items.slice(0, 6).map((item) => (
+        <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[var(--color-soft)] px-3 py-2 text-sm">
+          <span className="font-medium text-[var(--color-ink)]">{item.action}</span>
+          <span className="text-xs text-[var(--color-muted)]">{formatDate(item.createdAt)}</span>
+        </div>
+      )) : <p className="text-sm text-[var(--color-muted)]">Sin eventos de auditoría todavía.</p>}
+    </div>
+  )
 }
