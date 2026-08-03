@@ -185,11 +185,12 @@ Fase 7 — Centro de Control conectado como sistema de autogestión.
 
 ## Fase 7B
 
-Estado: implementada y validada localmente contra Supabase productivo; pendiente de deploy productivo.
+Estado: cerrada en producción.
 
 ### Disponibilidad y Reservaciones
 
 - Migración aplicada en Supabase productivo: `024_reservation_operations.sql`.
+- Commit desplegado: `91ee60a feat: connect availability and reservations operations`.
 - Tablas extendidas de forma no destructiva: `reservations`, `experience_slots`, `experience_blockouts`.
 - RPC operativas: `create_experience_slot`, `update_experience_slot`, `block_experience_slot`, `unblock_experience_slot`, `create_reservation_admin`, `confirm_reservation`, `cancel_reservation`, `reschedule_reservation`, `update_reservation_people`.
 - Las RPC derivan el actor desde `auth.uid()`, no aceptan actor parametrizable y solo conceden `EXECUTE` a usuarios autenticados.
@@ -239,7 +240,14 @@ Estado: implementada y validada localmente contra Supabase productivo; pendiente
   - Sin sesión: bloqueado con 401.
   - Datos temporales `QA_FASE7B_` creados para validación y limpiados al finalizar.
   - No se imprimieron secretos, tokens, headers sensibles ni credenciales.
-- Pendiente para cierre:
-  - Validar deploy Railway y Netlify.
-  - Confirmar `/api/health` productivo OK.
-  - Repetir prueba real controlada en producción desplegada.
+- Validación productiva:
+  - Railway `/api/health`: OK con Supabase configurado, alcanzable, saludable y `status: ok`.
+  - Railway endpoints reales de disponibilidad y reservaciones: admin `super_admin` aprobado con 200/201.
+  - Railway bloqueo de permisos: sin sesión 401; customer 403.
+  - Netlify HTTP 200 en `/control/disponibilidad` y `/control/reservaciones`.
+  - Netlify sirve el bundle nuevo `index-mBUMbP1Z.js`.
+  - Prueba productiva `QA_FASE7B_`: datos temporales creados y limpiados al finalizar.
+  - No se imprimieron secretos, tokens, headers sensibles ni credenciales.
+- Riesgo pendiente:
+  - Revisar duplicación masiva de horarios con volumen productivo antes de uso intensivo.
+- Fase 7C no iniciada.

@@ -114,8 +114,9 @@ No exporta tokens, UUID internos innecesarios, metadata completa ni notas privad
 - Pruebas frontend cubren clientes reales de disponibilidad y reservaciones con Authorization Bearer y rechazo sin sesión.
 - Las pruebas usan mocks solo dentro de archivos de test.
 - Prueba real local contra Supabase productivo aprobada con datos temporales `QA_FASE7B_`, limpieza exacta y sin impresión de secretos.
+- Prueba real productiva en Railway aprobada con admin `super_admin`, customer bloqueado, sin sesión bloqueada y datos temporales `QA_FASE7B_` limpiados.
+- Netlify sirve el bundle desplegado con las rutas `/control/disponibilidad` y `/control/reservaciones` en HTTP 200.
 
 ## Riesgos Pendientes
 
-- Validar deploy Railway y Netlify.
 - Revisar duplicación masiva de horarios con volumen productivo antes de uso intensivo.
