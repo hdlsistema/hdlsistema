@@ -9,11 +9,15 @@ import { AvailabilityPage } from '../pages/control/AvailabilityPage'
 import { CheckInPage } from '../pages/control/CheckInPage'
 import { CustomersPage } from '../pages/control/CustomersPage'
 import { DashboardPage } from '../pages/control/DashboardPage'
+import { DistributorsOperationsPage } from '../pages/control/DistributorsOperationsPage'
 import { EditorialContentPage } from '../pages/control/EditorialContentPage'
+import { InventoryOperationsPage } from '../pages/control/InventoryOperationsPage'
+import { LogisticsOperationsPage } from '../pages/control/LogisticsOperationsPage'
 import { OrdersPage } from '../pages/control/OrdersPage'
 import { PaymentsPage } from '../pages/control/PaymentsPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
+import { WineClubPage } from '../pages/control/WineClubPage'
 import { LandingPage } from '../pages/public/LandingPage'
 import {
   LoginPage,
@@ -33,9 +37,7 @@ import { SommelierScreen } from '../pages/mobile/SommelierScreen'
 import { CartScreen } from '../pages/mobile/CartScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
-import { DistributorsPage } from '../pages/future/DistributorsPage'
 import { IntelligencePage } from '../pages/future/IntelligencePage'
-import { LogisticsPage } from '../pages/future/LogisticsPage'
 import { ReportsPage } from '../pages/future/ReportsPage'
 
 function RedirectWineDetail() {
@@ -125,6 +127,10 @@ export function AppRouter() {
         <Route path="ordenes" element={<OrdersPage />} />
         <Route path="pagos" element={<PaymentsPage />} />
         <Route path="check-in" element={<CheckInPage />} />
+        <Route path="wine-club" element={<WineClubPage />} />
+        <Route path="inventario" element={<InventoryOperationsPage />} />
+        <Route path="logistica" element={<LogisticsOperationsPage />} />
+        <Route path="distribuidores" element={<DistributorsOperationsPage />} />
         <Route path="reportes" element={<ReportsPage />} />
         <Route path="configuracion" element={<SettingsPage />} />
         <Route path="app" element={<AppPreviewPage />} />
@@ -144,15 +150,15 @@ export function AppRouter() {
         <Route path="app/perfil" element={<Navigate to="/app/perfil" replace />} />
 
         {/* Módulos futuros */}
-        <Route path="futuro/inventario" element={<Navigate to="/control/vinos" replace />} />
+        <Route path="futuro/inventario" element={<Navigate to="/control/inventario" replace />} />
         <Route
           path="futuro/vinedos"
           element={<Navigate to="/control/futuro/inventario" replace />}
         />
-        <Route path="futuro/logistica" element={<LogisticsPage />} />
+        <Route path="futuro/logistica" element={<Navigate to="/control/logistica" replace />} />
         <Route
           path="futuro/distribuidores"
-          element={<DistributorsPage />}
+          element={<Navigate to="/control/distribuidores" replace />}
         />
         <Route
           path="futuro/intelligence"

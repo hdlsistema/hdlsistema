@@ -1055,6 +1055,418 @@ describe('Fase 7D orders, payments and check-in API', () => {
   })
 })
 
+describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () => {
+  const adminUser = {
+    id: '44444444-4444-4444-8444-444444444001',
+    email: 'admin.fase7e@alqia.tech',
+    created_at: '2026-08-03T00:00:00.000Z',
+    email_confirmed_at: '2026-08-03T00:00:00.000Z',
+  }
+  const customerId = '44444444-4444-4444-8444-444444444002'
+  const planId = '44444444-4444-4444-8444-444444444003'
+  const membershipId = '44444444-4444-4444-8444-444444444004'
+  const wineId = '44444444-4444-4444-8444-444444444005'
+  const locationId = '44444444-4444-4444-8444-444444444006'
+  const locationTwoId = '44444444-4444-4444-8444-444444444007'
+  const inventoryItemId = '44444444-4444-4444-8444-444444444008'
+  const orderId = '44444444-4444-4444-8444-444444444009'
+  const shipmentId = '44444444-4444-4444-8444-444444444010'
+  const distributorId = '44444444-4444-4444-8444-444444444011'
+  const distributorOrderId = '44444444-4444-4444-8444-444444444012'
+
+  function signInAs(role: string) {
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: role } }]
+  }
+
+  function seedMembership() {
+    supabaseMock.tableData.customers = [{
+      id: customerId,
+      first_name: 'Cliente',
+      last_name: 'Wine Club',
+      display_name: 'Cliente Wine Club',
+      email: 'cliente.fase7e@alqia.tech',
+    }]
+    supabaseMock.tableData.membership_plans = [{
+      id: planId,
+      name: 'Plan Fase 7E',
+      tier: 'premium',
+      price: 1200,
+      currency: 'MXN',
+    }]
+    supabaseMock.tableData.memberships = [{
+      id: membershipId,
+      customer_id: customerId,
+      membership_plan_id: planId,
+      membership_number: 'MBR-FASE7E',
+      status: 'active',
+      starts_at: '2026-08-03T00:00:00.000Z',
+      renewal_date: '2027-08-03',
+      expires_at: '2027-08-03T00:00:00.000Z',
+      points_balance: 20,
+      customers: { display_name: 'Cliente Wine Club', first_name: 'Cliente', last_name: 'Wine Club', email: 'cliente.fase7e@alqia.tech' },
+      membership_plans: { name: 'Plan Fase 7E', tier: 'premium', price: 1200 },
+    }]
+    supabaseMock.tableData.membership_benefits = [{
+      id: '44444444-4444-4444-8444-444444444013',
+      membership_plan_id: planId,
+      name: 'Degustación privada',
+      benefit_type: 'experience',
+      value: 1,
+      metadata: {},
+    }]
+    supabaseMock.tableData.loyalty_transactions = [{
+      id: '44444444-4444-4444-8444-444444444014',
+      customer_id: customerId,
+      membership_id: membershipId,
+      points: 20,
+      transaction_type: 'adjustment',
+      reason: 'Alta controlada',
+      created_at: '2026-08-03T00:00:00.000Z',
+    }]
+  }
+
+  function seedInventory() {
+    supabaseMock.tableData.inventory_locations = [
+      { id: locationId, name: 'Cava principal', code: 'CAVA', type: 'warehouse', active: true, created_at: '2026-08-03T00:00:00.000Z' },
+      { id: locationTwoId, name: 'Tienda', code: 'SHOP', type: 'store', active: true, created_at: '2026-08-03T00:00:00.000Z' },
+    ]
+    supabaseMock.tableData.inventory_items = [{
+      id: inventoryItemId,
+      wine_id: wineId,
+      location_id: locationId,
+      sku: 'QA-FASE7E-WINE',
+      product_name: 'Vino Fase 7E',
+      lot_code: 'L-7E',
+      quantity: 12,
+      reserved_quantity: 2,
+      minimum_quantity: 4,
+      unit_cost: 250,
+      status: 'active',
+      updated_at: '2026-08-03T00:00:00.000Z',
+      wines: { name: 'Vino Fase 7E', sku: 'QA-FASE7E-WINE' },
+      inventory_locations: { name: 'Cava principal', code: 'CAVA', type: 'warehouse' },
+    }]
+    supabaseMock.tableData.inventory_movements = [{
+      id: '44444444-4444-4444-8444-444444444015',
+      inventory_item_id: inventoryItemId,
+      location_id: locationId,
+      movement_type: 'receive',
+      quantity: 12,
+      reason: 'Recepción inicial',
+      created_at: '2026-08-03T00:00:00.000Z',
+      inventory_items: { product_name: 'Vino Fase 7E', sku: 'QA-FASE7E-WINE', wines: { name: 'Vino Fase 7E' } },
+      inventory_locations: { name: 'Cava principal', code: 'CAVA' },
+    }]
+  }
+
+  function seedShipment() {
+    supabaseMock.tableData.orders = [{
+      id: orderId,
+      order_number: 'ORD-FASE7E',
+      status: 'paid',
+      total: 900,
+      customers: { display_name: 'Cliente Wine Club', first_name: 'Cliente', last_name: 'Wine Club' },
+    }]
+    supabaseMock.tableData.shipments = [{
+      id: shipmentId,
+      order_id: orderId,
+      shipment_number: 'SHP-FASE7E',
+      carrier: 'Mensajería controlada',
+      tracking_number: 'TRACK-7E',
+      destination: 'Aguascalientes',
+      status_text: 'pending',
+      shipping_cost: 120,
+      incident_count: 0,
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+      orders: { order_number: 'ORD-FASE7E', status: 'paid', customers: { display_name: 'Cliente Wine Club' } },
+      carriers: null,
+    }]
+    supabaseMock.tableData.shipment_events = [{
+      id: '44444444-4444-4444-8444-444444444016',
+      shipment_id: shipmentId,
+      status: 'pending',
+      event_type: 'status_change',
+      notes: 'Alta de envío',
+      created_at: '2026-08-03T00:00:00.000Z',
+    }]
+  }
+
+  function seedDistributor() {
+    supabaseMock.tableData.distributors = [{
+      id: distributorId,
+      distributor_number: 'DST-FASE7E',
+      name: 'Distribuidor Fase 7E',
+      contact_name: 'Operaciones',
+      email: 'distribuidor.fase7e@alqia.tech',
+      phone: '+524491110000',
+      zone: 'Bajío',
+      distributor_type: 'wholesale',
+      operational_status: 'active',
+      commercial_terms: 'Pago contra entrega',
+      price_list_name: 'Mayoreo',
+      credit_limit: 10000,
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.distributor_contacts = [{
+      id: '44444444-4444-4444-8444-444444444017',
+      distributor_id: distributorId,
+      name: 'Compras',
+      role_title: 'Compras',
+      email: 'compras.fase7e@alqia.tech',
+      active: true,
+      is_primary: true,
+    }]
+    supabaseMock.tableData.distributor_orders = [{
+      id: distributorOrderId,
+      distributor_id: distributorId,
+      order_number: 'DOR-FASE7E',
+      status: 'submitted',
+      subtotal: 1000,
+      total: 1000,
+      currency: 'MXN',
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+      distributors: { name: 'Distribuidor Fase 7E', zone: 'Bajío' },
+    }]
+    supabaseMock.tableData.distributor_order_items = [{
+      id: '44444444-4444-4444-8444-444444444018',
+      distributor_order_id: distributorOrderId,
+      name_snapshot: 'Vino Fase 7E',
+      sku_snapshot: 'QA-FASE7E-WINE',
+      quantity: 4,
+      unit_price: 250,
+      subtotal: 1000,
+    }]
+  }
+
+  it('rechaza endpoints Fase 7E sin sesión y bloquea customer', async () => {
+    const unauth = await request(app).get('/api/admin/memberships')
+    expect(unauth.status).toBe(401)
+
+    signInAs('customer')
+    const customer = await request(app).get('/api/admin/inventory').set('Authorization', 'Bearer customer-token')
+    expect(customer.status).toBe(403)
+  })
+
+  it('lista Wine Club, beneficios, puntos y exporta sin UUID interno', async () => {
+    signInAs('marketing')
+    seedMembership()
+
+    const list = await request(app).get('/api/admin/memberships').set('Authorization', 'Bearer marketing-token')
+    const benefits = await request(app).get(`/api/admin/memberships/${membershipId}/benefits`).set('Authorization', 'Bearer marketing-token')
+    const loyalty = await request(app).get(`/api/admin/memberships/${membershipId}/loyalty`).set('Authorization', 'Bearer marketing-token')
+    const exported = await request(app).get('/api/admin/memberships/export').set('Authorization', 'Bearer marketing-token')
+
+    expect(list.status).toBe(200)
+    expect(list.body.data[0]).toMatchObject({ membershipNumber: 'MBR-FASE7E', pointsBalance: 20 })
+    expect(benefits.status).toBe(200)
+    expect(loyalty.status).toBe(200)
+    expect(exported.status).toBe(200)
+    expect(exported.text).toContain('membership_number')
+    expect(exported.text).not.toContain(membershipId)
+  })
+
+  it('crea membresía y opera estados/puntos mediante RPC segura', async () => {
+    signInAs('admin')
+    seedMembership()
+    supabaseMock.rpcData.assign_membership = membershipId
+    supabaseMock.rpcData.pause_membership = membershipId
+    supabaseMock.rpcData.resume_membership = membershipId
+    supabaseMock.rpcData.adjust_loyalty_points = membershipId
+
+    const invalid = await request(app)
+      .post('/api/admin/memberships')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ customerId, planId: 'plan-invalido' })
+    const created = await request(app)
+      .post('/api/admin/memberships')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ customerId, planId })
+    const paused = await request(app)
+      .post(`/api/admin/memberships/${membershipId}/pause`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ reason: 'Pausa controlada' })
+    const resumed = await request(app)
+      .post(`/api/admin/memberships/${membershipId}/resume`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({})
+    const points = await request(app)
+      .post(`/api/admin/memberships/${membershipId}/loyalty-adjustment`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ points: 5, reason: 'Ajuste controlado' })
+
+    expect(invalid.status).toBe(422)
+    expect(created.status).toBe(201)
+    expect(paused.status).toBe(200)
+    expect(resumed.status).toBe(200)
+    expect(points.status).toBe(201)
+  })
+
+  it('lista inventario, movimientos, alertas y exporta sin identificadores internos', async () => {
+    signInAs('viewer')
+    seedInventory()
+
+    const summary = await request(app).get('/api/admin/inventory').set('Authorization', 'Bearer viewer-token')
+    const items = await request(app).get('/api/admin/inventory/items').set('Authorization', 'Bearer viewer-token')
+    const movements = await request(app).get('/api/admin/inventory/movements').set('Authorization', 'Bearer viewer-token')
+    const exported = await request(app).get('/api/admin/inventory/export').set('Authorization', 'Bearer viewer-token')
+
+    expect(summary.status).toBe(200)
+    expect(summary.body.data.items[0]).toMatchObject({ productName: 'Vino Fase 7E', available: 10 })
+    expect(items.status).toBe(200)
+    expect(movements.status).toBe(200)
+    expect(exported.status).toBe(200)
+    expect(exported.text).toContain('product')
+    expect(exported.text).not.toContain(inventoryItemId)
+  })
+
+  it('crea ubicaciones, productos y movimientos de inventario mediante RPC', async () => {
+    signInAs('operations')
+    seedInventory()
+    supabaseMock.rpcData.create_inventory_item = inventoryItemId
+    supabaseMock.rpcData.receive_inventory = inventoryItemId
+    supabaseMock.rpcData.reserve_inventory = inventoryItemId
+    supabaseMock.rpcData.release_inventory = inventoryItemId
+    supabaseMock.rpcData.transfer_inventory = inventoryItemId
+    supabaseMock.rpcData.adjust_inventory = inventoryItemId
+
+    const location = await request(app)
+      .post('/api/admin/inventory/locations')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ name: 'Almacén QA', code: 'QA7E', type: 'warehouse' })
+    const item = await request(app)
+      .post('/api/admin/inventory/items')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ wineId, locationId, sku: 'QA-FASE7E-WINE', minimumQuantity: 2 })
+    const receive = await request(app)
+      .post('/api/admin/inventory/receive')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ inventoryItemId, quantity: 5, reason: 'Recepción controlada' })
+    const reserve = await request(app)
+      .post('/api/admin/inventory/reserve')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ inventoryItemId, quantity: 1 })
+    const release = await request(app)
+      .post('/api/admin/inventory/release')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ inventoryItemId, quantity: 1 })
+    const transfer = await request(app)
+      .post('/api/admin/inventory/transfer')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ inventoryItemId, toLocationId: locationTwoId, quantity: 1, reason: 'Traspaso controlado' })
+    const adjust = await request(app)
+      .post('/api/admin/inventory/adjust')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ inventoryItemId, quantityDelta: 1, reason: 'Conteo físico' })
+
+    expect(location.status).toBe(201)
+    expect(item.status).toBe(201)
+    expect(receive.status).toBe(201)
+    expect(reserve.status).toBe(201)
+    expect(release.status).toBe(200)
+    expect(transfer.status).toBe(200)
+    expect(adjust.status).toBe(200)
+  })
+
+  it('lista logística, historial y opera estados, incidencias y entrega', async () => {
+    signInAs('operations')
+    seedShipment()
+    supabaseMock.rpcData.create_shipment = shipmentId
+    supabaseMock.rpcData.update_shipment_status = shipmentId
+    supabaseMock.rpcData.register_shipment_incident = shipmentId
+    supabaseMock.rpcData.mark_shipment_delivered = shipmentId
+
+    const list = await request(app).get('/api/admin/shipments').set('Authorization', 'Bearer operations-token')
+    const history = await request(app).get(`/api/admin/shipments/${shipmentId}/history`).set('Authorization', 'Bearer operations-token')
+    const created = await request(app)
+      .post('/api/admin/shipments')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ orderId, carrier: 'Mensajería controlada', destination: 'Aguascalientes' })
+    const shipped = await request(app)
+      .post(`/api/admin/shipments/${shipmentId}/status`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ status: 'shipped', notes: 'Guía registrada' })
+    const incident = await request(app)
+      .post(`/api/admin/shipments/${shipmentId}/incident`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ notes: 'Incidencia controlada' })
+    const delivered = await request(app)
+      .post(`/api/admin/shipments/${shipmentId}/deliver`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ notes: 'Entregado' })
+
+    expect(list.status).toBe(200)
+    expect(history.status).toBe(200)
+    expect(created.status).toBe(201)
+    expect(shipped.status).toBe(200)
+    expect(incident.status).toBe(201)
+    expect(delivered.status).toBe(200)
+  })
+
+  it('lista distribuidores, contactos, órdenes y exporta sin UUID interno', async () => {
+    signInAs('finance')
+    seedDistributor()
+
+    const distributors = await request(app).get('/api/admin/distributors').set('Authorization', 'Bearer finance-token')
+    const contacts = await request(app).get(`/api/admin/distributors/${distributorId}/contacts`).set('Authorization', 'Bearer finance-token')
+    const orders = await request(app).get('/api/admin/distributor-orders').set('Authorization', 'Bearer finance-token')
+    const items = await request(app).get(`/api/admin/distributor-orders/${distributorOrderId}/items`).set('Authorization', 'Bearer finance-token')
+    const exported = await request(app).get('/api/admin/distributors/export').set('Authorization', 'Bearer finance-token')
+
+    expect(distributors.status).toBe(200)
+    expect(distributors.body.data[0]).toMatchObject({ name: 'Distribuidor Fase 7E', status: 'active' })
+    expect(contacts.status).toBe(200)
+    expect(orders.status).toBe(200)
+    expect(items.status).toBe(200)
+    expect(exported.status).toBe(200)
+    expect(exported.text).toContain('distributor_number')
+    expect(exported.text).not.toContain(distributorId)
+  })
+
+  it('crea distribuidores, contactos y órdenes con aprobación operativa', async () => {
+    signInAs('operations')
+    seedDistributor()
+    supabaseMock.rpcData.create_distributor_order = distributorOrderId
+    supabaseMock.rpcData.approve_distributor_order = distributorOrderId
+    supabaseMock.rpcData.fulfill_distributor_order = distributorOrderId
+
+    const distributor = await request(app)
+      .post('/api/admin/distributors')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ name: 'Distribuidor Fase 7E', email: 'distribuidor.fase7e@alqia.tech', operationalStatus: 'active' })
+    const contact = await request(app)
+      .post(`/api/admin/distributors/${distributorId}/contacts`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ name: 'Compras', email: 'compras.fase7e@alqia.tech', isPrimary: true })
+    const invalidOrder = await request(app)
+      .post('/api/admin/distributor-orders')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ distributorId, items: [] })
+    const order = await request(app)
+      .post('/api/admin/distributor-orders')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ distributorId, items: [{ nameSnapshot: 'Vino Fase 7E', quantity: 4, unitPrice: 250 }] })
+    const approved = await request(app)
+      .post(`/api/admin/distributor-orders/${distributorOrderId}/approve`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({})
+    const delivered = await request(app)
+      .post(`/api/admin/distributor-orders/${distributorOrderId}/deliver`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({})
+
+    expect(distributor.status).toBe(201)
+    expect(contact.status).toBe(201)
+    expect(invalidOrder.status).toBe(422)
+    expect(order.status).toBe(201)
+    expect(approved.status).toBe(200)
+    expect(delivered.status).toBe(200)
+  })
+})
+
 // ─── 2. GET /api/version devuelve 200 ───────────────────────────────────────
 describe('GET /api/version', () => {
   it('devuelve 200 con service y environment', async () => {

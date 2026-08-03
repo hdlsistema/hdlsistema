@@ -7,9 +7,13 @@ import { adminUsersRouter } from '../modules/admin/users.routes'
 import { adminAvailabilityRouter } from '../modules/availability/availability.routes'
 import { adminCheckinRouter } from '../modules/checkin/checkin.routes'
 import { adminCustomersRouter } from '../modules/customers/customers.routes'
+import { adminDistributorsRouter } from '../modules/distributors/distributors.routes'
+import { adminInventoryRouter } from '../modules/inventory/inventory.routes'
+import { adminMembershipsRouter } from '../modules/memberships/memberships.routes'
 import { adminOrdersRouter } from '../modules/orders/orders.routes'
 import { adminPaymentsRouter, paymentWebhooksRouter } from '../modules/payments/payments.routes'
 import { adminReservationsRouter } from '../modules/reservations/reservations.routes'
+import { adminShipmentsRouter } from '../modules/shipments/shipments.routes'
 import {
   adminContentRouter,
   previewContentRouter,
@@ -34,6 +38,10 @@ router.use('/admin', adminCustomersRouter)
 router.use('/admin', adminOrdersRouter)
 router.use('/admin', adminPaymentsRouter)
 router.use('/admin', adminCheckinRouter)
+router.use('/admin', adminMembershipsRouter)
+router.use('/admin', adminInventoryRouter)
+router.use('/admin', adminShipmentsRouter)
+router.use('/admin', adminDistributorsRouter)
 router.use('/webhooks', paymentWebhooksRouter)
 router.use('/admin', adminContentRouter)
 router.use('/public', publicContentRouter)

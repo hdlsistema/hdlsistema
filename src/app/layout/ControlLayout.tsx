@@ -1,5 +1,6 @@
 import {
   Bolt,
+  Building2,
   CalendarDays,
   ChartColumn,
   Cog,
@@ -11,6 +12,7 @@ import {
   QrCode,
   ShoppingBag,
   Sparkles,
+  Truck,
   Users,
   Warehouse,
   Wine,
@@ -69,6 +71,11 @@ export function ControlLayout() {
           icon: PackageSearch,
         },
         {
+          to: '/control/wine-club',
+          label: 'Wine Club',
+          icon: Sparkles,
+        },
+        {
           to: '/control/campanas',
           label: isEnglish ? 'Campaigns' : 'Campañas',
           icon: Megaphone,
@@ -94,6 +101,21 @@ export function ControlLayout() {
           icon: QrCode,
         },
         {
+          to: '/control/inventario',
+          label: isEnglish ? 'Inventory' : 'Inventario',
+          icon: Warehouse,
+        },
+        {
+          to: '/control/logistica',
+          label: isEnglish ? 'Logistics' : 'Logística',
+          icon: Truck,
+        },
+        {
+          to: '/control/distribuidores',
+          label: isEnglish ? 'Distributors' : 'Distribuidores',
+          icon: Building2,
+        },
+        {
           to: '/control/app',
           label: isEnglish ? 'App View' : 'Vista App',
           icon: WineOff,
@@ -108,16 +130,6 @@ export function ControlLayout() {
     {
       label: isEnglish ? 'Additional functions' : 'Funciones adicionales',
       items: [
-        {
-          to: '/control/futuro/inventario',
-          label: isEnglish ? 'Inventory' : 'Inventario',
-          icon: Warehouse,
-        },
-        {
-          to: '/control/futuro/logistica',
-          label: isEnglish ? 'Logistics' : 'Logística',
-          icon: PackageSearch,
-        },
         {
           to: '/control/futuro/intelligence',
           label: 'ALQIA Intelligence',
