@@ -250,4 +250,79 @@ Estado: cerrada en producción.
   - No se imprimieron secretos, tokens, headers sensibles ni credenciales.
 - Riesgo pendiente:
   - Revisar duplicación masiva de horarios con volumen productivo antes de uso intensivo.
-- Fase 7C no iniciada.
+- Fase 7C cerrada en producción.
+
+## Fase 7C
+
+Estado: aprobada en producción.
+
+### Clientes y CRM Real
+
+- Migración aplicada en Supabase productivo: `025_customer_crm_operations.sql`.
+- Commit desplegado: `f3c7371 feat: connect customer crm operations`.
+- Tablas extendidas de forma no destructiva: `customers`, `customer_tags`, `customer_tag_assignments`, `customer_notes`.
+- Reglas de identidad:
+  - Un cliente CRM puede existir sin usuario Auth.
+  - Un usuario Auth tipo `customer` puede estar vinculado a un registro en `customers`.
+  - El CRM administrativo no crea usuarios Auth automáticamente.
+  - La creación evita duplicados por correo y teléfono normalizados.
+  - `customer_number` se genera como identificador operativo único.
+- Backend nuevo:
+  - `GET /api/admin/customers`
+  - `GET /api/admin/customers/:id`
+  - `POST /api/admin/customers`
+  - `PATCH /api/admin/customers/:id`
+  - `POST /api/admin/customers/:id/archive`
+  - `POST /api/admin/customers/:id/restore`
+  - `GET /api/admin/customers/:id/reservations`
+  - `GET /api/admin/customers/:id/orders`
+  - `GET /api/admin/customers/:id/memberships`
+  - `GET /api/admin/customers/:id/history`
+  - `POST /api/admin/customers/:id/notes`
+  - `PATCH /api/admin/customers/:id/notes/:noteId`
+  - `DELETE /api/admin/customers/:id/notes/:noteId`
+  - `POST /api/admin/customers/:id/tags`
+  - `DELETE /api/admin/customers/:id/tags/:tagId`
+  - `GET /api/admin/customer-tags`
+  - `POST /api/admin/customer-tags`
+  - `PATCH /api/admin/customer-tags/:id`
+  - `DELETE /api/admin/customer-tags/:id`
+  - `GET /api/admin/customers/export`
+- Frontend conectado:
+  - `/control/clientes` consume API real.
+  - Lista, filtros, búsqueda, alta, edición, consentimiento, notas, etiquetas, relaciones, historial, exportación, archivado y restauración funcionan contra backend real.
+  - Ya no depende de `src/app/data/customers.ts` para operación.
+- Permisos:
+  - Lectura: `super_admin`, `admin`, `operations`, `marketing`, `finance`, `viewer`.
+  - Escritura CRM: `super_admin`, `admin`, `operations`, `marketing`.
+  - Etiquetas: `super_admin`, `admin`, `marketing`.
+  - Exportación: `super_admin`, `admin`, `operations`, `marketing`, `finance`.
+  - `customer` queda bloqueado en endpoints admin.
+- Privacidad:
+  - No se exponen tokens, headers sensibles, service role key ni variables de entorno.
+  - Exportación CSV no incluye UUID internos innecesarios, metadata completa ni notas privadas.
+  - Etiquetas internas no quedan disponibles para usuarios `customer`.
+- Pruebas locales:
+  - Frontend tests: 48/48.
+  - Backend tests: 47/47.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+  - Lint: exitoso con warnings preexistentes.
+  - `git diff --check`: limpio.
+- Prueba real local contra Supabase productivo:
+  - Admin `super_admin`: lectura, escritura, notas, etiquetas, exportación, archivado, restauración e historial aprobados.
+  - Customer: bloqueado con 403 en endpoints administrativos.
+  - Sin sesión: bloqueado con 401.
+  - Datos temporales `QA_FASE7C_` creados para validación y limpiados al finalizar.
+- Validación productiva:
+  - Railway `/api/health`: HTTP 200.
+  - Railway runner productivo Fase 7C: aprobado.
+  - Railway endpoints CRM reales: admin aprobado con 200/201.
+  - Railway bloqueo de permisos: sin sesión 401; customer 403.
+  - Netlify HTTP 200 en `/control/clientes`.
+  - Netlify sirve el bundle nuevo `index-CC25RzLF.js`.
+  - No se imprimieron secretos, tokens, headers sensibles ni credenciales.
+
+## Siguiente Fase
+
+Fase 7D — Profundización operativa del Centro de Control. No iniciada.

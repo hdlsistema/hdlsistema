@@ -1,10 +1,10 @@
-# Operaciones: disponibilidad y reservaciones
+# Operaciones: disponibilidad, reservaciones y CRM
 
-Documento de Fase 7B para el Centro de Control de Hacienda de Letras OS.
+Documento operativo para el Centro de Control de Hacienda de Letras OS.
 
 ## Fuente de Verdad
 
-Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, reservaciones e historial. El frontend no debe crear datos operativos locales ni mostrar mocks funcionales en `/control/disponibilidad` o `/control/reservaciones`.
+Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, reservaciones, clientes, relaciones CRM e historial. El frontend no debe crear datos operativos locales ni mostrar mocks funcionales en `/control/disponibilidad`, `/control/reservaciones` o `/control/clientes`.
 
 ## Tablas
 
@@ -15,6 +15,9 @@ Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, res
 - `reservation_guests`: invitados asociados.
 - `reservation_status_history`: historial de estados y eventos operativos.
 - `customers`: cliente asociado a cada reservación.
+- `customer_tags`: etiquetas internas de CRM.
+- `customer_tag_assignments`: asignación de etiquetas a clientes.
+- `customer_notes`: notas internas de seguimiento.
 - `audit_logs`: auditoría administrativa.
 
 ## Capacidad
@@ -71,15 +74,49 @@ Las RPC derivan el actor desde `auth.uid()`, validan rol operativo, bloquean fil
 - `GET /api/admin/reservations/:id/history`
 - `GET /api/admin/reservations/export`
 
+## Endpoints de Clientes y CRM
+
+- `GET /api/admin/customers`
+- `GET /api/admin/customers/:id`
+- `POST /api/admin/customers`
+- `PATCH /api/admin/customers/:id`
+- `POST /api/admin/customers/:id/archive`
+- `POST /api/admin/customers/:id/restore`
+- `GET /api/admin/customers/:id/reservations`
+- `GET /api/admin/customers/:id/orders`
+- `GET /api/admin/customers/:id/memberships`
+- `GET /api/admin/customers/:id/history`
+- `POST /api/admin/customers/:id/notes`
+- `PATCH /api/admin/customers/:id/notes/:noteId`
+- `DELETE /api/admin/customers/:id/notes/:noteId`
+- `POST /api/admin/customers/:id/tags`
+- `DELETE /api/admin/customers/:id/tags/:tagId`
+- `GET /api/admin/customer-tags`
+- `POST /api/admin/customer-tags`
+- `PATCH /api/admin/customer-tags/:id`
+- `DELETE /api/admin/customer-tags/:id`
+- `GET /api/admin/customers/export`
+
+## Identidad de Clientes
+
+- Un registro en `customers` puede existir sin usuario Auth.
+- Un usuario Auth tipo `customer` puede estar vinculado a `customers.user_id`.
+- El CRM administrativo no crea usuarios Auth automáticamente.
+- La creación administrativa normaliza correo y teléfono para evitar duplicados.
+- `customer_number` es el identificador operativo externo para listados y exportaciones.
+- Los UUID de Auth no se exponen en respuestas administrativas salvo que una fase futura lo requiera expresamente.
+
 ## Permisos
 
 - `super_admin`: lectura y escritura completa.
 - `admin`: lectura y escritura completa.
 - `operations`: lectura y escritura operativa.
-- `marketing`: lectura operativa.
+- `marketing`: lectura operativa y escritura CRM.
 - `finance`: lectura operativa.
-- `viewer`: lectura y exportación.
+- `viewer`: lectura operativa.
 - `customer`: sin acceso a endpoints administrativos.
+
+En CRM, la exportación queda limitada a `super_admin`, `admin`, `operations`, `marketing` y `finance`. La gestión de etiquetas queda limitada a `super_admin`, `admin` y `marketing`.
 
 ## Exportación
 
@@ -100,6 +137,8 @@ El CSV administrativo se genera desde datos reales y contiene:
 
 No exporta tokens, UUID internos innecesarios, metadata completa ni notas privadas.
 
+La exportación CRM contiene identificador operativo, nombre, correo, teléfono, segmento, origen, consentimiento, métricas relacionales y fechas administrativas. No exporta UUID internos innecesarios, metadata completa, notas privadas ni credenciales.
+
 ## Errores
 
 - `401`: sesión requerida o inválida.
@@ -111,11 +150,14 @@ No exporta tokens, UUID internos innecesarios, metadata completa ni notas privad
 ## Pruebas
 
 - Pruebas backend cubren autenticación, permisos, lectura de disponibilidad, creación por RPC, payload inválido, listado de reservaciones y sobrecupo.
-- Pruebas frontend cubren clientes reales de disponibilidad y reservaciones con Authorization Bearer y rechazo sin sesión.
+- Pruebas backend cubren CRM: sin sesión 401, customer 403, lectura admin/viewer, alta, edición, prevención de duplicados, validación de teléfono, notas, etiquetas, auditoría y exportación segura.
+- Pruebas frontend cubren clientes reales de disponibilidad, reservaciones y CRM con Authorization Bearer y rechazo sin sesión.
 - Las pruebas usan mocks solo dentro de archivos de test.
 - Prueba real local contra Supabase productivo aprobada con datos temporales `QA_FASE7B_`, limpieza exacta y sin impresión de secretos.
 - Prueba real productiva en Railway aprobada con admin `super_admin`, customer bloqueado, sin sesión bloqueada y datos temporales `QA_FASE7B_` limpiados.
+- Prueba real local y productiva de CRM aprobada con datos temporales `QA_FASE7C_`, limpieza exacta y sin impresión de secretos.
 - Netlify sirve el bundle desplegado con las rutas `/control/disponibilidad` y `/control/reservaciones` en HTTP 200.
+- Netlify sirve el bundle desplegado con la ruta `/control/clientes` en HTTP 200.
 
 ## Riesgos Pendientes
 
