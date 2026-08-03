@@ -13,6 +13,8 @@ import { resolve } from 'path'
 const supabaseMock = vi.hoisted(() => ({
   error: null as unknown,
   throwError: null as unknown,
+  rpcError: null as unknown,
+  rpcData: {} as Record<string, unknown>,
   authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null } | null,
   tableData: {} as Record<string, unknown[]>,
 }))
@@ -60,6 +62,7 @@ vi.mock('@supabase/supabase-js', () => ({
           state.payload = payload
           return builder
         }),
+        delete: vi.fn(() => builder),
         upsert: vi.fn((payload: unknown) => {
           state.payload = payload
           return builder
@@ -83,6 +86,9 @@ vi.mock('@supabase/supabase-js', () => ({
           if (supabaseMock.throwError) throw supabaseMock.throwError
           return { data: [], error: supabaseMock.error }
         }),
+        then: vi.fn((resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
+          Promise.resolve(run()).then(resolve, reject),
+        ),
         maybeSingle: vi.fn(async () => {
           const result = run()
           return { ...result, data: Array.isArray(result.data) ? result.data[0] ?? null : null }
@@ -102,6 +108,11 @@ vi.mock('@supabase/supabase-js', () => ({
       }
       return builder
     }),
+    rpc: vi.fn(async (name: string) => {
+      if (supabaseMock.throwError) throw supabaseMock.throwError
+      if (supabaseMock.rpcError) return { data: null, error: supabaseMock.rpcError }
+      return { data: supabaseMock.rpcData[name] ?? '00000000-0000-0000-0000-000000000099', error: null }
+    }),
   })),
 }))
 
@@ -113,6 +124,8 @@ const originalSupabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
 beforeEach(() => {
   supabaseMock.error = null
   supabaseMock.throwError = null
+  supabaseMock.rpcError = null
+  supabaseMock.rpcData = {}
   supabaseMock.authUser = null
   supabaseMock.tableData = {}
   ;(env as Record<string, string>).SUPABASE_URL = originalSupabaseUrl
@@ -321,6 +334,180 @@ describe('Fase 4B content API', () => {
       lastStatus = res.status
     }
     expect(lastStatus).toBe(429)
+  })
+})
+
+describe('Fase 7B operations API', () => {
+  const adminUser = {
+    id: '11111111-1111-4111-8111-111111111070',
+    email: 'admin@alqia.tech',
+    created_at: '2026-07-31T00:00:00.000Z',
+    email_confirmed_at: '2026-07-31T00:00:00.000Z',
+  }
+
+  function signInAs(role: string) {
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: role } }]
+  }
+
+  it('rechaza disponibilidad administrativa sin sesión', async () => {
+    const res = await request(app).get('/api/admin/availability')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('bloquea customer en disponibilidad administrativa', async () => {
+    signInAs('customer')
+    const res = await request(app)
+      .get('/api/admin/availability')
+      .set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+
+  it('permite lectura real de slots a viewer', async () => {
+    signInAs('viewer')
+    supabaseMock.tableData.experiences = [
+      {
+        id: '11111111-1111-4111-8111-111111111071',
+        title: 'Cata real',
+        capacity: 12,
+        visible_in_control: true,
+      },
+    ]
+    supabaseMock.tableData.experience_slots = [
+      {
+        id: '11111111-1111-4111-8111-111111111072',
+        experience_id: '11111111-1111-4111-8111-111111111071',
+        start_at: '2026-08-10T18:00:00.000Z',
+        end_at: '2026-08-10T20:00:00.000Z',
+        capacity: 12,
+        reserved_count: 3,
+        confirmed_count: 3,
+        waitlist_count: 0,
+        status: 'published',
+        is_bookable: true,
+        operational_status: 'open',
+        experiences: { title: 'Cata real', slug: 'cata-real', base_price: 650 },
+      },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/availability/slots')
+      .set('Authorization', 'Bearer viewer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data[0]).toMatchObject({
+      id: '11111111-1111-4111-8111-111111111072',
+      capacity: 12,
+      confirmed: 3,
+      available: 9,
+      occupancy: 25,
+    })
+  })
+
+  it('crea slot mediante RPC segura para operations', async () => {
+    signInAs('operations')
+    supabaseMock.rpcData.create_experience_slot = '11111111-1111-4111-8111-111111111073'
+    supabaseMock.tableData.experience_slots = [
+      {
+        id: '11111111-1111-4111-8111-111111111073',
+        experience_id: '11111111-1111-4111-8111-111111111071',
+        start_at: '2026-08-11T18:00:00.000Z',
+        end_at: '2026-08-11T20:00:00.000Z',
+        capacity: 10,
+        reserved_count: 0,
+        confirmed_count: 0,
+        waitlist_count: 0,
+        status: 'published',
+        is_bookable: true,
+        operational_status: 'open',
+        experiences: { title: 'Cata real', slug: 'cata-real', base_price: 650 },
+      },
+    ]
+
+    const res = await request(app)
+      .post('/api/admin/availability/slots')
+      .set('Authorization', 'Bearer operations-token')
+      .send({
+        experienceId: '11111111-1111-4111-8111-111111111071',
+        startAt: '2026-08-11T18:00:00.000Z',
+        endAt: '2026-08-11T20:00:00.000Z',
+        capacity: 10,
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data.available).toBe(10)
+  })
+
+  it('rechaza payload inválido al crear reservación', async () => {
+    signInAs('operations')
+    const res = await request(app)
+      .post('/api/admin/reservations')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ peopleCount: 0 })
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.code).toBe('UNPROCESSABLE')
+  })
+
+  it('lista reservaciones reales con paginación', async () => {
+    signInAs('operations')
+    supabaseMock.tableData.reservations = [
+      {
+        id: '11111111-1111-4111-8111-111111111074',
+        reservation_number: 'RES-FASE7B',
+        customer_id: '11111111-1111-4111-8111-111111111075',
+        reservation_type: 'experience',
+        experience_id: '11111111-1111-4111-8111-111111111071',
+        experience_slot_id: '11111111-1111-4111-8111-111111111072',
+        people_count: 2,
+        subtotal: 1300,
+        discount_total: 0,
+        tax_total: 0,
+        total: 1300,
+        currency: 'MXN',
+        status: 'confirmed',
+        source: 'Centro de control',
+        operational_status: 'active',
+        created_at: '2026-08-01T00:00:00.000Z',
+        updated_at: '2026-08-01T00:00:00.000Z',
+        customers: { first_name: 'QA', last_name: 'Fase 7B', email: 'qa@example.com', phone: '555' },
+        experiences: { title: 'Cata real', slug: 'cata-real' },
+        experience_slots: {
+          start_at: '2026-08-10T18:00:00.000Z',
+          end_at: '2026-08-10T20:00:00.000Z',
+          capacity: 12,
+          reserved_count: 2,
+          confirmed_count: 2,
+        },
+      },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/reservations')
+      .set('Authorization', 'Bearer operations-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data[0]).toMatchObject({
+      reservationNumber: 'RES-FASE7B',
+      customerName: 'QA Fase 7B',
+      available: 10,
+    })
+    expect(res.body.pagination.total).toBe(1)
+  })
+
+  it('clasifica sobrecupo como 409 sin ocultarlo', async () => {
+    signInAs('operations')
+    supabaseMock.rpcError = new Error('CAPACITY_EXCEEDED')
+
+    const res = await request(app)
+      .post('/api/admin/reservations/11111111-1111-4111-8111-111111111074/confirm')
+      .set('Authorization', 'Bearer operations-token')
+
+    expect(res.status).toBe(409)
+    expect(res.body.error.message).toBe('No hay cupo suficiente')
   })
 })
 

@@ -1,0 +1,366 @@
+import {
+  createSupabaseUserRequestClient,
+  supabaseAdminClient,
+} from '../../config/supabase'
+import {
+  assertNoError,
+  httpError,
+  normalizeDatabaseError,
+  requireAccessToken,
+  requireOperationRole,
+  type UserContext,
+} from '../operations/operationErrors'
+import type {
+  CreateReservationPayload,
+  PatchReservationPayload,
+  ReservationListQuery,
+} from './reservations.schemas'
+
+const readRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
+const writeRoles = ['super_admin', 'admin', 'operations']
+const exportRoles = ['super_admin', 'admin', 'operations', 'viewer']
+
+function operationRpcClient(user: UserContext) {
+  return createSupabaseUserRequestClient(requireAccessToken(user))
+}
+
+type ReservationRow = {
+  id: string
+  reservation_number: string
+  customer_id: string
+  user_id?: string | null
+  reservation_type: string
+  experience_id?: string | null
+  experience_slot_id?: string | null
+  people_count: number
+  subtotal: number
+  discount_total: number
+  tax_total: number
+  total: number
+  currency: string
+  status: string
+  customer_notes?: string | null
+  internal_notes?: string | null
+  source?: string | null
+  booking_channel?: string | null
+  operational_status?: string | null
+  confirmed_at?: string | null
+  cancelled_at?: string | null
+  cancellation_reason?: string | null
+  rescheduled_at?: string | null
+  created_at: string
+  updated_at: string
+  customers?: {
+    id: string
+    first_name: string
+    last_name: string
+    email?: string | null
+    phone?: string | null
+    source?: string | null
+  } | Array<{
+    id: string
+    first_name: string
+    last_name: string
+    email?: string | null
+    phone?: string | null
+    source?: string | null
+  }> | null
+  experiences?: {
+    id: string
+    title: string
+    slug: string
+  } | Array<{
+    id: string
+    title: string
+    slug: string
+  }> | null
+  experience_slots?: {
+    id: string
+    start_at: string
+    end_at: string
+    capacity: number
+    reserved_count: number
+    confirmed_count?: number | null
+  } | Array<{
+    id: string
+    start_at: string
+    end_at: string
+    capacity: number
+    reserved_count: number
+    confirmed_count?: number | null
+  }> | null
+}
+
+type HistoryRow = {
+  id: string
+  reservation_id: string
+  previous_status?: string | null
+  new_status: string
+  notes?: string | null
+  created_at: string
+}
+
+const reservationSelect = `
+  id,reservation_number,customer_id,user_id,reservation_type,experience_id,experience_slot_id,
+  people_count,subtotal,discount_total,tax_total,total,currency,status,customer_notes,internal_notes,
+  source,booking_channel,operational_status,confirmed_at,cancelled_at,cancellation_reason,
+  rescheduled_at,created_at,updated_at,
+  customers(id,first_name,last_name,email,phone,source),
+  experiences(id,title,slug),
+  experience_slots(id,start_at,end_at,capacity,reserved_count,confirmed_count)
+`
+
+function normalizeText(value: string) {
+  return value
+    .toLocaleLowerCase('es-MX')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] ?? null : value ?? null
+}
+
+function customerName(row: ReservationRow) {
+  const customer = firstRelation(row.customers)
+  return [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+}
+
+function mapReservation(row: ReservationRow) {
+  const customer = firstRelation(row.customers)
+  const experience = firstRelation(row.experiences)
+  const slot = firstRelation(row.experience_slots)
+  const confirmed = Number(slot?.confirmed_count ?? slot?.reserved_count ?? 0)
+  const capacity = Number(slot?.capacity ?? 0)
+  return {
+    id: row.id,
+    reservationNumber: row.reservation_number,
+    customerId: row.customer_id,
+    customerName: customerName(row),
+    email: customer?.email ?? null,
+    phone: customer?.phone ?? null,
+    experienceId: row.experience_id ?? null,
+    experienceTitle: experience?.title ?? 'Experiencia',
+    experienceSlotId: row.experience_slot_id ?? null,
+    startAt: slot?.start_at ?? null,
+    endAt: slot?.end_at ?? null,
+    peopleCount: row.people_count,
+    subtotal: row.subtotal,
+    total: row.total,
+    currency: row.currency,
+    status: row.status,
+    source: row.source ?? row.booking_channel ?? 'app',
+    customerNotes: row.customer_notes ?? null,
+    internalNotes: row.internal_notes ?? null,
+    operationalStatus: row.operational_status ?? 'active',
+    capacity,
+    confirmed,
+    available: Math.max(capacity - confirmed, 0),
+    confirmedAt: row.confirmed_at ?? null,
+    cancelledAt: row.cancelled_at ?? null,
+    cancellationReason: row.cancellation_reason ?? null,
+    rescheduledAt: row.rescheduled_at ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function matchesSearch(row: ReservationRow, search?: string) {
+  if (!search) return true
+  const target = normalizeText(search)
+  return [
+    row.reservation_number,
+    customerName(row),
+    firstRelation(row.customers)?.email ?? '',
+    firstRelation(row.customers)?.phone ?? '',
+    firstRelation(row.experiences)?.title ?? '',
+    row.source ?? '',
+  ].some((value) => normalizeText(String(value)).includes(target))
+}
+
+function applyFilters(request: any, query: ReservationListQuery) {
+  let next = request
+  if (query.status) next = next.eq('status', query.status)
+  if (query.experienceId) next = next.eq('experience_id', query.experienceId)
+  if (query.customerId) next = next.eq('customer_id', query.customerId)
+  if (query.reservationNumber) next = next.eq('reservation_number', query.reservationNumber)
+  if (query.source) next = next.eq('source', query.source)
+  if (query.from) next = next.gte('created_at', `${query.from}T00:00:00.000Z`)
+  if (query.to) next = next.lte('created_at', `${query.to}T23:59:59.999Z`)
+  return next
+}
+
+export async function listReservations(query: ReservationListQuery, user: UserContext) {
+  requireOperationRole(user, readRoles)
+  const from = (query.page - 1) * query.perPage
+  const to = from + query.perPage - 1
+  const request = applyFilters(
+    supabaseAdminClient
+      .from('reservations')
+      .select(reservationSelect, { count: 'exact' })
+      .order(query.orderBy, { ascending: query.orderDirection === 'asc' }),
+    query,
+  ).range(from, to)
+
+  const result = await request
+  const rows = (assertNoError<ReservationRow[]>(result).data ?? []).filter((row) => matchesSearch(row, query.search))
+  return {
+    data: rows.map(mapReservation),
+    count: query.search ? rows.length : result.count ?? rows.length,
+  }
+}
+
+export async function getReservation(id: string, user: UserContext) {
+  requireOperationRole(user, readRoles)
+  const result = await supabaseAdminClient
+    .from('reservations')
+    .select(reservationSelect)
+    .eq('id', id)
+    .maybeSingle()
+
+  const row = assertNoError<ReservationRow | null>(result).data
+  if (!row) throw httpError(404, 'Reservación no encontrada')
+  return { data: mapReservation(row) }
+}
+
+export async function createReservation(payload: CreateReservationPayload, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const result = await operationRpcClient(user).rpc('create_reservation_admin', {
+    p_customer_id: payload.customerId ?? null,
+    p_customer_name: payload.customerName ?? null,
+    p_customer_email: payload.customerEmail ?? null,
+    p_customer_phone: payload.customerPhone ?? null,
+    p_experience_slot_id: payload.experienceSlotId,
+    p_people_count: payload.peopleCount,
+    p_status: payload.status,
+    p_customer_notes: payload.customerNotes ?? null,
+    p_internal_notes: payload.internalNotes ?? null,
+    p_source: payload.source,
+    p_metadata: payload.metadata ?? {},
+  })
+  if (result.error) normalizeDatabaseError(result.error)
+  return getReservation(String(result.data), user)
+}
+
+export async function updateReservation(id: string, payload: PatchReservationPayload, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const patch: Record<string, unknown> = {
+    updated_by_admin: user.userId,
+    updated_at: new Date().toISOString(),
+  }
+  if ('customerNotes' in payload) patch.customer_notes = payload.customerNotes ?? null
+  if ('internalNotes' in payload) patch.internal_notes = payload.internalNotes ?? null
+  if (payload.source) {
+    patch.source = payload.source
+    patch.booking_channel = payload.source
+  }
+  if (payload.metadata) patch.metadata = payload.metadata
+
+  const result = await supabaseAdminClient
+    .from('reservations')
+    .update(patch)
+    .eq('id', id)
+    .select(reservationSelect)
+    .single()
+
+  return { data: mapReservation(assertNoError<ReservationRow>(result).data) }
+}
+
+async function runReservationRpc(name: string, args: Record<string, unknown>, id: string, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const result = await operationRpcClient(user).rpc(name, { p_reservation_id: id, ...args })
+  if (result.error) normalizeDatabaseError(result.error)
+  return getReservation(id, user)
+}
+
+export function confirmReservation(id: string, user: UserContext) {
+  return runReservationRpc('confirm_reservation', {}, id, user)
+}
+
+export function cancelReservation(id: string, reason: string | null | undefined, user: UserContext) {
+  return runReservationRpc('cancel_reservation', { p_reason: reason ?? null }, id, user)
+}
+
+export function rescheduleReservation(id: string, newSlotId: string, user: UserContext) {
+  return runReservationRpc('reschedule_reservation', { p_new_slot_id: newSlotId }, id, user)
+}
+
+export function changeReservationPartySize(id: string, peopleCount: number, user: UserContext) {
+  return runReservationRpc('update_reservation_people', { p_people_count: peopleCount }, id, user)
+}
+
+export async function addReservationNote(id: string, note: string, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const current = await getReservation(id, user)
+  const currentNotes = current.data.internalNotes ? `${current.data.internalNotes}\n${note}` : note
+  const updated = await updateReservation(id, { internalNotes: currentNotes }, user)
+  await supabaseAdminClient.from('reservation_status_history').insert({
+    reservation_id: id,
+    previous_status: current.data.status,
+    new_status: current.data.status,
+    changed_by: user.userId,
+    notes: 'Nota interna agregada',
+  })
+  return updated
+}
+
+export async function listReservationHistory(id: string, user: UserContext) {
+  requireOperationRole(user, readRoles)
+  const result = await supabaseAdminClient
+    .from('reservation_status_history')
+    .select('id,reservation_id,previous_status,new_status,notes,created_at')
+    .eq('reservation_id', id)
+    .order('created_at', { ascending: true })
+
+  const rows = assertNoError<HistoryRow[]>(result).data ?? []
+  return {
+    data: rows.map((row) => ({
+      id: row.id,
+      reservationId: row.reservation_id,
+      previousStatus: row.previous_status ?? null,
+      newStatus: row.new_status,
+      notes: row.notes ?? null,
+      createdAt: row.created_at,
+    })),
+  }
+}
+
+export async function exportReservations(query: ReservationListQuery, user: UserContext) {
+  requireOperationRole(user, exportRoles)
+  const { data } = await listReservations({ ...query, page: 1, perPage: 100 }, user)
+  const headers = [
+    'reservation_number',
+    'customer_name',
+    'email',
+    'phone',
+    'experience',
+    'date',
+    'time',
+    'people_count',
+    'status',
+    'source',
+    'total',
+    'created_at',
+  ]
+  const rows = data.map((item) => {
+    const date = item.startAt ? item.startAt.slice(0, 10) : ''
+    const time = item.startAt ? item.startAt.slice(11, 16) : ''
+    return [
+      item.reservationNumber,
+      item.customerName,
+      item.email ?? '',
+      item.phone ?? '',
+      item.experienceTitle,
+      date,
+      time,
+      String(item.peopleCount),
+      item.status,
+      item.source,
+      String(item.total),
+      item.createdAt,
+    ]
+  })
+  return [headers, ...rows]
+    .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    .join('\n')
+}

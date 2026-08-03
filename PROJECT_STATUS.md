@@ -182,3 +182,64 @@ Estado: cerrada en producción.
 ## Siguiente Fase
 
 Fase 7 — Centro de Control conectado como sistema de autogestión.
+
+## Fase 7B
+
+Estado: implementada y validada localmente contra Supabase productivo; pendiente de deploy productivo.
+
+### Disponibilidad y Reservaciones
+
+- Migración aplicada en Supabase productivo: `024_reservation_operations.sql`.
+- Tablas extendidas de forma no destructiva: `reservations`, `experience_slots`, `experience_blockouts`.
+- RPC operativas: `create_experience_slot`, `update_experience_slot`, `block_experience_slot`, `unblock_experience_slot`, `create_reservation_admin`, `confirm_reservation`, `cancel_reservation`, `reschedule_reservation`, `update_reservation_people`.
+- Las RPC derivan el actor desde `auth.uid()`, no aceptan actor parametrizable y solo conceden `EXECUTE` a usuarios autenticados.
+- Backend nuevo:
+  - `GET /api/admin/availability`
+  - `GET /api/admin/availability/calendar`
+  - `GET /api/admin/availability/slots`
+  - `POST /api/admin/availability/slots`
+  - `PATCH /api/admin/availability/slots/:id`
+  - `POST /api/admin/availability/slots/:id/block`
+  - `POST /api/admin/availability/slots/:id/unblock`
+  - `POST /api/admin/availability/blockouts`
+  - `PATCH /api/admin/availability/blockouts/:id`
+  - `DELETE /api/admin/availability/blockouts/:id`
+  - `POST /api/admin/availability/duplicate-slots`
+  - `GET /api/admin/reservations`
+  - `GET /api/admin/reservations/:id`
+  - `POST /api/admin/reservations`
+  - `PATCH /api/admin/reservations/:id`
+  - `POST /api/admin/reservations/:id/confirm`
+  - `POST /api/admin/reservations/:id/cancel`
+  - `POST /api/admin/reservations/:id/reschedule`
+  - `POST /api/admin/reservations/:id/change-party-size`
+  - `POST /api/admin/reservations/:id/notes`
+  - `GET /api/admin/reservations/:id/history`
+  - `GET /api/admin/reservations/export`
+- Frontend conectado:
+  - `/control/disponibilidad` consume API real y permite crear, editar, bloquear, desbloquear, duplicar horarios y crear bloqueos.
+  - `/control/reservaciones` consume API real y permite crear, confirmar, cancelar, reprogramar, cambiar personas, agregar notas, consultar historial y exportar CSV real.
+- Permisos:
+  - Lectura: `super_admin`, `admin`, `operations`, `marketing`, `finance`, `viewer`.
+  - Escritura: `super_admin`, `admin`, `operations`.
+  - `customer` queda bloqueado en endpoints admin.
+- Reglas de cupo:
+  - `pending` no consume cupo confirmado.
+  - `confirmed` consume cupo.
+  - `cancelled` libera cupo si estaba confirmada.
+  - Reprogramación y cambios de personas se ejecutan vía RPC transaccional con validación de capacidad.
+- Pruebas locales:
+  - Frontend tests: 44/44.
+  - Backend tests: 38/38.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+- Prueba real local contra Supabase productivo:
+  - Admin `super_admin`: lectura y escritura operativa aprobadas.
+  - Customer: bloqueado con 403 en endpoints administrativos.
+  - Sin sesión: bloqueado con 401.
+  - Datos temporales `QA_FASE7B_` creados para validación y limpiados al finalizar.
+  - No se imprimieron secretos, tokens, headers sensibles ni credenciales.
+- Pendiente para cierre:
+  - Validar deploy Railway y Netlify.
+  - Confirmar `/api/health` productivo OK.
+  - Repetir prueba real controlada en producción desplegada.

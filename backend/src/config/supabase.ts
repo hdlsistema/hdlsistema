@@ -25,6 +25,20 @@ export const supabaseUserClient = createClient(env.SUPABASE_URL, env.SUPABASE_AN
   auth: { persistSession: false },
 })
 
+export function createSupabaseUserRequestClient(accessToken: string) {
+  return createClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    },
+  })
+}
+
 /**
  * Cliente Supabase con service role key.
  *
