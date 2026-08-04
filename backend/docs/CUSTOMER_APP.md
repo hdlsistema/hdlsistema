@@ -1,17 +1,20 @@
-# App Cliente: base conectada
+# App Cliente: base conectada, carrito y checkout base
 
-Documento de cierre operativo de Fase 8B para la app cliente de Hacienda de Letras OS.
+Documento de cierre operativo de Fases 8B y 8C para la app cliente de Hacienda de Letras OS.
 
 ## Estado
 
-Fase 8B aprobada en producción.
+Fase 8C aprobada en producción.
 
 - Commit funcional: `5dd39b7 feat: connect customer app base flows`.
 - Migración aplicada: `028_customer_app_operations.sql`.
 - Runner real: `backend/scripts/phase8b-real-check.mjs`.
+- Commit funcional 8C: `1dab2b1 feat: connect customer cart and checkout base`.
+- Migración aplicada 8C: `029_customer_cart_checkout.sql`.
+- Runner real 8C: `backend/scripts/phase8c-real-check.mjs`.
 - Railway: `/api/health` HTTP 200 con Supabase `configured`, `reachable` y `healthy`.
-- Netlify: rutas `/app/*` de Fase 8B HTTP 200 con bundle `index-C-XNEYfq.js`.
-- No se inició Fase 8C.
+- Netlify: rutas `/app/*` de Fase 8C HTTP 200 con bundle `index-VU0eV1pM.js`.
+- No se inició Fase 8D.
 
 ## Principios
 
@@ -19,6 +22,7 @@ Fase 8B aprobada en producción.
 - La app cliente no consume endpoints `/api/admin/*`.
 - El frontend no usa service role.
 - El backend deriva `customer_id`, precios, cupo, estado y número de reservación.
+- El backend deriva precios, totales, descuentos y estado de orden en carrito/checkout.
 - Los mocks solo están permitidos dentro de archivos de prueba.
 - Las pantallas temporales deben ser honestas y no simular funciones productivas.
 - No se muestran notas internas, tags internos, metadata administrativa ni datos de otros clientes.
@@ -57,6 +61,14 @@ El registro público crea usuarios con rol `customer`. No existe registro admini
 - `GET /api/customer/membership/benefits`
 - `GET /api/customer/membership/loyalty`
 - `GET /api/customer/membership/history`
+- `GET /api/customer/cart`
+- `POST /api/customer/cart/items`
+- `PATCH /api/customer/cart/items/:id`
+- `DELETE /api/customer/cart/items/:id`
+- `DELETE /api/customer/cart`
+- `POST /api/customer/orders`
+- `GET /api/customer/orders`
+- `GET /api/customer/orders/:id`
 
 Todos requieren sesión válida salvo contenido público servido por `/api/public/*`.
 
@@ -90,8 +102,19 @@ RPC customer:
 - `get_customer_reservations`
 - `get_customer_membership`
 - `get_customer_loyalty_summary`
+- `get_active_customer_cart_id`
+- `resolve_customer_cart_item`
+- `calculate_customer_cart_totals`
+- `get_customer_cart`
+- `add_customer_cart_item`
+- `update_customer_cart_item`
+- `remove_customer_cart_item`
+- `clear_customer_cart`
+- `create_customer_order_from_cart`
+- `get_customer_orders`
+- `get_customer_order_detail`
 
-Las RPC usan `auth.uid()` y `current_customer_id()` para resolver ownership. No aceptan `customer_id` desde el frontend como autoridad.
+Las RPC usan `auth.uid()` y `current_customer_id()` para resolver ownership. No aceptan `customer_id` desde el frontend como autoridad. En carrito y checkout tampoco aceptan precio, total, estado de pago ni customer arbitrario.
 
 ## Perfil
 
@@ -106,6 +129,7 @@ Las RPC usan `auth.uid()` y `current_customer_id()` para resolver ownership. No 
 - reservaciones reales
 - membresía real
 - puntos reales cuando existan
+- órdenes propias reales
 - logout
 
 No muestra métodos de pago ficticios, pedidos falsos, métricas inventadas, actividad hardcodeada ni segmentación CRM.
@@ -133,6 +157,22 @@ El backend valida fecha futura, cupo, estado, ownership, doble submit e idempote
 - historial real cuando exista.
 
 No ejecuta alta automática con cobro, renovación con pago ni cancelación de membresía hasta que la fase de pagos y reglas comerciales esté aprobada.
+
+## Carrito y Checkout Base
+
+`/app/carrito` usa endpoints customer reales para:
+
+- consultar carrito persistente.
+- agregar vinos publicados reales desde tienda y detalle.
+- actualizar cantidad.
+- eliminar partidas.
+- vaciar carrito.
+- mostrar totales calculados por backend.
+- bloquear doble submit mientras hay operación en curso.
+
+`/app/checkout` crea una orden real desde el carrito activo. La orden queda en `pending_payment`; no se crea pago, no se pide tarjeta, no se guarda dato de pago y no se simula pago aprobado.
+
+El backend revalida publicación, precio, stock, descuento, total, ownership e idempotencia antes de crear la orden. Las experiencias conservan el flujo de reservación; los tickets de evento quedan preparados cuando existan tickets publicados y vendibles.
 
 ## Contenido Público
 
@@ -164,10 +204,10 @@ Se eliminaron ratings, reseñas, stock, pedidos, puntos, membresías, distancias
 
 ## Pruebas
 
-Gates de cierre:
+Gates de cierre 8C:
 
-- Frontend: 62/62.
-- Backend: 68/68.
+- Frontend: 65/65.
+- Backend: 74/74.
 - Frontend build: exitoso.
 - Backend build: exitoso.
 - Lint: exitoso con warnings preexistentes.
@@ -175,12 +215,12 @@ Gates de cierre:
 - Prueba real local: aprobada.
 - Prueba real productiva: aprobada.
 
-La prueba real creó datos temporales `QA_FASE8B_`, validó admin, customer y sin sesión, creó una reservación, la reprogramó, la canceló, confirmó auditoría y limpió lo temporal.
+La prueba real de Fase 8B creó datos temporales `QA_FASE8B_`, validó admin, customer y sin sesión, creó una reservación, la reprogramó, la canceló, confirmó auditoría y limpió lo temporal.
 
-## Pendientes 8C
+La prueba real de Fase 8C creó datos temporales `QA_FASE8C_`, validó carrito persistente, cantidad, totales backend, rechazo de precio/customer manipulado, orden `pending_payment`, historial, ownership, customer 403 en admin, sin sesión 401, auditoría, ausencia de pagos creados y limpieza exacta.
 
-- Carrito persistente.
-- Checkout.
+## Pendientes posteriores a 8C
+
 - Pasarela productiva.
 - Pagos reales.
 - Resend transaccional final.
@@ -190,10 +230,10 @@ La prueba real creó datos temporales `QA_FASE8B_`, validó admin, customer y si
 ## Riesgos
 
 - Falta QA E2E de navegador configurado en el repo.
-- La validación visual de producción se hizo por HTTP/SPA y bundle desplegado; no por navegador automatizado.
+- La validación visual de producción se hizo por HTTP/SPA, bundle desplegado y render headless básico; el repo aún no tiene suite E2E de navegador.
 - Diseño premium global sigue pendiente.
-- Google Sign-In, Sign in with Apple, Firebase/push, Sommelier OpenAI y publicación en tiendas siguen fuera de 8B.
+- Google Sign-In, Sign in with Apple, Firebase/push, Sommelier OpenAI, pasarela productiva y publicación en tiendas siguen fuera de 8C.
 
 ## Seguridad
 
-No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables de entorno durante el cierre de Fase 8B.
+No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables de entorno durante el cierre de Fases 8B y 8C.

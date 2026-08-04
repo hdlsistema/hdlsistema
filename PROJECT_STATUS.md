@@ -1,6 +1,6 @@
 # Hacienda de Letras OS - Project Status
 
-Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8B.
+Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8C.
 
 ## Fase 1
 
@@ -579,7 +579,130 @@ Estado: aprobada en producción.
   - `PROJECT_STATUS.md`.
   - `backend/docs/OPERATIONS.md`.
   - `backend/docs/CUSTOMER_APP.md`.
-- No se inició Fase 8C.
+- Fase 8C inició después de este cierre.
+
+## Fase 8C
+
+Estado: aprobada en producción.
+
+### Carrito, Orden y Checkout Base
+
+- Commit funcional: `1dab2b1 feat: connect customer cart and checkout base`.
+- Commit documental: `docs: close phase 8c cart and checkout base`.
+- Migración aplicada: `029_customer_cart_checkout.sql`.
+- Migración idempotente, no destructiva, sin `DROP`, sin `TRUNCATE`, sin tocar `auth.users` directamente, sin correos hardcodeados y sin secretos.
+- Modelo real:
+  - carrito persistente por customer.
+  - un carrito activo por customer.
+  - items de carrito.
+  - snapshots de precio, nombre, SKU y moneda.
+  - totales calculados en backend.
+  - descuentos validados en backend cuando existe código elegible.
+  - orden customer real con estado `pending_payment`.
+  - historial de órdenes propias.
+  - checkout base sin cobro real.
+- Policies y RLS:
+  - `carts_customer_select`.
+  - `carts_customer_insert`.
+  - `carts_customer_update`.
+  - `cart_items_customer_select`.
+  - `cart_items_customer_insert`.
+  - `cart_items_customer_update`.
+  - `cart_items_customer_delete`.
+  - lectura propia de órdenes y partidas ya conservada.
+- RPC customer:
+  - `get_active_customer_cart_id`.
+  - `resolve_customer_cart_item`.
+  - `calculate_customer_cart_totals`.
+  - `get_customer_cart`.
+  - `add_customer_cart_item`.
+  - `update_customer_cart_item`.
+  - `remove_customer_cart_item`.
+  - `clear_customer_cart`.
+  - `create_customer_order_from_cart`.
+  - `get_customer_orders`.
+  - `get_customer_order_detail`.
+- Backend customer:
+  - `GET /api/customer/cart`.
+  - `POST /api/customer/cart/items`.
+  - `PATCH /api/customer/cart/items/:id`.
+  - `DELETE /api/customer/cart/items/:id`.
+  - `DELETE /api/customer/cart`.
+  - `POST /api/customer/orders`.
+  - `GET /api/customer/orders`.
+  - `GET /api/customer/orders/:id`.
+- Seguridad backend:
+  - El frontend no envía ni controla precio, total ni `customer_id`.
+  - El backend deriva customer desde sesión y RPC.
+  - El backend revalida publicación, disponibilidad, stock, precio, descuentos e idempotencia.
+  - `experience` queda fuera de carrito y conserva flujo de reservaciones.
+  - `event_ticket` queda preparado por RPC para tickets publicados y vendibles.
+  - La orden queda `pending_payment`; no se crea pago y no se marca `paid`.
+  - Customer no ve órdenes ajenas.
+  - Customer recibe 403 en endpoints administrativos.
+  - Sin sesión recibe 401.
+- App cliente conectada:
+  - `/app/tienda`: agrega vinos publicados reales al carrito.
+  - `/app/tienda/:wineId`: permite seleccionar cantidad y agregar al carrito real.
+  - `/app/carrito`: lee carrito real, actualiza cantidades, elimina, vacía, persiste recarga y muestra totales backend.
+  - `/app/checkout`: crea orden real `pending_payment` y comunica que el pago en línea estará disponible próximamente.
+  - `/app/perfil`: muestra historial real de órdenes propias.
+- Envío:
+  - Fase 8C queda limitada a recolección en Hacienda.
+  - No se inventan tarifas de envío ni envío gratis ficticio.
+- Pagos:
+  - No se implementó pasarela productiva.
+  - No se solicitó tarjeta.
+  - No se guardaron datos de pago.
+  - No se simuló pago aprobado.
+- Runner real:
+  - `backend/scripts/phase8c-real-check.mjs`.
+  - Validación local aprobada contra Supabase real.
+  - Validación productiva aprobada contra Railway.
+  - Customers temporales `QA_FASE8C_` creados por flujo seguro, usados y eliminados.
+  - Vino publicado real usado como item de carrito.
+  - Carrito creado, persistido y actualizado.
+  - Payload manipulado con precio/customer rechazado con 422.
+  - Orden creada con `pending_payment`.
+  - Otro customer recibió 404 al consultar orden ajena.
+  - Customer recibió 403 en admin.
+  - Sin sesión recibió 401.
+  - Auditoría confirmada.
+  - No se creó pago.
+  - Datos temporales limpiados.
+- Pruebas:
+  - Frontend: 65/65.
+  - Backend: 74/74.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+  - Lint: exitoso con warnings preexistentes.
+  - `git diff --check`: exitoso.
+  - `.env`, `.env.local`, `backend/.env` y `backend/.env.local` ignorados.
+- Railway:
+  - `/api/health` HTTP 200.
+  - Supabase `configured: true`.
+  - Supabase `reachable: true`.
+  - Supabase `healthy: true`.
+  - Supabase `status: ok`.
+  - Endpoints customer de carrito y órdenes desplegados.
+- Netlify:
+  - raíz HTTP 200.
+  - `/app/tienda` HTTP 200.
+  - `/app/vinos` HTTP 200.
+  - `/app/carrito` HTTP 200.
+  - `/app/checkout` HTTP 200.
+  - `/app/perfil` HTTP 200.
+  - `/control/vinos` HTTP 200; Centro de Control intacto.
+  - bundle desplegado: `index-VU0eV1pM.js`.
+  - Render headless de `/app/tienda` y `/app/carrito` generó DOM, sin pantalla blanca.
+- Documentación:
+  - `PROJECT_STATUS.md`.
+  - `backend/docs/OPERATIONS.md`.
+  - `backend/docs/CUSTOMER_APP.md`.
+  - `backend/docs/CART_CHECKOUT.md`.
+- Seguridad:
+  - No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables.
+- No se inició Fase 8D.
 
 ## Estado de Arquitectura
 
@@ -594,7 +717,7 @@ Estado: aprobada en producción.
 
 ## Pendientes V1
 
-- Carrito y pago real.
+- Pago real.
 - Pasarela productiva.
 - Sommelier OpenAI.
 - Resend.
@@ -605,7 +728,7 @@ Estado: aprobada en producción.
 - Diseño premium.
 - QA E2E.
 - Tiendas.
-- App cliente avanzada posterior a la base 8B.
+- App cliente avanzada posterior a carrito y checkout base 8C.
 
 ## Roadmap Adicional Ya Implementado
 
@@ -624,8 +747,8 @@ Estos módulos fueron construidos y validados en Fase 7E aunque originalmente ap
 - Estética todavía genérica en varias pantallas.
 - Raíz aún implementada como `LandingPage`.
 - No se deben confundir validaciones funcionales con cierre visual premium.
-- Carrito, checkout, pagos productivos y Sommelier real siguen pendientes.
+- Pagos productivos y Sommelier real siguen pendientes.
 
 ## Siguiente Fase
 
-Fase 8C — No iniciada.
+Fase 8D — Pendiente de definición y aprobación.

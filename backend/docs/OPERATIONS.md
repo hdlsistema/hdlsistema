@@ -4,7 +4,7 @@ Documento operativo para el Centro de Control de Hacienda de Letras OS.
 
 ## Fuente de Verdad
 
-Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, reservaciones, clientes, relaciones CRM, membresías, lealtad e historial. El frontend no debe crear datos operativos locales ni mostrar mocks funcionales en `/control/disponibilidad`, `/control/reservaciones`, `/control/clientes` ni en flujos reales de `/app/*`.
+Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, reservaciones, clientes, relaciones CRM, membresías, lealtad, carrito, órdenes e historial. El frontend no debe crear datos operativos locales ni mostrar mocks funcionales en `/control/disponibilidad`, `/control/reservaciones`, `/control/clientes` ni en flujos reales de `/app/*`.
 
 ## Tablas
 
@@ -22,6 +22,11 @@ Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, res
 - `memberships`: membresías reales de Wine Club.
 - `membership_benefits`: beneficios de membresía.
 - `loyalty_transactions`: movimientos reales de puntos.
+- `carts`: carritos persistentes customer.
+- `cart_items`: partidas reales de carrito con snapshots de precio.
+- `orders`: órdenes customer y administrativas.
+- `order_items`: partidas de orden con snapshot.
+- `payments`: pagos administrativos/manuales; Fase 8C no crea pagos customer.
 
 ## Capacidad
 
@@ -55,10 +60,21 @@ Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, res
 - `get_customer_reservations`
 - `get_customer_membership`
 - `get_customer_loyalty_summary`
+- `get_active_customer_cart_id`
+- `resolve_customer_cart_item`
+- `calculate_customer_cart_totals`
+- `get_customer_cart`
+- `add_customer_cart_item`
+- `update_customer_cart_item`
+- `remove_customer_cart_item`
+- `clear_customer_cart`
+- `create_customer_order_from_cart`
+- `get_customer_orders`
+- `get_customer_order_detail`
 
 Las RPC administrativas derivan el actor desde `auth.uid()`, validan rol operativo, bloquean filas críticas con `for update`, revisan capacidad y devuelven errores sanitizados. No aceptan un actor parametrizable desde el cliente.
 
-Las RPC customer derivan el cliente desde `auth.uid()` y `current_customer_id()`. No aceptan `customer_id` como fuente de autoridad, no exponen notas internas, tags internos, metadata administrativa ni datos de otros clientes.
+Las RPC customer derivan el cliente desde `auth.uid()` y `current_customer_id()`. No aceptan `customer_id` como fuente de autoridad, no exponen notas internas, tags internos, metadata administrativa ni datos de otros clientes. En carrito y checkout, tampoco aceptan precio, total ni estado de pago desde el frontend.
 
 ## Endpoints de Disponibilidad
 
@@ -144,6 +160,14 @@ Las RPC customer derivan el cliente desde `auth.uid()` y `current_customer_id()`
 - `GET /api/customer/membership/benefits`
 - `GET /api/customer/membership/loyalty`
 - `GET /api/customer/membership/history`
+- `GET /api/customer/cart`
+- `POST /api/customer/cart/items`
+- `PATCH /api/customer/cart/items/:id`
+- `DELETE /api/customer/cart/items/:id`
+- `DELETE /api/customer/cart`
+- `POST /api/customer/orders`
+- `GET /api/customer/orders`
+- `GET /api/customer/orders/:id`
 
 Estos endpoints son exclusivos de la app cliente. No usan rutas `/api/admin/*`, requieren sesión válida, validan ownership en servidor y devuelven respuestas sanitizadas.
 
@@ -241,6 +265,8 @@ En app cliente:
 - `customer` puede consultar disponibilidad bookable pública/customer.
 - `customer` puede crear, consultar, cancelar y reprogramar solo sus reservaciones.
 - `customer` puede consultar su membresía, beneficios y lealtad propios.
+- `customer` puede crear, consultar, modificar y vaciar solo su carrito activo.
+- `customer` puede crear órdenes propias desde su carrito y consultar solo sus órdenes.
 - `super_admin` y `admin` pueden usarse para QA controlado sin convertirlos en fuente de datos customer.
 - Sin sesión se responde 401.
 - Usuario autenticado sin rol suficiente recibe 403.
@@ -273,7 +299,7 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - `401`: sesión requerida o inválida.
 - `403`: permisos insuficientes.
 - `409`: cupo insuficiente u horario no reservable.
-- `422`: payload inválido, transición inválida o número de personas inválido.
+- `422`: payload inválido, transición inválida, número de personas inválido, carrito vacío, item no disponible, stock insuficiente o intento de manipular precio/total/customer.
 - `500`: error interno sanitizado.
 
 ## Pruebas
@@ -282,22 +308,24 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - Pruebas backend cubren CRM: sin sesión 401, customer 403, lectura admin/viewer, alta, edición, prevención de duplicados, validación de teléfono, notas, etiquetas, auditoría y exportación segura.
 - Pruebas backend cubren Wine Club, inventario, logística y distribuidores: sin sesión 401, customer 403, lecturas admin, mutaciones administrativas, validación de payloads, protección de sobrecupo y exportaciones seguras.
 - Pruebas backend cubren app cliente: perfil propio, disponibilidad, creación de reservación, listado, detalle propio, cancelación, reprogramación, ownership, Wine Club, beneficios, lealtad, 401, 403, 404, payload inválido, sobrecupo, doble submit y errores seguros.
+- Pruebas backend cubren carrito y checkout customer: sin sesión 401, customer 403 en admin, lectura de carrito propio, agregar, actualizar, eliminar, vaciar, payload manipulado 422, creación de orden `pending_payment`, historial, detalle propio, ownership y ausencia de pago creado.
 - Pruebas frontend cubren clientes reales de disponibilidad, reservaciones, CRM, Wine Club, inventario, logística y distribuidores con Authorization Bearer y rechazo sin sesión.
-- Pruebas frontend cubren el servicio customer con Authorization Bearer, endpoints customer, manejo de 401, payloads de perfil, reservaciones, disponibilidad, membresía, beneficios y lealtad.
+- Pruebas frontend cubren el servicio customer con Authorization Bearer, endpoints customer, manejo de 401, payloads de perfil, reservaciones, disponibilidad, membresía, beneficios, lealtad, carrito, órdenes y rechazo de precio/customerId desde frontend.
 - Las pruebas usan mocks solo dentro de archivos de test.
 - Prueba real local contra Supabase productivo aprobada con datos temporales `QA_FASE7B_`, limpieza exacta y sin impresión de secretos.
 - Prueba real productiva en Railway aprobada con admin `super_admin`, customer bloqueado, sin sesión bloqueada y datos temporales `QA_FASE7B_` limpiados.
 - Prueba real local y productiva de CRM aprobada con datos temporales `QA_FASE7C_`, limpieza exacta y sin impresión de secretos.
 - Prueba real local y productiva de Fase 7E aprobada con datos temporales `QA_FASE7E_`, limpieza exacta y sin impresión de secretos.
 - Prueba real local y productiva de Fase 8B aprobada con datos temporales `QA_FASE8B_`, limpieza exacta y sin impresión de secretos.
+- Prueba real local y productiva de Fase 8C aprobada con datos temporales `QA_FASE8C_`, carrito persistente, orden `pending_payment`, ownership, 401, 403, auditoría, ausencia de pagos creados y limpieza exacta.
 - Netlify sirve el bundle desplegado con las rutas `/control/disponibilidad` y `/control/reservaciones` en HTTP 200.
 - Netlify sirve el bundle desplegado con la ruta `/control/clientes` en HTTP 200.
 - Netlify sirve el bundle desplegado con las rutas `/control/wine-club`, `/control/inventario`, `/control/logistica` y `/control/distribuidores` en HTTP 200.
-- Netlify sirve el bundle desplegado con rutas `/app/*` de Fase 8B en HTTP 200 y bundle `index-C-XNEYfq.js`.
+- Netlify sirve el bundle desplegado con rutas `/app/*` de Fase 8C en HTTP 200 y bundle `index-VU0eV1pM.js`.
 
 ## Riesgos Pendientes
 
 - Revisar duplicación masiva de horarios con volumen productivo antes de uso intensivo.
 - Definir política comercial final de cancelación y reprogramación customer.
-- Implementar carrito, checkout, pasarela productiva y comunicaciones transaccionales en fases posteriores.
+- Implementar pasarela productiva y comunicaciones transaccionales en fases posteriores.
 - Agregar QA E2E de navegador para cubrir pantalla blanca, navegación autenticada y estados visuales.
