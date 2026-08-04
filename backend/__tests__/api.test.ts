@@ -1978,7 +1978,7 @@ describe('Fase 8E communications API', () => {
 
   it('procesa worker con proveedor Resend simulado sin imprimir secretos', async () => {
     ;(env as Record<string, string>).RESEND_API_KEY = 'test_resend_key'
-    ;(env as Record<string, string>).RESEND_FROM_EMAIL = 'soporte@admhaciendadeletras.com'
+    ;(env as Record<string, string>).RESEND_FROM_EMAIL = 'Hacienda de Letras <notificaciones@admhaciendadeletras.com>'
     const fetchMock = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -1996,6 +1996,10 @@ describe('Fase 8E communications API', () => {
     })
 
     expect(fetchMock).toHaveBeenCalledOnce()
+    const init = fetchMock.mock.calls[0]?.[1] as { body?: unknown } | undefined
+    const requestBody = JSON.parse(String(init?.body ?? '{}')) as { from?: string }
+    expect(requestBody.from).toBe('Hacienda de Letras <notificaciones@admhaciendadeletras.com>')
+    expect(requestBody.from).not.toContain('<Hacienda de Letras <')
     const outbox = supabaseMock.tableData.email_outbox?.[0] as { status?: string; provider_message_id?: string }
     expect(outbox.status).toBe('sent')
     expect(outbox.provider_message_id).toBe('email_123')

@@ -22,6 +22,20 @@ export function resendProviderState() {
   }
 }
 
+export function extractSenderEmail(value: string) {
+  const formatted = value.match(/<([^<>@\s]+@[^<>@\s]+\.[^<>\s]+)>/)
+  if (formatted?.[1]) return formatted[1].trim().toLowerCase()
+  const trimmed = value.trim().toLowerCase()
+  return /^[^@<>\s]+@[^@<>\s]+\.[^@<>\s]+$/.test(trimmed) ? trimmed : ''
+}
+
+export function formatResendFrom(value: string) {
+  const trimmed = value.trim()
+  if (/<[^<>@\s]+@[^<>@\s]+\.[^<>\s]+>/.test(trimmed)) return trimmed
+  const email = extractSenderEmail(trimmed)
+  return email ? `Hacienda de Letras <${email}>` : ''
+}
+
 function sanitizeErrorCode(value: unknown) {
   if (!value) return 'provider_error'
   return String(value).replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80) || 'provider_error'
@@ -35,9 +49,17 @@ export async function sendTransactionalEmail(message: ProviderMessage): Promise<
       isOperational: true,
     })
   }
+  const from = formatResendFrom(env.RESEND_FROM_EMAIL)
+  if (!from) {
+    throw Object.assign(new Error('Remitente no configurado'), {
+      code: 'provider_invalid_from',
+      statusCode: 503,
+      isOperational: true,
+    })
+  }
 
   const body: Record<string, unknown> = {
-    from: `Hacienda de Letras <${env.RESEND_FROM_EMAIL}>`,
+    from,
     to: [message.to],
     subject: message.subject,
     html: message.html,
