@@ -42,9 +42,29 @@ export const rescheduleCustomerReservationSchema = z.object({
   idempotencyKey: z.string().min(8).max(120),
 }).strict()
 
+export const addCustomerCartItemSchema = z.object({
+  itemType: z.enum(['wine', 'event_ticket', 'experience']),
+  itemId: uuid,
+  quantity: z.coerce.number().int().min(1).max(99),
+  idempotencyKey: z.string().min(8).max(120),
+}).strict()
+
+export const updateCustomerCartItemSchema = z.object({
+  quantity: z.coerce.number().int().min(1).max(99),
+  idempotencyKey: z.string().min(8).max(120).optional(),
+}).strict()
+
+export const createCustomerOrderSchema = z.object({
+  idempotencyKey: z.string().min(8).max(120),
+  discountCode: z.string().trim().min(1).max(80).optional(),
+}).strict()
+
 export type CustomerProfilePatch = z.infer<typeof customerProfilePatchSchema>
 export type CustomerAvailabilityQuery = z.infer<typeof customerAvailabilityQuerySchema>
 export type CustomerReservationListQuery = z.infer<typeof customerReservationListQuerySchema>
 export type CreateCustomerReservationPayload = z.infer<typeof createCustomerReservationSchema>
 export type CancelCustomerReservationPayload = z.infer<typeof cancelCustomerReservationSchema>
 export type RescheduleCustomerReservationPayload = z.infer<typeof rescheduleCustomerReservationSchema>
+export type AddCustomerCartItemPayload = z.infer<typeof addCustomerCartItemSchema>
+export type UpdateCustomerCartItemPayload = z.infer<typeof updateCustomerCartItemSchema>
+export type CreateCustomerOrderPayload = z.infer<typeof createCustomerOrderSchema>

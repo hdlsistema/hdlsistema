@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Award, Grape, MapPin, Sparkles, Wine } from 'lucide-react'
+import { useAuth } from '../../../contexts/AuthContext'
+import { customerClient } from '../../../services/customer.service'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
@@ -9,9 +11,14 @@ import { formatCurrency, imageField, numberField, textField } from '../../utils/
 export function WineDetailScreen() {
   const { wineId } = useParams()
   const { isEnglish } = useAppPreferences()
+  const { session } = useAuth()
+  const navigate = useNavigate()
   const [wine, setWine] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [quantity, setQuantity] = useState(1)
+  const [adding, setAdding] = useState(false)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     let active = true
@@ -67,6 +74,31 @@ export function WineDetailScreen() {
   const wineVarietal = textField(wine, 'grape_variety')
   const wineVintage = textField(wine, 'vintage')
   const winePrice = formatCurrency(numberField(wine, 'price'))
+  const stockControlled = Boolean(wine.stock_control_enabled)
+  const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
+
+  const addToCart = async () => {
+    if (!session?.access_token) {
+      navigate('/app/login')
+      return
+    }
+    if (adding || soldOut) return
+    setAdding(true)
+    setMessage('')
+    try {
+      await customerClient.addCartItem(session.access_token, {
+        itemType: 'wine',
+        itemId: wine.id,
+        quantity,
+        idempotencyKey: `cart-detail-${wine.id}-${Date.now()}`,
+      })
+      setMessage(isEnglish ? 'Added to cart.' : 'Agregado al carrito.')
+    } catch {
+      setMessage(isEnglish ? 'Could not add this wine.' : 'No fue posible agregar este vino.')
+    } finally {
+      setAdding(false)
+    }
+  }
 
   return (
     <div className="space-y-6 pb-3">
@@ -97,7 +129,34 @@ export function WineDetailScreen() {
           </div>
 
           <div className="mt-5">
-            <PrimaryButton disabled>{isEnglish ? 'Cart available soon' : 'Carrito disponible próximamente'}</PrimaryButton>
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-[1rem] border border-[rgba(220,202,181,0.78)] bg-[#fffaf5] px-4 py-3">
+              <span className="text-[12px] font-semibold text-[var(--color-ink)]">{isEnglish ? 'Quantity' : 'Cantidad'}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQuantity((value) => Math.max(1, value - 1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#dccab5] bg-white text-[16px] font-bold text-[var(--color-burgundy)]"
+                >
+                  -
+                </button>
+                <span className="min-w-8 text-center text-[13px] font-bold text-[var(--color-ink)]">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity((value) => Math.min(99, value + 1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#dccab5] bg-white text-[16px] font-bold text-[var(--color-burgundy)]"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <PrimaryButton onClick={addToCart} disabled={adding || soldOut}>
+              {soldOut
+                ? (isEnglish ? 'Sold out' : 'Agotado')
+                : adding
+                  ? (isEnglish ? 'Adding...' : 'Agregando...')
+                  : (isEnglish ? 'Add to cart' : 'Agregar al carrito')}
+            </PrimaryButton>
+            {message ? <p className="mt-3 text-[12px] text-[var(--color-muted)]">{message}</p> : null}
           </div>
         </div>
       </section>

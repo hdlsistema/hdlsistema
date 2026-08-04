@@ -37,6 +37,7 @@ import { StoreScreen } from '../pages/mobile/StoreScreen'
 import { ClubScreen } from '../pages/mobile/ClubScreen'
 import { SommelierScreen } from '../pages/mobile/SommelierScreen'
 import { CartScreen } from '../pages/mobile/CartScreen'
+import { CheckoutScreen } from '../pages/mobile/CheckoutScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
 import { IntelligencePage } from '../pages/future/IntelligencePage'
@@ -103,6 +104,14 @@ export function AppRouter() {
           }
         />
         <Route
+          path="checkout"
+          element={
+            <ProtectedRoute>
+              <CheckoutScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="perfil"
           element={
             <ProtectedRoute>
@@ -155,6 +164,7 @@ export function AppRouter() {
         <Route path="app/club" element={<Navigate to="/app/club" replace />} />
         <Route path="app/sommelier" element={<Navigate to="/app/sommelier" replace />} />
         <Route path="app/carrito" element={<Navigate to="/app/carrito" replace />} />
+        <Route path="app/checkout" element={<Navigate to="/app/checkout" replace />} />
         <Route path="app/perfil" element={<Navigate to="/app/perfil" replace />} />
 
         {/* Módulos futuros */}

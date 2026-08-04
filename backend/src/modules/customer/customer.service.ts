@@ -12,11 +12,14 @@ import {
 } from '../operations/operationErrors'
 import type {
   CancelCustomerReservationPayload,
+  AddCustomerCartItemPayload,
+  CreateCustomerOrderPayload,
   CreateCustomerReservationPayload,
   CustomerAvailabilityQuery,
   CustomerProfilePatch,
   CustomerReservationListQuery,
   RescheduleCustomerReservationPayload,
+  UpdateCustomerCartItemPayload,
 } from './customer.schemas'
 
 const customerRoles = ['customer', 'super_admin', 'admin']
@@ -309,4 +312,77 @@ export async function listCustomerMembershipHistory(user: UserContext) {
       createdAt: row.created_at,
     })),
   }
+}
+
+export async function getCustomerCart(user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('get_customer_cart')
+  if (result.error) normalizeDatabaseError(result.error)
+  return { data: result.data }
+}
+
+export async function addCustomerCartItem(payload: AddCustomerCartItemPayload, user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('add_customer_cart_item', {
+    p_item_type: payload.itemType,
+    p_item_id: payload.itemId,
+    p_quantity: payload.quantity,
+    p_idempotency_key: payload.idempotencyKey,
+  })
+  if (result.error) normalizeDatabaseError(result.error)
+  return { data: result.data }
+}
+
+export async function updateCustomerCartItem(id: string, payload: UpdateCustomerCartItemPayload, user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('update_customer_cart_item', {
+    p_cart_item_id: id,
+    p_quantity: payload.quantity,
+    p_idempotency_key: payload.idempotencyKey ?? null,
+  })
+  if (result.error) normalizeDatabaseError(result.error)
+  return { data: result.data }
+}
+
+export async function removeCustomerCartItem(id: string, user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('remove_customer_cart_item', {
+    p_cart_item_id: id,
+  })
+  if (result.error) normalizeDatabaseError(result.error)
+  return { data: result.data }
+}
+
+export async function clearCustomerCart(user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('clear_customer_cart')
+  if (result.error) normalizeDatabaseError(result.error)
+  return { data: result.data }
+}
+
+export async function createCustomerOrder(payload: CreateCustomerOrderPayload, user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('create_customer_order_from_cart', {
+    p_idempotency_key: payload.idempotencyKey,
+    p_discount_code: payload.discountCode ?? null,
+  })
+  if (result.error) normalizeDatabaseError(result.error)
+  return getCustomerOrder(String(result.data), user)
+}
+
+export async function listCustomerOrders(user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('get_customer_orders')
+  if (result.error) normalizeDatabaseError(result.error)
+  return { data: result.data ?? [] }
+}
+
+export async function getCustomerOrder(id: string, user: UserContext) {
+  assertCustomerAccess(user)
+  const result = await rpcClient(user).rpc('get_customer_order_detail', {
+    p_order_id: id,
+  })
+  if (result.error) normalizeDatabaseError(result.error)
+  if (!result.data || result.data === null) throw httpError(404, 'Orden no encontrada')
+  return { data: result.data }
 }

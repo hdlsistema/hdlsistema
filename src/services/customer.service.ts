@@ -119,6 +119,84 @@ export type CustomerLoyaltySummary = {
   }>
 }
 
+export type CustomerCartItem = {
+  id: string
+  cartId: string
+  itemType: 'wine' | 'event_ticket' | 'experience' | string
+  itemId: string
+  name: string
+  sku?: string | null
+  quantity: number
+  unitPrice: number
+  subtotal: number
+  currency: string
+  metadata?: Record<string, unknown>
+  createdAt: string
+  updatedAt: string
+}
+
+export type CustomerCart = {
+  id: string
+  status: 'active' | 'converted' | 'abandoned' | string
+  currency: string
+  expiresAt?: string | null
+  items: CustomerCartItem[]
+  totals: {
+    subtotal: number
+    discountTotal: number
+    taxTotal: number
+    shippingTotal: number
+    total: number
+    currency: string
+    discountCode?: string | null
+    discountApplied?: boolean
+    shippingMode?: string
+    paymentStatus?: string
+  }
+  checkout: {
+    canCheckout: boolean
+    paymentAvailable: boolean
+    paymentMessage: string
+    fulfillmentMode: string
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export type CustomerOrder = {
+  id: string
+  orderNumber: string
+  status: 'draft' | 'pending_payment' | 'paid' | 'processing' | 'fulfilled' | 'cancelled' | 'refunded' | string
+  subtotal: number
+  discountTotal: number
+  taxTotal: number
+  shippingTotal: number
+  total: number
+  currency: string
+  paymentStatus: string
+  paymentAvailable: boolean
+  source: string
+  createdAt: string
+  updatedAt: string
+  items: Array<{
+    id: string
+    itemType: string
+    itemId: string
+    name: string
+    sku?: string | null
+    quantity: number
+    unitPrice: number
+    subtotal: number
+    metadata?: Record<string, unknown>
+    createdAt: string
+  }>
+  checkout?: {
+    message?: string
+    fulfillmentMode?: string
+    shippingPolicy?: string
+  }
+}
+
 function assertToken(token: string | null | undefined): string {
   if (!token) throw Object.assign(new Error('Sesión requerida'), { status: 401 })
   return token
@@ -211,6 +289,54 @@ export const customerClient = {
   },
   membershipHistory(token: string | null | undefined) {
     return apiFetch<{ ok: true; data: Array<{ id: string; action: string; entityType: string; createdAt: string }> }>('/api/customer/membership/history', {
+      headers: customerHeaders(token),
+    })
+  },
+  cart(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: CustomerCart }>('/api/customer/cart', {
+      headers: customerHeaders(token),
+    })
+  },
+  addCartItem(token: string | null | undefined, payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: CustomerCart }>('/api/customer/cart/items', {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  updateCartItem(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: CustomerCart }>(`/api/customer/cart/items/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  removeCartItem(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: CustomerCart }>(`/api/customer/cart/items/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: customerHeaders(token),
+    })
+  },
+  clearCart(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: CustomerCart }>('/api/customer/cart', {
+      method: 'DELETE',
+      headers: customerHeaders(token),
+    })
+  },
+  createOrder(token: string | null | undefined, payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: CustomerOrder }>('/api/customer/orders', {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  orders(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: CustomerOrder[] }>('/api/customer/orders', {
+      headers: customerHeaders(token),
+    })
+  },
+  order(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: CustomerOrder }>(`/api/customer/orders/${encodeURIComponent(id)}`, {
       headers: customerHeaders(token),
     })
   },

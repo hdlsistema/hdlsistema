@@ -117,12 +117,14 @@ type CompactAddButtonProps = {
   to?: string
   onClick?: () => void
   ariaLabel?: string
+  disabled?: boolean
 }
 
 export function CompactAddButton({
   to,
   onClick,
   ariaLabel = 'Disponible próximamente',
+  disabled = false,
 }: CompactAddButtonProps) {
   const content = (
     <Plus
@@ -169,14 +171,14 @@ export function CompactAddButton({
     <button
       type="button"
       onClick={onClick}
-      disabled={!onClick}
+      disabled={disabled || !onClick}
       aria-label={ariaLabel}
       title={ariaLabel}
       style={{
         ...sharedStyle,
-        backgroundColor: onClick ? '#681126' : '#a99a92',
-        cursor: onClick ? 'pointer' : 'not-allowed',
-        boxShadow: onClick ? sharedStyle.boxShadow : 'none',
+        backgroundColor: !disabled && onClick ? '#681126' : '#a99a92',
+        cursor: !disabled && onClick ? 'pointer' : 'not-allowed',
+        boxShadow: !disabled && onClick ? sharedStyle.boxShadow : 'none',
       }}
     >
       {content}
@@ -187,11 +189,17 @@ export function CompactAddButton({
 type WineCardProps = {
   wine: WineItem
   badge?: string
+  onAdd?: () => void
+  addDisabled?: boolean
+  addLabel?: string
 }
 
 export function WineCard({
   wine,
   badge = 'Selección',
+  onAdd,
+  addDisabled = false,
+  addLabel,
 }: WineCardProps) {
   const detailPath = `/app/tienda/${wine.id}`
 
@@ -246,7 +254,9 @@ export function WineCard({
           </span>
 
           <CompactAddButton
-            ariaLabel={`Carrito disponible próximamente para ${wine.name}`}
+            onClick={onAdd}
+            disabled={addDisabled}
+            ariaLabel={addLabel ?? `Agregar ${wine.name} al carrito`}
           />
         </div>
       </div>

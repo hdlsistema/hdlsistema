@@ -1,26 +1,37 @@
 import type { Request, Response } from 'express'
 import { sendOperationError } from '../operations/operationErrors'
 import {
+  addCustomerCartItem,
   cancelCustomerReservation,
+  clearCustomerCart,
+  createCustomerOrder,
   createCustomerReservation,
+  getCustomerCart,
   getCustomerMe,
   getCustomerMembership,
   getCustomerMembershipLoyalty,
+  getCustomerOrder,
   getCustomerReservation,
   listCustomerAvailability,
   listCustomerMembershipBenefits,
   listCustomerMembershipHistory,
+  listCustomerOrders,
   listCustomerReservations,
+  removeCustomerCartItem,
   rescheduleCustomerReservation,
+  updateCustomerCartItem,
   updateCustomerMe,
 } from './customer.service'
 import {
+  addCustomerCartItemSchema,
   cancelCustomerReservationSchema,
+  createCustomerOrderSchema,
   createCustomerReservationSchema,
   customerAvailabilityQuerySchema,
   customerProfilePatchSchema,
   customerReservationListQuerySchema,
   rescheduleCustomerReservationSchema,
+  updateCustomerCartItemSchema,
 } from './customer.schemas'
 
 function userContext(req: Request) {
@@ -160,6 +171,81 @@ export async function getCustomerMembershipLoyaltyController(req: Request, res: 
 export async function getCustomerMembershipHistoryController(req: Request, res: Response): Promise<void> {
   try {
     const result = await listCustomerMembershipHistory(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerCartController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerCart(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function addCustomerCartItemController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = addCustomerCartItemSchema.parse(req.body)
+    const result = await addCustomerCartItem(payload, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function updateCustomerCartItemController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = updateCustomerCartItemSchema.parse(req.body)
+    const result = await updateCustomerCartItem(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function removeCustomerCartItemController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await removeCustomerCartItem(req.params.id, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function clearCustomerCartController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await clearCustomerCart(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function createCustomerOrderController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = createCustomerOrderSchema.parse(req.body)
+    const result = await createCustomerOrder(payload, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function listCustomerOrdersController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await listCustomerOrders(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerOrderController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerOrder(req.params.id, userContext(req))
     res.json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)

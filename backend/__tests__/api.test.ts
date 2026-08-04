@@ -1657,6 +1657,181 @@ describe('Fase 8B customer app API', () => {
   })
 })
 
+describe('Fase 8C customer cart and checkout API', () => {
+  const customerUser = {
+    id: '66666666-6666-4666-8666-666666666001',
+    email: 'cliente.fase8c@alqia.tech',
+    created_at: '2026-08-04T00:00:00.000Z',
+    email_confirmed_at: '2026-08-04T00:00:00.000Z',
+  }
+  const customerId = '66666666-6666-4666-8666-666666666002'
+  const cartItemId = '66666666-6666-4666-8666-666666666003'
+  const wineId = '66666666-6666-4666-8666-666666666004'
+  const orderId = '66666666-6666-4666-8666-666666666005'
+
+  function signInCustomer() {
+    supabaseMock.authUser = customerUser
+    supabaseMock.tableData.user_roles = [{ user_id: customerUser.id, roles: { code: 'customer' } }]
+    supabaseMock.tableData.customers = [{
+      id: customerId,
+      user_id: customerUser.id,
+      customer_number: 'CUS-FASE8C',
+      first_name: 'Cliente',
+      last_name: 'Fase 8C',
+      email: customerUser.email,
+      status: 'active',
+    }]
+  }
+
+  function cartPayload() {
+    return {
+      id: '66666666-6666-4666-8666-666666666010',
+      status: 'active',
+      currency: 'MXN',
+      items: [{
+        id: cartItemId,
+        cartId: '66666666-6666-4666-8666-666666666010',
+        itemType: 'wine',
+        itemId: wineId,
+        name: 'Vino Fase 8C',
+        sku: 'QA8C-WINE',
+        quantity: 2,
+        unitPrice: 480,
+        subtotal: 960,
+        currency: 'MXN',
+        metadata: { slug: 'vino-fase8c' },
+        createdAt: '2026-08-04T00:00:00.000Z',
+        updatedAt: '2026-08-04T00:00:00.000Z',
+      }],
+      totals: {
+        subtotal: 960,
+        discountTotal: 0,
+        taxTotal: 0,
+        shippingTotal: 0,
+        total: 960,
+        currency: 'MXN',
+        paymentStatus: 'pending_payment',
+      },
+      checkout: {
+        canCheckout: true,
+        paymentAvailable: false,
+        paymentMessage: 'Tu orden fue creada. El pago en línea estará disponible próximamente.',
+        fulfillmentMode: 'pickup_at_hacienda',
+      },
+      createdAt: '2026-08-04T00:00:00.000Z',
+      updatedAt: '2026-08-04T00:00:00.000Z',
+    }
+  }
+
+  function orderPayload() {
+    return {
+      id: orderId,
+      orderNumber: 'ORD-FASE8C',
+      status: 'pending_payment',
+      subtotal: 960,
+      discountTotal: 0,
+      taxTotal: 0,
+      shippingTotal: 0,
+      total: 960,
+      currency: 'MXN',
+      paymentStatus: 'pending_payment',
+      paymentAvailable: false,
+      source: 'app',
+      createdAt: '2026-08-04T00:00:00.000Z',
+      updatedAt: '2026-08-04T00:00:00.000Z',
+      items: [{ id: 'item-order', itemType: 'wine', itemId: wineId, name: 'Vino Fase 8C', quantity: 2, unitPrice: 480, subtotal: 960 }],
+      checkout: { message: 'Tu orden fue creada. El pago en línea estará disponible próximamente.' },
+    }
+  }
+
+  it('rechaza carrito customer sin sesión', async () => {
+    const res = await request(app).get('/api/customer/cart')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('lee carrito propio sin secretos ni pagos ficticios', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.get_customer_cart = cartPayload()
+
+    const res = await request(app).get('/api/customer/cart').set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.items[0]).toMatchObject({ name: 'Vino Fase 8C', quantity: 2 })
+    expect(res.body.data.checkout.paymentAvailable).toBe(false)
+    expect(JSON.stringify(res.body)).not.toContain('customer-token')
+    expect(JSON.stringify(res.body)).not.toContain('SERVICE_ROLE')
+  })
+
+  it('agrega, actualiza, elimina y vacía partidas mediante RPC customer', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.add_customer_cart_item = cartPayload()
+    supabaseMock.rpcData.update_customer_cart_item = cartPayload()
+    supabaseMock.rpcData.remove_customer_cart_item = { ...cartPayload(), items: [] }
+    supabaseMock.rpcData.clear_customer_cart = { ...cartPayload(), items: [] }
+
+    const added = await request(app)
+      .post('/api/customer/cart/items')
+      .set('Authorization', 'Bearer customer-token')
+      .send({ itemType: 'wine', itemId: wineId, quantity: 1, idempotencyKey: 'fase8c-add-item' })
+    const updated = await request(app)
+      .patch(`/api/customer/cart/items/${cartItemId}`)
+      .set('Authorization', 'Bearer customer-token')
+      .send({ quantity: 3, idempotencyKey: 'fase8c-update-item' })
+    const removed = await request(app)
+      .delete(`/api/customer/cart/items/${cartItemId}`)
+      .set('Authorization', 'Bearer customer-token')
+    const cleared = await request(app)
+      .delete('/api/customer/cart')
+      .set('Authorization', 'Bearer customer-token')
+
+    expect(added.status).toBe(201)
+    expect(updated.status).toBe(200)
+    expect(removed.status).toBe(200)
+    expect(cleared.status).toBe(200)
+  })
+
+  it('rechaza payload manipulado con precio, total o customerId', async () => {
+    signInCustomer()
+    const res = await request(app)
+      .post('/api/customer/cart/items')
+      .set('Authorization', 'Bearer customer-token')
+      .send({ itemType: 'wine', itemId: wineId, quantity: 1, unitPrice: 1, total: 1, customerId, idempotencyKey: 'fase8c-invalid' })
+
+    expect(res.status).toBe(422)
+    expect(JSON.stringify(res.body)).not.toContain('customer-token')
+  })
+
+  it('crea orden customer pending_payment sin crear pago ni marcar paid', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.create_customer_order_from_cart = orderId
+    supabaseMock.rpcData.get_customer_order_detail = orderPayload()
+    supabaseMock.rpcData.get_customer_orders = [orderPayload()]
+
+    const created = await request(app)
+      .post('/api/customer/orders')
+      .set('Authorization', 'Bearer customer-token')
+      .send({ idempotencyKey: 'fase8c-order', discountCode: 'QA8C' })
+    const list = await request(app).get('/api/customer/orders').set('Authorization', 'Bearer customer-token')
+    const detail = await request(app).get(`/api/customer/orders/${orderId}`).set('Authorization', 'Bearer customer-token')
+
+    expect(created.status).toBe(201)
+    expect(created.body.data).toMatchObject({ orderNumber: 'ORD-FASE8C', status: 'pending_payment', paymentAvailable: false })
+    expect(created.body.data.status).not.toBe('paid')
+    expect(list.status).toBe(200)
+    expect(list.body.data[0].orderNumber).toBe('ORD-FASE8C')
+    expect(detail.status).toBe(200)
+  })
+
+  it('bloquea customer en órdenes administrativas', async () => {
+    signInCustomer()
+    const res = await request(app).get('/api/admin/orders').set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(403)
+    expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+})
+
 // ─── 2. GET /api/version devuelve 200 ───────────────────────────────────────
 describe('GET /api/version', () => {
   it('devuelve 200 con service y environment', async () => {

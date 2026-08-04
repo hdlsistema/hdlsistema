@@ -3,8 +3,12 @@ import { authenticate } from '../../middleware/authenticate'
 import { authorize } from '../../middleware/authorize'
 import { rateLimit } from '../../middleware/rateLimit'
 import {
+  addCustomerCartItemController,
   cancelCustomerReservationController,
+  clearCustomerCartController,
+  createCustomerOrderController,
   createCustomerReservationController,
+  getCustomerCartController,
   getCustomerAvailabilityController,
   getCustomerExperienceAvailabilityController,
   getCustomerMeController,
@@ -12,10 +16,14 @@ import {
   getCustomerMembershipController,
   getCustomerMembershipHistoryController,
   getCustomerMembershipLoyaltyController,
+  getCustomerOrderController,
   getCustomerReservationController,
+  listCustomerOrdersController,
   listCustomerReservationsController,
   patchCustomerMeController,
+  removeCustomerCartItemController,
   rescheduleCustomerReservationController,
+  updateCustomerCartItemController,
 } from './customer.controller'
 
 const router = Router()
@@ -27,6 +35,14 @@ router.get('/me', ...protectedCustomer, getCustomerMeController)
 router.patch('/me', ...protectedCustomer, patchCustomerMeController)
 router.get('/availability', ...protectedCustomer, getCustomerAvailabilityController)
 router.get('/availability/:experienceId', ...protectedCustomer, getCustomerExperienceAvailabilityController)
+router.get('/cart', ...protectedCustomer, getCustomerCartController)
+router.post('/cart/items', ...protectedCustomer, addCustomerCartItemController)
+router.patch('/cart/items/:id', ...protectedCustomer, updateCustomerCartItemController)
+router.delete('/cart/items/:id', ...protectedCustomer, removeCustomerCartItemController)
+router.delete('/cart', ...protectedCustomer, clearCustomerCartController)
+router.post('/orders', ...protectedCustomer, createCustomerOrderController)
+router.get('/orders', ...protectedCustomer, listCustomerOrdersController)
+router.get('/orders/:id', ...protectedCustomer, getCustomerOrderController)
 router.get('/reservations', ...protectedCustomer, listCustomerReservationsController)
 router.post('/reservations', ...protectedCustomer, createCustomerReservationController)
 router.get('/reservations/:id', ...protectedCustomer, getCustomerReservationController)

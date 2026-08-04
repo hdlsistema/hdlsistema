@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMemo, useState } from 'react'
 import { Grape, Sparkles } from 'lucide-react'
+import { useAuth } from '../../../contexts/AuthContext'
+import { customerClient } from '../../../services/customer.service'
 import { PillRow, SearchField, SectionHeading, WineCard } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
@@ -8,10 +10,14 @@ import { contentRouteId, formatCurrency, imageField, numberField, textField } fr
 
 export function StoreScreen() {
   const { isEnglish } = useAppPreferences()
+  const { session } = useAuth()
+  const navigate = useNavigate()
   const { records: wines, loading, error, retry } = usePublicContent('wines')
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState(0)
   const [order, setOrder] = useState<'featured' | 'price_asc' | 'price_desc' | 'name'>('featured')
+  const [addingId, setAddingId] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
   const filters = useMemo(
     () => isEnglish
       ? ['All', 'Reds', 'Whites', 'Rosés', 'Sparkling']
@@ -46,6 +52,29 @@ export function StoreScreen() {
     })
   }, [activeFilter, filters, isEnglish, order, search, wines])
 
+  const addWineToCart = async (wineId: string) => {
+    if (!session?.access_token) {
+      navigate('/app/login')
+      return
+    }
+    if (addingId) return
+    setAddingId(wineId)
+    setMessage('')
+    try {
+      await customerClient.addCartItem(session.access_token, {
+        itemType: 'wine',
+        itemId: wineId,
+        quantity: 1,
+        idempotencyKey: `cart-${wineId}-${Date.now()}`,
+      })
+      setMessage(isEnglish ? 'Added to cart.' : 'Agregado al carrito.')
+    } catch {
+      setMessage(isEnglish ? 'Could not add this wine.' : 'No fue posible agregar este vino.')
+    } finally {
+      setAddingId(null)
+    }
+  }
+
   return (
     <div className="space-y-6 pb-3">
       <section className="overflow-hidden rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-[linear-gradient(135deg,#fffaf4,#f2dfc9)] p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
@@ -72,6 +101,11 @@ export function StoreScreen() {
           activeIndex={activeFilter}
           onSelect={setActiveFilter}
         />
+        {message ? (
+          <p className="rounded-[0.95rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 text-[12px] text-[var(--color-muted)]">
+            {message}
+          </p>
+        ) : null}
         <label className="block">
           <span className="sr-only">{isEnglish ? 'Sort wines' : 'Ordenar vinos'}</span>
           <select
@@ -109,25 +143,40 @@ export function StoreScreen() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {filteredWines.map((wine, index) => (
-              <WineCard
-                key={wine.id}
-                wine={{
-                  id: contentRouteId(wine),
-                  name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
-                  kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
-                  price: formatCurrency(numberField(wine, 'price')),
-                  image: imageField(wine, '/Logo-HDL-2.svg'),
-                  varietal: textField(wine, 'grape_variety'),
-                  harvest: textField(wine, 'vintage'),
-                }}
-                badge={
-                  index === 0
-                    ? (isEnglish ? 'Featured' : 'Destacado')
-                    : textField(wine, 'status') || (isEnglish ? 'Available' : 'Disponible')
-                }
-              />
-            ))}
+            {filteredWines.map((wine, index) => {
+              const stockControlled = Boolean(wine.stock_control_enabled)
+              const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
+              return (
+                <WineCard
+                  key={wine.id}
+                  wine={{
+                    id: contentRouteId(wine),
+                    name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
+                    kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
+                    price: formatCurrency(numberField(wine, 'price')),
+                    image: imageField(wine, '/Logo-HDL-2.svg'),
+                    varietal: textField(wine, 'grape_variety'),
+                    harvest: textField(wine, 'vintage'),
+                  }}
+                  badge={
+                    soldOut
+                      ? (isEnglish ? 'Sold out' : 'Agotado')
+                      : index === 0
+                        ? (isEnglish ? 'Featured' : 'Destacado')
+                        : textField(wine, 'status') || (isEnglish ? 'Available' : 'Disponible')
+                  }
+                  onAdd={() => addWineToCart(String(wine.id))}
+                  addDisabled={soldOut || addingId === String(wine.id)}
+                  addLabel={
+                    soldOut
+                      ? (isEnglish ? 'Wine sold out' : 'Vino agotado')
+                      : addingId === String(wine.id)
+                        ? (isEnglish ? 'Adding wine' : 'Agregando vino')
+                        : (isEnglish ? 'Add to cart' : 'Agregar al carrito')
+                  }
+                />
+              )
+            })}
           </div>
         )}
       </section>
