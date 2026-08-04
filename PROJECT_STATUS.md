@@ -1,6 +1,6 @@
 # Hacienda de Letras OS - Project Status
 
-Este documento es la fuente única de verdad del estado del proyecto hasta Fase 7E.
+Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8B.
 
 ## Fase 1
 
@@ -437,6 +437,150 @@ Estado: cerrada en producción.
   - No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables.
 - Fase 7F no iniciada.
 
+## Fase 8A
+
+Estado: auditoría aprobada.
+
+### Auditoría Completa de App Cliente
+
+- Objetivo: auditar la app cliente antes de conectar flujos transaccionales reales.
+- Clasificación: auditoría previa.
+- Sin commit funcional independiente identificado.
+- Hallazgos que guiaron Fase 8B:
+  - `/app/*` y `/control/*` permanecían separados.
+  - La app cliente consumía contenido editorial real solo parcialmente.
+  - Los flujos customer de perfil, reservaciones y Wine Club requerían endpoints propios.
+  - La app cliente no debía consumir `/api/admin/*`.
+  - Los mocks visibles críticos debían eliminarse o convertirse en estados honestos.
+- No se inició Fase 8B hasta completar esta revisión.
+
+## Fase 8B
+
+Estado: aprobada en producción.
+
+### App Cliente Conectada Base
+
+- Commit funcional: `5dd39b7 feat: connect customer app base flows`.
+- Migración aplicada: `028_customer_app_operations.sql`.
+- Migración idempotente, no destructiva y sin `DROP`, `TRUNCATE` ni `DELETE`.
+- RLS auditado para:
+  - `customers`
+  - `profiles`
+  - `user_preferences`
+  - `reservations`
+  - `reservation_guests`
+  - `reservation_status_history`
+  - `experience_slots`
+  - `experience_blockouts`
+  - `membership_plans`
+  - `memberships`
+  - `membership_benefits`
+  - `loyalty_transactions`
+  - contenido público editorial
+  - `audit_logs`
+- Policies nuevas o confirmadas:
+  - lectura propia de beneficios de membresía customer.
+  - lectura propia de transacciones de lealtad customer.
+  - lectura, creación y operación de reservaciones propias mediante RPC seguras.
+- RPC customer:
+  - `get_customer_profile`
+  - `update_customer_profile`
+  - `get_bookable_experience_slots`
+  - `create_customer_reservation`
+  - `cancel_customer_reservation`
+  - `reschedule_customer_reservation`
+  - `get_customer_reservations`
+  - `get_customer_membership`
+  - `get_customer_loyalty_summary`
+- Backend customer:
+  - `backend/src/modules/customer/`
+  - `GET /api/customer/me`
+  - `PATCH /api/customer/me`
+  - `GET /api/customer/availability`
+  - `GET /api/customer/availability/:experienceId`
+  - `GET /api/customer/reservations`
+  - `GET /api/customer/reservations/:id`
+  - `POST /api/customer/reservations`
+  - `POST /api/customer/reservations/:id/cancel`
+  - `POST /api/customer/reservations/:id/reschedule`
+  - `GET /api/customer/membership`
+  - `GET /api/customer/membership/benefits`
+  - `GET /api/customer/membership/loyalty`
+  - `GET /api/customer/membership/history`
+- Seguridad backend:
+  - `customer_id` se deriva en backend y RPC; no se acepta desde frontend como autoridad.
+  - Precios, cupo, estado y número de reserva se derivan en servidor.
+  - Endpoints customer requieren sesión.
+  - Customer recibe 403 en endpoints administrativos.
+  - Sin sesión recibe 401.
+  - No se expone service role a frontend.
+  - No se imprimieron JWT, tokens, service role key, headers sensibles ni variables.
+- Auth customer:
+  - `/app/login`
+  - `/app/registro`
+  - `/app/recuperar`
+  - `/app/reset-password`
+  - `/app/auth/callback`
+  - compatibilidad temporal conservada con rutas públicas raíz de autenticación.
+- App cliente conectada:
+  - `/app/home`: vinos, experiencias, eventos, promociones y planes publicados reales.
+  - `/app/tienda`: vinos publicados reales, búsqueda, filtros y orden.
+  - `/app/tienda/:wineId`: detalle real de vino.
+  - `/app/experiencias`: experiencias publicadas reales.
+  - `/app/experiencias/:experienceId`: detalle real con disponibilidad customer cuando aplica.
+  - `/app/eventos`: eventos publicados reales.
+  - `/app/eventos/:eventId`: detalle real de evento.
+  - `/app/reservacion`: disponibilidad, creación, cancelación y reprogramación customer.
+  - `/app/club`: planes reales, membresía propia, beneficios y lealtad.
+  - `/app/perfil`: perfil propio, preferencias, reservaciones, membresía y puntos reales.
+  - `/app/mapa`: Mapbox real configurable, sin distancias ni rutas falsas.
+  - `/app/sommelier`: estado temporal honesto; no simula conversación OpenAI.
+  - `/app/carrito`: estado temporal honesto; no simula checkout ni pago.
+- Idioma:
+  - locale estructural preparado.
+  - español por defecto.
+  - fallback a español para contenido editorial.
+  - preferencia customer preparada desde perfil.
+- Mocks visibles:
+  - eliminadas métricas críticas inventadas de reservaciones, carrito, pagos, puntos, membresía, pedidos, reseñas, ratings, rutas GPS y respuestas IA.
+  - los mocks permanecen permitidos únicamente en archivos de prueba.
+- Runner real:
+  - `backend/scripts/phase8b-real-check.mjs`.
+  - Validación local aprobada contra Supabase real.
+  - Validación productiva aprobada contra Railway.
+  - Admin autorizado.
+  - Customer temporal `QA_FASE8B_` creado por flujo seguro, usado y eliminado.
+  - Customer bloqueado de admin con 403.
+  - Sin sesión bloqueada con 401.
+  - Reserva creada, reprogramada y cancelada.
+  - Auditoría confirmada.
+  - Datos temporales limpiados.
+- Pruebas:
+  - Frontend: 62/62.
+  - Backend: 68/68.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+  - Lint: exitoso con warnings preexistentes.
+  - `git diff --check`: exitoso.
+  - `.env`, `.env.local`, `backend/.env` y `backend/.env.local` ignorados.
+- Railway:
+  - `/api/health` HTTP 200.
+  - Supabase `configured: true`.
+  - Supabase `reachable: true`.
+  - Supabase `healthy: true`.
+  - Supabase `status: ok`.
+  - Endpoints customer reales desplegados.
+- Netlify:
+  - raíz y rutas `/app/*` de Fase 8B responden HTTP 200.
+  - bundle desplegado: `index-C-XNEYfq.js`.
+  - rutas de detalle validadas con slugs publicados reales.
+  - No se detectó reemplazo del Centro de Control.
+- Documentación:
+  - `PROJECT_STATUS.md`.
+  - `backend/docs/OPERATIONS.md`.
+  - `backend/docs/CUSTOMER_APP.md`.
+- No se inició Fase 8C.
+
 ## Estado de Arquitectura
 
 - `/app/*` monta `MobileShell`.
@@ -450,7 +594,6 @@ Estado: cerrada en producción.
 
 ## Pendientes V1
 
-- App cliente completa.
 - Carrito y pago real.
 - Pasarela productiva.
 - Sommelier OpenAI.
@@ -462,6 +605,7 @@ Estado: cerrada en producción.
 - Diseño premium.
 - QA E2E.
 - Tiendas.
+- App cliente avanzada posterior a la base 8B.
 
 ## Roadmap Adicional Ya Implementado
 
@@ -480,7 +624,8 @@ Estos módulos fueron construidos y validados en Fase 7E aunque originalmente ap
 - Estética todavía genérica en varias pantallas.
 - Raíz aún implementada como `LandingPage`.
 - No se deben confundir validaciones funcionales con cierre visual premium.
+- Carrito, checkout, pagos productivos y Sommelier real siguen pendientes.
 
 ## Siguiente Fase
 
-Fase 7F — No iniciada.
+Fase 8C — No iniciada.

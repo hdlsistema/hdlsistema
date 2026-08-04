@@ -1,10 +1,10 @@
-# Operaciones: disponibilidad, reservaciones y CRM
+# Operaciones: disponibilidad, reservaciones, CRM y app cliente
 
 Documento operativo para el Centro de Control de Hacienda de Letras OS.
 
 ## Fuente de Verdad
 
-Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, reservaciones, clientes, relaciones CRM e historial. El frontend no debe crear datos operativos locales ni mostrar mocks funcionales en `/control/disponibilidad`, `/control/reservaciones` o `/control/clientes`.
+Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, reservaciones, clientes, relaciones CRM, membresías, lealtad e historial. El frontend no debe crear datos operativos locales ni mostrar mocks funcionales en `/control/disponibilidad`, `/control/reservaciones`, `/control/clientes` ni en flujos reales de `/app/*`.
 
 ## Tablas
 
@@ -19,6 +19,9 @@ Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, res
 - `customer_tag_assignments`: asignación de etiquetas a clientes.
 - `customer_notes`: notas internas de seguimiento.
 - `audit_logs`: auditoría administrativa.
+- `memberships`: membresías reales de Wine Club.
+- `membership_benefits`: beneficios de membresía.
+- `loyalty_transactions`: movimientos reales de puntos.
 
 ## Capacidad
 
@@ -43,8 +46,19 @@ Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, res
 - `cancel_reservation`
 - `reschedule_reservation`
 - `update_reservation_people`
+- `get_customer_profile`
+- `update_customer_profile`
+- `get_bookable_experience_slots`
+- `create_customer_reservation`
+- `cancel_customer_reservation`
+- `reschedule_customer_reservation`
+- `get_customer_reservations`
+- `get_customer_membership`
+- `get_customer_loyalty_summary`
 
-Las RPC derivan el actor desde `auth.uid()`, validan rol operativo, bloquean filas críticas con `for update`, revisan capacidad y devuelven errores sanitizados. No aceptan un actor parametrizable desde el cliente.
+Las RPC administrativas derivan el actor desde `auth.uid()`, validan rol operativo, bloquean filas críticas con `for update`, revisan capacidad y devuelven errores sanitizados. No aceptan un actor parametrizable desde el cliente.
+
+Las RPC customer derivan el cliente desde `auth.uid()` y `current_customer_id()`. No aceptan `customer_id` como fuente de autoridad, no exponen notas internas, tags internos, metadata administrativa ni datos de otros clientes.
 
 ## Endpoints de Disponibilidad
 
@@ -114,6 +128,24 @@ Las RPC derivan el actor desde `auth.uid()`, validan rol operativo, bloquean fil
 - `POST /api/admin/memberships/:id/loyalty-adjustment`
 - `POST /api/admin/memberships/:id/order-loyalty`
 - `GET /api/admin/memberships/export`
+
+## Endpoints Customer
+
+- `GET /api/customer/me`
+- `PATCH /api/customer/me`
+- `GET /api/customer/availability`
+- `GET /api/customer/availability/:experienceId`
+- `GET /api/customer/reservations`
+- `GET /api/customer/reservations/:id`
+- `POST /api/customer/reservations`
+- `POST /api/customer/reservations/:id/cancel`
+- `POST /api/customer/reservations/:id/reschedule`
+- `GET /api/customer/membership`
+- `GET /api/customer/membership/benefits`
+- `GET /api/customer/membership/loyalty`
+- `GET /api/customer/membership/history`
+
+Estos endpoints son exclusivos de la app cliente. No usan rutas `/api/admin/*`, requieren sesión válida, validan ownership en servidor y devuelven respuestas sanitizadas.
 
 ## Endpoints de Inventario
 
@@ -190,7 +222,7 @@ Las RPC derivan el actor desde `auth.uid()`, validan rol operativo, bloquean fil
 - `marketing`: lectura operativa y escritura CRM.
 - `finance`: lectura operativa.
 - `viewer`: lectura operativa.
-- `customer`: sin acceso a endpoints administrativos.
+- `customer`: sin acceso a endpoints administrativos; acceso únicamente a endpoints customer y datos propios.
 
 En CRM, la exportación queda limitada a `super_admin`, `admin`, `operations`, `marketing` y `finance`. La gestión de etiquetas queda limitada a `super_admin`, `admin` y `marketing`.
 
@@ -202,6 +234,16 @@ En Wine Club, inventario, logística y distribuidores:
 - `marketing` puede consultar Wine Club y segmentos, sin acceso operativo a inventario ni costos.
 - `viewer` conserva lectura administrativa.
 - `customer` queda bloqueado en todos los endpoints administrativos.
+
+En app cliente:
+
+- `customer` puede leer y actualizar su perfil propio.
+- `customer` puede consultar disponibilidad bookable pública/customer.
+- `customer` puede crear, consultar, cancelar y reprogramar solo sus reservaciones.
+- `customer` puede consultar su membresía, beneficios y lealtad propios.
+- `super_admin` y `admin` pueden usarse para QA controlado sin convertirlos en fuente de datos customer.
+- Sin sesión se responde 401.
+- Usuario autenticado sin rol suficiente recibe 403.
 
 ## Exportación
 
@@ -239,16 +281,23 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - Pruebas backend cubren autenticación, permisos, lectura de disponibilidad, creación por RPC, payload inválido, listado de reservaciones y sobrecupo.
 - Pruebas backend cubren CRM: sin sesión 401, customer 403, lectura admin/viewer, alta, edición, prevención de duplicados, validación de teléfono, notas, etiquetas, auditoría y exportación segura.
 - Pruebas backend cubren Wine Club, inventario, logística y distribuidores: sin sesión 401, customer 403, lecturas admin, mutaciones administrativas, validación de payloads, protección de sobrecupo y exportaciones seguras.
+- Pruebas backend cubren app cliente: perfil propio, disponibilidad, creación de reservación, listado, detalle propio, cancelación, reprogramación, ownership, Wine Club, beneficios, lealtad, 401, 403, 404, payload inválido, sobrecupo, doble submit y errores seguros.
 - Pruebas frontend cubren clientes reales de disponibilidad, reservaciones, CRM, Wine Club, inventario, logística y distribuidores con Authorization Bearer y rechazo sin sesión.
+- Pruebas frontend cubren el servicio customer con Authorization Bearer, endpoints customer, manejo de 401, payloads de perfil, reservaciones, disponibilidad, membresía, beneficios y lealtad.
 - Las pruebas usan mocks solo dentro de archivos de test.
 - Prueba real local contra Supabase productivo aprobada con datos temporales `QA_FASE7B_`, limpieza exacta y sin impresión de secretos.
 - Prueba real productiva en Railway aprobada con admin `super_admin`, customer bloqueado, sin sesión bloqueada y datos temporales `QA_FASE7B_` limpiados.
 - Prueba real local y productiva de CRM aprobada con datos temporales `QA_FASE7C_`, limpieza exacta y sin impresión de secretos.
 - Prueba real local y productiva de Fase 7E aprobada con datos temporales `QA_FASE7E_`, limpieza exacta y sin impresión de secretos.
+- Prueba real local y productiva de Fase 8B aprobada con datos temporales `QA_FASE8B_`, limpieza exacta y sin impresión de secretos.
 - Netlify sirve el bundle desplegado con las rutas `/control/disponibilidad` y `/control/reservaciones` en HTTP 200.
 - Netlify sirve el bundle desplegado con la ruta `/control/clientes` en HTTP 200.
 - Netlify sirve el bundle desplegado con las rutas `/control/wine-club`, `/control/inventario`, `/control/logistica` y `/control/distribuidores` en HTTP 200.
+- Netlify sirve el bundle desplegado con rutas `/app/*` de Fase 8B en HTTP 200 y bundle `index-C-XNEYfq.js`.
 
 ## Riesgos Pendientes
 
 - Revisar duplicación masiva de horarios con volumen productivo antes de uso intensivo.
+- Definir política comercial final de cancelación y reprogramación customer.
+- Implementar carrito, checkout, pasarela productiva y comunicaciones transaccionales en fases posteriores.
+- Agregar QA E2E de navegador para cubrir pantalla blanca, navegación autenticada y estados visuales.
