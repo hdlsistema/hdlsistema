@@ -30,7 +30,9 @@ export function ProductCard({ id, image, title, meta, price }: ProductCardProps)
         <p className="text-[11px] font-semibold text-[var(--color-ink)]">{price}</p>
         <button
           type="button"
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-[18px] leading-none text-white"
+          disabled
+          title="Carrito disponible próximamente"
+          className="inline-flex h-7 w-7 shrink-0 cursor-not-allowed items-center justify-center rounded-full bg-[#a99a92] text-[18px] leading-none text-white"
         >
           +
         </button>

@@ -61,12 +61,16 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
+  const appMode = location.pathname.startsWith('/app/')
+  const registerPath = appMode ? '/app/registro' : '/registro'
+  const recoverPath = appMode ? '/app/recuperar' : '/recuperar'
+
   const destination = useMemo(() => {
     const from = (location.state as { from?: string } | null)?.from
     if (from) return safeRedirect(from, '/app/home')
-    if (roles.length && isAdmin) return '/control/dashboard'
+    if (!appMode && roles.length && isAdmin) return '/control/dashboard'
     return '/app/home'
-  }, [isAdmin, location.state, roles.length])
+  }, [appMode, isAdmin, location.state, roles.length])
 
   if (isAuthenticated && roles.length) return <Navigate to={destination} replace />
 
@@ -79,7 +83,7 @@ export function LoginPage() {
     try {
       const nextRoles = await signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''))
       const adminRole = nextRoles.some((role) => role !== 'customer')
-      navigate(adminRole ? '/control/dashboard' : destination, { replace: true })
+      navigate(!appMode && adminRole ? '/control/dashboard' : destination, { replace: true })
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
@@ -96,14 +100,14 @@ export function LoginPage() {
       <form className="mt-7 space-y-4" onSubmit={submit}>
         <Field icon={<Mail size={17} />} label="Correo electrónico" name="email" type="email" />
         <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Link to="/recuperar" className="block text-[12px] font-semibold text-[#681126]">
+        <Link to={recoverPath} className="block text-[12px] font-semibold text-[#681126]">
           ¿Olvidaste tu contraseña?
         </Link>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
         <SubmitButton loading={loading}>Iniciar sesión</SubmitButton>
       </form>
       <p className="mt-6 text-center text-[12px] text-[#7f6a59]">
-        ¿Aún no tienes cuenta? <Link className="font-bold text-[#681126]" to="/registro">Crear cuenta</Link>
+        ¿Aún no tienes cuenta? <Link className="font-bold text-[#681126]" to={registerPath}>Crear cuenta</Link>
       </p>
     </AuthShell>
   )
@@ -169,7 +173,7 @@ export function RegisterPage() {
           Reenviar verificación
         </button>
         <Link
-          to="/login"
+          to={loginPath}
           className="mt-3 inline-flex min-h-[50px] w-full items-center justify-center rounded-full bg-[#681126] px-6 text-[13px] font-bold text-white"
         >
           Ir a login
@@ -205,15 +209,17 @@ export function RegisterPage() {
 }
 
 export function RecoverPage() {
+  const location = useLocation()
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
+  const appMode = location.pathname.startsWith('/app/')
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
     const form = new FormData(event.currentTarget)
     try {
-      await resetPassword(String(form.get('email') ?? ''))
+      await resetPassword(String(form.get('email') ?? ''), appMode ? '/app/reset-password' : '/reset-password')
       setSent(true)
     } catch (err) {
       setError(getErrorMessage(err))
@@ -243,8 +249,10 @@ export function RecoverPage() {
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const appMode = location.pathname.startsWith('/app/')
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -262,7 +270,7 @@ export function ResetPasswordPage() {
     }
     try {
       await updatePassword(password)
-      navigate('/login', { replace: true })
+      navigate(appMode ? '/app/login' : '/login', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err))
     }
@@ -282,6 +290,24 @@ export function ResetPasswordPage() {
       </form>
     </AuthShell>
   )
+}
+
+export function AppAuthCallbackPage() {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <AuthShell
+        eyebrow="Acceso seguro"
+        title="Validando sesión"
+        note="Estamos verificando tu acceso sin mostrar tokens."
+      >
+        <p className="mt-7 text-[13px] text-[#7f6a59]">Un momento...</p>
+      </AuthShell>
+    )
+  }
+
+  return <Navigate to={isAuthenticated ? '/app/home' : '/app/login'} replace />
 }
 
 function Field({
@@ -366,3 +392,5 @@ function SubmitButton({
     </button>
   )
 }
+  const appMode = location.pathname.startsWith('/app/')
+  const loginPath = appMode ? '/app/login' : '/login'

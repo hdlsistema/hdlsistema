@@ -76,85 +76,9 @@ function getCategory(title: string): Category {
   return 'Especiales'
 }
 
-function getDuration(title: string, isEnglish: boolean) {
-  const normalizedTitle = normalizeText(title)
-
-  if (normalizedTitle.includes('cata')) {
-    return isEnglish ? '75 minutes' : '75 minutos'
-  }
-
-  if (
-    normalizedTitle.includes('recorrido') ||
-    normalizedTitle.includes('viñedo')
-  ) {
-    return isEnglish ? '90 minutes' : '90 minutos'
-  }
-
-  if (normalizedTitle.includes('cena')) {
-    return '2 h 30 min'
-  }
-
-  if (normalizedTitle.includes('picnic')) {
-    return isEnglish ? '2 hours' : '2 horas'
-  }
-
-  if (normalizedTitle.includes('restaurante')) {
-    return isEnglish ? 'Open hours' : 'Horario abierto'
-  }
-
-  return isEnglish ? 'Private experience' : 'Experiencia privada'
-}
-
-function getCapacity(title: string, isEnglish: boolean) {
-  const normalizedTitle = normalizeText(title)
-
-  if (normalizedTitle.includes('cena')) {
-    return isEnglish ? 'Experience for two' : 'Experiencia para dos'
-  }
-
-  if (normalizedTitle.includes('picnic')) {
-    return isEnglish ? 'Couples & groups' : 'Parejas y grupos'
-  }
-
-  if (normalizedTitle.includes('restaurante')) {
-    return isEnglish ? 'Subject to availability' : 'Sujeto a disponibilidad'
-  }
-
-  return isEnglish ? 'Limited spots' : 'Cupo limitado'
-}
-
-function getBadge(title: string, index: number, isEnglish: boolean) {
-  const normalizedTitle = normalizeText(title)
-
-  if (index === 0) {
-    return isEnglish ? 'Most booked' : 'Más reservada'
-  }
-
-  if (
-    normalizedTitle.includes('recorrido') ||
-    normalizedTitle.includes('viñedo')
-  ) {
-    return isEnglish ? 'Tradition' : 'Tradición'
-  }
-
-  if (normalizedTitle.includes('cena')) {
-    return isEnglish ? 'Special moment' : 'Momento especial'
-  }
-
-  if (normalizedTitle.includes('picnic')) {
-    return isEnglish ? 'Among vineyards' : 'Entre viñedos'
-  }
-
-  if (normalizedTitle.includes('restaurante')) {
-    return isEnglish ? 'Gastronomy' : 'Gastronomía'
-  }
-
-  return isEnglish ? 'Experience' : 'Experiencia'
-}
-
 export function ExperiencesScreen() {
   const { isEnglish } = useAppPreferences()
-  const { records: experiences, loading, error } = usePublicContent('experiences')
+  const { records: experiences, loading, error, retry } = usePublicContent('experiences')
   const [activeCategory, setActiveCategory] =
     useState<Category>(isEnglish ? 'All' : 'Todas')
 
@@ -290,11 +214,14 @@ export function ExperiencesScreen() {
         </section>
       ) : error ? (
         <section className="mt-5 rounded-[1.5rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-7 text-center text-[12px] text-[var(--color-alert)]">
-          {error}
+          <p>{error}</p>
+          <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">
+            {isEnglish ? 'Retry' : 'Reintentar'}
+          </button>
         </section>
       ) : (
         <section className="mt-5 space-y-6">
-        {filteredExperiences.map((experience, index) => {
+        {filteredExperiences.map((experience) => {
           const title = textField(experience, 'title', isEnglish ? 'Experience' : 'Experiencia')
           const image = imageField(experience, '/turismo.jpeg')
           const price = formatCurrency(numberField(experience, 'base_price'))
@@ -320,7 +247,7 @@ export function ExperiencesScreen() {
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.04)_0%,rgba(35,5,13,0.16)_42%,rgba(35,5,13,0.95)_100%)]" />
 
                 <span className="absolute left-4 top-4 rounded-full border border-white/35 bg-white/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-[#681126] shadow-sm">
-                  {getBadge(title, index, isEnglish)}
+                  {isEnglish ? 'Published' : 'Publicado'}
                 </span>
 
                 <div className="absolute inset-x-0 bottom-0 p-5 text-white">
@@ -377,7 +304,7 @@ export function ExperiencesScreen() {
                     <p className="mt-2 text-[11px] font-semibold text-[#4e3930]">
                       {durationMinutes > 0
                         ? `${durationMinutes} ${isEnglish ? 'minutes' : 'minutos'}`
-                        : getDuration(title, isEnglish)}
+                        : (isEnglish ? 'To be confirmed' : 'Por confirmar')}
                     </p>
                   </div>
 
@@ -393,10 +320,17 @@ export function ExperiencesScreen() {
                     <p className="mt-2 text-[11px] font-semibold text-[#4e3930]">
                       {capacity > 0
                         ? `${capacity} ${isEnglish ? 'people' : 'personas'}`
-                        : getCapacity(title, isEnglish)}
+                        : (isEnglish ? 'To be confirmed' : 'Por confirmar')}
                     </p>
                   </div>
                 </div>
+
+                <Link
+                  to={`/app/experiencias/${contentRouteId(experience)}`}
+                  className="mt-5 flex min-h-[46px] w-full items-center justify-center rounded-full border border-[#681126] px-5 text-[12px] font-bold text-[#681126]"
+                >
+                  {isEnglish ? 'View published details' : 'Ver detalles publicados'}
+                </Link>
 
                 <Link
                   to="/app/reservacion"
@@ -487,15 +421,15 @@ export function ExperiencesScreen() {
               fontFamily: 'var(--font-display)',
             }}
           >
-            {isEnglish
-              ? 'Find the ideal experience for your occasion.'
-              : 'Encuentra la experiencia ideal para tu ocasión.'}
+	            {isEnglish
+	              ? 'Sommelier guidance for experiences is coming soon.'
+	              : 'La guía de Sommelier para experiencias estará disponible próximamente.'}
           </h3>
 
           <p className="mt-3 max-w-[290px] text-[12px] leading-5 text-white/68">
-            {isEnglish
-              ? 'Tell us what you want to celebrate and we will help you choose the perfect moment.'
-              : 'Cuéntanos qué deseas celebrar y te ayudaremos a elegir el mejor momento.'}
+	            {isEnglish
+	              ? 'For now, reserve from published experiences and live availability.'
+	              : 'Por ahora, reserva desde experiencias publicadas y disponibilidad en vivo.'}
           </p>
 
           <Link
@@ -506,7 +440,7 @@ export function ExperiencesScreen() {
               textDecoration: 'none',
             }}
           >
-            {isEnglish ? 'Ask the Sommelier' : 'Consultar al Sommelier'}
+	            {isEnglish ? 'View status' : 'Ver estado'}
             <ArrowRight size={15} color="#e5c58f" />
           </Link>
         </div>

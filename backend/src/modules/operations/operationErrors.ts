@@ -37,6 +37,7 @@ export function normalizeDatabaseError(error: unknown): never {
   if (rawMessage.includes('INVALID_STATUS_TRANSITION')) throw httpError(422, 'Transición de estado inválida')
   if (rawMessage.includes('INVALID_PEOPLE_COUNT')) throw httpError(422, 'Número de personas inválido')
   if (rawMessage.includes('INVALID_SLOT')) throw httpError(422, 'Horario inválido')
+  if (rawMessage.includes('CUSTOMER_PROFILE_REQUIRED')) throw httpError(404, 'Cliente no vinculado a la sesión')
   if (rawMessage.includes('CUSTOMER_REQUIRED')) throw httpError(422, 'Datos del cliente requeridos')
   if (rawMessage.includes('ORDER_ITEMS_REQUIRED')) throw httpError(422, 'La orden requiere al menos una partida')
   if (rawMessage.includes('INVALID_ORDER_ITEM')) throw httpError(422, 'Partida de orden inválida')

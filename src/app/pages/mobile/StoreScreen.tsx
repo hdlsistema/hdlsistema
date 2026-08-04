@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Grape, SlidersHorizontal, Sparkles } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Grape, Sparkles } from 'lucide-react'
 import { PillRow, SearchField, SectionHeading, WineCard } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
@@ -7,7 +8,43 @@ import { contentRouteId, formatCurrency, imageField, numberField, textField } fr
 
 export function StoreScreen() {
   const { isEnglish } = useAppPreferences()
-  const { records: wines, loading, error } = usePublicContent('wines')
+  const { records: wines, loading, error, retry } = usePublicContent('wines')
+  const [search, setSearch] = useState('')
+  const [activeFilter, setActiveFilter] = useState(0)
+  const [order, setOrder] = useState<'featured' | 'price_asc' | 'price_desc' | 'name'>('featured')
+  const filters = useMemo(
+    () => isEnglish
+      ? ['All', 'Reds', 'Whites', 'Rosés', 'Sparkling']
+      : ['Todos', 'Tintos', 'Blancos', 'Rosados', 'Espumosos'],
+    [isEnglish],
+  )
+
+  const filteredWines = useMemo(() => {
+    const target = search.trim().toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
+    const family = filters[activeFilter]?.toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
+    const filtered = wines.filter((wine) => {
+      const searchable = [
+        textField(wine, 'name'),
+        textField(wine, 'subtitle'),
+        textField(wine, 'origin'),
+        textField(wine, 'grape_variety'),
+        textField(wine, 'wine_type'),
+        textField(wine, 'description'),
+      ].join(' ').toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
+      const matchesSearch = !target || searchable.includes(target)
+      const matchesFamily =
+        activeFilter === 0 ||
+        searchable.includes(String(family).replace('é', 'e')) ||
+        searchable.includes(String(family))
+      return matchesSearch && matchesFamily
+    })
+    return [...filtered].sort((a, b) => {
+      if (order === 'price_asc') return numberField(a, 'price') - numberField(b, 'price')
+      if (order === 'price_desc') return numberField(b, 'price') - numberField(a, 'price')
+      if (order === 'name') return textField(a, 'name').localeCompare(textField(b, 'name'), isEnglish ? 'en-US' : 'es-MX')
+      return Number(b.featured ?? 0) - Number(a.featured ?? 0)
+    })
+  }, [activeFilter, filters, isEnglish, order, search, wines])
 
   return (
     <div className="space-y-6 pb-3">
@@ -23,29 +60,31 @@ export function StoreScreen() {
         </p>
       </section>
 
-      <SearchField placeholder={isEnglish ? 'Search wine, grape or label' : 'Buscar vino, uva o etiqueta'} />
+      <SearchField
+        placeholder={isEnglish ? 'Search wine, grape or label' : 'Buscar vino, uva o etiqueta'}
+        value={search}
+        onChange={setSearch}
+      />
 
       <section className="space-y-3">
         <PillRow
-          items={isEnglish
-            ? ['All', 'Reds', 'Whites', 'Rosés', 'Sparkling']
-            : ['Todos', 'Tintos', 'Blancos', 'Rosados', 'Espumosos']}
-          activeIndex={0}
+          items={filters}
+          activeIndex={activeFilter}
+          onSelect={setActiveFilter}
         />
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button type="button" className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[rgba(220,202,181,0.78)] bg-white px-4 py-2 text-[11px] text-[var(--color-muted)]">
-            <SlidersHorizontal size={13} />
-            {isEnglish ? 'Filters' : 'Filtros'}
-          </button>
-          {(isEnglish
-            ? ['Grape', 'Price', 'Vintage', 'Pairing']
-            : ['Uva', 'Precio', 'Cosecha', 'Maridaje']
-          ).map((filter) => (
-            <button key={filter} type="button" className="shrink-0 rounded-full border border-[rgba(220,202,181,0.78)] bg-white px-4 py-2 text-[11px] text-[var(--color-muted)]">
-              {filter}
-            </button>
-          ))}
-        </div>
+        <label className="block">
+          <span className="sr-only">{isEnglish ? 'Sort wines' : 'Ordenar vinos'}</span>
+          <select
+            value={order}
+            onChange={(event) => setOrder(event.target.value as typeof order)}
+            className="w-full rounded-[1rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)] outline-none"
+          >
+            <option value="featured">{isEnglish ? 'Featured first' : 'Destacados primero'}</option>
+            <option value="price_asc">{isEnglish ? 'Price: low to high' : 'Precio: menor a mayor'}</option>
+            <option value="price_desc">{isEnglish ? 'Price: high to low' : 'Precio: mayor a menor'}</option>
+            <option value="name">{isEnglish ? 'Name' : 'Nombre'}</option>
+          </select>
+        </label>
       </section>
 
       <section className="space-y-4">
@@ -59,15 +98,18 @@ export function StoreScreen() {
           </div>
         ) : error ? (
           <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
-            {error}
+            <p>{error}</p>
+            <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">
+              {isEnglish ? 'Retry' : 'Reintentar'}
+            </button>
           </div>
-        ) : wines.length === 0 ? (
+        ) : filteredWines.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
-            {isEnglish ? 'No published wines available.' : 'No hay vinos publicados disponibles.'}
+            {isEnglish ? 'No published wines match this search.' : 'No hay vinos publicados para esta búsqueda.'}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {wines.map((wine, index) => (
+            {filteredWines.map((wine, index) => (
               <WineCard
                 key={wine.id}
                 wine={{

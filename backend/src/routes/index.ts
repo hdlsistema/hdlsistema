@@ -7,6 +7,7 @@ import { adminUsersRouter } from '../modules/admin/users.routes'
 import { adminAvailabilityRouter } from '../modules/availability/availability.routes'
 import { adminCheckinRouter } from '../modules/checkin/checkin.routes'
 import { adminCustomersRouter } from '../modules/customers/customers.routes'
+import { customerRouter } from '../modules/customer/customer.routes'
 import { adminDistributorsRouter } from '../modules/distributors/distributors.routes'
 import { adminInventoryRouter } from '../modules/inventory/inventory.routes'
 import { adminMembershipsRouter } from '../modules/memberships/memberships.routes'
@@ -31,6 +32,7 @@ router.use('/health', healthRouter)
 router.use('/version', versionRouter)
 router.use('/public', publicRouter)
 router.use('/auth', authRouter)
+router.use('/customer', customerRouter)
 router.use('/admin', adminUsersRouter)
 router.use('/admin', adminAvailabilityRouter)
 router.use('/admin', adminReservationsRouter)

@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { publicContentClient, type ContentEntity, type ContentRecord } from '../../services/content.service'
 
 type PublicContentState = {
   records: ContentRecord[]
   loading: boolean
   error: string | null
+  retry: () => void
 }
 
-export function usePublicContent(entity: ContentEntity): PublicContentState {
+export function usePublicContent(entity: ContentEntity, locale: 'es-MX' | 'en-US' = 'es-MX'): PublicContentState {
   const [records, setRecords] = useState<ContentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
+
+  const retry = useCallback(() => setReloadKey((value) => value + 1), [])
 
   useEffect(() => {
     let active = true
@@ -18,7 +22,7 @@ export function usePublicContent(entity: ContentEntity): PublicContentState {
     setError(null)
 
     publicContentClient
-      .list(entity, { locale: 'es-MX' })
+      .list(entity, { locale })
       .then((response) => {
         if (!active) return
         setRecords(response.data)
@@ -35,7 +39,7 @@ export function usePublicContent(entity: ContentEntity): PublicContentState {
     return () => {
       active = false
     }
-  }, [entity])
+  }, [entity, locale, reloadKey])
 
-  return { records, loading, error }
+  return { records, loading, error, retry }
 }

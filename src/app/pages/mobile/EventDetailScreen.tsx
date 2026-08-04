@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CalendarDays, Check, Clock3, MapPin, Minus, Plus, Ticket } from 'lucide-react'
-import { PrimaryButton } from '../../components/mobile/PremiumMobileUi'
+import { CalendarDays, Check, Clock3, MapPin, Ticket } from 'lucide-react'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
 import {
@@ -19,7 +18,6 @@ export function EventDetailScreen() {
   const [event, setEvent] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [quantity, setQuantity] = useState(1)
 
   useEffect(() => {
     let active = true
@@ -141,29 +139,13 @@ export function EventDetailScreen() {
               {eventPrice}
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-[rgba(104,13,36,0.14)] bg-white p-1.5">
-            <button
-              type="button"
-              aria-label={isEnglish ? 'Decrease quantity' : 'Disminuir cantidad'}
-              onClick={() => setQuantity((current) => Math.max(1, current - 1))}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-burgundy)]"
-            >
-              <Minus size={16} />
-            </button>
-            <span className="w-7 text-center text-[14px] font-semibold text-[var(--color-ink)]">{quantity}</span>
-            <button
-              type="button"
-              aria-label={isEnglish ? 'Increase quantity' : 'Aumentar cantidad'}
-              onClick={() => setQuantity((current) => current + 1)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
+          <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-[var(--color-burgundy)]">MXN</span>
         </div>
-        <div className="mt-5">
-          <PrimaryButton to="/app/carrito">{isEnglish ? 'Buy tickets' : 'Comprar boletos'}</PrimaryButton>
-        </div>
+        <p className="mt-5 rounded-[1rem] border border-[rgba(104,13,36,0.13)] bg-white px-4 py-3 text-[12px] leading-5 text-[var(--color-muted)]">
+          {isEnglish
+            ? 'Customer ticket purchase is not active yet. This event detail only shows published information.'
+            : 'La compra de boletos para cliente aún no está activa. Este detalle solo muestra información publicada.'}
+        </p>
       </section>
     </div>
   )

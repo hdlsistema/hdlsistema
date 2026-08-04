@@ -15,6 +15,7 @@ import {
   contentRouteId,
   formatCurrency,
   formatPublicDate,
+  formatPublicTimeRange,
   imageField,
   numberField,
   textField,
@@ -79,39 +80,6 @@ function getFestivalIdentities(isEnglish: boolean) {
       subtitle: isEnglish ? 'Celebration' : 'Celebración',
       logo: '/festival%201000%20copas.svg',
       background: 'linear-gradient(145deg, #f4eadb 0%, #b89162 48%, #4f0f1f 100%)',
-    },
-  ]
-}
-
-function getSeasonalEvents(isEnglish: boolean) {
-  return [
-    {
-      id: 'san-valentin',
-      title: isEnglish ? "Valentine's Day" : 'San Valentín',
-      description: isEnglish ? 'Wine, dinners and experiences to share.' : 'Vino, cenas y experiencias para compartir.',
-      image: '/san%20valentin%20evento.webp',
-      month: isEnglish ? 'February' : 'Febrero',
-    },
-    {
-      id: 'independencia',
-      title: isEnglish ? 'Independence Fiesta' : 'Fiesta de Independencia',
-      description: isEnglish ? 'Music, gastronomy and Mexican wine.' : 'Música, gastronomía y vino mexicano.',
-      image: '/independencia%20evento.webp',
-      month: isEnglish ? 'September' : 'Septiembre',
-    },
-    {
-      id: 'halloween',
-      title: 'Halloween',
-      description: isEnglish ? 'A different celebration inside the hacienda.' : 'Una celebración diferente dentro de la hacienda.',
-      image: '/1-Halloween%20evento.webp',
-      month: isEnglish ? 'October' : 'Octubre',
-    },
-    {
-      id: 'leyendas',
-      title: isEnglish ? 'Legends Evening' : 'Tarde de Leyendas',
-      description: isEnglish ? 'Tales, ambiance and a night among history.' : 'Relatos, ambientación y una noche entre historia.',
-      image: '/Tarde-Leyendas%20evento.webp',
-      month: isEnglish ? 'Special season' : 'Temporada especial',
     },
   ]
 }
@@ -253,54 +221,6 @@ function getEventBadge(title: string, index: number, isEnglish: boolean) {
   return 'Festival'
 }
 
-function getAvailability(title: string, index: number, isEnglish: boolean) {
-  const normalizedTitle = normalizeText(title)
-
-  if (
-    normalizedTitle.includes('corporativo') ||
-    normalizedTitle.includes('privado')
-  ) {
-    return isEnglish ? 'Custom quote' : 'Cotización personalizada'
-  }
-
-  if (
-    normalizedTitle.includes('cena') ||
-    normalizedTitle.includes('maridaje')
-  ) {
-    return isEnglish ? 'Limited capacity' : 'Cupo limitado'
-  }
-
-  if (index === 1) {
-    return isEnglish ? 'High demand' : 'Alta demanda'
-  }
-
-  if (index === 2) {
-    return isEnglish ? 'Last spots' : 'Últimos lugares'
-  }
-
-  return isEnglish ? 'Open sale' : 'Venta abierta'
-}
-
-function getDuration(title: string, isEnglish: boolean) {
-  const normalizedTitle = normalizeText(title)
-
-  if (
-    normalizedTitle.includes('cena') ||
-    normalizedTitle.includes('maridaje')
-  ) {
-    return isEnglish ? '3 hours' : '3 horas'
-  }
-
-  if (
-    normalizedTitle.includes('corporativo') ||
-    normalizedTitle.includes('privado')
-  ) {
-    return isEnglish ? 'Custom schedule' : 'Horario personalizado'
-  }
-
-  return isEnglish ? 'Full-day event' : 'Evento de día completo'
-}
-
 function EventArtwork({
   visual,
   title,
@@ -344,12 +264,11 @@ function EventArtwork({
 
 export function EventsScreen() {
   const { isEnglish } = useAppPreferences()
-  const { records: events, loading, error } = usePublicContent('events')
+  const { records: events, loading, error, retry } = usePublicContent('events')
   const [activeCategory, setActiveCategory] =
     useState<EventCategory>('Todos')
 
   const festivalIdentities = useMemo(() => getFestivalIdentities(isEnglish), [isEnglish])
-  const seasonalEvents = useMemo(() => getSeasonalEvents(isEnglish), [isEnglish])
 
   const filteredEvents = useMemo(() => {
     if (activeCategory === 'Todos') {
@@ -419,7 +338,7 @@ export function EventsScreen() {
       <section className="mt-7">
         <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#a77b45]">
           <span className="h-px w-7 bg-[#b48a55]" />
-          {isEnglish ? 'Iconic festivals' : 'Festivales emblemáticos'}
+          {isEnglish ? 'Editorial identities' : 'Identidades editoriales'}
         </p>
 
         <h2
@@ -428,7 +347,7 @@ export function EventsScreen() {
             fontFamily: 'var(--font-display)',
           }}
         >
-          {isEnglish ? 'An agenda with identity' : 'Una agenda con identidad'}
+          {isEnglish ? 'Event families' : 'Familias de eventos'}
         </h2>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -503,7 +422,10 @@ export function EventsScreen() {
         </section>
       ) : error ? (
         <section className="mt-6 rounded-[1.5rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-7 text-center text-[12px] text-[var(--color-alert)]">
-          {error}
+          <p>{error}</p>
+          <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">
+            {isEnglish ? 'Retry' : 'Reintentar'}
+          </button>
         </section>
       ) : featuredEvent && featuredVisual ? (
         <section className="mt-6">
@@ -569,7 +491,7 @@ export function EventsScreen() {
                 </div>
 
                 <p className="mt-2 text-[10px] font-semibold leading-4 text-[#4e3930]">
-                  {getAvailability(featuredTitle, 0, isEnglish)}
+                  {isEnglish ? 'Published information' : 'Información publicada'}
                 </p>
               </div>
 
@@ -582,7 +504,7 @@ export function EventsScreen() {
                 </div>
 
                 <p className="mt-2 text-[10px] font-semibold leading-4 text-[#4e3930]">
-                  {getDuration(featuredTitle, isEnglish)}
+                  {formatPublicTimeRange(featuredEvent.start_at, featuredEvent.end_at)}
                 </p>
               </div>
             </div>
@@ -664,7 +586,7 @@ export function EventsScreen() {
 
               <div className="flex items-center justify-between gap-3 px-5 py-4">
                 <span className="text-[10px] font-semibold text-[#7f6a59]">
-                  {getAvailability(eventTitle, actualIndex, isEnglish)}
+                  {isEnglish ? 'Published information' : 'Información publicada'}
                 </span>
 
                 <span className="text-[11px] font-bold text-[#681126]">
@@ -674,72 +596,6 @@ export function EventsScreen() {
             </Link>
           )
         })}
-      </section>
-
-      <section className="mt-8">
-        <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#a77b45]">
-          <span className="h-px w-7 bg-[#b48a55]" />
-          {isEnglish ? 'Throughout the year' : 'Durante todo el año'}
-        </p>
-
-        <h2
-          className="mt-2 text-[29px] font-normal leading-none text-[#4f0f1f]"
-          style={{
-            fontFamily: 'var(--font-display)',
-          }}
-        >
-          {isEnglish ? 'Special seasons' : 'Temporadas especiales'}
-        </h2>
-
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          {seasonalEvents.map((seasonalEvent) => (
-            <Link
-              key={seasonalEvent.id}
-              to="/app/reservacion"
-              state={{
-                eventTitle: seasonalEvent.title,
-                eventType: 'Evento de temporada',
-              }}
-              className="min-w-0 overflow-hidden rounded-[1.3rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_14px_30px_rgba(64,28,19,0.08)]"
-            >
-              <div className="relative h-[160px] overflow-hidden bg-[#d8c6b3]">
-                <img
-                  src={seasonalEvent.image}
-                  alt={seasonalEvent.title}
-                  draggable={false}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.02),rgba(35,5,13,0.82))]" />
-
-                <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[7px] font-bold uppercase tracking-[0.11em] text-[#681126]">
-                  {seasonalEvent.month}
-                </span>
-
-                <h3
-                  className="absolute inset-x-0 bottom-0 p-3 text-[21px] font-normal leading-[0.96] text-white"
-                  style={{
-                    fontFamily:
-                      'var(--font-display)',
-                  }}
-                >
-                  {seasonalEvent.title}
-                </h3>
-              </div>
-
-              <div className="p-3">
-                <p className="line-clamp-2 min-h-[32px] text-[10px] leading-4 text-[#725f54]">
-                  {seasonalEvent.description}
-                </p>
-
-                <span className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-bold text-[#681126]">
-                  {isEnglish ? 'Learn more' : 'Conocer más'}
-                  <ArrowRight size={12} />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
       </section>
 
       <section className="relative mt-8 overflow-hidden rounded-[1.75rem] bg-[#2f0913] p-6 text-white shadow-[0_22px_50px_rgba(47,9,19,0.22)]">

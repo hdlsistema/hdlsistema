@@ -1,0 +1,167 @@
+import type { Request, Response } from 'express'
+import { sendOperationError } from '../operations/operationErrors'
+import {
+  cancelCustomerReservation,
+  createCustomerReservation,
+  getCustomerMe,
+  getCustomerMembership,
+  getCustomerMembershipLoyalty,
+  getCustomerReservation,
+  listCustomerAvailability,
+  listCustomerMembershipBenefits,
+  listCustomerMembershipHistory,
+  listCustomerReservations,
+  rescheduleCustomerReservation,
+  updateCustomerMe,
+} from './customer.service'
+import {
+  cancelCustomerReservationSchema,
+  createCustomerReservationSchema,
+  customerAvailabilityQuerySchema,
+  customerProfilePatchSchema,
+  customerReservationListQuerySchema,
+  rescheduleCustomerReservationSchema,
+} from './customer.schemas'
+
+function userContext(req: Request) {
+  return {
+    userId: req.authUser?.id,
+    accessToken: req.authToken,
+    roles: req.authRoles ?? [],
+  }
+}
+
+export async function getCustomerMeController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerMe(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function patchCustomerMeController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = customerProfilePatchSchema.parse(req.body)
+    const result = await updateCustomerMe(payload, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerAvailabilityController(req: Request, res: Response): Promise<void> {
+  try {
+    const query = customerAvailabilityQuerySchema.parse(req.query)
+    const result = await listCustomerAvailability(query, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerExperienceAvailabilityController(req: Request, res: Response): Promise<void> {
+  try {
+    const query = customerAvailabilityQuerySchema.parse({
+      ...req.query,
+      experienceId: req.params.experienceId,
+    })
+    const result = await listCustomerAvailability(query, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function listCustomerReservationsController(req: Request, res: Response): Promise<void> {
+  try {
+    const query = customerReservationListQuerySchema.parse(req.query)
+    const result = await listCustomerReservations(query, userContext(req))
+    res.json({
+      ok: true,
+      data: result.data,
+      pagination: {
+        page: query.page,
+        perPage: query.perPage,
+        total: result.count,
+      },
+    })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerReservationController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerReservation(req.params.id, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function createCustomerReservationController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = createCustomerReservationSchema.parse(req.body)
+    const result = await createCustomerReservation(payload, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function cancelCustomerReservationController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = cancelCustomerReservationSchema.parse(req.body)
+    const result = await cancelCustomerReservation(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function rescheduleCustomerReservationController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = rescheduleCustomerReservationSchema.parse(req.body)
+    const result = await rescheduleCustomerReservation(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerMembershipController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerMembership(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerMembershipBenefitsController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await listCustomerMembershipBenefits(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerMembershipLoyaltyController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerMembershipLoyalty(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerMembershipHistoryController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await listCustomerMembershipHistory(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}

@@ -1467,6 +1467,196 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
   })
 })
 
+describe('Fase 8B customer app API', () => {
+  const customerUser = {
+    id: '55555555-5555-4555-8555-555555555001',
+    email: 'cliente.fase8b@alqia.tech',
+    created_at: '2026-08-04T00:00:00.000Z',
+    email_confirmed_at: '2026-08-04T00:00:00.000Z',
+  }
+  const customerId = '55555555-5555-4555-8555-555555555002'
+  const reservationId = '55555555-5555-4555-8555-555555555003'
+  const experienceId = '55555555-5555-4555-8555-555555555004'
+  const slotId = '55555555-5555-4555-8555-555555555005'
+  const membershipId = '55555555-5555-4555-8555-555555555006'
+
+  function signInCustomer() {
+    supabaseMock.authUser = customerUser
+    supabaseMock.tableData.user_roles = [{ user_id: customerUser.id, roles: { code: 'customer' } }]
+  }
+
+  function seedCustomerRows() {
+    supabaseMock.tableData.customers = [{
+      id: customerId,
+      user_id: customerUser.id,
+      customer_number: 'CUS-FASE8B',
+      first_name: 'Cliente',
+      last_name: 'Fase 8B',
+      email: customerUser.email,
+      phone: null,
+      status: 'active',
+    }]
+    supabaseMock.tableData.reservations = [
+      {
+        id: reservationId,
+        reservation_number: 'RES-FASE8B',
+        customer_id: customerId,
+        user_id: customerUser.id,
+        experience_id: experienceId,
+        experience_slot_id: slotId,
+        people_count: 2,
+        subtotal: 900,
+        total: 900,
+        currency: 'MXN',
+        status: 'confirmed',
+        customer_notes: null,
+        created_at: '2026-08-04T00:00:00.000Z',
+        updated_at: '2026-08-04T00:00:00.000Z',
+        experiences: { id: experienceId, title: 'Cata Fase 8B', slug: 'cata-fase8b', cover_image_url: null, location: 'Hacienda' },
+        experience_slots: { id: slotId, start_at: '2026-08-10T18:00:00.000Z', end_at: '2026-08-10T20:00:00.000Z', capacity: 12, confirmed_count: 2 },
+      },
+      {
+        id: '55555555-5555-4555-8555-555555555099',
+        reservation_number: 'RES-AJENA',
+        customer_id: '55555555-5555-4555-8555-555555555098',
+        user_id: '55555555-5555-4555-8555-555555555097',
+        people_count: 1,
+        subtotal: 450,
+        total: 450,
+        currency: 'MXN',
+        status: 'confirmed',
+        created_at: '2026-08-04T00:00:00.000Z',
+        updated_at: '2026-08-04T00:00:00.000Z',
+      },
+    ]
+    supabaseMock.tableData.memberships = [{ id: membershipId, customer_id: customerId, status: 'active', created_at: '2026-08-04T00:00:00.000Z' }]
+    supabaseMock.tableData.membership_benefits = [{
+      id: '55555555-5555-4555-8555-555555555007',
+      membership_id: membershipId,
+      benefit_code: 'BENEFICIO_REAL',
+      description: 'Beneficio visible para cliente',
+      used_count: 0,
+      created_at: '2026-08-04T00:00:00.000Z',
+    }]
+  }
+
+  it('rechaza endpoints customer sin sesión', async () => {
+    const res = await request(app).get('/api/customer/me')
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('devuelve perfil customer propio sin secretos', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.get_customer_profile = {
+      profile: { id: customerUser.id, firstName: 'Cliente', lastName: 'Fase 8B' },
+      customer: { id: customerId, customerNumber: 'CUS-FASE8B', firstName: 'Cliente', lastName: 'Fase 8B', status: 'active' },
+      preferences: { language: 'es', marketingEmail: true, marketingPush: false, transactionalPush: true },
+    }
+
+    const res = await request(app).get('/api/customer/me').set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.customer.customerNumber).toBe('CUS-FASE8B')
+    expect(JSON.stringify(res.body)).not.toContain('customer-token')
+    expect(JSON.stringify(res.body)).not.toContain('SERVICE_ROLE')
+  })
+
+  it('lista disponibilidad customer mediante RPC segura', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.get_bookable_experience_slots = [{
+      id: slotId,
+      experience_id: experienceId,
+      experience_title: 'Cata Fase 8B',
+      start_at: '2026-08-10T18:00:00.000Z',
+      end_at: '2026-08-10T20:00:00.000Z',
+      available: 10,
+      price: 450,
+      is_bookable: true,
+    }]
+
+    const res = await request(app).get(`/api/customer/availability?experienceId=${experienceId}`).set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data[0]).toMatchObject({ id: slotId, available: 10, price: 450 })
+  })
+
+  it('lista solo reservaciones propias del customer', async () => {
+    signInCustomer()
+    seedCustomerRows()
+
+    const res = await request(app).get('/api/customer/reservations').set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toHaveLength(1)
+    expect(res.body.data[0]).toMatchObject({ reservationNumber: 'RES-FASE8B', experienceTitle: 'Cata Fase 8B' })
+    expect(JSON.stringify(res.body)).not.toContain('RES-AJENA')
+  })
+
+  it('crea, cancela y reprograma reservación propia mediante RPC', async () => {
+    signInCustomer()
+    seedCustomerRows()
+    supabaseMock.rpcData.create_customer_reservation = reservationId
+    supabaseMock.rpcData.cancel_customer_reservation = reservationId
+    supabaseMock.rpcData.reschedule_customer_reservation = reservationId
+
+    const created = await request(app)
+      .post('/api/customer/reservations')
+      .set('Authorization', 'Bearer customer-token')
+      .send({ experienceSlotId: slotId, peopleCount: 2, language: 'es', idempotencyKey: 'fase8b-reservation' })
+    const cancelled = await request(app)
+      .post(`/api/customer/reservations/${reservationId}/cancel`)
+      .set('Authorization', 'Bearer customer-token')
+      .send({ reason: 'Cambio de plan' })
+    const rescheduled = await request(app)
+      .post(`/api/customer/reservations/${reservationId}/reschedule`)
+      .set('Authorization', 'Bearer customer-token')
+      .send({ experienceSlotId: slotId, idempotencyKey: 'fase8b-reschedule' })
+
+    expect(created.status).toBe(201)
+    expect(cancelled.status).toBe(200)
+    expect(rescheduled.status).toBe(200)
+  })
+
+  it('valida payload inválido y mantiene errores seguros', async () => {
+    signInCustomer()
+    const res = await request(app)
+      .post('/api/customer/reservations')
+      .set('Authorization', 'Bearer customer-token')
+      .send({ customerId: customerId, peopleCount: 0 })
+
+    expect(res.status).toBe(422)
+    expect(JSON.stringify(res.body)).not.toContain('customer-token')
+  })
+
+  it('lee membresía, beneficios y puntos reales del customer', async () => {
+    signInCustomer()
+    seedCustomerRows()
+    supabaseMock.rpcData.get_customer_membership = {
+      id: membershipId,
+      membershipNumber: 'MBR-FASE8B',
+      status: 'active',
+      pointsBalance: 30,
+      plan: { name: 'Wine Club' },
+    }
+    supabaseMock.rpcData.get_customer_loyalty_summary = {
+      pointsBalance: 30,
+      transactions: [{ id: '55555555-5555-4555-8555-555555555008', transactionType: 'earn', points: 30, createdAt: '2026-08-04T00:00:00.000Z' }],
+    }
+
+    const membership = await request(app).get('/api/customer/membership').set('Authorization', 'Bearer customer-token')
+    const benefits = await request(app).get('/api/customer/membership/benefits').set('Authorization', 'Bearer customer-token')
+    const loyalty = await request(app).get('/api/customer/membership/loyalty').set('Authorization', 'Bearer customer-token')
+
+    expect(membership.status).toBe(200)
+    expect(membership.body.data.membershipNumber).toBe('MBR-FASE8B')
+    expect(benefits.status).toBe(200)
+    expect(benefits.body.data[0].benefitCode).toBe('BENEFICIO_REAL')
+    expect(loyalty.status).toBe(200)
+    expect(loyalty.body.data.pointsBalance).toBe(30)
+  })
+})
+
 // ─── 2. GET /api/version devuelve 200 ───────────────────────────────────────
 describe('GET /api/version', () => {
   it('devuelve 200 con service y environment', async () => {

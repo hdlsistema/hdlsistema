@@ -20,12 +20,14 @@ import { SettingsPage } from '../pages/control/SettingsPage'
 import { WineClubPage } from '../pages/control/WineClubPage'
 import { LandingPage } from '../pages/public/LandingPage'
 import {
+  AppAuthCallbackPage,
   LoginPage,
   RecoverPage,
   RegisterPage,
   ResetPasswordPage,
 } from '../pages/public/AuthPages'
 import { EventsScreen } from '../pages/mobile/EventsScreen'
+import { ExperienceDetailScreen } from '../pages/mobile/ExperienceDetailScreen'
 import { ExperiencesScreen } from '../pages/mobile/ExperiencesScreen'
 import { HomeScreen } from '../pages/mobile/HomeScreen'
 import { MapScreen } from '../pages/mobile/MapScreen'
@@ -62,10 +64,16 @@ export function AppRouter() {
       {/* App móvil del huésped — independiente del Centro de Control */}
       <Route path="/app" element={<MobileShell />}>
         <Route index element={<Navigate to="home" replace />} />
+        <Route path="login" element={<LoginPage />} />
+        <Route path="registro" element={<RegisterPage />} />
+        <Route path="recuperar" element={<RecoverPage />} />
+        <Route path="reset-password" element={<ResetPasswordPage />} />
+        <Route path="auth/callback" element={<AppAuthCallbackPage />} />
         <Route path="home" element={<HomeScreen />} />
         <Route path="tienda" element={<StoreScreen />} />
         <Route path="tienda/:wineId" element={<WineDetailScreen />} />
         <Route path="experiencias" element={<ExperiencesScreen />} />
+        <Route path="experiencias/:experienceId" element={<ExperienceDetailScreen />} />
         <Route path="eventos" element={<EventsScreen />} />
         <Route path="eventos/:eventId" element={<EventDetailScreen />} />
         <Route

@@ -102,11 +102,11 @@ export async function signOut() {
   if (error) throw normalizeError(error)
 }
 
-export async function resetPassword(email: string) {
+export async function resetPassword(email: string, redirectPath = '/reset-password') {
   try {
     const { error } = await supabase.auth.resetPasswordForEmail(
       email.trim().toLowerCase(),
-      { redirectTo: `${APP_URL}/reset-password` },
+      { redirectTo: `${APP_URL}${redirectPath.startsWith('/') ? redirectPath : '/reset-password'}` },
     )
     if (error) throw error
   } catch (error) {

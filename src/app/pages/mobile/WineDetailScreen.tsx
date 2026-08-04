@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Award, Grape, MapPin, Minus, Plus, Sparkles, Star, UtensilsCrossed, Wine } from 'lucide-react'
+import { Award, Grape, MapPin, Sparkles, Wine } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
@@ -12,7 +12,6 @@ export function WineDetailScreen() {
   const [wine, setWine] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [quantity, setQuantity] = useState(1)
 
   useEffect(() => {
     let active = true
@@ -88,14 +87,6 @@ export function WineDetailScreen() {
             {wineVarietal || (isEnglish ? 'Special selection' : 'Selección especial')}{wineVintage ? ` · ${wineVintage}` : ''}
           </p>
 
-          <div className="mt-4 flex items-center gap-2 text-[11px] text-[var(--color-muted)]">
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#fff4df] px-2.5 py-1.5 text-[#9a6a23]">
-              <Star size={12} fill="currentColor" />
-              4.8
-            </span>
-            <span>{isEnglish ? '128 reviews' : '128 reseñas'}</span>
-          </div>
-
           <div className="mt-5 flex items-end justify-between gap-4">
             <div>
               <p className="text-[10px] text-[var(--color-muted)]">{isEnglish ? 'Price' : 'Precio'}</p>
@@ -103,19 +94,10 @@ export function WineDetailScreen() {
                 {winePrice}
               </p>
             </div>
-            <div className="flex items-center gap-1 rounded-full border border-[rgba(104,13,36,0.13)] bg-[#fffaf5] p-1.5">
-              <button type="button" aria-label={isEnglish ? 'Decrease quantity' : 'Disminuir cantidad'} onClick={() => setQuantity((current) => Math.max(1, current - 1))} className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-burgundy)]">
-                <Minus size={15} />
-              </button>
-              <span className="w-7 text-center text-[13px] font-semibold text-[var(--color-ink)]">{quantity}</span>
-              <button type="button" aria-label={isEnglish ? 'Increase quantity' : 'Aumentar cantidad'} onClick={() => setQuantity((current) => current + 1)} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white">
-                <Plus size={15} />
-              </button>
-            </div>
           </div>
 
           <div className="mt-5">
-            <PrimaryButton to="/app/carrito">{isEnglish ? 'Add to cart' : 'Agregar al carrito'}</PrimaryButton>
+            <PrimaryButton disabled>{isEnglish ? 'Cart available soon' : 'Carrito disponible próximamente'}</PrimaryButton>
           </div>
         </div>
       </section>
@@ -123,10 +105,10 @@ export function WineDetailScreen() {
       <section className="grid grid-cols-2 gap-3">
           {[
             { icon: Grape, label: isEnglish ? 'Grape' : 'Uva', value: wineVarietal || (isEnglish ? "Estate's selection" : 'Selección de la casa') },
-            { icon: Award, label: isEnglish ? 'Vintage' : 'Cosecha', value: wineVintage || (isEnglish ? 'Current edition' : 'Edición actual') },
-            { icon: MapPin, label: isEnglish ? 'Origin' : 'Origen', value: textField(wine, 'origin', 'Aguascalientes') },
-            { icon: Wine, label: isEnglish ? 'Service' : 'Servicio', value: textField(wine, 'serving_temperature', '16-18 °C') },
-        ].map((item) => {
+            { icon: Award, label: isEnglish ? 'Vintage' : 'Cosecha', value: wineVintage || (isEnglish ? 'To be confirmed' : 'Por confirmar') },
+            { icon: MapPin, label: isEnglish ? 'Origin' : 'Origen', value: textField(wine, 'origin') || (isEnglish ? 'To be confirmed' : 'Por confirmar') },
+            { icon: Wine, label: isEnglish ? 'Service' : 'Servicio', value: textField(wine, 'serving_temperature') || (isEnglish ? 'To be confirmed' : 'Por confirmar') },
+        ].filter((item) => item.value).map((item) => {
           const Icon = item.icon
           return (
             <article key={item.label} className="min-w-0 rounded-[1.15rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_12px_28px_rgba(74,32,28,0.05)]">
@@ -145,26 +127,14 @@ export function WineDetailScreen() {
         </article>
       </section>
 
-      <section className="space-y-3">
-        <SectionHeading eyebrow={isEnglish ? 'Enjoy it better' : 'Disfrútalo mejor'} title={isEnglish ? 'Suggested pairing' : 'Maridaje sugerido'} />
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: isEnglish ? 'Red meats' : 'Carnes rojas', icon: UtensilsCrossed },
-            { label: isEnglish ? 'Pasta' : 'Pastas', icon: UtensilsCrossed },
-            { label: isEnglish ? 'Aged cheeses' : 'Quesos maduros', icon: UtensilsCrossed },
-          ].map((item) => {
-            const Icon = item.icon
-            return (
-              <article key={item.label} className="min-w-0 rounded-[1.1rem] border border-[rgba(220,202,181,0.78)] bg-white p-3 text-center shadow-[0_12px_26px_rgba(74,32,28,0.05)]">
-                <span className="mx-auto inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f7ece2] text-[var(--color-burgundy)]">
-                  <Icon size={16} />
-                </span>
-                <p className="mt-3 break-words text-[10px] font-semibold leading-4 text-[var(--color-ink)]">{item.label}</p>
-              </article>
-            )
-          })}
-        </div>
-      </section>
+      {textField(wine, 'pairing_notes') ? (
+        <section className="space-y-3">
+          <SectionHeading eyebrow={isEnglish ? 'Enjoy it better' : 'Disfrútalo mejor'} title={isEnglish ? 'Suggested pairing' : 'Maridaje sugerido'} />
+          <article className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[13px] leading-6 text-[var(--color-muted)] shadow-[0_16px_34px_rgba(74,32,28,0.06)]">
+            {textField(wine, 'pairing_notes')}
+          </article>
+        </section>
+      ) : null}
 
       <section className="rounded-[1.3rem] bg-[linear-gradient(135deg,#5b0e22,#8d2038)] p-5 text-white shadow-[0_18px_38px_rgba(93,15,35,0.2)]">
         <div className="flex items-start gap-3">
@@ -172,9 +142,9 @@ export function WineDetailScreen() {
             <Sparkles size={19} />
           </span>
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#efcf93]">ALQIA Sommelier</p>
-            <h3 className="mt-1 text-[1.45rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>{isEnglish ? 'Is this the ideal wine for your occasion?' : '¿Es el vino ideal para tu ocasión?'}</h3>
-            <p className="mt-2 text-[11px] leading-4 text-white/[0.76]">{textField(wine, 'pairing_notes') || (isEnglish ? 'Tell us what you are going to eat or celebrate and receive a personalized recommendation.' : 'Cuéntanos qué vas a comer o celebrar y recibe una recomendación personalizada.')}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#efcf93]">Sommelier</p>
+            <h3 className="mt-1 text-[1.45rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>{isEnglish ? 'Coming soon' : 'Disponible próximamente'}</h3>
+            <p className="mt-2 text-[11px] leading-4 text-white/[0.76]">{isEnglish ? 'Personal recommendations will be connected in a later phase.' : 'Las recomendaciones personalizadas se conectarán en una fase posterior.'}</p>
           </div>
         </div>
       </section>

@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Grape, Send, ShoppingBag, Sparkles, Wine } from 'lucide-react'
+import { Clock, ShoppingBag, Sparkles, Wine } from 'lucide-react'
 import { SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
@@ -8,21 +7,8 @@ import { contentRouteId, formatCurrency, imageField, numberField, textField } fr
 
 export function SommelierScreen() {
   const { isEnglish } = useAppPreferences()
-  const { records: wines, loading, error } = usePublicContent('wines')
-  const featuredWine = wines[0]
-  const [question, setQuestion] = useState('')
-
-  const suggestions = isEnglish
-    ? [
-        'A wine for red meat',
-        'I want a gift bottle',
-        'Something light for dinner',
-      ]
-    : [
-        'Un vino para carnes rojas',
-        'Quiero hacer un regalo',
-        'Algo ligero para una cena',
-      ]
+  const { records: wines, loading, error, retry } = usePublicContent('wines')
+  const featuredWines = wines.slice(0, 3)
 
   return (
     <div className="space-y-5 pb-3">
@@ -35,156 +21,88 @@ export function SommelierScreen() {
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-[#efcf93]">ALQIA Sommelier</p>
             <h1 className="mt-1 text-[2rem] leading-[0.92]" style={{ fontFamily: 'var(--font-display)' }}>
-              {isEnglish
-                ? 'Your personal wine assistant'
-                : 'Tu asistente personal de vinos'}
+              {isEnglish ? 'Coming soon' : 'Próximamente'}
             </h1>
             <p className="mt-3 text-[12px] leading-5 text-white/[0.78]">
               {isEnglish
-                ? 'Pairings, occasions, gifts and experiences, in one conversation.'
-                : 'Maridajes, ocasiones, regalos y experiencias, en una conversación.'}
+                ? 'OpenAI recommendations are not active yet. For now, this space only shows published wines from Hacienda de Letras.'
+                : 'Las recomendaciones con OpenAI aún no están activas. Por ahora, este espacio solo muestra vinos publicados de Hacienda de Letras.'}
             </p>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 text-[12px] leading-5 text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+        <div className="flex items-start gap-3">
+          <Clock size={17} className="mt-0.5 shrink-0 text-[var(--color-gold)]" />
+          <p>
+            {isEnglish
+              ? 'This screen does not generate AI answers, pairings or recommendations until the Sommelier integration is approved.'
+              : 'Esta pantalla no genera respuestas, maridajes ni recomendaciones de IA hasta aprobar la integración del Sommelier.'}
+          </p>
         </div>
       </section>
 
       <section className="space-y-3">
         <SectionHeading
-          eyebrow={isEnglish ? 'Suggestions' : 'Sugerencias'}
-          title={
-            isEnglish
-              ? 'What would you like to discover?'
-              : '¿Qué quieres descubrir?'
-          }
+          eyebrow={isEnglish ? 'Published cellar' : 'Cava publicada'}
+          title={isEnglish ? 'Wines available to explore' : 'Vinos disponibles para explorar'}
         />
-        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion}
-              type="button"
-              onClick={() => setQuestion(suggestion)}
-              className="shrink-0 rounded-full border border-[rgba(220,202,181,0.78)] bg-white px-4 py-2.5 text-[11px] text-[var(--color-burgundy)] shadow-sm"
-            >
-              {suggestion}
+
+        {loading ? (
+          <article className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published wines...' : 'Cargando vinos publicados...'}
+          </article>
+        ) : error ? (
+          <article className="rounded-[1.25rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
+            <p>{error}</p>
+            <button type="button" onClick={retry} className="mt-3 text-[12px] font-semibold text-[var(--color-burgundy)]">
+              {isEnglish ? 'Retry' : 'Reintentar'}
             </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-4 rounded-[1.35rem] border border-[rgba(220,202,181,0.72)] bg-[#fbf7f1] p-4 shadow-[0_16px_34px_rgba(74,32,28,0.06)]">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white">
-            <Sparkles size={16} />
-          </span>
-          <div className="max-w-[82%] rounded-[1rem] rounded-tl-sm bg-white px-4 py-3 text-[12px] leading-5 text-[var(--color-ink)] shadow-sm">
-            {isEnglish
-              ? 'Hello, I am ALQIA Sommelier. Tell me what you are eating, the occasion you have in mind or the flavors you enjoy.'
-              : 'Hola, soy ALQIA Sommelier. Cuéntame qué vas a comer, qué ocasión tienes o qué sabores disfrutas.'}
-          </div>
-        </div>
-
-        <div className="flex justify-end">
-          <div className="max-w-[80%] rounded-[1rem] rounded-tr-sm bg-[#efe0ce] px-4 py-3 text-[12px] leading-5 text-[var(--color-ink)]">
-            {isEnglish
-              ? 'What wine do you recommend for a grilled steak?'
-              : '¿Qué vino me recomiendas para un filete al grill?'}
-          </div>
-        </div>
-
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white">
-            <Sparkles size={16} />
-          </span>
-          <div className="max-w-[86%] rounded-[1rem] rounded-tl-sm bg-white p-3 shadow-sm">
-            <p className="text-[12px] leading-5 text-[var(--color-ink)]">
-              {loading
-                ? (isEnglish ? 'Reviewing published wines...' : 'Revisando vinos publicados...')
-                : error
-                  ? error
-                  : featuredWine
-                    ? (isEnglish ? 'I found a published wine that can guide your choice.' : 'Encontré un vino publicado que puede orientar tu elección.')
-                    : (isEnglish ? 'No published wines are available for recommendations.' : 'No hay vinos publicados disponibles para recomendaciones.')}
-            </p>
-
-            {featuredWine ? (
-              <article className="mt-3 grid grid-cols-[64px_minmax(0,1fr)] gap-3 rounded-[0.95rem] border border-[rgba(220,202,181,0.72)] bg-[#fffaf5] p-3">
-                <div className="flex h-[92px] items-center justify-center rounded-[0.8rem] bg-[#f2e4d3]">
-                  <img
-                    src={imageField(featuredWine, '/Logo-HDL-2.svg')}
-                    alt={textField(featuredWine, 'name', isEnglish ? 'Wine' : 'Vino')}
-                    className="max-h-[78px] w-auto object-contain"
-                  />
+          </article>
+        ) : featuredWines.length === 0 ? (
+          <article className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'There are no published wines yet.' : 'Aún no hay vinos publicados.'}
+          </article>
+        ) : (
+          featuredWines.map((wine) => (
+            <article key={wine.id} className="grid grid-cols-[74px_minmax(0,1fr)] gap-3 rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-3 shadow-[0_12px_26px_rgba(74,32,28,0.05)]">
+              <div className="flex h-[96px] items-center justify-center rounded-[0.9rem] bg-[#f2e4d3]">
+                <img
+                  src={imageField(wine, '/Logo-HDL-2.svg')}
+                  alt={textField(wine, 'name', isEnglish ? 'Wine' : 'Vino')}
+                  className="max-h-[82px] w-auto object-contain"
+                />
+              </div>
+              <div className="flex min-w-0 flex-col justify-center">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">
+                  {textField(wine, 'grape_variety') || textField(wine, 'category')}
+                </p>
+                <h3 className="mt-1 break-words text-[1.1rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+                  {textField(wine, 'name', isEnglish ? 'Wine' : 'Vino')}
+                </h3>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-[var(--color-burgundy)]">
+                    {formatCurrency(numberField(wine, 'price'))}
+                  </span>
+                  <Link to={`/app/tienda/${contentRouteId(wine)}`} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
+                    <ShoppingBag size={12} />
+                    {isEnglish ? 'View' : 'Ver'}
+                  </Link>
                 </div>
-                <div className="flex min-w-0 flex-col justify-center">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{isEnglish ? 'Recommendation' : 'Recomendación'}</p>
-                  <h3 className="mt-1 break-words text-[1.1rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-                    {textField(featuredWine, 'name', isEnglish ? 'Wine' : 'Vino')}
-                  </h3>
-                  <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-                    {textField(featuredWine, 'subtitle') || textField(featuredWine, 'grape_variety')}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between gap-2">
-                    <span className="text-[13px] font-semibold text-[var(--color-burgundy)]">
-                      {formatCurrency(numberField(featuredWine, 'price'))}
-                    </span>
-                    <Link to={`/app/tienda/${contentRouteId(featuredWine)}`} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
-                      <ShoppingBag size={12} />
-                      {isEnglish ? 'View' : 'Ver'}
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ) : null}
-          </div>
-        </div>
+              </div>
+            </article>
+          ))
+        )}
       </section>
 
-      <section className="grid grid-cols-2 gap-3">
-        <article className="rounded-[1.15rem] border border-[rgba(220,202,181,0.72)] bg-white p-4 shadow-[0_12px_26px_rgba(74,32,28,0.05)]">
-          <Wine size={18} className="text-[var(--color-burgundy)]" />
-          <p className="mt-3 text-[12px] font-semibold text-[var(--color-ink)]">
-            {isEnglish ? 'Pairings' : 'Maridajes'}
-          </p>
-          <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">
-            {isEnglish
-              ? 'Find the ideal wine for every dish.'
-              : 'Encuentra el vino ideal para cada platillo.'}
-          </p>
-        </article>
-        <article className="rounded-[1.15rem] border border-[rgba(220,202,181,0.72)] bg-white p-4 shadow-[0_12px_26px_rgba(74,32,28,0.05)]">
-          <Grape size={18} className="text-[var(--color-burgundy)]" />
-          <p className="mt-3 text-[12px] font-semibold text-[var(--color-ink)]">
-            {isEnglish ? 'Preferences' : 'Preferencias'}
-          </p>
-          <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">
-            {isEnglish
-              ? 'Learn your taste to recommend better.'
-              : 'Aprende tus gustos para recomendar mejor.'}
-          </p>
-        </article>
-      </section>
-
-      <label className="flex items-center gap-3 rounded-[1.1rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 shadow-[0_14px_30px_rgba(74,32,28,0.07)]">
-        <input
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder={
-            isEnglish
-              ? 'Write your question...'
-              : 'Escribe tu pregunta...'
-          }
-          className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)]"
-        />
-        <button
-          type="button"
-          aria-label={
-            isEnglish ? 'Send question' : 'Enviar pregunta'
-          }
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white"
-        >
-          <Send size={16} />
-        </button>
-      </label>
+      <Link
+        to="/app/tienda"
+        className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-5 text-[13px] font-bold text-white shadow-[0_13px_26px_rgba(104,17,38,0.2)]"
+      >
+        <Wine size={16} />
+        {isEnglish ? 'Open store' : 'Abrir tienda'}
+      </Link>
     </div>
   )
 }

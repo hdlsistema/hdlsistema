@@ -7,7 +7,11 @@ import { contentRouteId, formatCurrency, imageField, numberField, textField } fr
 
 export function HomeScreen() {
   const { isEnglish } = useAppPreferences()
-  const { records: wines, loading: loadingWines, error: winesError } = usePublicContent('wines')
+  const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
+  const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
+  const { records: events, loading: loadingEvents, error: eventsError, retry: retryEvents } = usePublicContent('events')
+  const { records: promotions } = usePublicContent('promotions')
+  const { records: plans } = usePublicContent('membership-plans')
 
   const actions = [
     {
@@ -24,13 +28,13 @@ export function HomeScreen() {
     },
     {
       label: isEnglish ? 'Events' : 'Eventos',
-      detail: isEnglish ? 'Tickets & agenda' : 'Boletos y agenda',
+      detail: isEnglish ? 'Published agenda' : 'Agenda publicada',
       to: '/app/eventos',
       icon: Ticket,
     },
     {
       label: 'Wine Club',
-      detail: isEnglish ? 'Exclusive benefits' : 'Beneficios exclusivos',
+      detail: isEnglish ? 'Published plans' : 'Planes publicados',
       to: '/app/club',
       icon: Grape,
     },
@@ -52,7 +56,7 @@ export function HomeScreen() {
             to="/app/experiencias"
             className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 py-2.5 text-[12px] font-semibold text-white shadow-lg"
           >
-            {isEnglish ? 'Discover the experience' : 'Descubre la experiencia'}
+            {isEnglish ? 'See published experiences' : 'Ver experiencias publicadas'}
             <Sparkles size={14} />
           </Link>
         </div>
@@ -93,7 +97,10 @@ export function HomeScreen() {
           </div>
         ) : winesError ? (
           <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
-            {winesError}
+            <p>{winesError}</p>
+            <button type="button" onClick={retryWines} className="mt-3 text-[12px] font-semibold text-[var(--color-burgundy)]">
+              {isEnglish ? 'Retry' : 'Reintentar'}
+            </button>
           </div>
         ) : wines.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
@@ -120,6 +127,94 @@ export function HomeScreen() {
         )}
       </section>
 
+      <section className="space-y-4">
+        <SectionHeading
+          eyebrow={isEnglish ? 'Experiences' : 'Experiencias'}
+          title={isEnglish ? 'Available to book' : 'Disponibles para reservar'}
+          action={<Link to="/app/experiencias" className="text-[12px] font-semibold text-[var(--color-gold)]">{isEnglish ? 'View all' : 'Ver todas'}</Link>}
+        />
+        {loadingExperiences ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published experiences...' : 'Cargando experiencias publicadas...'}
+          </div>
+        ) : experiencesError ? (
+          <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
+            <p>{experiencesError}</p>
+            <button type="button" onClick={retryExperiences} className="mt-3 text-[12px] font-semibold text-[var(--color-burgundy)]">
+              {isEnglish ? 'Retry' : 'Reintentar'}
+            </button>
+          </div>
+        ) : experiences.length === 0 ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'No experiences are published yet.' : 'Aún no hay experiencias publicadas.'}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {experiences.slice(0, 2).map((experience) => (
+              <Link key={experience.id} to="/app/reservacion" state={{ experienceId: contentRouteId(experience) }} className="grid grid-cols-[92px_minmax(0,1fr)] gap-3 rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-3 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+                <img src={imageField(experience, '/turismo.jpeg')} alt={textField(experience, 'title', 'Experiencia')} className="h-24 w-full rounded-[0.9rem] object-cover" />
+                <div className="min-w-0">
+                  <h3 className="line-clamp-2 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{textField(experience, 'title', 'Experiencia')}</h3>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{textField(experience, 'short_description') || textField(experience, 'description')}</p>
+                  <p className="mt-2 text-[12px] font-semibold text-[var(--color-burgundy)]">{formatCurrency(numberField(experience, 'base_price'))}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <SectionHeading
+          eyebrow={isEnglish ? 'Agenda' : 'Agenda'}
+          title={isEnglish ? 'Published events' : 'Eventos publicados'}
+          action={<Link to="/app/eventos" className="text-[12px] font-semibold text-[var(--color-gold)]">{isEnglish ? 'Open' : 'Abrir'}</Link>}
+        />
+        {loadingEvents ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'Loading published events...' : 'Cargando eventos publicados...'}
+          </div>
+        ) : eventsError ? (
+          <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
+            <p>{eventsError}</p>
+            <button type="button" onClick={retryEvents} className="mt-3 text-[12px] font-semibold text-[var(--color-burgundy)]">
+              {isEnglish ? 'Retry' : 'Reintentar'}
+            </button>
+          </div>
+        ) : events.length === 0 ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {isEnglish ? 'No events are published yet.' : 'Aún no hay eventos publicados.'}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {events.slice(0, 2).map((event) => (
+              <Link key={event.id} to={`/app/eventos/${contentRouteId(event)}`} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{textField(event, 'venue') || (isEnglish ? 'Published event' : 'Evento publicado')}</p>
+                <h3 className="mt-1 text-[1.45rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{textField(event, 'title', 'Evento')}</h3>
+                <p className="mt-2 text-[11px] text-[var(--color-muted)]">{textField(event, 'short_description') || textField(event, 'description')}</p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {promotions.length || plans.length ? (
+        <section className="grid gap-3">
+          {promotions[0] ? (
+            <Link to="/app/tienda" className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{isEnglish ? 'Published promotion' : 'Promoción publicada'}</p>
+              <h3 className="mt-1 text-[1.35rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{textField(promotions[0], 'title') || textField(promotions[0], 'name', 'Promoción')}</h3>
+            </Link>
+          ) : null}
+          {plans[0] ? (
+            <Link to="/app/club" className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">Wine Club</p>
+              <h3 className="mt-1 text-[1.35rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{textField(plans[0], 'name', isEnglish ? 'Membership plan' : 'Plan de membresía')}</h3>
+            </Link>
+          ) : null}
+        </section>
+      ) : null}
+
       <Link
         to="/app/sommelier"
         className="relative block overflow-hidden rounded-[1.4rem] bg-[linear-gradient(135deg,#5c0f23,#8e1f37)] p-5 text-white shadow-[0_18px_40px_rgba(93,15,35,0.22)]"
@@ -131,15 +226,15 @@ export function HomeScreen() {
             <Sparkles size={23} />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#edc98c]">ALQIA Sommelier</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#edc98c]">Sommelier</p>
             <h2
               className="mt-1 text-[1.6rem] leading-none text-[#f3dfb4]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
-              {isEnglish ? 'Your ideal wine, better chosen' : 'Tu vino ideal, mejor elegido'}
+              {isEnglish ? 'Coming soon' : 'Disponible próximamente'}
             </h2>
             <p className="mt-2 text-[12px] leading-5 text-[#f6ead3]">
-              {isEnglish ? 'Pairings, gifts and recommendations for your occasion.' : 'Maridajes, regalos y recomendaciones según tu ocasión.'}
+              {isEnglish ? 'Wine guidance will be connected in a later phase.' : 'La guía de vinos se conectará en una fase posterior.'}
             </p>
           </div>
         </div>
@@ -161,7 +256,7 @@ export function HomeScreen() {
           <h3 className="mt-1 text-[1.45rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
             {isEnglish ? 'How to get here?' : '¿Cómo llegar?'}
           </h3>
-          <p className="mt-2 text-[12px] leading-5 text-[var(--color-muted)]">{isEnglish ? 'Check the route and explore the main points of the hacienda.' : 'Consulta la ruta y explora los puntos principales de la hacienda.'}</p>
+          <p className="mt-2 text-[12px] leading-5 text-[var(--color-muted)]">{isEnglish ? 'Open the configurable map of the hacienda.' : 'Abre el mapa configurable de la hacienda.'}</p>
         </div>
       </Link>
     </div>

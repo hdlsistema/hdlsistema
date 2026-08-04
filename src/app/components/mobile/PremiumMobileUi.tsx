@@ -50,9 +50,11 @@ export function SectionHeading({
 
 type SearchFieldProps = {
   placeholder: string
+  value?: string
+  onChange?: (value: string) => void
 }
 
-export function SearchField({ placeholder }: SearchFieldProps) {
+export function SearchField({ placeholder, value, onChange }: SearchFieldProps) {
   return (
     <label className="flex items-center gap-3 rounded-[1.1rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3.5 shadow-[0_12px_28px_rgba(74,32,28,0.06)]">
       <Search
@@ -62,6 +64,8 @@ export function SearchField({ placeholder }: SearchFieldProps) {
 
       <input
         type="search"
+        value={value}
+        onChange={(event) => onChange?.(event.target.value)}
         placeholder={placeholder}
         className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)]"
       />
@@ -72,11 +76,13 @@ export function SearchField({ placeholder }: SearchFieldProps) {
 type PillRowProps = {
   items: string[]
   activeIndex?: number
+  onSelect?: (index: number) => void
 }
 
 export function PillRow({
   items,
   activeIndex = 0,
+  onSelect,
 }: PillRowProps) {
   return (
     <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -87,6 +93,7 @@ export function PillRow({
           <button
             key={item}
             type="button"
+            onClick={() => onSelect?.(index)}
             className="shrink-0 rounded-full border px-4 py-2 text-[12px] font-medium transition"
             style={{
               borderColor: isActive
@@ -115,7 +122,7 @@ type CompactAddButtonProps = {
 export function CompactAddButton({
   to,
   onClick,
-  ariaLabel = 'Agregar al carrito',
+  ariaLabel = 'Disponible próximamente',
 }: CompactAddButtonProps) {
   const content = (
     <Plus
@@ -162,9 +169,15 @@ export function CompactAddButton({
     <button
       type="button"
       onClick={onClick}
+      disabled={!onClick}
       aria-label={ariaLabel}
       title={ariaLabel}
-      style={sharedStyle}
+      style={{
+        ...sharedStyle,
+        backgroundColor: onClick ? '#681126' : '#a99a92',
+        cursor: onClick ? 'pointer' : 'not-allowed',
+        boxShadow: onClick ? sharedStyle.boxShadow : 'none',
+      }}
     >
       {content}
     </button>
@@ -233,8 +246,7 @@ export function WineCard({
           </span>
 
           <CompactAddButton
-            to="/app/carrito"
-            ariaLabel={`Agregar ${wine.name} al carrito`}
+            ariaLabel={`Carrito disponible próximamente para ${wine.name}`}
           />
         </div>
       </div>

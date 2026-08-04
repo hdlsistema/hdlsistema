@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, Grape, MapPinned, Menu, ShoppingBag, Sparkles, Ticket, UserRound, Wine } from 'lucide-react'
+import { CalendarDays, Grape, MapPinned, Menu, ShoppingBag, Sparkles, Ticket, UserRound, Wine } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -11,10 +11,10 @@ export function AppHeader() {
     { to: '/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Sparkles },
     { to: '/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
     { to: '/app/experiencias', label: isEnglish ? 'Experience booking' : 'Reservación de experiencias', icon: Wine },
-    { to: '/app/eventos', label: isEnglish ? 'Events and QR tickets' : 'Eventos y boletos QR', icon: Ticket },
+    { to: '/app/eventos', label: isEnglish ? 'Published events' : 'Eventos publicados', icon: Ticket },
     { to: '/app/club', label: 'Wine Club', icon: Grape },
-    { to: '/app/sommelier', label: isEnglish ? 'AI Sommelier' : 'Sommelier con IA', icon: Sparkles },
-    { to: '/app/mapa', label: isEnglish ? '3D map with GPS' : 'Mapa 3D con GPS', icon: MapPinned },
+    { to: '/app/sommelier', label: isEnglish ? 'Sommelier coming soon' : 'Sommelier próximamente', icon: Sparkles },
+    { to: '/app/mapa', label: isEnglish ? 'Estate map' : 'Mapa de la hacienda', icon: MapPinned },
     { to: '/app/reservacion', label: isEnglish ? 'My bookings' : 'Mis reservaciones', icon: CalendarDays },
     { to: '/app/perfil', label: isEnglish ? 'Profile' : 'Perfil', icon: UserRound },
   ]
@@ -50,12 +50,6 @@ export function AppHeader() {
           >
             <span className="text-[16px] leading-none">{language === 'es' ? '🇲🇽' : '🇺🇸'}</span>
             <span className="text-[10px] font-bold tracking-[0.06em]">{language === 'es' ? 'ES' : 'EN'}</span>
-          </button>
-          <button type="button" className="relative inline-flex h-11 w-11 items-center justify-center rounded-full text-white outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
-            <Bell size={22} strokeWidth={1.8} />
-            <span className="absolute right-2 top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-burgundy-soft)] px-1 text-[10px] text-white">
-              2
-            </span>
           </button>
           <Link to="/app/carrito" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-white outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
             <ShoppingBag size={22} strokeWidth={1.8} />

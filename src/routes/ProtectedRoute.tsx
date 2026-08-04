@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const location = useLocation()
   const { isAuthenticated, isLoading } = useAuth()
+  const loginPath = location.pathname.startsWith('/app') ? '/app/login' : '/login'
 
   if (isLoading) {
     return (
@@ -15,7 +16,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+    return <Navigate to={loginPath} replace state={{ from: location.pathname }} />
   }
 
   return children
