@@ -1,10 +1,10 @@
-# App Cliente: base conectada, carrito y checkout base
+# App Cliente: base conectada, carrito, checkout base y comunicaciones
 
-Documento de cierre operativo de Fases 8B y 8C para la app cliente de Hacienda de Letras OS.
+Documento de cierre operativo de Fases 8B, 8C y 8E para la app cliente de Hacienda de Letras OS.
 
 ## Estado
 
-Fase 8C aprobada en producción.
+Fase 8E aprobada.
 
 - Commit funcional: `5dd39b7 feat: connect customer app base flows`.
 - Migración aplicada: `028_customer_app_operations.sql`.
@@ -14,7 +14,8 @@ Fase 8C aprobada en producción.
 - Runner real 8C: `backend/scripts/phase8c-real-check.mjs`.
 - Railway: `/api/health` HTTP 200 con Supabase `configured`, `reachable` y `healthy`.
 - Netlify: rutas `/app/*` de Fase 8C HTTP 200 con bundle `index-VU0eV1pM.js`.
-- No se inició Fase 8D.
+- Fase 8D de pasarela productiva sigue bloqueada / pendiente de aprobación final.
+- Fase 8E validó Resend transaccional real con outbox, worker, idempotencia, retry y webhook firmado.
 
 ## Principios
 
@@ -174,6 +175,21 @@ No ejecuta alta automática con cobro, renovación con pago ni cancelación de m
 
 El backend revalida publicación, precio, stock, descuento, total, ownership e idempotencia antes de crear la orden. Las experiencias conservan el flujo de reservación; los tickets de evento quedan preparados cuando existan tickets publicados y vendibles.
 
+## Comunicaciones Transaccionales
+
+Fase 8E conecta comunicaciones transaccionales del lado servidor:
+
+- eventos en `communication_events`.
+- outbox persistente en `email_outbox`.
+- plantillas `es-MX` y `en-US`.
+- envío con Resend desde backend.
+- `provider_message_id` persistido.
+- reintentos controlados.
+- webhook firmado de Resend.
+- bitácora en `email_deliveries`.
+
+La app cliente no recibe API keys, webhook secrets, headers sensibles ni service role. Los correos se disparan desde backend como consecuencia de eventos reales y respetan idempotencia. `order.paid` queda preparado, pero permanece inactivo hasta que Fase 8D apruebe pasarela productiva.
+
 ## Contenido Público
 
 Pantallas conectadas a contenido real:
@@ -204,10 +220,10 @@ Se eliminaron ratings, reseñas, stock, pedidos, puntos, membresías, distancias
 
 ## Pruebas
 
-Gates de cierre 8C:
+Gates de cierre 8E:
 
 - Frontend: 65/65.
-- Backend: 74/74.
+- Backend: 82/82.
 - Frontend build: exitoso.
 - Backend build: exitoso.
 - Lint: exitoso con warnings preexistentes.
@@ -219,21 +235,23 @@ La prueba real de Fase 8B creó datos temporales `QA_FASE8B_`, validó admin, cu
 
 La prueba real de Fase 8C creó datos temporales `QA_FASE8C_`, validó carrito persistente, cantidad, totales backend, rechazo de precio/customer manipulado, orden `pending_payment`, historial, ownership, customer 403 en admin, sin sesión 401, auditoría, ausencia de pagos creados y limpieza exacta.
 
-## Pendientes posteriores a 8C
+La prueba real de Fase 8E creó datos temporales `QA_FASE8E_`, validó outbox persistente, worker, envío QA real aceptado por Resend, `provider_message_id` persistido, estado `sent`, idempotencia, retry controlado, webhook firmado, firma inválida rechazada, duplicados ignorados, logs sanitizados y limpieza exacta.
+
+## Pendientes posteriores a 8E
 
 - Pasarela productiva.
 - Pagos reales.
-- Resend transaccional final.
 - Reglas comerciales finales de cancelación y reprogramación.
-- Confirmaciones y comunicaciones al cliente.
+- Firebase/push.
+- QA E2E de navegador.
 
 ## Riesgos
 
 - Falta QA E2E de navegador configurado en el repo.
 - La validación visual de producción se hizo por HTTP/SPA, bundle desplegado y render headless básico; el repo aún no tiene suite E2E de navegador.
 - Diseño premium global sigue pendiente.
-- Google Sign-In, Sign in with Apple, Firebase/push, Sommelier OpenAI, pasarela productiva y publicación en tiendas siguen fuera de 8C.
+- Google Sign-In, Sign in with Apple, Firebase/push, Sommelier OpenAI, pasarela productiva y publicación en tiendas siguen pendientes.
 
 ## Seguridad
 
-No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables de entorno durante el cierre de Fases 8B y 8C.
+No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables de entorno durante el cierre de Fases 8B, 8C y 8E. Ningún `.env` fue versionado.

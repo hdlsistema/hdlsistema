@@ -1,6 +1,6 @@
 # Hacienda de Letras OS - Project Status
 
-Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8C.
+Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8E.
 
 ## Fase 1
 
@@ -702,7 +702,84 @@ Estado: aprobada en producción.
   - `backend/docs/CART_CHECKOUT.md`.
 - Seguridad:
   - No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables.
-- No se inició Fase 8D.
+- Fase 8D no quedó aprobada como pasarela productiva.
+
+## Fase 8D
+
+Estado: bloqueada / pendiente de aprobación final de pasarela productiva.
+
+### Auditoría e Integración de Pasarela Productiva
+
+- No se registra cierre productivo aprobado de pasarela real.
+- El checkout customer conserva órdenes reales en estado `pending_payment`.
+- No se solicitan tarjetas ni se guardan datos de pago desde la app cliente.
+- No se simula pago aprobado.
+- El evento `order.paid` existe en el modelo de comunicaciones, pero permanece inactivo hasta que Fase 8D quede aprobada con proveedor productivo.
+- Las operaciones administrativas de pagos manuales de Fase 7D siguen disponibles para operación interna.
+
+## Fase 8E
+
+Estado: aprobada.
+
+### Comunicaciones Transaccionales con Resend
+
+- Commit funcional de validación y remitente: `b3e214f fix: harden resend phase 8e validation`.
+- Commit documental: `docs: close phase 8e transactional communications`.
+- Migración aplicada: `030_transactional_communications.sql`.
+- Backend real:
+  - `backend/src/modules/communications/`.
+  - `GET /api/admin/communications`.
+  - `GET /api/admin/communications/:id`.
+  - `POST /api/admin/communications/:id/retry`.
+  - `POST /api/webhooks/resend`.
+- Modelo real:
+  - `communication_events`.
+  - `email_templates`.
+  - `email_outbox`.
+  - `email_deliveries`.
+  - `communication_preferences`.
+- Resend validado:
+  - configuración local del runner completa por nombres requeridos.
+  - dominio de envío verificado en proveedor.
+  - key de envío compatible con restricción de permisos.
+  - envío QA real aceptado por Resend.
+  - `provider_message_id` persistido.
+  - outbox actualizado a `sent`.
+  - delivery log registrado.
+  - webhook firmado aceptado.
+  - firma inválida rechazada.
+  - evento duplicado de webhook ignorado sin duplicar delivery.
+- Worker e idempotencia:
+  - evento de comunicación creado.
+  - outbox persistente creado.
+  - worker procesó correo.
+  - idempotencia por `idempotency_key` validada.
+  - duplicado rechazado.
+  - retry controlado validado sin envío extra.
+  - `order.paid` no se disparó durante Fase 8E.
+- Plantillas:
+  - `es-MX`.
+  - `en-US`.
+  - copy transaccional base pendiente de revisión final de tono por Hacienda cuando aplique.
+- Runner real:
+  - `backend/scripts/phase8e-real-check.mjs`.
+  - Validación productiva contra Railway aprobada.
+  - QA temporal `QA_FASE8E_` creado y eliminado.
+  - Cero datos QA permanentes.
+- Pruebas de cierre:
+  - Frontend: 65/65.
+  - Backend: 82/82.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+  - Lint: exitoso con warnings preexistentes.
+  - `git diff --check`: exitoso.
+  - `.env`, `.env.local`, `backend/.env` y `backend/.env.local` ignorados.
+- Railway:
+  - `/api/health` HTTP 200 durante runner productivo.
+- Seguridad:
+  - No se imprimieron API keys, webhook secret, JWT, tokens, service role key, headers sensibles ni valores de variables.
+  - Ningún `.env` fue versionado.
+- No se inició Fase 8F.
 
 ## Estado de Arquitectura
 
@@ -720,7 +797,6 @@ Estado: aprobada en producción.
 - Pago real.
 - Pasarela productiva.
 - Sommelier OpenAI.
-- Resend.
 - Firebase/push.
 - Google/Apple.
 - Bilingüe completo.
@@ -729,6 +805,7 @@ Estado: aprobada en producción.
 - QA E2E.
 - Tiendas.
 - App cliente avanzada posterior a carrito y checkout base 8C.
+- Pasarela de pago productiva de Fase 8D.
 
 ## Roadmap Adicional Ya Implementado
 
@@ -747,8 +824,8 @@ Estos módulos fueron construidos y validados en Fase 7E aunque originalmente ap
 - Estética todavía genérica en varias pantallas.
 - Raíz aún implementada como `LandingPage`.
 - No se deben confundir validaciones funcionales con cierre visual premium.
-- Pagos productivos y Sommelier real siguen pendientes.
+- Pagos productivos, Firebase/push y Sommelier real siguen pendientes.
 
 ## Siguiente Fase
 
-Fase 8D — Pendiente de definición y aprobación.
+Pendiente de aprobación. No iniciar Fase 8F sin autorización explícita.

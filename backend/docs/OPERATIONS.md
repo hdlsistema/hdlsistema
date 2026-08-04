@@ -27,6 +27,11 @@ Supabase es la fuente única de verdad para disponibilidad, bloqueos, slots, res
 - `orders`: órdenes customer y administrativas.
 - `order_items`: partidas de orden con snapshot.
 - `payments`: pagos administrativos/manuales; Fase 8C no crea pagos customer.
+- `communication_events`: eventos transaccionales de email con idempotencia.
+- `email_templates`: plantillas transaccionales `es-MX` y `en-US`.
+- `email_outbox`: cola persistente de emails transaccionales.
+- `email_deliveries`: bitácora de eventos del proveedor Resend.
+- `communication_preferences`: preferencias de comunicación por cliente o usuario.
 
 ## Capacidad
 
@@ -171,6 +176,17 @@ Las RPC customer derivan el cliente desde `auth.uid()` y `current_customer_id()`
 
 Estos endpoints son exclusivos de la app cliente. No usan rutas `/api/admin/*`, requieren sesión válida, validan ownership en servidor y devuelven respuestas sanitizadas.
 
+## Endpoints de Comunicaciones
+
+- `GET /api/admin/communications`
+- `GET /api/admin/communications/:id`
+- `POST /api/admin/communications/:id/retry`
+- `POST /api/webhooks/resend`
+
+Las comunicaciones transaccionales usan Resend del lado servidor. El worker procesa outbox real, persiste `provider_message_id`, registra delivery y programa reintentos controlados cuando el proveedor falla. El webhook exige firma válida, rechaza firma inválida, ignora eventos duplicados y no requiere sesión porque la autoridad viene de la firma del proveedor.
+
+El evento `order.paid` queda preparado en plantillas y modelo, pero no se dispara mientras la pasarela productiva de Fase 8D no esté aprobada. Fase 8E validó explícitamente que `order.paid` no se dispara durante el flujo QA.
+
 ## Endpoints de Inventario
 
 - `GET /api/admin/inventory`
@@ -309,6 +325,7 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - Pruebas backend cubren Wine Club, inventario, logística y distribuidores: sin sesión 401, customer 403, lecturas admin, mutaciones administrativas, validación de payloads, protección de sobrecupo y exportaciones seguras.
 - Pruebas backend cubren app cliente: perfil propio, disponibilidad, creación de reservación, listado, detalle propio, cancelación, reprogramación, ownership, Wine Club, beneficios, lealtad, 401, 403, 404, payload inválido, sobrecupo, doble submit y errores seguros.
 - Pruebas backend cubren carrito y checkout customer: sin sesión 401, customer 403 en admin, lectura de carrito propio, agregar, actualizar, eliminar, vaciar, payload manipulado 422, creación de orden `pending_payment`, historial, detalle propio, ownership y ausencia de pago creado.
+- Pruebas backend cubren comunicaciones transaccionales: configuración pendiente, idempotencia, worker Resend simulado, remitente con nombre visible, reintento, plantillas por locale, payload sanitizado, webhook firmado, firma inválida y duplicados.
 - Pruebas frontend cubren clientes reales de disponibilidad, reservaciones, CRM, Wine Club, inventario, logística y distribuidores con Authorization Bearer y rechazo sin sesión.
 - Pruebas frontend cubren el servicio customer con Authorization Bearer, endpoints customer, manejo de 401, payloads de perfil, reservaciones, disponibilidad, membresía, beneficios, lealtad, carrito, órdenes y rechazo de precio/customerId desde frontend.
 - Las pruebas usan mocks solo dentro de archivos de test.
@@ -318,6 +335,7 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - Prueba real local y productiva de Fase 7E aprobada con datos temporales `QA_FASE7E_`, limpieza exacta y sin impresión de secretos.
 - Prueba real local y productiva de Fase 8B aprobada con datos temporales `QA_FASE8B_`, limpieza exacta y sin impresión de secretos.
 - Prueba real local y productiva de Fase 8C aprobada con datos temporales `QA_FASE8C_`, carrito persistente, orden `pending_payment`, ownership, 401, 403, auditoría, ausencia de pagos creados y limpieza exacta.
+- Prueba real productiva de Fase 8E aprobada con datos temporales `QA_FASE8E_`, outbox persistente, envío QA real aceptado por Resend, `provider_message_id` persistido, estado `sent`, idempotencia, retry controlado, webhook firmado, firma inválida rechazada, duplicados ignorados, `order.paid` inactivo y limpieza exacta.
 - Netlify sirve el bundle desplegado con las rutas `/control/disponibilidad` y `/control/reservaciones` en HTTP 200.
 - Netlify sirve el bundle desplegado con la ruta `/control/clientes` en HTTP 200.
 - Netlify sirve el bundle desplegado con las rutas `/control/wine-club`, `/control/inventario`, `/control/logistica` y `/control/distribuidores` en HTTP 200.
@@ -327,5 +345,6 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 
 - Revisar duplicación masiva de horarios con volumen productivo antes de uso intensivo.
 - Definir política comercial final de cancelación y reprogramación customer.
-- Implementar pasarela productiva y comunicaciones transaccionales en fases posteriores.
+- Implementar pasarela productiva en fase posterior aprobada.
+- Mantener QA E2E de navegador pendiente para navegación visual autenticada.
 - Agregar QA E2E de navegador para cubrir pantalla blanca, navegación autenticada y estados visuales.
