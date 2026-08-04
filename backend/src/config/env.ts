@@ -54,6 +54,8 @@ export const env = {
   // Resend — reservado para emails transaccionales; solo lado servidor
   RESEND_API_KEY: warnOptionalEnv('RESEND_API_KEY'),
   RESEND_FROM_EMAIL: optionalEnv('RESEND_FROM_EMAIL', ''),
+  RESEND_REPLY_TO_EMAIL: optionalEnv('RESEND_REPLY_TO_EMAIL', ''),
+  RESEND_WEBHOOK_SECRET: optionalEnv('RESEND_WEBHOOK_SECRET', ''),
 } as const
 
 export type Env = typeof env

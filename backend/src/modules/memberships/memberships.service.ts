@@ -7,6 +7,7 @@ import {
   requireOperationRole,
   type UserContext,
 } from '../operations/operationErrors'
+import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import type {
   CreateMembershipPayload,
   MembershipListQuery,
@@ -109,6 +110,28 @@ function mapMembership(row: MembershipRow) {
   }
 }
 
+function queueMembershipEmail(action: 'activate' | 'renew', membership: ReturnType<typeof mapMembership>, user: UserContext) {
+  const eventType = action === 'activate' ? 'membership.activated' : 'membership.renewed'
+  void enqueueAndProcessTransactionalEmail({
+    eventType,
+    aggregateType: 'memberships',
+    aggregateId: membership.id,
+    customerId: membership.customerId,
+    userId: user.userId ?? null,
+    recipientEmail: membership.customerEmail,
+    locale: null,
+    payload: {
+      customerName: membership.customerName,
+      membershipNumber: membership.membershipNumber,
+      planName: membership.planName,
+      status: membership.status,
+      renewalDate: membership.renewalDate,
+      expiresAt: membership.expiresAt,
+    },
+    idempotencyKey: `${eventType}:${membership.id}:${membership.customerEmail ?? 'no-email'}`,
+  }).catch(() => undefined)
+}
+
 function applyFilters(request: any, query: MembershipListQuery) {
   let next = request
   if (query.status) next = next.eq('status', query.status)
@@ -205,7 +228,9 @@ export async function runMembershipAction(id: string, action: 'activate' | 'paus
         : { p_membership_id: id, p_reason: reason ?? null }
   const result = await rpcClient(user).rpc(rpcMap[action], params)
   if (result.error) normalizeDatabaseError(result.error)
-  return getMembership(String(result.data), user)
+  const response = await getMembership(String(result.data), user)
+  if (action === 'activate' || action === 'renew') queueMembershipEmail(action, response.data, user)
+  return response
 }
 
 export async function listMembershipBenefits(id: string, user: UserContext) {

@@ -41,6 +41,7 @@ export function createApp() {
     }),
   )
 
+  app.use('/api/webhooks/resend', express.raw({ type: 'application/json', limit: '1mb' }))
   app.use(express.json({ limit: '1mb' }))
   app.use(express.urlencoded({ extended: true }))
 

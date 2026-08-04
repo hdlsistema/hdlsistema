@@ -10,6 +10,7 @@ import {
   requireOperationRole,
   type UserContext,
 } from '../operations/operationErrors'
+import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import type {
   CancelCustomerReservationPayload,
   AddCustomerCartItemPayload,
@@ -73,6 +74,7 @@ type AuditRow = {
   entity_type: string
   created_at: string
 }
+type CustomerReservationData = ReturnType<typeof mapReservation>
 
 const reservationSelect = `
   id,reservation_number,customer_id,user_id,experience_id,experience_slot_id,people_count,
@@ -127,6 +129,60 @@ function mapReservation(row: ReservationRow) {
     rescheduledAt: row.rescheduled_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+function customerDisplayName(customer: CustomerRow) {
+  return [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() || customer.email || 'Cliente'
+}
+
+function queueReservationEmail(event: 'reservation.created' | 'reservation.rescheduled' | 'reservation.cancelled', reservation: CustomerReservationData, customer: CustomerRow, user: UserContext, locale?: string | null) {
+  void enqueueAndProcessTransactionalEmail({
+    eventType: event,
+    aggregateType: 'reservations',
+    aggregateId: reservation.id,
+    customerId: customer.id,
+    userId: user.userId ?? null,
+    recipientEmail: customer.email,
+    locale,
+    payload: {
+      customerName: customerDisplayName(customer),
+      reservationNumber: reservation.reservationNumber,
+      experienceTitle: reservation.experienceTitle,
+      peopleCount: reservation.peopleCount,
+      status: reservation.status,
+      startAt: reservation.startAt,
+      total: reservation.total,
+      currency: reservation.currency,
+    },
+    idempotencyKey: `${event}:${reservation.id}:${customer.email ?? 'no-email'}`,
+  }).catch(() => undefined)
+}
+
+function queueOrderEmails(order: unknown, customer: CustomerRow, user: UserContext) {
+  const data = order && typeof order === 'object' ? order as Record<string, unknown> : {}
+  const orderId = String(data.id ?? '')
+  const orderNumber = String(data.orderNumber ?? '')
+  if (!orderId) return
+  const payload = {
+    customerName: customerDisplayName(customer),
+    orderNumber,
+    status: typeof data.status === 'string' ? data.status : null,
+    total: typeof data.total === 'number' ? data.total : Number(data.total ?? 0),
+    currency: typeof data.currency === 'string' ? data.currency : 'MXN',
+  }
+  for (const eventType of ['order.created', 'order.pending_payment'] as const) {
+    void enqueueAndProcessTransactionalEmail({
+      eventType,
+      aggregateType: 'orders',
+      aggregateId: orderId,
+      customerId: customer.id,
+      userId: user.userId ?? null,
+      recipientEmail: customer.email,
+      locale: null,
+      payload,
+      idempotencyKey: `${eventType}:${orderId}:${customer.email ?? 'no-email'}`,
+    }).catch(() => undefined)
   }
 }
 
@@ -220,7 +276,10 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
     p_idempotency_key: payload.idempotencyKey,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getCustomerReservation(String(result.data), user)
+  const response = await getCustomerReservation(String(result.data), user)
+  const customer = await getCustomerForUser(user)
+  queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
+  return response
 }
 
 export async function cancelCustomerReservation(id: string, payload: CancelCustomerReservationPayload, user: UserContext) {
@@ -230,7 +289,10 @@ export async function cancelCustomerReservation(id: string, payload: CancelCusto
     p_reason: payload.reason ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getCustomerReservation(String(result.data), user)
+  const response = await getCustomerReservation(String(result.data), user)
+  const customer = await getCustomerForUser(user)
+  queueReservationEmail('reservation.cancelled', response.data, customer, user)
+  return response
 }
 
 export async function rescheduleCustomerReservation(id: string, payload: RescheduleCustomerReservationPayload, user: UserContext) {
@@ -241,7 +303,10 @@ export async function rescheduleCustomerReservation(id: string, payload: Resched
     p_idempotency_key: payload.idempotencyKey,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getCustomerReservation(String(result.data), user)
+  const response = await getCustomerReservation(String(result.data), user)
+  const customer = await getCustomerForUser(user)
+  queueReservationEmail('reservation.rescheduled', response.data, customer, user)
+  return response
 }
 
 export async function getCustomerMembership(user: UserContext) {
@@ -367,7 +432,10 @@ export async function createCustomerOrder(payload: CreateCustomerOrderPayload, u
     p_discount_code: payload.discountCode ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getCustomerOrder(String(result.data), user)
+  const response = await getCustomerOrder(String(result.data), user)
+  const customer = await getCustomerForUser(user)
+  queueOrderEmails(response.data, customer, user)
+  return response
 }
 
 export async function listCustomerOrders(user: UserContext) {

@@ -7,7 +7,13 @@ import { checkSupabaseReachable } from '../src/config/supabase'
 import { errorHandler, type AppError } from '../src/middleware/errorHandler'
 import { canAccessContent } from '../src/modules/content/content.permissions'
 import { parseContentPatch } from '../src/modules/content/content.schemas'
+import {
+  enqueueAndProcessTransactionalEmail,
+  enqueueTransactionalEmail,
+} from '../src/modules/communications/communications.service'
+import { renderEmailTemplate } from '../src/modules/communications/template.service'
 import { execSync } from 'child_process'
+import { createHmac } from 'crypto'
 import { resolve } from 'path'
 
 const supabaseMock = vi.hoisted(() => ({
@@ -179,6 +185,7 @@ const originalSupabaseAnonKey = env.SUPABASE_ANON_KEY
 const originalSupabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
 
 beforeEach(() => {
+  vi.unstubAllGlobals()
   supabaseMock.error = null
   supabaseMock.throwError = null
   supabaseMock.rpcError = null
@@ -189,6 +196,10 @@ beforeEach(() => {
   ;(env as Record<string, string>).SUPABASE_ANON_KEY = originalSupabaseAnonKey
   ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY =
     originalSupabaseServiceRoleKey
+  ;(env as Record<string, string>).RESEND_API_KEY = ''
+  ;(env as Record<string, string>).RESEND_FROM_EMAIL = ''
+  ;(env as Record<string, string>).RESEND_REPLY_TO_EMAIL = ''
+  ;(env as Record<string, string>).RESEND_WEBHOOK_SECRET = ''
 })
 
 // ─── 1. GET /api/health devuelve 200 ────────────────────────────────────────
@@ -1893,6 +1904,196 @@ describe('CORS', () => {
     expect(res.status).toBe(403)
     expect(res.body.ok).toBe(false)
     expect(res.body.error.code).toBe('FORBIDDEN')
+  })
+})
+
+// ─── Fase 8E. Comunicaciones transaccionales ────────────────────────────────
+describe('Fase 8E communications API', () => {
+  const adminUser = {
+    id: '99999999-9999-4999-8999-999999999901',
+    email: 'admin@alqia.tech',
+    created_at: '2026-08-04T00:00:00.000Z',
+    email_confirmed_at: '2026-08-04T00:00:00.000Z',
+  }
+  const customerUser = {
+    id: '99999999-9999-4999-8999-999999999902',
+    email: 'cliente@alqia.tech',
+    created_at: '2026-08-04T00:00:00.000Z',
+    email_confirmed_at: '2026-08-04T00:00:00.000Z',
+  }
+
+  function setRoles(role: string) {
+    supabaseMock.tableData.user_roles = [{ user_id: supabaseMock.authUser?.id, roles: { code: role } }]
+  }
+
+  it('protege endpoints admin de comunicaciones', async () => {
+    const unauth = await request(app).get('/api/admin/communications')
+    expect(unauth.status).toBe(401)
+
+    supabaseMock.authUser = customerUser
+    setRoles('customer')
+    const forbidden = await request(app).get('/api/admin/communications').set('Authorization', 'Bearer customer-token')
+    expect(forbidden.status).toBe(403)
+
+    supabaseMock.authUser = adminUser
+    setRoles('super_admin')
+    const allowed = await request(app).get('/api/admin/communications').set('Authorization', 'Bearer admin-token')
+    expect(allowed.status).toBe(200)
+    expect(allowed.body.provider).toMatchObject({ provider: 'resend', configured: false })
+  })
+
+  it('crea outbox como pending_configuration cuando Resend no está configurado', async () => {
+    const { outbox } = await enqueueTransactionalEmail({
+      eventType: 'reservation.created',
+      aggregateType: 'reservations',
+      aggregateId: '11111111-1111-4111-8111-111111111111',
+      customerId: '22222222-2222-4222-8222-222222222222',
+      userId: customerUser.id,
+      recipientEmail: 'qa@example.com',
+      locale: 'es',
+      payload: { reservationNumber: 'RES-QA', status: 'pending' },
+      idempotencyKey: 'phase8e-reservation-created',
+    })
+
+    expect(outbox.status).toBe('pending_configuration')
+    expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
+  })
+
+  it('mantiene idempotencia por idempotency_key', async () => {
+    const payload = {
+      eventType: 'order.created' as const,
+      aggregateType: 'orders',
+      aggregateId: '11111111-1111-4111-8111-111111111112',
+      recipientEmail: 'qa@example.com',
+      payload: { orderNumber: 'ORD-QA' },
+      idempotencyKey: 'phase8e-order-created',
+    }
+
+    await enqueueTransactionalEmail(payload)
+    await enqueueTransactionalEmail(payload)
+
+    expect(supabaseMock.tableData.communication_events).toHaveLength(1)
+    expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
+  })
+
+  it('procesa worker con proveedor Resend simulado sin imprimir secretos', async () => {
+    ;(env as Record<string, string>).RESEND_API_KEY = 'test_resend_key'
+    ;(env as Record<string, string>).RESEND_FROM_EMAIL = 'soporte@admhaciendadeletras.com'
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: 'email_123' }),
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await enqueueAndProcessTransactionalEmail({
+      eventType: 'order.pending_payment',
+      aggregateType: 'orders',
+      aggregateId: '11111111-1111-4111-8111-111111111113',
+      recipientEmail: 'qa@example.com',
+      payload: { orderNumber: 'ORD-QA', status: 'pending_payment' },
+      idempotencyKey: 'phase8e-pending-payment',
+    })
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const outbox = supabaseMock.tableData.email_outbox?.[0] as { status?: string; provider_message_id?: string }
+    expect(outbox.status).toBe('sent')
+    expect(outbox.provider_message_id).toBe('email_123')
+  })
+
+  it('deja reintento programado cuando el proveedor falla', async () => {
+    ;(env as Record<string, string>).RESEND_API_KEY = 'test_resend_key'
+    ;(env as Record<string, string>).RESEND_FROM_EMAIL = 'soporte@admhaciendadeletras.com'
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: false,
+      status: 422,
+      text: async () => JSON.stringify({ name: 'validation_error' }),
+    })))
+
+    await enqueueAndProcessTransactionalEmail({
+      eventType: 'membership.activated',
+      aggregateType: 'memberships',
+      aggregateId: '11111111-1111-4111-8111-111111111114',
+      recipientEmail: 'qa@example.com',
+      payload: { membershipNumber: 'MBR-QA' },
+      idempotencyKey: 'phase8e-membership-activated',
+    })
+
+    const outbox = supabaseMock.tableData.email_outbox?.[0] as { status?: string; attempts?: number; error_code?: string }
+    expect(outbox.status).toBe('queued')
+    expect(outbox.attempts).toBe(1)
+    expect(outbox.error_code).toBe('validation_error')
+  })
+
+  it('renderiza plantillas por locale y no expone tokens del payload', () => {
+    const template = renderEmailTemplate('reservation.rescheduled', {
+      reservationNumber: 'RES-QA',
+      token: 'secret-token',
+      password: 'hidden',
+    }, 'en')
+
+    expect(template.locale).toBe('en-US')
+    expect(template.subject).toBe('Reservation rescheduled')
+    expect(template.html).not.toContain('secret-token')
+    expect(template.text).not.toContain('hidden')
+  })
+
+  it('rechaza webhook sin firma o con firma inválida', async () => {
+    ;(env as Record<string, string>).RESEND_WEBHOOK_SECRET = `whsec_${Buffer.from('phase8e-secret').toString('base64')}`
+    const res = await request(app)
+      .post('/api/webhooks/resend')
+      .set('Content-Type', 'application/json')
+      .send(JSON.stringify({ type: 'email.delivered', data: { email_id: 'email_123' } }))
+
+    expect(res.status).toBe(400)
+  })
+
+  it('acepta webhook firmado e idempotente de Resend', async () => {
+    const secret = Buffer.from('phase8e-secret')
+    ;(env as Record<string, string>).RESEND_WEBHOOK_SECRET = `whsec_${secret.toString('base64')}`
+    supabaseMock.tableData.email_outbox = [{
+      id: '33333333-3333-4333-8333-333333333333',
+      communication_event_id: '44444444-4444-4444-8444-444444444444',
+      template_key: 'reservation.created',
+      recipient_email: 'qa@example.com',
+      locale: 'es-MX',
+      subject: 'Reservación recibida',
+      html_body: '<p>ok</p>',
+      text_body: 'ok',
+      payload: {},
+      status: 'sent',
+      attempts: 1,
+      max_attempts: 3,
+      scheduled_at: '2026-08-04T00:00:00.000Z',
+      provider: 'resend',
+      provider_message_id: 'email_123',
+      idempotency_key: 'webhook-key',
+      created_at: '2026-08-04T00:00:00.000Z',
+      updated_at: '2026-08-04T00:00:00.000Z',
+    }]
+    const body = JSON.stringify({ type: 'email.delivered', data: { email_id: 'email_123' } })
+    const id = 'msg_phase8e'
+    const timestamp = String(Math.floor(Date.now() / 1000))
+    const signature = createHmac('sha256', secret).update(`${id}.${timestamp}.${body}`).digest('base64')
+    const first = await request(app)
+      .post('/api/webhooks/resend')
+      .set('Content-Type', 'application/json')
+      .set('svix-id', id)
+      .set('svix-timestamp', timestamp)
+      .set('svix-signature', `v1,${signature}`)
+      .send({ type: 'email.delivered', data: { email_id: 'email_123' } })
+    const second = await request(app)
+      .post('/api/webhooks/resend')
+      .set('Content-Type', 'application/json')
+      .set('svix-id', id)
+      .set('svix-timestamp', timestamp)
+      .set('svix-signature', `v1,${signature}`)
+      .send({ type: 'email.delivered', data: { email_id: 'email_123' } })
+
+    expect(first.status).toBe(202)
+    expect(second.status).toBe(202)
+    expect(supabaseMock.tableData.email_deliveries).toHaveLength(1)
+    expect((supabaseMock.tableData.email_outbox[0] as { status?: string }).status).toBe('delivered')
   })
 })
 
