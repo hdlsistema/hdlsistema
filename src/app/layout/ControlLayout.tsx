@@ -24,50 +24,50 @@ import { ControlTopbar } from '../components/control/ControlTopbar'
 import { useAppPreferences } from '../context/AppPreferencesContext'
 
 export function ControlLayout() {
-  const { isEnglish } = useAppPreferences()
+  const { t } = useAppPreferences()
 
   const sidebarGroups = [
     {
-      label: isEnglish ? 'App control center' : 'Centro de control app',
+      label: t('control.groupMain'),
       items: [
         {
           to: '/control/dashboard',
-          label: 'Dashboard',
+          label: t('control.dashboard'),
           icon: LayoutDashboard,
         },
         {
           to: '/control/reservaciones',
-          label: isEnglish ? 'Reservations' : 'Reservaciones',
+          label: t('control.reservations'),
           icon: CalendarDays,
         },
         {
           to: '/control/vinos',
-          label: isEnglish ? 'Wines' : 'Vinos',
+          label: t('control.wines'),
           icon: Wine,
         },
         {
           to: '/control/experiencias',
-          label: isEnglish ? 'Experiences' : 'Experiencias',
+          label: t('control.experiences'),
           icon: Sparkles,
         },
         {
           to: '/control/eventos',
-          label: isEnglish ? 'Events' : 'Eventos',
+          label: t('control.events'),
           icon: CalendarDays,
         },
         {
           to: '/control/clientes',
-          label: isEnglish ? 'Customers' : 'Clientes',
+          label: t('control.customers'),
           icon: Users,
         },
         {
           to: '/control/promociones',
-          label: isEnglish ? 'Promotions' : 'Promociones',
+          label: t('control.promotions'),
           icon: Gift,
         },
         {
           to: '/control/membresias',
-          label: isEnglish ? 'Membership Plans' : 'Planes de membresía',
+          label: t('control.memberships'),
           icon: PackageSearch,
         },
         {
@@ -77,22 +77,22 @@ export function ControlLayout() {
         },
         {
           to: '/control/campanas',
-          label: isEnglish ? 'Campaigns' : 'Campañas',
+          label: t('control.campaigns'),
           icon: Megaphone,
         },
         {
           to: '/control/disponibilidad',
-          label: isEnglish ? 'Availability' : 'Disponibilidad',
+          label: t('control.availability'),
           icon: Package,
         },
         {
           to: '/control/ordenes',
-          label: isEnglish ? 'Orders' : 'Órdenes',
+          label: t('control.orders'),
           icon: ShoppingBag,
         },
         {
           to: '/control/pagos',
-          label: isEnglish ? 'Payments' : 'Pagos',
+          label: t('control.payments'),
           icon: PackageSearch,
         },
         {
@@ -102,33 +102,33 @@ export function ControlLayout() {
         },
         {
           to: '/control/inventario',
-          label: isEnglish ? 'Inventory' : 'Inventario',
+          label: t('control.inventory'),
           icon: Warehouse,
         },
         {
           to: '/control/logistica',
-          label: isEnglish ? 'Logistics' : 'Logística',
+          label: t('control.logistics'),
           icon: Truck,
         },
         {
           to: '/control/distribuidores',
-          label: isEnglish ? 'Distributors' : 'Distribuidores',
+          label: t('control.distributors'),
           icon: Building2,
         },
         {
           to: '/control/app',
-          label: isEnglish ? 'App View' : 'Vista App',
+          label: t('control.appView'),
           icon: WineOff,
         },
         {
           to: '/control/reportes',
-          label: isEnglish ? 'Reports' : 'Reportes',
+          label: t('control.reports'),
           icon: Bolt,
         },
       ],
     },
     {
-      label: isEnglish ? 'Additional functions' : 'Funciones adicionales',
+      label: t('control.groupAdditional'),
       items: [
         {
           to: '/control/futuro/intelligence',
@@ -137,7 +137,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/configuracion',
-          label: isEnglish ? 'Settings' : 'Configuración',
+          label: t('control.settings'),
           icon: Cog,
         },
       ],

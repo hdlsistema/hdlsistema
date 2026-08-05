@@ -47,6 +47,27 @@ describe('auth.service security', () => {
     expect(payload.options.data).not.toHaveProperty('service_role')
   })
 
+  it('signUpCustomer envía la preferencia de idioma sin permisos administrativos', async () => {
+    signUpMock.mockResolvedValueOnce({
+      data: { user: { id: 'user-2' }, session: null },
+      error: null,
+    })
+
+    const { signUpCustomer } = await import('../services/auth.service')
+
+    await signUpCustomer({
+      email: 'cliente.english@alqia.tech',
+      password: 'Password123',
+      firstName: 'Cliente',
+      lastName: 'English',
+      preferredLanguage: 'en',
+    })
+
+    const payload = signUpMock.mock.calls.at(-1)?.[0]
+    expect(payload.options.data.preferred_language).toBe('en')
+    expect(payload.options.data).not.toHaveProperty('role')
+  })
+
   it('resetPassword usa redirect seguro configurado', async () => {
     resetPasswordForEmailMock.mockResolvedValueOnce({ error: null })
     const { resetPassword } = await import('../services/auth.service')

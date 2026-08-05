@@ -19,7 +19,7 @@ function normalizeSlot(slot: CustomerAvailabilitySlot) {
 
 export function ExperienceDetailScreen() {
   const { experienceId } = useParams()
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { session } = useAuth()
   const [experience, setExperience] = useState<ContentRecord | null>(null)
   const [slots, setSlots] = useState<ReturnType<typeof normalizeSlot>[]>([])
@@ -40,7 +40,7 @@ export function ExperienceDetailScreen() {
     }
 
     publicContentClient
-      .getBySlug('experiences', experienceId, 'es-MX')
+      .getBySlug('experiences', experienceId, locale)
       .then((response) => {
         if (active) setExperience(response.data)
       })
@@ -56,7 +56,7 @@ export function ExperienceDetailScreen() {
     return () => {
       active = false
     }
-  }, [experienceId, isEnglish])
+  }, [experienceId, isEnglish, locale])
 
   useEffect(() => {
     let active = true
@@ -139,7 +139,7 @@ export function ExperienceDetailScreen() {
           { icon: Clock3, label: isEnglish ? 'Duration' : 'Duración', value: durationMinutes > 0 ? `${durationMinutes} ${isEnglish ? 'minutes' : 'minutos'}` : (isEnglish ? 'To be confirmed' : 'Por confirmar') },
           { icon: Users, label: isEnglish ? 'Capacity' : 'Cupo', value: capacity > 0 ? `${capacity} ${isEnglish ? 'people' : 'personas'}` : (isEnglish ? 'To be confirmed' : 'Por confirmar') },
           { icon: MapPin, label: isEnglish ? 'Location' : 'Ubicación', value: location },
-          { icon: CalendarDays, label: isEnglish ? 'From' : 'Desde', value: formatCurrency(price) },
+          { icon: CalendarDays, label: isEnglish ? 'From' : 'Desde', value: formatCurrency(price, locale) },
         ].map((item) => {
           const Icon = item.icon
           return (
@@ -179,8 +179,8 @@ export function ExperienceDetailScreen() {
           <div className="mt-4 grid gap-2">
             {slots.slice(0, 4).map((slot) => (
               <article key={slot.id} className="rounded-[0.95rem] bg-[#fffaf5] p-3 text-[12px] text-[var(--color-ink)]">
-                <p className="font-semibold">{formatPublicDate(slot.startAt)} · {formatPublicTimeRange(slot.startAt, slot.endAt)}</p>
-                <p className="mt-1 text-[11px] text-[var(--color-muted)]">{slot.available} {isEnglish ? 'spots' : 'lugares'} · {formatCurrency(slot.price)}</p>
+                <p className="font-semibold">{formatPublicDate(slot.startAt, locale, isEnglish ? 'Date to be confirmed' : 'Fecha por confirmar')} · {formatPublicTimeRange(slot.startAt, slot.endAt, locale)}</p>
+                <p className="mt-1 text-[11px] text-[var(--color-muted)]">{slot.available} {isEnglish ? 'spots' : 'lugares'} · {formatCurrency(slot.price, locale)}</p>
               </article>
             ))}
           </div>

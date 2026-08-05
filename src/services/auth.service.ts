@@ -19,6 +19,7 @@ export type SignUpCustomerInput = {
   firstName: string
   lastName: string
   phone?: string
+  preferredLanguage?: 'es' | 'en'
 }
 
 const APP_URL = (import.meta.env.VITE_APP_URL || window.location.origin).replace(
@@ -72,7 +73,7 @@ export async function signUpCustomer(input: SignUpCustomerInput): Promise<{
           last_name: input.lastName.trim(),
           display_name: `${input.firstName.trim()} ${input.lastName.trim()}`.trim(),
           phone: input.phone?.trim() || undefined,
-          preferred_language: 'es',
+          preferred_language: input.preferredLanguage ?? 'es',
         },
       },
     })

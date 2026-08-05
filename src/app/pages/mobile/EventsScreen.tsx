@@ -263,7 +263,7 @@ function EventArtwork({
 }
 
 export function EventsScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { records: events, loading, error, retry } = usePublicContent('events')
   const [activeCategory, setActiveCategory] =
     useState<EventCategory>('Todos')
@@ -284,10 +284,10 @@ export function EventsScreen() {
   const [featuredEvent, ...remainingEvents] = filteredEvents
   const featuredTitle = featuredEvent ? textField(featuredEvent, 'title', isEnglish ? 'Event' : 'Evento') : ''
   const featuredVenue = featuredEvent ? textField(featuredEvent, 'venue', 'Hacienda de Letras') : ''
-  const featuredDate = featuredEvent ? formatPublicDate(featuredEvent.start_at) : ''
+  const featuredDate = featuredEvent ? formatPublicDate(featuredEvent.start_at, locale, isEnglish ? 'Date to be confirmed' : 'Fecha por confirmar') : ''
   const featuredPriceAmount = featuredEvent ? numberField(featuredEvent, 'price') : 0
   const featuredPrice = featuredPriceAmount > 0
-    ? formatCurrency(featuredPriceAmount)
+    ? formatCurrency(featuredPriceAmount, locale)
     : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
   const featuredVisual = featuredEvent
     ? {
@@ -504,7 +504,7 @@ export function EventsScreen() {
                 </div>
 
                 <p className="mt-2 text-[10px] font-semibold leading-4 text-[#4e3930]">
-                  {formatPublicTimeRange(featuredEvent.start_at, featuredEvent.end_at)}
+                  {formatPublicTimeRange(featuredEvent.start_at, featuredEvent.end_at, locale)}
                 </p>
               </div>
             </div>
@@ -525,10 +525,10 @@ export function EventsScreen() {
             ),
           }
           const eventVenue = textField(event, 'venue', 'Hacienda de Letras')
-          const eventDate = formatPublicDate(event.start_at)
+          const eventDate = formatPublicDate(event.start_at, locale, isEnglish ? 'Date to be confirmed' : 'Fecha por confirmar')
           const eventPriceAmount = numberField(event, 'price')
           const eventPrice = eventPriceAmount > 0
-            ? formatCurrency(eventPriceAmount)
+            ? formatCurrency(eventPriceAmount, locale)
             : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
 
           return (

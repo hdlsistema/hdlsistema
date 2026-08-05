@@ -6,8 +6,22 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import {
+  DEFAULT_LANGUAGE,
+  formatCurrency,
+  formatDate,
+  formatDateTime,
+  formatNumber,
+  formatTimeRange,
+  languageToLocale,
+  normalizeLanguage,
+  translate,
+  type AppLanguage,
+  type AppLocale,
+  type TranslationKey,
+} from '../i18n'
 
-export type AppLanguage = 'es' | 'en'
+export type { AppLanguage }
 
 export type AppPreferencesState = {
   adminName: string
@@ -22,8 +36,14 @@ type AppPreferencesContextValue = AppPreferencesState & {
   setAdminEmail: (value: string) => void
   setLanguage: (value: AppLanguage) => void
   updatePreferences: (value: Partial<AppPreferencesState>) => void
-  locale: string
+  locale: AppLocale
   isEnglish: boolean
+  t: (key: TranslationKey, fallback?: string) => string
+  formatCurrency: (value: number | string | null | undefined, currency?: string) => string
+  formatDate: (value: unknown, fallback?: string) => string
+  formatDateTime: (value: unknown, fallback?: string) => string
+  formatTimeRange: (startValue: unknown, endValue: unknown) => string
+  formatNumber: (value: number | string | null | undefined) => string
 }
 
 const STORAGE_KEY = 'hdl-os-preferences-v1'
@@ -32,7 +52,7 @@ const defaultPreferences: AppPreferencesState = {
   adminName: 'Director General',
   adminRole: 'Administrador',
   adminEmail: 'direccion@haciendadeletras.mx',
-  language: 'es',
+  language: DEFAULT_LANGUAGE,
 }
 
 const AppPreferencesContext =
@@ -65,8 +85,7 @@ function readStoredPreferences(): AppPreferencesState {
         typeof parsed.adminEmail === 'string' && parsed.adminEmail.trim()
           ? parsed.adminEmail
           : defaultPreferences.adminEmail,
-      language:
-        parsed.language === 'en' ? 'en' : defaultPreferences.language,
+      language: normalizeLanguage(parsed.language),
     }
   } catch {
     return defaultPreferences
@@ -91,7 +110,7 @@ export function AppPreferencesProvider({
       STORAGE_KEY,
       JSON.stringify(preferences),
     )
-    document.documentElement.lang = preferences.language
+    document.documentElement.lang = languageToLocale(preferences.language)
   }, [preferences])
 
   const value = useMemo<AppPreferencesContextValue>(() => {
@@ -104,16 +123,24 @@ export function AppPreferencesProvider({
       }))
     }
 
+    const locale = languageToLocale(preferences.language)
+    const t = (key: TranslationKey, fallback?: string) => translate(preferences.language, key, fallback)
+
     return {
       ...preferences,
       setAdminName: (adminName) => updatePreferences({ adminName }),
       setAdminRole: (adminRole) => updatePreferences({ adminRole }),
       setAdminEmail: (adminEmail) => updatePreferences({ adminEmail }),
-      setLanguage: (language) => updatePreferences({ language }),
+      setLanguage: (language) => updatePreferences({ language: normalizeLanguage(language) }),
       updatePreferences,
-      locale:
-        preferences.language === 'en' ? 'en-US' : 'es-MX',
+      locale,
       isEnglish: preferences.language === 'en',
+      t,
+      formatCurrency: (value, currency = 'MXN') => formatCurrency(value, locale, currency),
+      formatDate: (value, fallback) => formatDate(value, locale, fallback),
+      formatDateTime: (value, fallback) => formatDateTime(value, locale, fallback),
+      formatTimeRange: (startValue, endValue) => formatTimeRange(startValue, endValue, locale),
+      formatNumber: (value) => formatNumber(value, locale),
     }
   }, [preferences])
 

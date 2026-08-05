@@ -14,7 +14,7 @@ import {
 
 export function EventDetailScreen() {
   const { eventId } = useParams()
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const [event, setEvent] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -32,7 +32,7 @@ export function EventDetailScreen() {
     }
 
     publicContentClient
-      .getBySlug('events', eventId, 'es-MX')
+      .getBySlug('events', eventId, locale)
       .then((response) => {
         if (active) setEvent(response.data)
       })
@@ -49,7 +49,7 @@ export function EventDetailScreen() {
     return () => {
       active = false
     }
-  }, [eventId, isEnglish])
+  }, [eventId, isEnglish, locale])
 
   if (loading) {
     return (
@@ -69,12 +69,12 @@ export function EventDetailScreen() {
 
   const eventTitle = textField(event, 'title', isEnglish ? 'Event' : 'Evento')
   const eventSummary = textField(event, 'short_description') || textField(event, 'description')
-  const eventDate = formatPublicDate(event.start_at)
-  const eventSchedule = formatPublicTimeRange(event.start_at, event.end_at)
+  const eventDate = formatPublicDate(event.start_at, locale, isEnglish ? 'Date to be confirmed' : 'Fecha por confirmar')
+  const eventSchedule = formatPublicTimeRange(event.start_at, event.end_at, locale)
   const eventVenue = textField(event, 'venue', 'Hacienda de Letras')
   const eventPriceAmount = numberField(event, 'price')
   const eventPrice = eventPriceAmount > 0
-    ? formatCurrency(eventPriceAmount)
+    ? formatCurrency(eventPriceAmount, locale)
     : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
   const includedItems = eventSummary
     ? eventSummary.split('.').map((item) => item.trim()).filter(Boolean)

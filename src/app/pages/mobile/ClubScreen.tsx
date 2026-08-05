@@ -160,7 +160,7 @@ export function ClubScreen() {
                 <article key={plan.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_13px_28px_rgba(74,32,28,0.05)]">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{textField(plan, 'billing_period') || (isEnglish ? 'Period pending' : 'Periodo pendiente')}</p>
                   <h3 className="mt-1 text-[1.55rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{textField(plan, 'name', isEnglish ? 'Membership plan' : 'Plan de membresía')}</h3>
-                  <p className="mt-2 text-[13px] font-semibold text-[var(--color-burgundy)]">{formatCurrency(numberField(plan, 'price'))}</p>
+                  <p className="mt-2 text-[13px] font-semibold text-[var(--color-burgundy)]">{formatCurrency(numberField(plan, 'price'), locale)}</p>
                 </article>
               ))}
             </div>

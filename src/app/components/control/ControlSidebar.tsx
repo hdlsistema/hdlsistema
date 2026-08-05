@@ -16,7 +16,7 @@ type ControlSidebarProps = {
 }
 
 export function ControlSidebar({ groups }: ControlSidebarProps) {
-  const { isEnglish } = useAppPreferences()
+  const { t } = useAppPreferences()
   return (
     <aside className="sticky top-6 flex flex-col overflow-hidden rounded-[1.35rem] border border-[rgba(216,182,128,0.18)] bg-[linear-gradient(180deg,#320812,#4f0f1f_48%,#681126)] text-white shadow-[var(--shadow-soft)]">
       <div className="border-b border-white/10 px-5 py-8">
@@ -75,10 +75,10 @@ export function ControlSidebar({ groups }: ControlSidebarProps) {
               className="text-xl leading-tight text-[#fff4e7]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
-              {isEnglish ? 'The wine of Aguascalientes' : 'El vino de Aguascalientes'}
+              {t('control.wineOfAguascalientes')}
             </p>
             <p className="text-sm text-[rgba(255,241,222,0.74)]">
-              {isEnglish ? 'Tradition to live, experience to keep.' : 'Tradicion que se vive, experiencia que permanece.'}
+              {t('control.tradition')}
             </p>
           </div>
         </div>

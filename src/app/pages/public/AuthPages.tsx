@@ -9,12 +9,18 @@ import {
   updatePassword,
   type AuthServiceError,
 } from '../../../services/auth.service'
+import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { translateErrorCode, type AppLanguage } from '../../i18n'
+import { LanguageSelector } from '../../components/shared/LanguageSelector'
 
-function getErrorMessage(error: unknown) {
+function getErrorMessage(error: unknown, language: AppLanguage) {
+  if (error && typeof error === 'object' && 'code' in error) {
+    return translateErrorCode(language, String((error as AuthServiceError).code), (error as AuthServiceError).message)
+  }
   if (error && typeof error === 'object' && 'message' in error) {
     return String((error as AuthServiceError).message)
   }
-  return 'No fue posible completar la operación.'
+  return translateErrorCode(language, 'auth_error')
 }
 
 function safeRedirect(path: unknown, fallback: string) {
@@ -36,6 +42,9 @@ function AuthShell({
 }) {
   return (
     <div className="min-h-screen bg-[#fffaf3] px-5 py-10 text-[#4f0f1f]">
+      <div className="fixed right-5 top-5 z-10">
+        <LanguageSelector />
+      </div>
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-[520px] flex-col justify-center">
         <Link to="/" className="mx-auto mb-8 block">
           <img src="/Logo-HDL-2.svg" alt="Hacienda de Letras" className="h-20 w-auto" />
@@ -57,6 +66,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { signIn, roles, isAuthenticated, isAdmin } = useAuth()
+  const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -85,39 +95,43 @@ export function LoginPage() {
       const adminRole = nextRoles.some((role) => role !== 'customer')
       navigate(!appMode && adminRole ? '/control/dashboard' : destination, { replace: true })
     } catch (err) {
-      setError(getErrorMessage(err))
+      setError(getErrorMessage(err, language))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <AuthShell
-      eyebrow="Acceso seguro"
-      title="Iniciar sesión"
-      note="Entra con tu correo y contraseña. Los permisos se validan con roles reales."
+      <AuthShell
+      eyebrow={t('auth.secureAccess')}
+      title={t('auth.login')}
+      note={t('auth.loginNote')}
     >
       <form className="mt-7 space-y-4" onSubmit={submit}>
-        <Field icon={<Mail size={17} />} label="Correo electrónico" name="email" type="email" />
+        <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
         <PasswordField show={showPassword} setShow={setShowPassword} />
         <Link to={recoverPath} className="block text-[12px] font-semibold text-[#681126]">
-          ¿Olvidaste tu contraseña?
+          {t('auth.forgotPassword')}
         </Link>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
-        <SubmitButton loading={loading}>Iniciar sesión</SubmitButton>
+        <SubmitButton loading={loading}>{t('auth.login')}</SubmitButton>
       </form>
       <p className="mt-6 text-center text-[12px] text-[#7f6a59]">
-        ¿Aún no tienes cuenta? <Link className="font-bold text-[#681126]" to={registerPath}>Crear cuenta</Link>
+        {t('auth.noAccount')} <Link className="font-bold text-[#681126]" to={registerPath}>{t('auth.createAccount')}</Link>
       </p>
     </AuthShell>
   )
 }
 
 export function RegisterPage() {
+  const location = useLocation()
+  const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
   const [successEmail, setSuccessEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const appMode = location.pathname.startsWith('/app/')
+  const loginPath = appMode ? '/app/login' : '/login'
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -129,15 +143,15 @@ export function RegisterPage() {
     const email = String(form.get('email') ?? '').trim().toLowerCase()
 
     if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.')
+      setError(t('auth.passwordMin'))
       return
     }
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.')
+      setError(t('auth.passwordsMismatch'))
       return
     }
     if (form.get('terms') !== 'on') {
-      setError('Debes aceptar términos y aviso de privacidad.')
+      setError(t('auth.termsRequired'))
       return
     }
 
@@ -149,10 +163,11 @@ export function RegisterPage() {
         firstName: String(form.get('firstName') ?? ''),
         lastName: String(form.get('lastName') ?? ''),
         phone: String(form.get('phone') ?? ''),
+        preferredLanguage: language,
       })
       setSuccessEmail(email)
     } catch (err) {
-      setError(getErrorMessage(err))
+      setError(getErrorMessage(err, language))
     } finally {
       setLoading(false)
     }
@@ -161,48 +176,48 @@ export function RegisterPage() {
   if (successEmail) {
     return (
       <AuthShell
-        eyebrow="Verifica tu correo"
-        title="Cuenta creada"
-        note="Te enviamos un correo de verificación. Revisa tu bandeja antes de iniciar sesión."
+        eyebrow={t('auth.verifyEmail')}
+        title={t('auth.accountCreated')}
+        note={t('auth.verifyNote')}
       >
         <button
           type="button"
           onClick={() => resendVerification(successEmail)}
           className="mt-7 inline-flex min-h-[50px] w-full items-center justify-center rounded-full border border-[#681126] px-6 text-[13px] font-bold text-[#681126]"
         >
-          Reenviar verificación
+          {t('auth.resendVerification')}
         </button>
         <Link
           to={loginPath}
           className="mt-3 inline-flex min-h-[50px] w-full items-center justify-center rounded-full bg-[#681126] px-6 text-[13px] font-bold text-white"
         >
-          Ir a login
+          {t('auth.goToLogin')}
         </Link>
       </AuthShell>
     )
   }
 
   return (
-    <AuthShell
-      eyebrow="Cuenta cliente"
-      title="Crear cuenta"
-      note="Tu cuenta se crea con rol customer. No se aceptan permisos administrativos desde el registro."
+      <AuthShell
+      eyebrow={t('auth.customerAccount')}
+      title={t('auth.createAccount')}
+      note={t('auth.createAccountNote')}
     >
       <form className="mt-7 space-y-4" onSubmit={submit}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field icon={<User size={17} />} label="Nombre" name="firstName" />
-          <Field icon={<User size={17} />} label="Apellido" name="lastName" />
+          <Field icon={<User size={17} />} label={t('auth.firstName')} name="firstName" />
+          <Field icon={<User size={17} />} label={t('auth.lastName')} name="lastName" />
         </div>
-        <Field icon={<Mail size={17} />} label="Correo electrónico" name="email" type="email" />
-        <Field icon={<User size={17} />} label="Teléfono" name="phone" type="tel" required={false} />
+        <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
+        <Field icon={<User size={17} />} label={t('auth.phone')} name="phone" type="tel" required={false} />
         <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Field icon={<LockKeyhole size={17} />} label="Confirmar contraseña" name="confirmPassword" type={showPassword ? 'text' : 'password'} />
+        <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
         <label className="flex items-start gap-3 text-[11px] leading-5 text-[#6f5a4d]">
           <input required name="terms" type="checkbox" className="mt-1 accent-[#681126]" />
-          <span>Acepto términos, condiciones y aviso de privacidad.</span>
+          <span>{t('auth.terms')}</span>
         </label>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
-        <SubmitButton loading={loading}>Crear cuenta</SubmitButton>
+        <SubmitButton loading={loading}>{t('auth.createAccount')}</SubmitButton>
       </form>
     </AuthShell>
   )
@@ -210,6 +225,7 @@ export function RegisterPage() {
 
 export function RecoverPage() {
   const location = useLocation()
+  const { t, language } = useAppPreferences()
   const [sent, setSent] = useState(false)
   const [error, setError] = useState('')
   const appMode = location.pathname.startsWith('/app/')
@@ -222,25 +238,25 @@ export function RecoverPage() {
       await resetPassword(String(form.get('email') ?? ''), appMode ? '/app/reset-password' : '/reset-password')
       setSent(true)
     } catch (err) {
-      setError(getErrorMessage(err))
+      setError(getErrorMessage(err, language))
     }
   }
 
   return (
-    <AuthShell
-      eyebrow="Recuperación"
-      title="Restablecer acceso"
-      note="Te enviaremos un enlace seguro para definir una nueva contraseña."
+      <AuthShell
+      eyebrow={t('auth.recovery')}
+      title={t('auth.resetAccess')}
+      note={t('auth.recoveryNote')}
     >
       {sent ? (
         <p className="mt-7 rounded-[1rem] bg-[#f7efe4] p-4 text-[13px] text-[#5f463a]">
-          Si el correo existe, recibirás un enlace de recuperación.
+          {t('auth.recoverySent')}
         </p>
       ) : (
         <form className="mt-7 space-y-4" onSubmit={submit}>
-          <Field icon={<Mail size={17} />} label="Correo electrónico" name="email" type="email" />
+          <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
           {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
-          <SubmitButton>Enviar enlace</SubmitButton>
+          <SubmitButton>{t('auth.sendLink')}</SubmitButton>
         </form>
       )}
     </AuthShell>
@@ -250,6 +266,7 @@ export function RecoverPage() {
 export function ResetPasswordPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const appMode = location.pathname.startsWith('/app/')
@@ -261,32 +278,32 @@ export function ResetPasswordPage() {
     const password = String(form.get('password') ?? '')
     const confirmPassword = String(form.get('confirmPassword') ?? '')
     if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.')
+      setError(t('auth.passwordMin'))
       return
     }
     if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden.')
+      setError(t('auth.passwordsMismatch'))
       return
     }
     try {
       await updatePassword(password)
       navigate(appMode ? '/app/login' : '/login', { replace: true })
     } catch (err) {
-      setError(getErrorMessage(err))
+      setError(getErrorMessage(err, language))
     }
   }
 
   return (
-    <AuthShell
-      eyebrow="Nueva contraseña"
-      title="Define tu contraseña"
-      note="El enlace de Supabase abre esta pantalla y la sesión temporal se procesa sin mostrar tokens."
+      <AuthShell
+      eyebrow={t('auth.newPassword')}
+      title={t('auth.definePassword')}
+      note={t('auth.resetNote')}
     >
       <form className="mt-7 space-y-4" onSubmit={submit}>
         <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Field icon={<LockKeyhole size={17} />} label="Confirmar contraseña" name="confirmPassword" type={showPassword ? 'text' : 'password'} />
+        <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
-        <SubmitButton>Actualizar contraseña</SubmitButton>
+        <SubmitButton>{t('auth.updatePassword')}</SubmitButton>
       </form>
     </AuthShell>
   )
@@ -294,15 +311,16 @@ export function ResetPasswordPage() {
 
 export function AppAuthCallbackPage() {
   const { isAuthenticated, isLoading } = useAuth()
+  const { t } = useAppPreferences()
 
   if (isLoading) {
     return (
       <AuthShell
-        eyebrow="Acceso seguro"
-        title="Validando sesión"
-        note="Estamos verificando tu acceso sin mostrar tokens."
+        eyebrow={t('auth.secureAccess')}
+        title={t('auth.validatingSession')}
+        note={t('auth.validatingNote')}
       >
-        <p className="mt-7 text-[13px] text-[#7f6a59]">Un momento...</p>
+        <p className="mt-7 text-[13px] text-[#7f6a59]">{t('auth.oneMoment')}</p>
       </AuthShell>
     )
   }
@@ -348,10 +366,11 @@ function PasswordField({
   show: boolean
   setShow: (value: boolean) => void
 }) {
+  const { t } = useAppPreferences()
   return (
     <label className="block">
       <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
-        Contraseña
+        {t('auth.password')}
       </span>
       <div className="flex items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
         <LockKeyhole size={17} className="text-[#8a6c59]" />
@@ -365,7 +384,7 @@ function PasswordField({
           type="button"
           onClick={() => setShow(!show)}
           className="text-[#681126]"
-          aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
         >
           {show ? <EyeOff size={17} /> : <Eye size={17} />}
         </button>
@@ -381,16 +400,15 @@ function SubmitButton({
   children: ReactNode
   loading?: boolean
 }) {
+  const { t } = useAppPreferences()
   return (
     <button
       type="submit"
       disabled={loading}
       className="inline-flex min-h-[53px] w-full items-center justify-center gap-3 rounded-full bg-[#681126] px-6 text-[14px] font-bold text-white disabled:opacity-60"
     >
-      {loading ? 'Procesando...' : children}
+      {loading ? t('auth.processing') : children}
       <ArrowRight size={17} />
     </button>
   )
 }
-  const appMode = location.pathname.startsWith('/app/')
-  const loginPath = appMode ? '/app/login' : '/login'

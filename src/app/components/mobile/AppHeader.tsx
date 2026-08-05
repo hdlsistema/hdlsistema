@@ -2,21 +2,22 @@ import { CalendarDays, Grape, MapPinned, Menu, ShoppingBag, Sparkles, Ticket, Us
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { LanguageSelector } from '../shared/LanguageSelector'
 
 export function AppHeader() {
-  const { language, setLanguage, isEnglish } = useAppPreferences()
+  const { t } = useAppPreferences()
   const [open, setOpen] = useState(false)
 
   const menuItems = [
-    { to: '/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Sparkles },
-    { to: '/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
-    { to: '/app/experiencias', label: isEnglish ? 'Experience booking' : 'Reservación de experiencias', icon: Wine },
-    { to: '/app/eventos', label: isEnglish ? 'Published events' : 'Eventos publicados', icon: Ticket },
-    { to: '/app/club', label: 'Wine Club', icon: Grape },
-    { to: '/app/sommelier', label: isEnglish ? 'Sommelier coming soon' : 'Sommelier próximamente', icon: Sparkles },
-    { to: '/app/mapa', label: isEnglish ? 'Estate map' : 'Mapa de la hacienda', icon: MapPinned },
-    { to: '/app/reservacion', label: isEnglish ? 'My bookings' : 'Mis reservaciones', icon: CalendarDays },
-    { to: '/app/perfil', label: isEnglish ? 'Profile' : 'Perfil', icon: UserRound },
+    { to: '/app/home', label: t('app.nav.home'), icon: Sparkles },
+    { to: '/app/tienda', label: t('app.nav.store'), icon: ShoppingBag },
+    { to: '/app/experiencias', label: t('app.nav.experiences'), icon: Wine },
+    { to: '/app/eventos', label: t('app.nav.events'), icon: Ticket },
+    { to: '/app/club', label: t('app.nav.club'), icon: Grape },
+    { to: '/app/sommelier', label: t('app.nav.sommelier'), icon: Sparkles },
+    { to: '/app/mapa', label: t('app.nav.map'), icon: MapPinned },
+    { to: '/app/reservacion', label: t('app.nav.reservations'), icon: CalendarDays },
+    { to: '/app/perfil', label: t('app.nav.profile'), icon: UserRound },
   ]
 
   return (
@@ -40,17 +41,7 @@ export function AppHeader() {
           />
         </div>
         <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={() =>
-              setLanguage(language === 'es' ? 'en' : 'es')
-            }
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-white/25 bg-white/12 px-2.5 text-white shadow-[0_4px_12px_rgba(0,0,0,0.18)] transition hover:bg-white/22"
-            aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}
-          >
-            <span className="text-[16px] leading-none">{language === 'es' ? '🇲🇽' : '🇺🇸'}</span>
-            <span className="text-[10px] font-bold tracking-[0.06em]">{language === 'es' ? 'ES' : 'EN'}</span>
-          </button>
+          <LanguageSelector variant="dark" compact />
           <Link to="/app/carrito" className="inline-flex h-11 w-11 items-center justify-center rounded-full text-white outline-none focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0">
             <ShoppingBag size={22} strokeWidth={1.8} />
           </Link>

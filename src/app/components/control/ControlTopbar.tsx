@@ -8,15 +8,15 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { LanguageSelector } from '../shared/LanguageSelector'
 
 export function ControlTopbar() {
   const {
     adminName,
     adminRole,
-    language,
-    setLanguage,
     locale,
     isEnglish,
+    t,
   } = useAppPreferences()
   const [timeLabel, setTimeLabel] = useState('')
   const [showAlerts, setShowAlerts] = useState(false)
@@ -118,8 +118,8 @@ export function ControlTopbar() {
               </p>
               <p className="mt-1 text-sm text-[var(--color-muted-strong)]">
                 {isEnglish
-                  ? 'Premium operational command center'
-                  : 'Centro de control operativo premium'}
+                  ? t('control.operatingCenter')
+                  : t('control.operatingCenter')}
               </p>
             </div>
           </div>
@@ -136,17 +136,7 @@ export function ControlTopbar() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setLanguage(language === 'es' ? 'en' : 'es')
-              }
-              className="inline-flex min-h-11 items-center gap-1.5 justify-center rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] px-3 text-sm font-semibold text-[var(--color-burgundy)] shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl"
-              aria-label={language === 'es' ? 'Switch to English' : 'Cambiar a español'}
-            >
-              <span className="text-[17px] leading-none">{language === 'es' ? '🇲🇽' : '🇺🇸'}</span>
-              <span className="text-[11px] font-bold tracking-[0.04em]">{language === 'es' ? 'ES' : 'EN'}</span>
-            </button>
+            <LanguageSelector compact />
 
             <button
               type="button"
@@ -192,15 +182,15 @@ export function ControlTopbar() {
             <div className="flex items-center justify-between border-b border-[rgba(200,171,136,0.35)] px-5 py-4">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">
-                  {isEnglish ? 'Alert center' : 'Centro de alertas'}
+                  {t('control.alertCenter')}
                 </p>
                 <h3
                   className="mt-1 text-[1.45rem] text-[var(--color-ink)]"
                   style={{ fontFamily: 'var(--font-display)' }}
                 >
                   {isEnglish
-                    ? 'Notifications and alerts'
-                    : 'Notificaciones y alertas'}
+                    ? t('control.notifications')
+                    : t('control.notifications')}
                 </h3>
               </div>
 

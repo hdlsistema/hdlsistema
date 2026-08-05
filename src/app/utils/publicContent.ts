@@ -1,4 +1,5 @@
 import type { ContentRecord } from '../../services/content.service'
+import { DEFAULT_LOCALE, formatCurrency as formatI18nCurrency, formatTimeRange, type AppLocale } from '../i18n'
 
 export function textField(record: ContentRecord, key: string, fallback = '') {
   const value = record[key]
@@ -25,39 +26,22 @@ export function imageField(record: ContentRecord, fallback: string) {
   return textField(record, 'cover_image_url') || fallback
 }
 
-export function formatCurrency(value: number) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(value)
+export function formatCurrency(value: number, locale: AppLocale = DEFAULT_LOCALE) {
+  return formatI18nCurrency(value, locale, 'MXN')
 }
 
-export function formatPublicDate(value: unknown, fallback = 'Fecha por confirmar') {
+export function formatPublicDate(value: unknown, locale: AppLocale = DEFAULT_LOCALE, fallback = 'Fecha por confirmar') {
   if (typeof value !== 'string' || !value) return fallback
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return fallback
-
-  return new Intl.DateTimeFormat('es-MX', {
-    dateStyle: 'medium',
-  }).format(date)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'America/Mexico_City' }).format(date)
 }
 
-export function formatPublicTimeRange(startValue: unknown, endValue: unknown) {
+export function formatPublicTimeRange(startValue: unknown, endValue: unknown, locale: AppLocale = DEFAULT_LOCALE) {
   if (typeof startValue !== 'string' || typeof endValue !== 'string') {
-    return 'Horario por confirmar'
+    return locale === 'en-US' ? 'Schedule to be confirmed' : 'Horario por confirmar'
   }
 
-  const start = new Date(startValue)
-  const end = new Date(endValue)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 'Horario por confirmar'
-  }
-
-  const formatter = new Intl.DateTimeFormat('es-MX', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-
-  return `${formatter.format(start)} - ${formatter.format(end)}`
+  const formatted = formatTimeRange(startValue, endValue, locale)
+  return formatted || (locale === 'en-US' ? 'Schedule to be confirmed' : 'Horario por confirmar')
 }

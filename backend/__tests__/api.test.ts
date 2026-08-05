@@ -389,6 +389,52 @@ describe('Fase 4B content API', () => {
     expect(JSON.stringify(res.body)).not.toContain('eyJhbGci')
   })
 
+  it('sirve contenido público traducido con fallback a español', async () => {
+    const wineId = '00000000-0000-0000-0000-000000000021'
+    supabaseMock.tableData.wines = [
+      {
+        id: wineId,
+        slug: 'vino-reserva',
+        name: 'Reserva Especial',
+        subtitle: 'Selección de la casa',
+        status: 'published',
+        locale: 'es-MX',
+        visible_in_app: true,
+      },
+    ]
+    supabaseMock.tableData.content_translations = [
+      {
+        id: '00000000-0000-0000-0000-000000000022',
+        entity_type: 'wine',
+        entity_id: wineId,
+        locale: 'en-US',
+        slug: 'estate-reserve',
+        title: 'Estate Reserve',
+        subtitle: 'House selection',
+        publication_status: 'published',
+        translation_status: 'ready',
+        visible_in_app: true,
+      },
+    ]
+
+    const list = await request(app).get('/api/public/wines?locale=en-US')
+    const detail = await request(app).get('/api/public/wines/estate-reserve?locale=en-US')
+
+    expect(list.status).toBe(200)
+    expect(list.body.data[0]).toMatchObject({
+      slug: 'estate-reserve',
+      name: 'Estate Reserve',
+      subtitle: 'House selection',
+      locale: 'en-US',
+    })
+    expect(detail.status).toBe(200)
+    expect(detail.body.data).toMatchObject({
+      id: wineId,
+      slug: 'estate-reserve',
+      name: 'Estate Reserve',
+    })
+  })
+
   it('rechaza entidades públicas no permitidas', async () => {
     const res = await request(app).get('/api/public/system-settings')
     expect(res.status).toBe(404)
@@ -2040,6 +2086,24 @@ describe('Fase 8E communications API', () => {
     expect(template.subject).toBe('Reservation rescheduled')
     expect(template.html).not.toContain('secret-token')
     expect(template.text).not.toContain('hidden')
+  })
+
+  it('renderiza plantillas transaccionales en inglés con etiquetas y moneda localizadas', () => {
+    const template = renderEmailTemplate('order.created', {
+      customerName: 'QA Phase 8F',
+      orderNumber: 'QA_FASE8F_ORDER',
+      status: 'pending_payment',
+      total: 1250,
+      startAt: '2026-08-05T18:00:00.000Z',
+    }, 'en-US')
+
+    expect(template.locale).toBe('en-US')
+    expect(template.subject).toBe('Order created')
+    expect(template.html).toContain('Customer')
+    expect(template.html).toContain('Order')
+    expect(template.html).toContain('MX$1,250.00')
+    expect(template.html).not.toContain('Reservación')
+    expect(template.text).toContain('Final transactional copy is pending approval')
   })
 
   it('rechaza webhook sin firma o con firma inválida', async () => {

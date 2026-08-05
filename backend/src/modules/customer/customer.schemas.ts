@@ -57,6 +57,7 @@ export const updateCustomerCartItemSchema = z.object({
 export const createCustomerOrderSchema = z.object({
   idempotencyKey: z.string().min(8).max(120),
   discountCode: z.string().trim().min(1).max(80).optional(),
+  language: z.enum(['es', 'en']).default('es'),
 }).strict()
 
 export type CustomerProfilePatch = z.infer<typeof customerProfilePatchSchema>

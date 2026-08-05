@@ -215,7 +215,7 @@ export function ReservationScreen() {
                 {textField(featuredExperience, 'short_description') || textField(featuredExperience, 'description')}
               </p>
               <p className="text-[14px] font-semibold text-[var(--color-burgundy)]">
-                {formatCurrency(numberField(featuredExperience, 'base_price'))} {isEnglish ? 'per person' : 'por persona'}
+                {formatCurrency(numberField(featuredExperience, 'base_price'), locale)} {isEnglish ? 'per person' : 'por persona'}
               </p>
             </div>
           </>
@@ -242,7 +242,7 @@ export function ReservationScreen() {
                 className={`rounded-[1.1rem] border p-4 text-left text-[12px] transition ${selectedSlotId === slot.id ? 'border-[var(--color-burgundy)] bg-[#fff4f6]' : 'border-[rgba(220,202,181,0.78)] bg-white'}`}
               >
                 <span className="flex items-center gap-2 font-semibold text-[var(--color-ink)]"><Clock3 size={14} />{formatDateTime(slot.startAt, locale)}</span>
-                <span className="mt-2 block text-[11px] text-[var(--color-muted)]">{slot.available} {isEnglish ? 'spots available' : 'lugares disponibles'} · {formatCurrency(slot.price)}</span>
+                <span className="mt-2 block text-[11px] text-[var(--color-muted)]">{slot.available} {isEnglish ? 'spots available' : 'lugares disponibles'} · {formatCurrency(slot.price, locale)}</span>
               </button>
             ))}
           </div>
@@ -280,7 +280,7 @@ export function ReservationScreen() {
           <div className="mt-4 space-y-2 text-[12px]">
             <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">{isEnglish ? 'Date' : 'Fecha'}</span><span className="text-right font-semibold text-[var(--color-ink)]">{formatDateTime(selectedSlot.startAt, locale)}</span></div>
             <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">{isEnglish ? 'Guests' : 'Personas'}</span><span className="font-semibold text-[var(--color-ink)]">{people}</span></div>
-            <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(selectedSlot.price * people)}</span></div>
+            <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(selectedSlot.price * people, locale)}</span></div>
           </div>
         </section>
       ) : null}

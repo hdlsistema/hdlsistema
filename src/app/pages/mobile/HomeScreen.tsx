@@ -6,7 +6,7 @@ import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function HomeScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
   const { records: events, loading: loadingEvents, error: eventsError, retry: retryEvents } = usePublicContent('events')
@@ -115,7 +115,7 @@ export function HomeScreen() {
                   id: contentRouteId(wine),
                   name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
                   kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
-                  price: formatCurrency(numberField(wine, 'price')),
+                  price: formatCurrency(numberField(wine, 'price'), locale),
                   image: imageField(wine, '/Logo-HDL-2.svg'),
                   varietal: textField(wine, 'grape_variety'),
                   harvest: textField(wine, 'vintage'),
@@ -156,7 +156,7 @@ export function HomeScreen() {
                 <div className="min-w-0">
                   <h3 className="line-clamp-2 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{textField(experience, 'title', 'Experiencia')}</h3>
                   <p className="mt-1 line-clamp-2 text-[11px] text-[var(--color-muted)]">{textField(experience, 'short_description') || textField(experience, 'description')}</p>
-                  <p className="mt-2 text-[12px] font-semibold text-[var(--color-burgundy)]">{formatCurrency(numberField(experience, 'base_price'))}</p>
+                  <p className="mt-2 text-[12px] font-semibold text-[var(--color-burgundy)]">{formatCurrency(numberField(experience, 'base_price'), locale)}</p>
                 </div>
               </Link>
             ))}

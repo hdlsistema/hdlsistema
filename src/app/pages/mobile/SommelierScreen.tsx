@@ -6,7 +6,7 @@ import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function SommelierScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { records: wines, loading, error, retry } = usePublicContent('wines')
   const featuredWines = wines.slice(0, 3)
 
@@ -83,7 +83,7 @@ export function SommelierScreen() {
                 </h3>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <span className="text-[13px] font-semibold text-[var(--color-burgundy)]">
-                    {formatCurrency(numberField(wine, 'price'))}
+                    {formatCurrency(numberField(wine, 'price'), locale)}
                   </span>
                   <Link to={`/app/tienda/${contentRouteId(wine)}`} className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 py-2 text-[10px] font-semibold text-white">
                     <ShoppingBag size={12} />

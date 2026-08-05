@@ -6,12 +6,128 @@ type QueryResult<T = unknown> = {
   count?: number | null
 }
 
+type ContentRow = Record<string, unknown> & { id?: string; locale?: string | null }
+
+type TranslationRow = Record<string, unknown> & {
+  entity_id?: string
+  locale?: string | null
+  slug?: string | null
+  title?: string | null
+  subtitle?: string | null
+  short_description?: string | null
+  description?: string | null
+  notes?: string | null
+  benefits?: unknown
+  promotional_message?: string | null
+}
+
+const baseLocales = ['es-MX', 'es']
+const liveTranslationStatuses = ['ready', 'published_es', 'published_bilingual']
+const translationSelect =
+  'id,entity_type,entity_id,locale,slug,title,subtitle,short_description,description,notes,benefits,promotional_message,translation_status,publication_status,visible_in_app,publish_at,unpublish_at,published_at,version,metadata'
+
 function assertNoError<T>(result: { data: T; error: unknown; count?: number | null }): QueryResult<T> {
   if (result.error) {
     const message = result.error instanceof Error ? result.error.message : 'Error de base de datos'
     throw Object.assign(new Error(message), { statusCode: 500, isOperational: true })
   }
   return { data: result.data, count: result.count }
+}
+
+function normalizePublicLocale(locale: string) {
+  return locale === 'en' || locale === 'en-US' ? 'en-US' : 'es-MX'
+}
+
+function translationLocales(locale: string) {
+  return normalizePublicLocale(locale) === 'en-US' ? ['en-US', 'en'] : baseLocales
+}
+
+function selectPreferredTranslation(rows: TranslationRow[], locale: string) {
+  const locales = translationLocales(locale)
+  return rows
+    .filter((row) => row.locale && locales.includes(row.locale))
+    .sort((left, right) => locales.indexOf(String(left.locale)) - locales.indexOf(String(right.locale)))[0]
+}
+
+function applyTranslation(row: ContentRow, translation?: TranslationRow) {
+  if (!translation) return row
+
+  const translated: ContentRow = { ...row, locale: translation.locale ?? row.locale }
+
+  if (translation.slug) translated.slug = translation.slug
+  if (translation.subtitle) translated.subtitle = translation.subtitle
+  if (translation.short_description) translated.short_description = translation.short_description
+  if (translation.description) translated.description = translation.description
+  if (translation.notes) translated.notes = translation.notes
+  if (translation.benefits !== null && translation.benefits !== undefined) translated.benefits = translation.benefits
+  if (translation.promotional_message) translated.promotional_message = translation.promotional_message
+
+  if (translation.title) {
+    if ('title' in translated) translated.title = translation.title
+    if ('name' in translated) translated.name = translation.title
+  }
+
+  return translated
+}
+
+function livePublicQuery(config: ContentConfig) {
+  let query: any = supabaseAdminClient
+    .from(config.table)
+    .select(config.publicSelect)
+    .eq('visible_in_app', true)
+    .eq('status', config.publishStatus)
+    .in('locale', baseLocales)
+    .is('deleted_at', null)
+    .is('archived_at', null)
+    .or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`)
+    .or(`unpublish_at.is.null,unpublish_at.gt.${new Date().toISOString()}`)
+
+  if (config.table === 'promotions') {
+    query = query
+      .or(`starts_at.is.null,starts_at.lte.${new Date().toISOString()}`)
+      .or(`ends_at.is.null,ends_at.gte.${new Date().toISOString()}`)
+  }
+
+  return query
+}
+
+async function getLiveTranslations(config: ContentConfig, entityIds: string[], locale: string) {
+  if (entityIds.length === 0) return []
+
+  const result = await supabaseAdminClient
+    .from('content_translations')
+    .select(translationSelect)
+    .eq('entity_type', config.entityType)
+    .in('entity_id', entityIds)
+    .in('locale', translationLocales(locale))
+    .eq('publication_status', config.publishStatus)
+    .eq('visible_in_app', true)
+    .in('translation_status', liveTranslationStatuses)
+    .is('deleted_at', null)
+    .is('archived_at', null)
+    .or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`)
+    .or(`unpublish_at.is.null,unpublish_at.gt.${new Date().toISOString()}`)
+
+  return assertNoError(result).data as TranslationRow[]
+}
+
+async function getLiveTranslationBySlug(config: ContentConfig, slug: string, locale: string) {
+  const result = await supabaseAdminClient
+    .from('content_translations')
+    .select(translationSelect)
+    .eq('entity_type', config.entityType)
+    .eq('slug', slug)
+    .in('locale', translationLocales(locale))
+    .eq('publication_status', config.publishStatus)
+    .eq('visible_in_app', true)
+    .in('translation_status', liveTranslationStatuses)
+    .is('deleted_at', null)
+    .is('archived_at', null)
+    .or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`)
+    .or(`unpublish_at.is.null,unpublish_at.gt.${new Date().toISOString()}`)
+
+  const rows = assertNoError(result).data as TranslationRow[]
+  return selectPreferredTranslation(rows, locale)
 }
 
 export async function listContent(config: ContentConfig, queryParams: ContentListQuery) {
@@ -183,45 +299,49 @@ export async function markPreviewTokenUsed(id: string) {
 }
 
 export async function listPublicContent(config: ContentConfig, locale: string) {
-  let query: any = supabaseAdminClient
-    .from(config.table)
-    .select(config.publicSelect)
-    .eq('visible_in_app', true)
-    .eq('status', config.publishStatus)
-    .eq('locale', locale)
-    .is('deleted_at', null)
-    .is('archived_at', null)
-    .or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`)
-    .or(`unpublish_at.is.null,unpublish_at.gt.${new Date().toISOString()}`)
-    .order('sort_order', { ascending: true })
+  const result = await livePublicQuery(config).order('sort_order', { ascending: true })
+  const baseRows = (assertNoError(result).data ?? []) as ContentRow[]
+  const translations = await getLiveTranslations(
+    config,
+    baseRows.map((row) => row.id).filter((id): id is string => typeof id === 'string' && id.length > 0),
+    locale,
+  )
+  const translationsByEntity = new Map<string, TranslationRow[]>()
 
-  if (config.table === 'promotions') {
-    query = query
-      .or(`starts_at.is.null,starts_at.lte.${new Date().toISOString()}`)
-      .or(`ends_at.is.null,ends_at.gte.${new Date().toISOString()}`)
+  for (const translation of translations) {
+    if (!translation.entity_id) continue
+    const existing = translationsByEntity.get(translation.entity_id) ?? []
+    existing.push(translation)
+    translationsByEntity.set(translation.entity_id, existing)
   }
 
-  const result = await query
-  return assertNoError(result)
+  return {
+    data: baseRows.map((row) => applyTranslation(row, selectPreferredTranslation(translationsByEntity.get(String(row.id)) ?? [], locale))),
+  }
 }
 
 export async function getPublicContentBySlug(config: ContentConfig, slug: string, locale: string) {
   if (!config.slugColumn) return { data: null }
 
-  const result = await supabaseAdminClient
-    .from(config.table)
-    .select(config.publicSelect)
-    .eq(config.slugColumn, slug)
-    .eq('visible_in_app', true)
-    .eq('status', config.publishStatus)
-    .eq('locale', locale)
-    .is('deleted_at', null)
-    .is('archived_at', null)
-    .or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`)
-    .or(`unpublish_at.is.null,unpublish_at.gt.${new Date().toISOString()}`)
-    .maybeSingle()
+  const slugTranslation = await getLiveTranslationBySlug(config, slug, locale)
+  if (slugTranslation?.entity_id) {
+    const byTranslation = await livePublicQuery(config)
+      .eq('id', slugTranslation.entity_id)
+      .maybeSingle()
+    const { data } = assertNoError(byTranslation)
+    return { data: data ? applyTranslation(data as ContentRow, slugTranslation) : null }
+  }
 
-  return assertNoError(result)
+  const result = await livePublicQuery(config)
+    .eq(config.slugColumn, slug)
+    .order('locale', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const { data } = assertNoError(result)
+  if (!data) return { data: null }
+
+  const translations = await getLiveTranslations(config, [String((data as ContentRow).id)], locale)
+  return { data: applyTranslation(data as ContentRow, selectPreferredTranslation(translations, locale)) }
 }
 
 export async function lockDuePublicationJobs(limit: number, workerId: string) {

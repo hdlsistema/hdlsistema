@@ -159,7 +159,7 @@ function queueReservationEmail(event: 'reservation.created' | 'reservation.resch
   }).catch(() => undefined)
 }
 
-function queueOrderEmails(order: unknown, customer: CustomerRow, user: UserContext) {
+function queueOrderEmails(order: unknown, customer: CustomerRow, user: UserContext, locale?: string | null) {
   const data = order && typeof order === 'object' ? order as Record<string, unknown> : {}
   const orderId = String(data.id ?? '')
   const orderNumber = String(data.orderNumber ?? '')
@@ -179,7 +179,7 @@ function queueOrderEmails(order: unknown, customer: CustomerRow, user: UserConte
       customerId: customer.id,
       userId: user.userId ?? null,
       recipientEmail: customer.email,
-      locale: null,
+      locale,
       payload,
       idempotencyKey: `${eventType}:${orderId}:${customer.email ?? 'no-email'}`,
     }).catch(() => undefined)
@@ -434,7 +434,7 @@ export async function createCustomerOrder(payload: CreateCustomerOrderPayload, u
   if (result.error) normalizeDatabaseError(result.error)
   const response = await getCustomerOrder(String(result.data), user)
   const customer = await getCustomerForUser(user)
-  queueOrderEmails(response.data, customer, user)
+  queueOrderEmails(response.data, customer, user, payload.language)
   return response
 }
 

@@ -77,7 +77,7 @@ function getCategory(title: string): Category {
 }
 
 export function ExperiencesScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { records: experiences, loading, error, retry } = usePublicContent('experiences')
   const [activeCategory, setActiveCategory] =
     useState<Category>(isEnglish ? 'All' : 'Todas')
@@ -224,7 +224,7 @@ export function ExperiencesScreen() {
         {filteredExperiences.map((experience) => {
           const title = textField(experience, 'title', isEnglish ? 'Experience' : 'Experiencia')
           const image = imageField(experience, '/turismo.jpeg')
-          const price = formatCurrency(numberField(experience, 'base_price'))
+          const price = formatCurrency(numberField(experience, 'base_price'), locale)
           const summary = textField(experience, 'short_description') || textField(experience, 'description')
           const durationMinutes = numberField(experience, 'duration_minutes')
           const capacity = numberField(experience, 'capacity')

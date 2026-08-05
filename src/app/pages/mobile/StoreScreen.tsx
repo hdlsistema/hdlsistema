@@ -9,7 +9,7 @@ import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function StoreScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { session } = useAuth()
   const navigate = useNavigate()
   const { records: wines, loading, error, retry } = usePublicContent('wines')
@@ -153,7 +153,7 @@ export function StoreScreen() {
                     id: contentRouteId(wine),
                     name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
                     kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
-                    price: formatCurrency(numberField(wine, 'price')),
+                    price: formatCurrency(numberField(wine, 'price'), locale),
                     image: imageField(wine, '/Logo-HDL-2.svg'),
                     varietal: textField(wine, 'grape_variety'),
                     harvest: textField(wine, 'vintage'),

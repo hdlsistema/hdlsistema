@@ -11,7 +11,7 @@ function money(value: number | string | null | undefined, locale: string) {
 }
 
 export function CheckoutScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, language } = useAppPreferences()
   const { session } = useAuth()
   const locale = isEnglish ? 'en-US' : 'es-MX'
   const [cart, setCart] = useState<CustomerCart | null>(null)
@@ -50,6 +50,7 @@ export function CheckoutScreen() {
       const response = await customerClient.createOrder(session.access_token, {
         idempotencyKey: `checkout-${Date.now()}`,
         discountCode: discountCode.trim() || undefined,
+        language,
       })
       setOrder(response.data)
       setCart(null)

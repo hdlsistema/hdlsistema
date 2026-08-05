@@ -10,7 +10,7 @@ import { formatCurrency, imageField, numberField, textField } from '../../utils/
 
 export function WineDetailScreen() {
   const { wineId } = useParams()
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [wine, setWine] = useState<ContentRecord | null>(null)
@@ -33,7 +33,7 @@ export function WineDetailScreen() {
     }
 
     publicContentClient
-      .getBySlug('wines', wineId, 'es-MX')
+      .getBySlug('wines', wineId, locale)
       .then((response) => {
         if (active) setWine(response.data)
       })
@@ -50,7 +50,7 @@ export function WineDetailScreen() {
     return () => {
       active = false
     }
-  }, [isEnglish, wineId])
+  }, [isEnglish, locale, wineId])
 
   if (loading) {
     return (
@@ -73,7 +73,7 @@ export function WineDetailScreen() {
   const wineSubtitle = textField(wine, 'subtitle') || textField(wine, 'origin')
   const wineVarietal = textField(wine, 'grape_variety')
   const wineVintage = textField(wine, 'vintage')
-  const winePrice = formatCurrency(numberField(wine, 'price'))
+  const winePrice = formatCurrency(numberField(wine, 'price'), locale)
   const stockControlled = Boolean(wine.stock_control_enabled)
   const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
 

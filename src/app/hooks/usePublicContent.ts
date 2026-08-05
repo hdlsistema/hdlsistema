@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { publicContentClient, type ContentEntity, type ContentRecord } from '../../services/content.service'
+import { useAppPreferences } from '../context/AppPreferencesContext'
 
 type PublicContentState = {
   records: ContentRecord[]
@@ -8,7 +9,9 @@ type PublicContentState = {
   retry: () => void
 }
 
-export function usePublicContent(entity: ContentEntity, locale: 'es-MX' | 'en-US' = 'es-MX'): PublicContentState {
+export function usePublicContent(entity: ContentEntity, localeOverride?: 'es-MX' | 'en-US'): PublicContentState {
+  const { locale, t } = useAppPreferences()
+  const activeLocale = localeOverride ?? locale
   const [records, setRecords] = useState<ContentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -22,7 +25,7 @@ export function usePublicContent(entity: ContentEntity, locale: 'es-MX' | 'en-US
     setError(null)
 
     publicContentClient
-      .list(entity, { locale })
+      .list(entity, { locale: activeLocale })
       .then((response) => {
         if (!active) return
         setRecords(response.data)
@@ -30,7 +33,7 @@ export function usePublicContent(entity: ContentEntity, locale: 'es-MX' | 'en-US
       .catch(() => {
         if (!active) return
         setRecords([])
-        setError('No fue posible cargar el contenido publicado.')
+        setError(t('app.publishedContentError'))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -39,7 +42,7 @@ export function usePublicContent(entity: ContentEntity, locale: 'es-MX' | 'en-US
     return () => {
       active = false
     }
-  }, [entity, locale, reloadKey])
+  }, [activeLocale, entity, reloadKey, t])
 
   return { records, loading, error, retry }
 }

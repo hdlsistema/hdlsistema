@@ -196,26 +196,64 @@ function isSensitiveKey(key: string) {
   return /(token|secret|password|authorization|header|key)/i.test(key)
 }
 
-function detailRows(payload: CommunicationPayload) {
-  const labels: Record<string, string> = {
-    customerName: 'Cliente',
-    reservationNumber: 'Reservación',
-    orderNumber: 'Orden',
-    membershipNumber: 'Membresía',
-    experienceTitle: 'Experiencia',
-    planName: 'Plan',
-    status: 'Estado',
-    peopleCount: 'Personas',
-    total: 'Total',
-    currency: 'Moneda',
-    startAt: 'Fecha',
-    renewalDate: 'Renovación',
-    expiresAt: 'Expira',
+function formatPayloadValue(key: string, value: unknown, locale: CommunicationLocale) {
+  if (typeof value !== 'string' && typeof value !== 'number') return value
+
+  if (['startAt', 'renewalDate', 'expiresAt'].includes(key)) {
+    const date = new Date(value)
+    if (!Number.isNaN(date.getTime())) {
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined }).format(date)
+    }
   }
 
-  return Object.entries(labels)
+  if (key === 'total') {
+    const amount = typeof value === 'number' ? value : Number(value)
+    if (Number.isFinite(amount)) {
+      const formatted = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
+      return locale === 'en-US' ? `MX$${formatted}` : `$${formatted} MXN`
+    }
+  }
+
+  return value
+}
+
+function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) {
+  const labels: Record<CommunicationLocale, Record<string, string>> = {
+    'es-MX': {
+      customerName: 'Cliente',
+      reservationNumber: 'Reservación',
+      orderNumber: 'Orden',
+      membershipNumber: 'Membresía',
+      experienceTitle: 'Experiencia',
+      planName: 'Plan',
+      status: 'Estado',
+      peopleCount: 'Personas',
+      total: 'Total',
+      currency: 'Moneda',
+      startAt: 'Fecha',
+      renewalDate: 'Renovación',
+      expiresAt: 'Expira',
+    },
+    'en-US': {
+      customerName: 'Customer',
+      reservationNumber: 'Reservation',
+      orderNumber: 'Order',
+      membershipNumber: 'Membership',
+      experienceTitle: 'Experience',
+      planName: 'Plan',
+      status: 'Status',
+      peopleCount: 'Guests',
+      total: 'Total',
+      currency: 'Currency',
+      startAt: 'Date',
+      renewalDate: 'Renewal',
+      expiresAt: 'Expires',
+    },
+  }
+
+  return Object.entries(labels[locale])
     .filter(([key]) => !isSensitiveKey(key) && payload[key] !== null && payload[key] !== undefined && payload[key] !== '')
-    .map(([key, label]) => `<tr><td style="padding:8px 12px;color:#6f625d;">${label}</td><td style="padding:8px 12px;font-weight:700;color:#2f2522;">${escapeHtml(payload[key])}</td></tr>`)
+    .map(([key, label]) => `<tr><td style="padding:8px 12px;color:#6f625d;">${label}</td><td style="padding:8px 12px;font-weight:700;color:#2f2522;">${escapeHtml(formatPayloadValue(key, payload[key], locale))}</td></tr>`)
     .join('')
 }
 
@@ -226,8 +264,12 @@ export function renderEmailTemplate(
 ): RenderedEmailTemplate {
   const locale = normalizeLocale(localeValue)
   const copy = copies[locale][eventType]
-  const rows = detailRows(payload)
+  const rows = detailRows(payload, locale)
   const support = String(payload.supportEmail ?? 'soporte@admhaciendadeletras.com')
+  const pendingCopyNotice =
+    locale === 'en-US'
+      ? `Final transactional copy is pending approval by Hacienda de Letras. For support, write to ${escapeHtml(support)}.`
+      : `Copy transaccional pendiente de aprobación final de Hacienda de Letras. Para soporte escribe a ${escapeHtml(support)}.`
 
   const html = `<!doctype html>
 <html lang="${locale === 'es-MX' ? 'es' : 'en'}">
@@ -242,7 +284,7 @@ export function renderEmailTemplate(
       <p style="margin:0 0 24px;">
         <a href="https://admhaciendadeletras.com/app/home" style="display:inline-block;background:#8a1f2d;color:#ffffff;text-decoration:none;border-radius:6px;padding:12px 16px;font-size:14px;font-weight:700;">${escapeHtml(copy.cta)}</a>
       </p>
-      <p style="margin:0;color:#7b6d66;font-size:12px;line-height:1.5;">Copy transaccional pendiente de aprobación final de Hacienda de Letras. Para soporte escribe a ${escapeHtml(support)}.</p>
+      <p style="margin:0;color:#7b6d66;font-size:12px;line-height:1.5;">${pendingCopyNotice}</p>
     </section>
   </main>
 </body>
@@ -255,8 +297,10 @@ export function renderEmailTemplate(
     ...Object.entries(payload)
       .filter(([key, value]) => key !== 'supportEmail' && !isSensitiveKey(key) && value !== null && value !== undefined && value !== '')
       .map(([key, value]) => `${key}: ${value}`),
-    `Soporte: ${support}`,
-    'Copy transaccional pendiente de aprobación final de Hacienda de Letras.',
+    `${locale === 'en-US' ? 'Support' : 'Soporte'}: ${support}`,
+    locale === 'en-US'
+      ? 'Final transactional copy is pending approval by Hacienda de Letras.'
+      : 'Copy transaccional pendiente de aprobación final de Hacienda de Letras.',
   ]
 
   return {
