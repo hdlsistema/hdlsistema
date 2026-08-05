@@ -1,6 +1,6 @@
 # Hacienda de Letras OS - Project Status
 
-Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8E.
+Este documento es la fuente única de verdad del estado del proyecto hasta Fase 8F.
 
 ## Fase 1
 
@@ -779,7 +779,78 @@ Estado: aprobada.
 - Seguridad:
   - No se imprimieron API keys, webhook secret, JWT, tokens, service role key, headers sensibles ni valores de variables.
   - Ningún `.env` fue versionado.
-- No se inició Fase 8F.
+## Fase 8F
+
+Estado: aprobada.
+
+### Experiencia Bilingüe Completa ES/EN
+
+- Commit funcional: `37f69ef feat: complete bilingual customer and control experience`.
+- Commit documental: `docs: close phase 8f bilingual experience`.
+- Migración aplicada: `031_phase8f_bilingual_seed_translations.sql`.
+- Runner real:
+  - `backend/scripts/phase8f-real-check.mjs`.
+  - Validación productiva contra Railway aprobada.
+  - QA temporal `QA_FASE8F_` creado y eliminado.
+  - Cero datos QA permanentes.
+- Idiomas activos:
+  - Español `es-MX` como idioma principal y fallback.
+  - Inglés `en-US` como idioma secundario.
+- Frontend:
+  - selector de idioma en autenticación, app cliente y Centro de Control.
+  - preferencia persistente en sesión local.
+  - sincronización con `profiles.preferred_language` para usuario customer.
+  - formato localizado de fechas, horas, números y moneda.
+  - errores de autenticación traducidos por código seguro.
+- Backend y contenido:
+  - contenido público servido con `content_translations`.
+  - fallback a español cuando falta traducción publicada.
+  - slugs en inglés validados para vinos, experiencias y eventos.
+  - `createCustomerOrder` recibe idioma activo sin aceptar autoridad de precio, estado ni customer arbitrario.
+- Comunicaciones:
+  - plantillas y detalles transaccionales en `es-MX` y `en-US`.
+  - fechas y moneda localizadas.
+  - `order.paid` permanece preparado pero inactivo mientras Fase 8D siga bloqueada.
+- Validación productiva:
+  - `/api/health` HTTP 200 con Supabase `configured`, `reachable`, `healthy` y `status: ok`.
+  - contenido público `es-MX` y `en-US`:
+    - vinos: 3/3.
+    - experiencias: 2/2.
+    - eventos: 2/2.
+    - promociones: 2/2.
+    - membresías: 2/2.
+  - detalle en inglés:
+    - vinos HTTP 200.
+    - experiencias HTTP 200.
+    - eventos HTTP 200.
+  - traducciones productivas auditadas:
+    - `en-US`: 11 registros.
+    - `es-MX`: 2 registros.
+  - eventos y outbox QA bilingües creados y limpiados.
+- Pruebas de cierre:
+  - Frontend: 68/68.
+  - Backend: 84/84.
+  - Frontend build: exitoso.
+  - Backend build: exitoso.
+  - Lint: exitoso con warnings preexistentes.
+  - `git diff --check`: exitoso.
+  - `.env`, `.env.local`, `backend/.env`, `backend/.env.local`, `dist` y `backend/dist` ignorados.
+- Netlify:
+  - raíz HTTP 200.
+  - `/app/home` HTTP 200.
+  - `/control/vinos` HTTP 200.
+  - `/login` HTTP 200.
+  - bundle productivo: `index-DglLycGF.js`.
+- Seguridad:
+  - No se imprimieron API keys, webhook secret, JWT, tokens, service role key, headers sensibles ni valores de variables.
+  - Ningún `.env` fue versionado.
+- Límites explícitos:
+  - No se implementaron pagos productivos.
+  - No se implementó Firebase/push.
+  - No se implementó Google/Apple.
+  - No se implementó Sommelier OpenAI.
+  - No se implementó rediseño premium global.
+  - No se inició Fase 8G.
 
 ## Estado de Arquitectura
 
@@ -799,7 +870,7 @@ Estado: aprobada.
 - Sommelier OpenAI.
 - Firebase/push.
 - Google/Apple.
-- Bilingüe completo.
+- Revisión final de copy comercial/legal bilingüe por Hacienda.
 - Raíz institucional OS.
 - Diseño premium.
 - QA E2E.
@@ -821,6 +892,7 @@ Estos módulos fueron construidos y validados en Fase 7E aunque originalmente ap
 - Dashboard con datos simulados.
 - Páginas futuras pendientes de conexión final.
 - Ausencia de E2E de navegador configurado.
+- Playwright no está instalado; no se ejecutó validación visual de navegador para Fase 8F.
 - Estética todavía genérica en varias pantallas.
 - Raíz aún implementada como `LandingPage`.
 - No se deben confundir validaciones funcionales con cierre visual premium.
@@ -828,4 +900,4 @@ Estos módulos fueron construidos y validados en Fase 7E aunque originalmente ap
 
 ## Siguiente Fase
 
-Pendiente de aprobación. No iniciar Fase 8F sin autorización explícita.
+Pendiente de aprobación. No iniciar Fase 8G sin autorización explícita.

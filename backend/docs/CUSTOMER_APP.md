@@ -1,10 +1,10 @@
-# App Cliente: base conectada, carrito, checkout base y comunicaciones
+# App Cliente: base conectada, carrito, checkout base, comunicaciones y bilingüe
 
-Documento de cierre operativo de Fases 8B, 8C y 8E para la app cliente de Hacienda de Letras OS.
+Documento de cierre operativo de Fases 8B, 8C, 8E y 8F para la app cliente de Hacienda de Letras OS.
 
 ## Estado
 
-Fase 8E aprobada.
+Fase 8F aprobada.
 
 - Commit funcional: `5dd39b7 feat: connect customer app base flows`.
 - Migración aplicada: `028_customer_app_operations.sql`.
@@ -16,6 +16,10 @@ Fase 8E aprobada.
 - Netlify: rutas `/app/*` de Fase 8C HTTP 200 con bundle `index-VU0eV1pM.js`.
 - Fase 8D de pasarela productiva sigue bloqueada / pendiente de aprobación final.
 - Fase 8E validó Resend transaccional real con outbox, worker, idempotencia, retry y webhook firmado.
+- Commit funcional 8F: `37f69ef feat: complete bilingual customer and control experience`.
+- Migración aplicada 8F: `031_phase8f_bilingual_seed_translations.sql`.
+- Runner real 8F: `backend/scripts/phase8f-real-check.mjs`.
+- Netlify: raíz, `/app/home`, `/control/vinos` y `/login` HTTP 200 con bundle `index-DglLycGF.js`.
 
 ## Principios
 
@@ -210,25 +214,32 @@ Se eliminaron ratings, reseñas, stock, pedidos, puntos, membresías, distancias
 
 `/app/sommelier` queda como pantalla temporal honesta. No simula conversación OpenAI. Puede mostrar vinos publicados como contenido informativo.
 
-## Idioma
+## Idioma y Experiencia Bilingüe
 
-- Español por defecto.
-- Locale estructural preparado.
-- Fallback a español para contenido editorial.
-- Preferencia customer preparada desde perfil.
-- Bilingüe completo queda pendiente para una fase posterior.
+- Español `es-MX` por defecto.
+- Inglés `en-US` como idioma secundario.
+- Selector de idioma visible en autenticación, app cliente y Centro de Control.
+- Preferencia persistente en sesión local.
+- Preferencia customer sincronizada con `profiles.preferred_language`.
+- Contenido público servido desde `content_translations` con fallback a español.
+- Slugs en inglés validados para vinos, experiencias y eventos.
+- Fechas, horas, números y moneda usan formato localizado.
+- Convención de moneda:
+  - español: `$1,250.00 MXN`.
+  - inglés: `MX$1,250.00`.
+- El checkout envía el idioma activo al backend para preparar comunicaciones transaccionales localizadas.
+- No se agregaron mocks funcionales ni visuales al producto para simular bilingüe.
 
 ## Pruebas
 
-Gates de cierre 8E:
+Gates de cierre 8F:
 
-- Frontend: 65/65.
-- Backend: 82/82.
+- Frontend: 68/68.
+- Backend: 84/84.
 - Frontend build: exitoso.
 - Backend build: exitoso.
 - Lint: exitoso con warnings preexistentes.
 - `git diff --check`: exitoso.
-- Prueba real local: aprobada.
 - Prueba real productiva: aprobada.
 
 La prueba real de Fase 8B creó datos temporales `QA_FASE8B_`, validó admin, customer y sin sesión, creó una reservación, la reprogramó, la canceló, confirmó auditoría y limpió lo temporal.
@@ -237,21 +248,25 @@ La prueba real de Fase 8C creó datos temporales `QA_FASE8C_`, validó carrito p
 
 La prueba real de Fase 8E creó datos temporales `QA_FASE8E_`, validó outbox persistente, worker, envío QA real aceptado por Resend, `provider_message_id` persistido, estado `sent`, idempotencia, retry controlado, webhook firmado, firma inválida rechazada, duplicados ignorados, logs sanitizados y limpieza exacta.
 
-## Pendientes posteriores a 8E
+La prueba real de Fase 8F creó datos temporales `QA_FASE8F_`, validó contenido público en `es-MX` y `en-US`, slugs traducidos, registros `content_translations`, eventos y outbox bilingües, limpieza exacta y cero exposición de secretos.
+
+## Pendientes posteriores a 8F
 
 - Pasarela productiva.
 - Pagos reales.
 - Reglas comerciales finales de cancelación y reprogramación.
 - Firebase/push.
 - QA E2E de navegador.
+- Revisión final de copy comercial/legal bilingüe por Hacienda.
 
 ## Riesgos
 
 - Falta QA E2E de navegador configurado en el repo.
 - La validación visual de producción se hizo por HTTP/SPA, bundle desplegado y render headless básico; el repo aún no tiene suite E2E de navegador.
+- Playwright no está instalado; Fase 8F no tuvo validación visual de navegador con screenshots.
 - Diseño premium global sigue pendiente.
 - Google Sign-In, Sign in with Apple, Firebase/push, Sommelier OpenAI, pasarela productiva y publicación en tiendas siguen pendientes.
 
 ## Seguridad
 
-No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables de entorno durante el cierre de Fases 8B, 8C y 8E. Ningún `.env` fue versionado.
+No se imprimieron secretos, JWT, tokens, service role key, headers sensibles ni variables de entorno durante el cierre de Fases 8B, 8C, 8E y 8F. Ningún `.env` fue versionado.

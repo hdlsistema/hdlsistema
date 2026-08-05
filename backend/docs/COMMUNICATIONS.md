@@ -1,10 +1,10 @@
 # Comunicaciones Transaccionales
 
-Documento operativo de Fase 8E para emails transaccionales de Hacienda de Letras OS.
+Documento operativo de Fases 8E y 8F para emails transaccionales de Hacienda de Letras OS.
 
 ## Estado
 
-Fase 8E aprobada.
+Fase 8F aprobada para comunicaciones bilingües sobre la base transaccional de Fase 8E.
 
 - Migración aplicada: `030_transactional_communications.sql`.
 - Runner real: `backend/scripts/phase8e-real-check.mjs`.
@@ -13,7 +13,8 @@ Fase 8E aprobada.
 - Envío QA real: aceptado por Resend.
 - Outbox, worker, idempotencia, retry y webhook firmado: validados.
 - Datos temporales `QA_FASE8E_`: creados y limpiados.
-- Fase 8F no iniciada.
+- Fase 8F validó eventos y outbox QA bilingües `es-MX` y `en-US`.
+- Datos temporales `QA_FASE8F_`: creados y limpiados.
 
 ## Configuración
 
@@ -81,6 +82,8 @@ Locales activos:
 - `es-MX`
 - `en-US`
 
+Fase 8F validó que los detalles transaccionales usen etiquetas, moneda y fechas localizadas. El idioma se deriva del flujo customer cuando el frontend crea órdenes y del locale del evento en comunicaciones del backend.
+
 Eventos preparados:
 
 - `customer.welcome`
@@ -116,6 +119,16 @@ Runner ejecutado contra Railway productivo:
 - evento duplicado ignorado.
 - logs sanitizados.
 - limpieza QA completa.
+
+Runner 8F ejecutado contra Railway productivo:
+
+- health HTTP 200.
+- contenido público disponible en `es-MX` y `en-US`.
+- eventos de comunicación QA en español e inglés creados.
+- outbox QA en español e inglés creado.
+- limpieza QA completa.
+- cero datos QA permanentes.
+- no se enviaron correos a clientes reales.
 
 ## Seguridad
 

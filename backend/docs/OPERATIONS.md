@@ -336,10 +336,12 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - Prueba real local y productiva de Fase 8B aprobada con datos temporales `QA_FASE8B_`, limpieza exacta y sin impresión de secretos.
 - Prueba real local y productiva de Fase 8C aprobada con datos temporales `QA_FASE8C_`, carrito persistente, orden `pending_payment`, ownership, 401, 403, auditoría, ausencia de pagos creados y limpieza exacta.
 - Prueba real productiva de Fase 8E aprobada con datos temporales `QA_FASE8E_`, outbox persistente, envío QA real aceptado por Resend, `provider_message_id` persistido, estado `sent`, idempotencia, retry controlado, webhook firmado, firma inválida rechazada, duplicados ignorados, `order.paid` inactivo y limpieza exacta.
+- Prueba real productiva de Fase 8F aprobada con datos temporales `QA_FASE8F_`, contenido público `es-MX` y `en-US`, slugs traducidos, registros `content_translations`, eventos y outbox bilingües, limpieza exacta y sin impresión de secretos.
 - Netlify sirve el bundle desplegado con las rutas `/control/disponibilidad` y `/control/reservaciones` en HTTP 200.
 - Netlify sirve el bundle desplegado con la ruta `/control/clientes` en HTTP 200.
 - Netlify sirve el bundle desplegado con las rutas `/control/wine-club`, `/control/inventario`, `/control/logistica` y `/control/distribuidores` en HTTP 200.
 - Netlify sirve el bundle desplegado con rutas `/app/*` de Fase 8C en HTTP 200 y bundle `index-VU0eV1pM.js`.
+- Netlify sirve el bundle desplegado de Fase 8F con raíz, `/app/home`, `/control/vinos` y `/login` en HTTP 200 y bundle `index-DglLycGF.js`.
 
 ## Riesgos Pendientes
 
@@ -348,3 +350,4 @@ Las exportaciones de Wine Club, inventario, logística y distribuidores contiene
 - Implementar pasarela productiva en fase posterior aprobada.
 - Mantener QA E2E de navegador pendiente para navegación visual autenticada.
 - Agregar QA E2E de navegador para cubrir pantalla blanca, navegación autenticada y estados visuales.
+- Revisar copy comercial/legal bilingüe con Hacienda antes de cierre de tono final.
