@@ -121,6 +121,46 @@ describe('customer.service client', () => {
     expect(fetchSpy.mock.calls[0]?.[0]).not.toContain('jwt-customer')
   })
 
+  it('crea payment-session sin enviar amount, currency ni customerId desde frontend', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        data: {
+          orderId: 'order-1',
+          provider: 'stripe',
+          clientSecret: 'pi_mock_secret_client',
+        },
+      }, { status: 201 }),
+    )
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await customerClient.paymentSession('jwt-customer', 'order-1')
+
+    const request = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'http://localhost:3001/api/customer/orders/order-1/payment-session',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(request?.headers).toMatchObject({ Authorization: 'Bearer jwt-customer' })
+    expect(String(request?.body)).not.toContain('amount')
+    expect(String(request?.body)).not.toContain('currency')
+    expect(String(request?.body)).not.toContain('customerId')
+  })
+
+  it('consulta payment-status y retry-payment por endpoints customer', async () => {
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, data: { orderId: 'order-1', paymentStatus: 'processing' } }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, data: { orderId: 'order-1', provider: 'stripe' } }, { status: 201 }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    await customerClient.paymentStatus('jwt-customer', 'order-1')
+    await customerClient.retryPayment('jwt-customer', 'order-1')
+
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('http://localhost:3001/api/customer/orders/order-1/payment-status')
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe('http://localhost:3001/api/customer/orders/order-1/retry-payment')
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ headers: expect.objectContaining({ Authorization: 'Bearer jwt-customer' }) })
+  })
+
   it('lista órdenes customer y permite actualizar cantidad por endpoint propio', async () => {
     const fetchSpy = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ ok: true, data: [{ id: 'order-1', orderNumber: 'ORD-1' }] }))

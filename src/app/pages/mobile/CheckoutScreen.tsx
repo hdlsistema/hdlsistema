@@ -1,13 +1,102 @@
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { CheckCircle2, CreditCard, PackageCheck, ShieldCheck } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { customerClient, type CustomerCart, type CustomerOrder } from '../../../services/customer.service'
+import { customerClient, type CustomerCart, type CustomerOrder, type CustomerPaymentSession } from '../../../services/customer.service'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { isStripePublishableKeyConfigured, stripePromise } from '../../payments/stripe'
 
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
+}
+
+function EmbeddedStripePaymentForm({
+  clientSecret,
+  orderId,
+  isEnglish,
+  onMessage,
+}: {
+  clientSecret: string
+  orderId: string
+  isEnglish: boolean
+  onMessage: (message: string) => void
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const navigate = useNavigate()
+  const [accepted, setAccepted] = useState(false)
+  const [processing, setProcessing] = useState(false)
+
+  const submitPayment = async () => {
+    if (!stripe || !elements || processing || !accepted) return
+    setProcessing(true)
+    onMessage('')
+    const submitResult = await elements.submit()
+    if (submitResult.error) {
+      onMessage(submitResult.error.message ?? (isEnglish ? 'Check your payment details.' : 'Revisa tus datos de pago.'))
+      setProcessing(false)
+      return
+    }
+
+    const result = await stripe.confirmPayment({
+      elements,
+      clientSecret,
+      confirmParams: {
+        return_url: `${window.location.origin}/app/pago/procesando?orderId=${encodeURIComponent(orderId)}`,
+      },
+      redirect: 'if_required',
+    })
+
+    if (result.error) {
+      onMessage(result.error.message ?? (isEnglish ? 'Payment could not be confirmed.' : 'No fue posible confirmar el pago.'))
+      setProcessing(false)
+      return
+    }
+
+    navigate(`/app/pago/procesando?orderId=${encodeURIComponent(orderId)}`, { replace: true })
+  }
+
+  return (
+    <section className="rounded-[1.25rem] border border-[rgba(104,13,36,0.16)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+      <div className="mb-4 flex items-start gap-3">
+        <CreditCard size={18} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />
+        <div>
+          <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">
+            {isEnglish ? 'Secure card payment' : 'Pago seguro con tarjeta'}
+          </h2>
+          <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
+            {isEnglish
+              ? 'Stripe securely captures card data inside the app. Hacienda de Letras never stores PAN or CVV.'
+              : 'Stripe captura los datos de tarjeta dentro de la app. Hacienda de Letras nunca guarda PAN ni CVV.'}
+          </p>
+        </div>
+      </div>
+      <PaymentElement />
+      <label className="mt-4 flex items-start gap-3 rounded-[1rem] bg-[#fffaf5] px-4 py-3 text-[12px] leading-5 text-[var(--color-muted)]">
+        <input
+          type="checkbox"
+          checked={accepted}
+          onChange={(event) => setAccepted(event.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          {isEnglish
+            ? 'I accept that the backend and Stripe webhook validate the final payment status.'
+            : 'Acepto que el backend y el webhook de Stripe validen el estado final del pago.'}
+        </span>
+      </label>
+      <button
+        type="button"
+        onClick={submitPayment}
+        disabled={!stripe || !elements || !accepted || processing}
+        className="mt-4 flex min-h-[48px] w-full items-center justify-center rounded-[1rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white disabled:opacity-50"
+      >
+        {processing ? (isEnglish ? 'Processing...' : 'Procesando...') : (isEnglish ? 'Pay in app' : 'Pagar en la app')}
+      </button>
+    </section>
+  )
 }
 
 export function CheckoutScreen() {
@@ -16,6 +105,7 @@ export function CheckoutScreen() {
   const locale = isEnglish ? 'en-US' : 'es-MX'
   const [cart, setCart] = useState<CustomerCart | null>(null)
   const [order, setOrder] = useState<CustomerOrder | null>(null)
+  const [paymentSession, setPaymentSession] = useState<CustomerPaymentSession | null>(null)
   const [discountCode, setDiscountCode] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -54,9 +144,18 @@ export function CheckoutScreen() {
       })
       setOrder(response.data)
       setCart(null)
-      setMessage(isEnglish
-        ? 'Your order was created. Online payment will be available soon.'
-        : 'Tu orden fue creada. El pago en línea estará disponible próximamente.')
+      try {
+        const paymentResponse = await customerClient.paymentSession(session.access_token, response.data.id)
+        setPaymentSession(paymentResponse.data)
+        setMessage(isEnglish
+          ? 'Your order is ready. Complete the payment without leaving the app.'
+          : 'Tu orden está lista. Completa el pago sin salir de la app.')
+      } catch {
+        setPaymentSession(null)
+        setMessage(isEnglish
+          ? 'Your order was created, but online payment is temporarily unavailable.'
+          : 'Tu orden fue creada, pero el pago en línea no está disponible temporalmente.')
+      }
     } catch {
       setMessage(isEnglish ? 'Could not create the order.' : 'No fue posible crear la orden.')
     } finally {
@@ -65,6 +164,21 @@ export function CheckoutScreen() {
   }
 
   const totals = cart?.totals
+  const stripeOptions = useMemo(() => paymentSession?.clientSecret
+    ? {
+        clientSecret: paymentSession.clientSecret,
+        appearance: {
+          theme: 'stripe' as const,
+          variables: {
+            colorPrimary: '#681126',
+            colorText: '#2f1b16',
+            colorDanger: '#9d473f',
+            borderRadius: '14px',
+            fontFamily: 'Inter, system-ui, sans-serif',
+          },
+        },
+      }
+    : null, [paymentSession?.clientSecret])
 
   return (
     <div className="space-y-6 pb-3">
@@ -87,8 +201,8 @@ export function CheckoutScreen() {
           </h1>
           <p className="mt-2 text-[13px] leading-5 text-[var(--color-muted)]">
             {isEnglish
-              ? 'Real order created with pending payment. No payment was collected.'
-              : 'Orden real creada con pago pendiente. No se realizó ningún cobro.'}
+              ? 'Real order created with pending payment. Payment is completed inside this checkout.'
+              : 'Orden real creada con pago pendiente. El pago se completa dentro de este checkout.'}
           </p>
           <div className="mt-4 rounded-[1rem] bg-white p-4">
             <div className="flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
@@ -100,9 +214,27 @@ export function CheckoutScreen() {
               <strong className="text-[var(--color-burgundy)]">{money(order.total, locale)}</strong>
             </div>
           </div>
+          {paymentSession && stripeOptions && isStripePublishableKeyConfigured() && stripePromise ? (
+            <div className="mt-5">
+              <Elements stripe={stripePromise} options={stripeOptions}>
+                <EmbeddedStripePaymentForm
+                  clientSecret={paymentSession.clientSecret}
+                  orderId={order.id}
+                  isEnglish={isEnglish}
+                  onMessage={setMessage}
+                />
+              </Elements>
+            </div>
+          ) : (
+            <p className="mt-5 rounded-[1rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] px-4 py-3 text-[12px] text-[var(--color-alert)]">
+              {isEnglish
+                ? 'Stripe Payment Element is not available yet. No payment was collected.'
+                : 'Stripe Payment Element aún no está disponible. No se realizó ningún cobro.'}
+            </p>
+          )}
           <Link
             to="/app/perfil"
-            className="mt-5 flex min-h-[48px] items-center justify-center rounded-[1rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white"
+            className="mt-4 flex min-h-[48px] items-center justify-center rounded-[1rem] border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[13px] font-bold text-[var(--color-burgundy)]"
           >
             {isEnglish ? 'View my orders' : 'Ver mis órdenes'}
           </Link>
@@ -170,7 +302,7 @@ export function CheckoutScreen() {
           <section className="grid gap-3 rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 text-[12px] text-[var(--color-muted)]">
             <div className="flex items-start gap-3">
               <CreditCard size={17} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />
-              <p>{isEnglish ? 'No cards are requested and no payment is processed in this phase.' : 'No se solicitan tarjetas y no se procesa pago en esta fase.'}</p>
+              <p>{isEnglish ? 'Card details are captured only by Stripe Elements inside the app.' : 'Los datos de tarjeta los captura únicamente Stripe Elements dentro de la app.'}</p>
             </div>
             <div className="flex items-start gap-3">
               <PackageCheck size={17} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />

@@ -1,6 +1,11 @@
 import type { Request, Response } from 'express'
 import { sendOperationError } from '../operations/operationErrors'
 import {
+  createCustomerStripePaymentSession,
+  getCustomerStripePaymentStatus,
+  retryCustomerStripePayment,
+} from '../payments/payments.service'
+import {
   addCustomerCartItem,
   cancelCustomerReservation,
   clearCustomerCart,
@@ -27,6 +32,7 @@ import {
   cancelCustomerReservationSchema,
   createCustomerOrderSchema,
   createCustomerReservationSchema,
+  customerPaymentActionSchema,
   customerAvailabilityQuerySchema,
   customerProfilePatchSchema,
   customerReservationListQuerySchema,
@@ -247,6 +253,35 @@ export async function getCustomerOrderController(req: Request, res: Response): P
   try {
     const result = await getCustomerOrder(req.params.id, userContext(req))
     res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function createCustomerPaymentSessionController(req: Request, res: Response): Promise<void> {
+  try {
+    customerPaymentActionSchema.parse(req.body ?? {})
+    const result = await createCustomerStripePaymentSession(req.params.id, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function getCustomerPaymentStatusController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await getCustomerStripePaymentStatus(req.params.id, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function retryCustomerPaymentController(req: Request, res: Response): Promise<void> {
+  try {
+    customerPaymentActionSchema.parse(req.body ?? {})
+    const result = await retryCustomerStripePayment(req.params.id, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)
   }

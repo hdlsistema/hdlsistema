@@ -6,6 +6,7 @@ import {
   addCustomerCartItemController,
   cancelCustomerReservationController,
   clearCustomerCartController,
+  createCustomerPaymentSessionController,
   createCustomerOrderController,
   createCustomerReservationController,
   getCustomerCartController,
@@ -17,11 +18,13 @@ import {
   getCustomerMembershipHistoryController,
   getCustomerMembershipLoyaltyController,
   getCustomerOrderController,
+  getCustomerPaymentStatusController,
   getCustomerReservationController,
   listCustomerOrdersController,
   listCustomerReservationsController,
   patchCustomerMeController,
   removeCustomerCartItemController,
+  retryCustomerPaymentController,
   rescheduleCustomerReservationController,
   updateCustomerCartItemController,
 } from './customer.controller'
@@ -42,6 +45,9 @@ router.delete('/cart/items/:id', ...protectedCustomer, removeCustomerCartItemCon
 router.delete('/cart', ...protectedCustomer, clearCustomerCartController)
 router.post('/orders', ...protectedCustomer, createCustomerOrderController)
 router.get('/orders', ...protectedCustomer, listCustomerOrdersController)
+router.post('/orders/:id/payment-session', ...protectedCustomer, createCustomerPaymentSessionController)
+router.get('/orders/:id/payment-status', ...protectedCustomer, getCustomerPaymentStatusController)
+router.post('/orders/:id/retry-payment', ...protectedCustomer, retryCustomerPaymentController)
 router.get('/orders/:id', ...protectedCustomer, getCustomerOrderController)
 router.get('/reservations', ...protectedCustomer, listCustomerReservationsController)
 router.post('/reservations', ...protectedCustomer, createCustomerReservationController)

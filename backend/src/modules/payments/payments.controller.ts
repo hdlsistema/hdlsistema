@@ -86,9 +86,11 @@ export async function getPaymentsExportAdmin(req: Request, res: Response): Promi
 
 export async function postPaymentWebhook(req: Request, res: Response): Promise<void> {
   try {
-    const payload = paymentWebhookSchema.parse(req.body)
-    processPaymentWebhook(req.params.provider, payload)
-    res.status(202).json({ ok: true })
+    const payload = req.params.provider === 'stripe'
+      ? Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body ?? {}))
+      : paymentWebhookSchema.parse(req.body)
+    const result = await processPaymentWebhook(req.params.provider, payload, req.headers['stripe-signature'])
+    res.status(202).json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)
   }

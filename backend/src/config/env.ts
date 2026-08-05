@@ -56,6 +56,12 @@ export const env = {
   RESEND_FROM_EMAIL: optionalEnv('RESEND_FROM_EMAIL', ''),
   RESEND_REPLY_TO_EMAIL: optionalEnv('RESEND_REPLY_TO_EMAIL', ''),
   RESEND_WEBHOOK_SECRET: optionalEnv('RESEND_WEBHOOK_SECRET', ''),
+
+  // Stripe — pagos customer con PaymentIntent; solo lado servidor
+  STRIPE_SECRET_KEY: optionalEnv('STRIPE_SECRET_KEY', ''),
+  STRIPE_WEBHOOK_SECRET: optionalEnv('STRIPE_WEBHOOK_SECRET', ''),
+  STRIPE_ACCOUNT_ID: optionalEnv('STRIPE_ACCOUNT_ID', ''),
+  STRIPE_ENVIRONMENT: optionalEnv('STRIPE_ENVIRONMENT', 'test'),
 } as const
 
 export type Env = typeof env

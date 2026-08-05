@@ -60,6 +60,10 @@ export const createCustomerOrderSchema = z.object({
   language: z.enum(['es', 'en']).default('es'),
 }).strict()
 
+export const customerPaymentActionSchema = z.object({
+  idempotencyKey: z.string().min(8).max(160).optional(),
+}).strict()
+
 export type CustomerProfilePatch = z.infer<typeof customerProfilePatchSchema>
 export type CustomerAvailabilityQuery = z.infer<typeof customerAvailabilityQuerySchema>
 export type CustomerReservationListQuery = z.infer<typeof customerReservationListQuerySchema>
@@ -69,3 +73,4 @@ export type RescheduleCustomerReservationPayload = z.infer<typeof rescheduleCust
 export type AddCustomerCartItemPayload = z.infer<typeof addCustomerCartItemSchema>
 export type UpdateCustomerCartItemPayload = z.infer<typeof updateCustomerCartItemSchema>
 export type CreateCustomerOrderPayload = z.infer<typeof createCustomerOrderSchema>
+export type CustomerPaymentActionPayload = z.infer<typeof customerPaymentActionSchema>

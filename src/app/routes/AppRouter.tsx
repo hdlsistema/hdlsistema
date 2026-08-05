@@ -38,6 +38,7 @@ import { ClubScreen } from '../pages/mobile/ClubScreen'
 import { SommelierScreen } from '../pages/mobile/SommelierScreen'
 import { CartScreen } from '../pages/mobile/CartScreen'
 import { CheckoutScreen } from '../pages/mobile/CheckoutScreen'
+import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
 import { IntelligencePage } from '../pages/future/IntelligencePage'
@@ -108,6 +109,30 @@ export function AppRouter() {
           element={
             <ProtectedRoute>
               <CheckoutScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="pago/procesando"
+          element={
+            <ProtectedRoute>
+              <PaymentStatusScreen mode="processing" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="pago/exitoso"
+          element={
+            <ProtectedRoute>
+              <PaymentStatusScreen mode="success" />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="pago/fallido"
+          element={
+            <ProtectedRoute>
+              <PaymentStatusScreen mode="failed" />
             </ProtectedRoute>
           }
         />

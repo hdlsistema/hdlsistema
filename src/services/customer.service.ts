@@ -197,6 +197,31 @@ export type CustomerOrder = {
   }
 }
 
+export type CustomerPaymentSession = {
+  orderId: string
+  orderNumber: string
+  provider: 'stripe'
+  environment: 'test' | 'live'
+  clientSecret: string
+  paymentIntentId: string
+  amount: number
+  currency: string
+  status: string
+}
+
+export type CustomerPaymentStatus = {
+  orderId: string
+  orderNumber: string
+  orderStatus: string
+  paymentStatus: string
+  provider: string | null
+  amount: number
+  currency: string
+  canRetry: boolean
+  paidAt: string | null
+  failedAt: string | null
+}
+
 function assertToken(token: string | null | undefined): string {
   if (!token) throw Object.assign(new Error('Sesión requerida'), { status: 401 })
   return token
@@ -338,6 +363,25 @@ export const customerClient = {
   order(token: string | null | undefined, id: string) {
     return apiFetch<{ ok: true; data: CustomerOrder }>(`/api/customer/orders/${encodeURIComponent(id)}`, {
       headers: customerHeaders(token),
+    })
+  },
+  paymentSession(token: string | null | undefined, orderId: string, payload: { idempotencyKey?: string } = {}) {
+    return apiFetch<{ ok: true; data: CustomerPaymentSession }>(`/api/customer/orders/${encodeURIComponent(orderId)}/payment-session`, {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  paymentStatus(token: string | null | undefined, orderId: string) {
+    return apiFetch<{ ok: true; data: CustomerPaymentStatus }>(`/api/customer/orders/${encodeURIComponent(orderId)}/payment-status`, {
+      headers: customerHeaders(token),
+    })
+  },
+  retryPayment(token: string | null | undefined, orderId: string, payload: { idempotencyKey?: string } = {}) {
+    return apiFetch<{ ok: true; data: CustomerPaymentSession }>(`/api/customer/orders/${encodeURIComponent(orderId)}/retry-payment`, {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
     })
   },
 }

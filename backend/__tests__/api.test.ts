@@ -25,6 +25,13 @@ const supabaseMock = vi.hoisted(() => ({
   tableData: {} as Record<string, unknown[]>,
 }))
 
+const stripeMock = vi.hoisted(() => ({
+  paymentIntentsCreate: vi.fn(),
+  paymentIntentsRetrieve: vi.fn(),
+  refundsCreate: vi.fn(),
+  constructEvent: vi.fn(),
+}))
+
 vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => ({
     auth: {
@@ -179,10 +186,28 @@ vi.mock('@supabase/supabase-js', () => ({
   })),
 }))
 
+vi.mock('stripe', () => ({
+  default: vi.fn(() => ({
+    paymentIntents: {
+      create: stripeMock.paymentIntentsCreate,
+      retrieve: stripeMock.paymentIntentsRetrieve,
+    },
+    refunds: {
+      create: stripeMock.refundsCreate,
+    },
+    webhooks: {
+      constructEvent: stripeMock.constructEvent,
+    },
+  })),
+}))
+
 const app = createApp()
 const originalSupabaseUrl = env.SUPABASE_URL
 const originalSupabaseAnonKey = env.SUPABASE_ANON_KEY
 const originalSupabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
+const originalStripeSecretKey = env.STRIPE_SECRET_KEY
+const originalStripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET
+const originalStripeEnvironment = env.STRIPE_ENVIRONMENT
 
 beforeEach(() => {
   vi.unstubAllGlobals()
@@ -192,6 +217,10 @@ beforeEach(() => {
   supabaseMock.rpcData = {}
   supabaseMock.authUser = null
   supabaseMock.tableData = {}
+  stripeMock.paymentIntentsCreate.mockReset()
+  stripeMock.paymentIntentsRetrieve.mockReset()
+  stripeMock.refundsCreate.mockReset()
+  stripeMock.constructEvent.mockReset()
   ;(env as Record<string, string>).SUPABASE_URL = originalSupabaseUrl
   ;(env as Record<string, string>).SUPABASE_ANON_KEY = originalSupabaseAnonKey
   ;(env as Record<string, string>).SUPABASE_SERVICE_ROLE_KEY =
@@ -200,6 +229,9 @@ beforeEach(() => {
   ;(env as Record<string, string>).RESEND_FROM_EMAIL = ''
   ;(env as Record<string, string>).RESEND_REPLY_TO_EMAIL = ''
   ;(env as Record<string, string>).RESEND_WEBHOOK_SECRET = ''
+  ;(env as Record<string, string>).STRIPE_SECRET_KEY = originalStripeSecretKey
+  ;(env as Record<string, string>).STRIPE_WEBHOOK_SECRET = originalStripeWebhookSecret
+  ;(env as Record<string, string>).STRIPE_ENVIRONMENT = originalStripeEnvironment
 })
 
 // ─── 1. GET /api/health devuelve 200 ────────────────────────────────────────
@@ -2162,6 +2194,176 @@ describe('Fase 8E communications API', () => {
     expect(second.status).toBe(202)
     expect(supabaseMock.tableData.email_deliveries).toHaveLength(1)
     expect((supabaseMock.tableData.email_outbox[0] as { status?: string }).status).toBe('delivered')
+  })
+})
+
+describe('Fase 8D Stripe customer payments', () => {
+  const userId = '55555555-5555-4555-8555-555555555501'
+  const customerId = '55555555-5555-4555-8555-555555555502'
+  const orderId = '55555555-5555-4555-8555-555555555503'
+
+  function signInCustomer() {
+    supabaseMock.authUser = {
+      id: userId,
+      email: 'cliente.prueba@alqia.tech',
+      created_at: '2026-08-05T00:00:00.000Z',
+      email_confirmed_at: '2026-08-05T00:00:00.000Z',
+    }
+    supabaseMock.tableData.user_roles = [{ user_id: userId, roles: { code: 'customer' } }]
+    supabaseMock.tableData.customers = [{
+      id: customerId,
+      user_id: userId,
+      email: 'cliente.prueba@alqia.tech',
+      first_name: 'Cliente',
+      last_name: 'QA',
+      display_name: 'Cliente QA',
+    }]
+    supabaseMock.tableData.orders = [{
+      id: orderId,
+      order_number: 'QA_FASE8D_STRIPE_ORDER',
+      user_id: userId,
+      customer_id: customerId,
+      subtotal: 960,
+      discount_total: 0,
+      tax_total: 0,
+      shipping_total: 0,
+      total: 960,
+      currency: 'MXN',
+      status: 'pending_payment',
+      paid_at: null,
+      metadata: {},
+      created_at: '2026-08-05T00:00:00.000Z',
+      updated_at: '2026-08-05T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.order_items = [{
+      id: '55555555-5555-4555-8555-555555555504',
+      order_id: orderId,
+      subtotal: 960,
+    }]
+    supabaseMock.tableData.payments = []
+  }
+
+  function mockPaymentIntent(status = 'requires_payment_method') {
+    return {
+      id: 'pi_fase8d_mock',
+      client_secret: 'pi_fase8d_mock_secret_client',
+      amount: 96000,
+      currency: 'mxn',
+      status,
+      payment_method_types: ['card'],
+      latest_charge: null,
+      last_payment_error: null,
+      metadata: {
+        order_id: orderId,
+        order_number: 'QA_FASE8D_STRIPE_ORDER',
+      },
+    }
+  }
+
+  it('rechaza payment-session sin sesión', async () => {
+    const res = await request(app).post(`/api/customer/orders/${orderId}/payment-session`)
+
+    expect(res.status).toBe(401)
+    expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('crea PaymentIntent con total backend y devuelve solo client_secret', async () => {
+    signInCustomer()
+    ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
+    ;(env as Record<string, string>).STRIPE_ENVIRONMENT = 'test'
+    stripeMock.paymentIntentsCreate.mockResolvedValue(mockPaymentIntent())
+
+    const res = await request(app)
+      .post(`/api/customer/orders/${orderId}/payment-session`)
+      .set('Authorization', 'Bearer jwt-customer')
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(stripeMock.paymentIntentsCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        amount: 96000,
+        currency: 'mxn',
+        automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      }),
+      expect.objectContaining({ idempotencyKey: expect.stringContaining(orderId) }),
+    )
+    expect(res.body.data).toMatchObject({
+      provider: 'stripe',
+      clientSecret: 'pi_fase8d_mock_secret_client',
+      amount: 960,
+      currency: 'MXN',
+    })
+    expect(JSON.stringify(res.body)).not.toContain('sk_test_mock_phase8d')
+    expect(supabaseMock.tableData.payments).toHaveLength(1)
+    expect((supabaseMock.tableData.payments[0] as { provider?: string; status?: string }).provider).toBe('stripe')
+  })
+
+  it('rechaza amount/currency enviados por frontend en payment-session', async () => {
+    signInCustomer()
+    ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
+
+    const res = await request(app)
+      .post(`/api/customer/orders/${orderId}/payment-session`)
+      .set('Authorization', 'Bearer jwt-customer')
+      .send({ amount: 1, currency: 'USD' })
+
+    expect(res.status).toBe(422)
+    expect(stripeMock.paymentIntentsCreate).not.toHaveBeenCalled()
+  })
+
+  it('rechaza webhook Stripe con firma inválida', async () => {
+    ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
+    ;(env as Record<string, string>).STRIPE_WEBHOOK_SECRET = 'whsec_mock_phase8d'
+    stripeMock.constructEvent.mockImplementation(() => {
+      throw new Error('bad signature')
+    })
+
+    const res = await request(app)
+      .post('/api/webhooks/payments/stripe')
+      .set('Content-Type', 'application/json')
+      .set('stripe-signature', 'invalid')
+      .send(JSON.stringify({ id: 'evt_bad' }))
+
+    expect(res.status).toBe(400)
+    expect(JSON.stringify(res.body)).not.toContain('whsec_mock_phase8d')
+  })
+
+  it('procesa payment_intent.succeeded y marca orden pagada desde webhook', async () => {
+    signInCustomer()
+    ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
+    ;(env as Record<string, string>).STRIPE_WEBHOOK_SECRET = 'whsec_mock_phase8d'
+    supabaseMock.tableData.payments = [{
+      id: '55555555-5555-4555-8555-555555555505',
+      order_id: orderId,
+      provider: 'stripe',
+      provider_payment_id: 'pi_fase8d_mock',
+      amount: 960,
+      currency: 'MXN',
+      status: 'pending',
+      refunded_amount: 0,
+      created_at: '2026-08-05T00:00:00.000Z',
+      updated_at: '2026-08-05T00:00:00.000Z',
+    }]
+    stripeMock.constructEvent.mockReturnValue({
+      id: 'evt_fase8d_succeeded',
+      type: 'payment_intent.succeeded',
+      livemode: false,
+      api_version: '2026-08-05',
+      data: {
+        object: mockPaymentIntent('succeeded'),
+      },
+    })
+
+    const res = await request(app)
+      .post('/api/webhooks/payments/stripe')
+      .set('Content-Type', 'application/json')
+      .set('stripe-signature', 'valid')
+      .send(JSON.stringify({ id: 'evt_fase8d_succeeded' }))
+
+    expect(res.status).toBe(202)
+    expect((supabaseMock.tableData.orders[0] as { status?: string }).status).toBe('paid')
+    expect((supabaseMock.tableData.payments[0] as { status?: string }).status).toBe('paid')
+    expect((supabaseMock.tableData.payment_webhook_events[0] as { processed?: boolean }).processed).toBe(true)
   })
 })
 
