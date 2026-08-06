@@ -13,11 +13,11 @@ import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from '
 import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import { customerClient, type CustomerMe, type CustomerMembership, type CustomerReservation, type CustomerLoyaltySummary, type CustomerOrder } from '../../../services/customer.service'
-import { SectionHeading } from '../../components/mobile/PremiumMobileUi'
+import { AppToast, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 export function ProfileScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { t, locale } = useAppPreferences()
   const { user, session, profile, refreshProfile, signOut } = useAuth()
   const [customerMe, setCustomerMe] = useState<CustomerMe | null>(null)
   const [reservations, setReservations] = useState<CustomerReservation[]>([])
@@ -29,7 +29,7 @@ export function ProfileScreen() {
   const [isSaving, setIsSaving] = useState(false)
   const [loadingCustomer, setLoadingCustomer] = useState(true)
 
-  const displayName = profile?.display_name || user?.email || 'Mi cuenta'
+  const displayName = profile?.display_name || user?.email || t('app.premium.profile.title')
   const initials = useMemo(() => {
     const source = displayName.split(' ').filter(Boolean)
     return source.slice(0, 2).map((item) => item[0]).join('').toUpperCase() || 'HD'
@@ -56,7 +56,7 @@ export function ProfileScreen() {
         setLoyalty(loyaltyResponse.data)
       })
       .catch(() => {
-        if (active) setMessage(isEnglish ? 'Could not load customer data.' : 'No fue posible cargar los datos cliente.')
+        if (active) setMessage(t('app.premium.profile.loadError'))
       })
       .finally(() => {
         if (active) setLoadingCustomer(false)
@@ -64,7 +64,7 @@ export function ProfileScreen() {
     return () => {
       active = false
     }
-  }, [isEnglish, session?.access_token])
+  }, [session?.access_token, t])
 
   useEffect(() => {
     let active = true
@@ -103,9 +103,9 @@ export function ProfileScreen() {
       })
       setCustomerMe(response.data)
       await refreshProfile()
-      setMessage(isEnglish ? 'Profile updated.' : 'Perfil actualizado.')
+      setMessage(t('app.premium.profile.updated'))
     } catch {
-      setMessage(isEnglish ? 'Could not update profile.' : 'No fue posible actualizar el perfil.')
+      setMessage(t('app.premium.profile.updateError'))
     } finally {
       setIsSaving(false)
     }
@@ -116,7 +116,7 @@ export function ProfileScreen() {
     if (!file || !user) return
     const allowed = ['image/jpeg', 'image/png', 'image/webp']
     if (!allowed.includes(file.type) || file.size > 5 * 1024 * 1024) {
-      setMessage(isEnglish ? 'Invalid avatar file.' : 'Archivo de avatar inválido.')
+      setMessage(t('app.premium.profile.invalidAvatar'))
       return
     }
     const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg'
@@ -126,7 +126,7 @@ export function ProfileScreen() {
       .from('avatars')
       .upload(path, file, { upsert: true, contentType: file.type })
     if (uploadError) {
-      setMessage(isEnglish ? 'Could not upload avatar.' : 'No fue posible subir el avatar.')
+      setMessage(t('app.premium.profile.uploadAvatarError'))
       return
     }
     const { error: updateError } = await supabase
@@ -134,30 +134,30 @@ export function ProfileScreen() {
       .update({ avatar_url: path })
       .eq('id', user.id)
     if (updateError) {
-      setMessage(isEnglish ? 'Could not update avatar.' : 'No fue posible actualizar el avatar.')
+      setMessage(t('app.premium.profile.updateAvatarError'))
       return
     }
     await refreshProfile()
-    setMessage(isEnglish ? 'Avatar updated.' : 'Avatar actualizado.')
+    setMessage(t('app.premium.profile.avatarUpdated'))
   }
 
   const preferences = customerMe?.preferences
   const customer = customerMe?.customer
   const menuGroups = [
     {
-      title: isEnglish ? 'My activity' : 'Mi actividad',
+      title: t('app.premium.profile.myActivity'),
       items: [
-        { label: isEnglish ? 'My bookings' : 'Mis reservaciones', detail: reservations.length ? `${reservations.length}` : (isEnglish ? 'No bookings yet' : 'Sin reservaciones aún'), icon: CalendarDays },
-        { label: isEnglish ? 'My orders' : 'Mis órdenes', detail: orders.length ? `${orders.length}` : (isEnglish ? 'No orders yet' : 'Sin órdenes aún'), icon: WalletCards },
-        { label: isEnglish ? 'My benefits' : 'Mis beneficios', detail: membership?.plan?.name ?? (isEnglish ? 'No membership yet' : 'Sin membresía aún'), icon: Gift },
+        { label: t('app.premium.reservation.myBookings'), detail: reservations.length ? `${reservations.length}` : t('app.premium.profile.noBookings'), icon: CalendarDays },
+        { label: t('app.premium.profile.orders'), detail: orders.length ? `${orders.length}` : t('app.premium.profile.noOrders'), icon: WalletCards },
+        { label: t('app.premium.profile.myBenefits'), detail: membership?.plan?.name ?? t('app.premium.profile.noMembership'), icon: Gift },
       ],
     },
     {
-      title: isEnglish ? 'My account' : 'Mi cuenta',
+      title: t('app.premium.profile.myAccount'),
       items: [
-        { label: isEnglish ? 'Personal data' : 'Datos personales', detail: customer?.customerNumber ?? (isEnglish ? 'Customer profile' : 'Perfil cliente'), icon: UserRound },
-        { label: isEnglish ? 'Notifications' : 'Notificaciones', detail: preferences?.transactionalPush ? (isEnglish ? 'Transactional enabled' : 'Transaccionales activas') : (isEnglish ? 'Pending setup' : 'Configuración pendiente'), icon: Bell },
-        { label: isEnglish ? 'Settings' : 'Configuración', detail: isEnglish ? 'Privacy and access' : 'Privacidad y acceso', icon: Settings2 },
+        { label: t('app.premium.profile.personalData'), detail: customer?.customerNumber ?? t('app.premium.profile.customerProfile'), icon: UserRound },
+        { label: t('app.premium.profile.notifications'), detail: preferences?.transactionalPush ? t('app.premium.profile.transactionalEnabled') : t('app.premium.profile.pendingSetup'), icon: Bell },
+        { label: t('app.premium.profile.settings'), detail: t('app.premium.profile.privacyAccess'), icon: Settings2 },
       ],
     },
   ]
@@ -173,54 +173,54 @@ export function ProfileScreen() {
             </span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'My account' : 'Mi cuenta'}</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.profile.myAccount')}</p>
             <h1 className="mt-1 break-words text-[2rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
               {displayName}
             </h1>
             <p className="mt-2 text-[12px] text-[var(--color-muted)]">
-              {loadingCustomer ? (isEnglish ? 'Loading customer data...' : 'Cargando datos cliente...') : customer?.customerNumber ?? (isEnglish ? 'Customer profile pending' : 'Perfil cliente pendiente')}
+              {loadingCustomer ? t('app.premium.profile.loading') : customer?.customerNumber ?? t('app.premium.profile.customerPending')}
             </p>
           </div>
         </div>
 
         <label className="mt-5 flex cursor-pointer items-center justify-center gap-2 rounded-[1rem] border border-[rgba(104,13,36,0.2)] bg-white px-4 py-3 text-[12px] font-semibold text-[var(--color-burgundy)]">
           <ImageUp size={15} />
-          {isEnglish ? 'Update avatar' : 'Actualizar avatar'}
+          {t('app.premium.profile.updateAvatar')}
           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={uploadAvatar} />
         </label>
 
         <form className="mt-5 grid gap-3" onSubmit={saveProfile}>
-          <input name="firstName" defaultValue={customerMe?.profile.firstName ?? profile?.first_name ?? ''} placeholder={isEnglish ? 'First name' : 'Nombre'} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <input name="lastName" defaultValue={customerMe?.profile.lastName ?? profile?.last_name ?? ''} placeholder={isEnglish ? 'Last name' : 'Apellido'} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <input name="displayName" defaultValue={customerMe?.profile.displayName ?? profile?.display_name ?? ''} placeholder={isEnglish ? 'Display name' : 'Nombre visible'} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <input name="phone" defaultValue={customerMe?.profile.phone ?? profile?.phone ?? ''} placeholder={isEnglish ? 'Phone' : 'Teléfono'} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
+          <input name="firstName" defaultValue={customerMe?.profile.firstName ?? profile?.first_name ?? ''} placeholder={t('app.premium.profile.firstName')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
+          <input name="lastName" defaultValue={customerMe?.profile.lastName ?? profile?.last_name ?? ''} placeholder={t('app.premium.profile.lastName')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
+          <input name="displayName" defaultValue={customerMe?.profile.displayName ?? profile?.display_name ?? ''} placeholder={t('app.premium.profile.displayName')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
+          <input name="phone" defaultValue={customerMe?.profile.phone ?? profile?.phone ?? ''} placeholder={t('app.premium.profile.phone')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
           <select name="language" defaultValue={preferences?.language ?? profile?.preferred_language ?? 'es'} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none">
             <option value="es">Español</option>
             <option value="en">English</option>
           </select>
           <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
             <input name="marketingEmail" type="checkbox" defaultChecked={preferences?.marketingEmail ?? true} />
-            {isEnglish ? 'Marketing email' : 'Correo de marketing'}
+            {t('app.premium.profile.marketingEmail')}
           </label>
           <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
             <input name="marketingPush" type="checkbox" defaultChecked={preferences?.marketingPush ?? true} />
-            {isEnglish ? 'Marketing push' : 'Push de marketing'}
+            {t('app.premium.profile.marketingPush')}
           </label>
           <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
             <input name="transactionalPush" type="checkbox" defaultChecked={preferences?.transactionalPush ?? true} />
-            {isEnglish ? 'Transactional notifications' : 'Notificaciones transaccionales'}
+            {t('app.premium.profile.transactionalNotifications')}
           </label>
           <button disabled={isSaving} type="submit" className="rounded-[1rem] bg-[var(--color-burgundy)] px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
-            {isSaving ? (isEnglish ? 'Saving...' : 'Guardando...') : (isEnglish ? 'Save profile' : 'Guardar perfil')}
+            {isSaving ? t('app.premium.profile.saving') : t('app.premium.profile.save')}
           </button>
-          {message ? <p className="text-[11px] text-[var(--color-muted)]">{message}</p> : null}
+          <AppToast message={message} />
         </form>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           {[
-            [String(reservations.length), isEnglish ? 'Bookings' : 'Reservaciones'],
-            [String(orders.length), isEnglish ? 'Orders' : 'Órdenes'],
-            [String(loyalty?.pointsBalance ?? membership?.pointsBalance ?? 0), isEnglish ? 'Points' : 'Puntos'],
+            [String(reservations.length), t('app.premium.profile.reservations')],
+            [String(orders.length), t('app.premium.profile.orders')],
+            [String(loyalty?.pointsBalance ?? membership?.pointsBalance ?? 0), t('app.premium.profile.points')],
           ].map(([value, label]) => (
             <div key={label} className="rounded-[1rem] bg-[#fff8f1] p-3">
               <p className="text-[1.55rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{value}</p>
@@ -235,15 +235,15 @@ export function ProfileScreen() {
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#efcf93]">{membership.status}</p>
         <div className="mt-2 flex items-end justify-between gap-3">
           <div>
-            <p className="text-[1.8rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>{membership.plan?.name ?? (isEnglish ? 'Membership' : 'Membresía')}</p>
-            <p className="mt-2 text-[11px] text-white/75">{membership.renewalDate ? `${isEnglish ? 'Renewal' : 'Renovación'}: ${new Intl.DateTimeFormat(isEnglish ? 'en-US' : 'es-MX', { dateStyle: 'medium' }).format(new Date(membership.renewalDate))}` : (isEnglish ? 'Renewal pending' : 'Renovación pendiente')}</p>
+            <p className="text-[1.8rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>{membership.plan?.name ?? t('app.nav.club')}</p>
+            <p className="mt-2 text-[11px] text-white/75">{membership.renewalDate ? `${t('app.premium.profile.renewal')}: ${new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(membership.renewalDate))}` : t('app.premium.profile.renewalPending')}</p>
           </div>
-          <span className="rounded-full border border-white/20 px-3 py-1.5 text-[10px]">{isEnglish ? 'View club' : 'Ver club'}</span>
+          <span className="rounded-full border border-white/20 px-3 py-1.5 text-[10px]">{t('app.premium.profile.viewClub')}</span>
         </div>
       </section>
       ) : (
         <section className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
-          {isEnglish ? 'You do not have a Wine Club membership yet.' : 'Aún no tienes membresía Wine Club.'}
+          {t('app.premium.profile.noMembershipYet')}
         </section>
       )}
 
@@ -275,10 +275,10 @@ export function ProfileScreen() {
       ))}
 
       <section className="space-y-3">
-        <SectionHeading title={isEnglish ? 'My orders' : 'Mis órdenes'} />
+        <SectionHeading title={t('app.premium.profile.orders')} />
         {orders.length === 0 ? (
           <div className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
-            {isEnglish ? 'You do not have orders yet.' : 'Aún no tienes órdenes.'}
+            {t('app.premium.profile.noOrdersYet')}
           </div>
         ) : (
           <div className="space-y-3">
@@ -288,22 +288,22 @@ export function ProfileScreen() {
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold text-[var(--color-ink)]">{order.orderNumber}</p>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-                      {new Intl.DateTimeFormat(isEnglish ? 'en-US' : 'es-MX', { dateStyle: 'medium' }).format(new Date(order.createdAt))}
+                    {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(order.createdAt))}
                     </p>
                   </div>
-                  <span className="rounded-full bg-[#fff4e5] px-3 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">
+                  <StatusBadge tone="warning">
                     {order.status}
-                  </span>
+                  </StatusBadge>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-[var(--color-muted)]">
-                  <span>{order.items.length} {isEnglish ? 'items' : 'partidas'}</span>
+                  <span>{order.items.length} {order.items.length === 1 ? t('app.premium.cart.item') : t('app.premium.cart.items')}</span>
                   <strong className="text-[var(--color-burgundy)]">
-                    {new Intl.NumberFormat(isEnglish ? 'en-US' : 'es-MX', { style: 'currency', currency: 'MXN' }).format(Number(order.total ?? 0))}
+                    {new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(order.total ?? 0))}
                   </strong>
                 </div>
                 <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">
                   {order.paymentStatus === 'pending_payment'
-                    ? (isEnglish ? 'Payment pending. No online charge has been made.' : 'Pago pendiente. No se ha realizado cobro en línea.')
+                    ? t('app.premium.profile.paymentPending')
                     : order.paymentStatus}
                 </p>
               </article>
@@ -314,7 +314,7 @@ export function ProfileScreen() {
 
       <button type="button" onClick={() => signOut()} className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-[rgba(104,13,36,0.2)] bg-white px-4 py-3 text-[13px] font-semibold text-[var(--color-burgundy)]">
         <LogOut size={16} />
-        {isEnglish ? 'Sign out' : 'Cerrar sesión'}
+        {t('app.premium.profile.signOut')}
       </button>
     </div>
   )

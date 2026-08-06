@@ -1,19 +1,28 @@
-import { ArrowRight, Minus, Plus, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react'
+import { ArrowRight, RefreshCw, ShoppingBag, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerCart, type CustomerCartItem } from '../../../services/customer.service'
-import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
+import {
+  AppToast,
+  EmptyState,
+  LoadingState,
+  PrimaryButton,
+  QuantitySelector,
+  SectionHeading,
+} from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
 }
 
+function itemKind(item: CustomerCartItem, t: (key: string) => string) {
+  return item.itemType === 'wine' ? t('app.premium.cart.wine') : t('app.premium.cart.ticket')
+}
+
 export function CartScreen() {
-  const { isEnglish } = useAppPreferences()
+  const { t, locale } = useAppPreferences()
   const { session } = useAuth()
-  const locale = isEnglish ? 'en-US' : 'es-MX'
   const [cart, setCart] = useState<CustomerCart | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -27,14 +36,14 @@ export function CartScreen() {
       const response = await customerClient.cart(session.access_token)
       setCart(response.data)
     } catch {
-      setMessage(isEnglish ? 'Could not load cart.' : 'No fue posible cargar el carrito.')
+      setMessage(t('app.premium.cart.loadError'))
     } finally {
       setLoading(false)
     }
-  }, [isEnglish, session?.access_token])
+  }, [session?.access_token, t])
 
   useEffect(() => {
-    loadCart()
+    void loadCart()
   }, [loadCart])
 
   const updateQuantity = async (item: CustomerCartItem, quantity: number) => {
@@ -48,7 +57,7 @@ export function CartScreen() {
       })
       setCart(response.data)
     } catch {
-      setMessage(isEnglish ? 'Could not update quantity.' : 'No fue posible actualizar la cantidad.')
+      setMessage(t('app.premium.cart.updateError'))
     } finally {
       setBusyId(null)
     }
@@ -62,7 +71,7 @@ export function CartScreen() {
       const response = await customerClient.removeCartItem(session.access_token, item.id)
       setCart(response.data)
     } catch {
-      setMessage(isEnglish ? 'Could not remove item.' : 'No fue posible eliminar la partida.')
+      setMessage(t('app.premium.cart.removeError'))
     } finally {
       setBusyId(null)
     }
@@ -76,7 +85,7 @@ export function CartScreen() {
       const response = await customerClient.clearCart(session.access_token)
       setCart(response.data)
     } catch {
-      setMessage(isEnglish ? 'Could not clear cart.' : 'No fue posible vaciar el carrito.')
+      setMessage(t('app.premium.cart.clearError'))
     } finally {
       setBusyId(null)
     }
@@ -88,129 +97,98 @@ export function CartScreen() {
   return (
     <div className="space-y-6 pb-3">
       <SectionHeading
-        eyebrow={isEnglish ? 'Store' : 'Tienda'}
-        title={isEnglish ? 'My cart' : 'Mi carrito'}
+        eyebrow={t('app.premium.cart.eyebrow')}
+        title={t('app.premium.cart.title')}
         action={
           <button
             type="button"
-            onClick={loadCart}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(104,13,36,0.18)] bg-white text-[var(--color-burgundy)]"
-            title={isEnglish ? 'Reload cart' : 'Recargar carrito'}
+            onClick={() => void loadCart()}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-warm)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]"
+            title={t('app.premium.cart.reload')}
+            aria-label={t('app.premium.cart.reload')}
           >
             <RefreshCw size={16} />
           </button>
         }
       />
 
-      {message ? (
-        <p className="rounded-[1rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] px-4 py-3 text-[12px] text-[var(--color-alert)]">
-          {message}
-        </p>
-      ) : null}
+      <AppToast message={message} tone="danger" />
 
       {loading ? (
-        <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[13px] text-[var(--color-muted)]">
-          {isEnglish ? 'Loading cart...' : 'Cargando carrito...'}
-        </section>
+        <LoadingState label={t('app.premium.cart.loading')} />
       ) : items.length === 0 ? (
-        <section className="rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#f8eee5] text-[var(--color-burgundy)]">
-            <ShoppingBag size={20} />
-          </span>
-          <h1 className="mt-4 text-[1.85rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-            {isEnglish ? 'Your cart is empty.' : 'Tu carrito está vacío.'}
-          </h1>
-          <p className="mt-3 text-[13px] leading-6 text-[var(--color-muted)]">
-            {isEnglish
-              ? 'Add published wines from the store. Checkout creates a real order with payment pending.'
-              : 'Agrega vinos publicados desde la tienda. El checkout crea una orden real con pago pendiente.'}
-          </p>
-          <Link
-            to="/app/tienda"
-            className="mt-5 flex min-h-[48px] items-center justify-center rounded-[1rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white"
-          >
-            {isEnglish ? 'Explore wines' : 'Explorar vinos'}
-          </Link>
-        </section>
+        <EmptyState
+          title={t('app.premium.cart.emptyTitle')}
+          description={t('app.premium.cart.emptyCopy')}
+          action={<PrimaryButton to="/app/vinos">{t('app.premium.cart.explore')}</PrimaryButton>}
+        />
       ) : (
         <>
-          <section className="space-y-3">
+          <section className="grid gap-3">
             {items.map((item) => (
-              <article key={item.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+              <article key={item.id} className="rounded-[1.15rem] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="break-words text-[15px] font-semibold leading-5 text-[var(--color-ink)]">{item.name}</p>
-                    <p className="mt-1 text-[11px] uppercase tracking-[0.12em] text-[var(--color-gold)]">
-                      {item.itemType === 'wine' ? (isEnglish ? 'Wine' : 'Vino') : (isEnglish ? 'Ticket' : 'Boleto')}
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">
+                      {itemKind(item, t)}
                     </p>
-                    <p className="mt-2 text-[12px] text-[var(--color-muted)]">{money(item.unitPrice, locale)} × {item.quantity}</p>
+                    <p className="mt-2 text-[12px] text-[var(--color-muted)]">
+                      {money(item.unitPrice, locale)} x {item.quantity}
+                    </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => removeItem(item)}
+                    onClick={() => void removeItem(item)}
                     disabled={busyId === item.id}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f8eee5] text-[var(--color-burgundy)] disabled:opacity-50"
-                    title={isEnglish ? 'Remove item' : 'Eliminar partida'}
+                    className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-warm)] text-[var(--color-burgundy)] disabled:opacity-50"
+                    title={t('app.premium.cart.removeError')}
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item, item.quantity - 1)}
-                      disabled={item.quantity <= 1 || busyId === item.id}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#dccab5] bg-white text-[var(--color-burgundy)] disabled:opacity-40"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="min-w-8 text-center text-[13px] font-bold text-[var(--color-ink)]">{item.quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item, item.quantity + 1)}
-                      disabled={busyId === item.id}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#dccab5] bg-white text-[var(--color-burgundy)] disabled:opacity-40"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
+                  <QuantitySelector
+                    value={item.quantity}
+                    onChange={(quantity) => void updateQuantity(item, quantity)}
+                    decreaseLabel={t('app.premium.decreaseQuantity')}
+                    increaseLabel={t('app.premium.increaseQuantity')}
+                  />
                   <p className="text-[15px] font-bold text-[var(--color-burgundy)]">{money(item.subtotal, locale)}</p>
                 </div>
               </article>
             ))}
           </section>
 
-          <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-[#fffaf5] p-4">
+          <section className="rounded-[1.2rem] bg-[linear-gradient(145deg,#fffaf5,#f0dcc7)] p-4 shadow-[var(--shadow-soft)]">
             <div className="space-y-2 text-[13px] text-[var(--color-muted)]">
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Subtotal' : 'Subtotal'}</span><strong>{money(totals?.subtotal, locale)}</strong></div>
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Discounts' : 'Descuentos'}</span><strong>{money(totals?.discountTotal, locale)}</strong></div>
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Taxes' : 'Impuestos'}</span><strong>{money(totals?.taxTotal, locale)}</strong></div>
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Pickup at Hacienda' : 'Recolección en Hacienda'}</span><strong>{money(totals?.shippingTotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.subtotal')}</span><strong>{money(totals?.subtotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.discounts')}</span><strong>{money(totals?.discountTotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.taxes')}</span><strong>{money(totals?.taxTotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.pickup')}</span><strong>{money(totals?.shippingTotal, locale)}</strong></div>
             </div>
-            <div className="mt-4 flex items-end justify-between border-t border-[rgba(220,202,181,0.78)] pt-4">
-              <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">Total</span>
+            <div className="mt-4 flex items-end justify-between border-t border-[rgba(170,125,67,0.22)] pt-4">
+              <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{t('common.total')}</span>
               <strong className="text-[1.7rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{money(totals?.total, locale)}</strong>
             </div>
             <p className="mt-3 text-[11px] leading-5 text-[var(--color-muted)]">
-              {isEnglish
-                ? 'Online payment is not active yet. Checkout creates a real order with pending payment.'
-                : 'El pago en línea aún no está activo. El checkout crea una orden real con pago pendiente.'}
+              {t('app.premium.cart.onlinePaymentReady')}
             </p>
           </section>
 
           <div className="grid gap-3">
             <PrimaryButton to="/app/checkout">
-              {isEnglish ? 'Continue to checkout' : 'Continuar a checkout'}
+              {t('app.premium.cart.continue')}
+              <ArrowRight size={15} />
             </PrimaryButton>
             <button
               type="button"
-              onClick={clearCart}
+              onClick={() => void clearCart()}
               disabled={busyId === 'cart'}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[1rem] border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[13px] font-semibold text-[var(--color-burgundy)] disabled:opacity-50"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-panel)] px-4 text-[13px] font-semibold text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(84,17,36,0.14)] disabled:opacity-50"
             >
-              {isEnglish ? 'Clear cart' : 'Vaciar carrito'}
-              <ArrowRight size={14} />
+              <ShoppingBag size={15} />
+              {t('app.premium.cart.clear')}
             </button>
           </div>
         </>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerPaymentStatus } from '../../../services/customer.service'
-import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
+import { AppToast, PrimaryButton, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 type PaymentStatusMode = 'processing' | 'success' | 'failed'
@@ -12,15 +12,20 @@ function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
 }
 
-function titleFor(mode: PaymentStatusMode, isEnglish: boolean) {
-  if (mode === 'success') return isEnglish ? 'Payment confirmed' : 'Pago confirmado'
-  if (mode === 'failed') return isEnglish ? 'Payment could not be completed' : 'No se pudo completar el pago'
-  return isEnglish ? 'Processing payment' : 'Procesando pago'
+function titleFor(mode: PaymentStatusMode, t: (key: string) => string) {
+  if (mode === 'success') return t('app.premium.payment.titleSuccess')
+  if (mode === 'failed') return t('app.premium.payment.titleFailed')
+  return t('app.premium.payment.titleProcessing')
+}
+
+function copyFor(mode: PaymentStatusMode, t: (key: string) => string) {
+  if (mode === 'success') return t('app.premium.payment.successCopy')
+  if (mode === 'failed') return t('app.premium.payment.failedCopy')
+  return t('app.premium.payment.checking')
 }
 
 export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
-  const { isEnglish } = useAppPreferences()
-  const locale = isEnglish ? 'en-US' : 'es-MX'
+  const { t, locale } = useAppPreferences()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
@@ -50,63 +55,61 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
           }
         }
       } catch {
-        if (active) setMessage(isEnglish ? 'Could not verify payment status.' : 'No fue posible verificar el estado del pago.')
+        if (active) setMessage(t('app.premium.payment.verifyError'))
       } finally {
         if (active) setLoading(false)
       }
     }
-    load()
+    void load()
     return () => {
       active = false
     }
-  }, [session?.access_token, orderId, mode, navigate, isEnglish])
+  }, [session?.access_token, orderId, mode, navigate, t])
 
   const icon = mode === 'success'
-    ? <CheckCircle2 size={28} className="text-[#2a7358]" />
+    ? <CheckCircle2 size={30} className="text-[var(--color-vineyard)]" />
     : mode === 'failed'
-      ? <AlertCircle size={28} className="text-[var(--color-alert)]" />
-      : <Loader2 size={28} className="animate-spin text-[var(--color-burgundy)]" />
+      ? <AlertCircle size={30} className="text-[var(--color-alert)]" />
+      : <Loader2 size={30} className="animate-spin text-[var(--color-burgundy)]" />
 
   return (
     <div className="space-y-6 pb-3">
-      <SectionHeading eyebrow={isEnglish ? 'Payment' : 'Pago'} title={titleFor(mode, isEnglish)} />
+      <SectionHeading eyebrow={t('app.premium.payment.eyebrow')} title={titleFor(mode, t)} />
 
-      <section className="rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_16px_34px_rgba(74,32,28,0.07)]">
-        {icon}
-        <p className="mt-4 text-[13px] leading-5 text-[var(--color-muted)]">
-          {mode === 'success'
-            ? (isEnglish ? 'Your payment is being validated against the backend and Stripe webhook.' : 'Tu pago se valida contra el backend y el webhook de Stripe.')
-            : mode === 'failed'
-              ? (isEnglish ? 'No charge is marked as paid by the app. You can retry from checkout if the order is still pending.' : 'La app no marca cobros como pagados. Puedes reintentar desde checkout si la orden sigue pendiente.')
-              : (isEnglish ? 'We are checking the real payment status with the backend.' : 'Estamos consultando el estado real del pago con el backend.')}
-        </p>
+      <section className="rounded-[1.25rem] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+        <div className="flex items-start gap-3">
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-warm)]">
+            {icon}
+          </span>
+          <p className="min-w-0 text-[13px] leading-5 text-[var(--color-muted)]">
+            {copyFor(mode, t)}
+          </p>
+        </div>
 
         {loading ? (
-          <p className="mt-4 rounded-[1rem] bg-[#fffaf5] px-4 py-3 text-[12px] text-[var(--color-muted)]">
-            {isEnglish ? 'Checking status...' : 'Consultando estado...'}
+          <p className="mt-4 rounded-[1rem] bg-[var(--color-surface-warm)] px-4 py-3 text-[12px] text-[var(--color-muted)]">
+            {t('app.premium.payment.checkingStatus')}
           </p>
         ) : message ? (
-          <p className="mt-4 rounded-[1rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] px-4 py-3 text-[12px] text-[var(--color-alert)]">
-            {message}
-          </p>
+          <AppToast message={message} tone="danger" />
         ) : status ? (
-          <div className="mt-4 space-y-2 rounded-[1rem] bg-[#fffaf5] p-4 text-[13px] text-[var(--color-muted)]">
-            <div className="flex justify-between gap-3"><span>{isEnglish ? 'Order' : 'Orden'}</span><strong>{status.orderNumber}</strong></div>
-            <div className="flex justify-between gap-3"><span>{isEnglish ? 'Order status' : 'Estado de orden'}</span><strong>{status.orderStatus}</strong></div>
-            <div className="flex justify-between gap-3"><span>{isEnglish ? 'Payment status' : 'Estado de pago'}</span><strong>{status.paymentStatus}</strong></div>
-            <div className="flex justify-between gap-3"><span>Total</span><strong>{money(status.amount, locale)}</strong></div>
+          <div className="mt-4 space-y-2 rounded-[1rem] bg-[var(--color-surface-warm)] p-4 text-[13px] text-[var(--color-muted)]">
+            <div className="flex justify-between gap-3"><span>{t('app.premium.payment.order')}</span><strong>{status.orderNumber}</strong></div>
+            <div className="flex justify-between gap-3"><span>{t('app.premium.payment.orderStatus')}</span><StatusBadge>{status.orderStatus}</StatusBadge></div>
+            <div className="flex justify-between gap-3"><span>{t('app.premium.payment.paymentStatus')}</span><StatusBadge tone={status.paymentStatus === 'paid' ? 'success' : 'warning'}>{status.paymentStatus}</StatusBadge></div>
+            <div className="flex justify-between gap-3"><span>{t('common.total')}</span><strong>{money(status.amount, locale)}</strong></div>
           </div>
         ) : null}
 
         <div className="mt-5 grid gap-3">
           {status?.canRetry ? (
-            <Link to="/app/checkout" className="flex min-h-[48px] items-center justify-center gap-2 rounded-[1rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
+            <Link to="/app/checkout" className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
               <RotateCcw size={16} />
-              {isEnglish ? 'Retry payment' : 'Reintentar pago'}
+              {t('app.premium.payment.retryPayment')}
             </Link>
           ) : null}
-          <PrimaryButton to="/app/perfil">
-            {isEnglish ? 'View my orders' : 'Ver mis órdenes'}
+          <PrimaryButton to="/app/perfil" tone={status?.canRetry ? 'ghost' : 'primary'}>
+            {t('app.premium.payment.viewOrders')}
           </PrimaryButton>
         </div>
       </section>

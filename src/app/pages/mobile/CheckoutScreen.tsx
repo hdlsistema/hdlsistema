@@ -5,7 +5,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerCart, type CustomerOrder, type CustomerPaymentSession } from '../../../services/customer.service'
 import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
-import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
+import {
+  AppToast,
+  EmptyState,
+  LoadingState,
+  PrimaryButton,
+  SectionHeading,
+  StatusBadge,
+} from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { isStripePublishableKeyConfigured, stripePromise } from '../../payments/stripe'
 
@@ -16,15 +23,14 @@ function money(value: number | string | null | undefined, locale: string) {
 function EmbeddedStripePaymentForm({
   clientSecret,
   orderId,
-  isEnglish,
   onMessage,
 }: {
   clientSecret: string
   orderId: string
-  isEnglish: boolean
   onMessage: (message: string) => void
 }) {
   const { session } = useAuth()
+  const { t } = useAppPreferences()
   const stripe = useStripe()
   const elements = useElements()
   const navigate = useNavigate()
@@ -55,7 +61,7 @@ function EmbeddedStripePaymentForm({
     onMessage('')
     const submitResult = await elements.submit()
     if (submitResult.error) {
-      onMessage(submitResult.error.message ?? (isEnglish ? 'Check your payment details.' : 'Revisa tus datos de pago.'))
+      onMessage(submitResult.error.message ?? t('app.premium.checkout.checkPaymentDetails'))
       setProcessing(false)
       return
     }
@@ -70,7 +76,7 @@ function EmbeddedStripePaymentForm({
     })
 
     if (result.error) {
-      onMessage(result.error.message ?? (isEnglish ? 'Payment could not be confirmed.' : 'No fue posible confirmar el pago.'))
+      onMessage(result.error.message ?? t('app.premium.checkout.confirmError'))
       setProcessing(false)
       return
     }
@@ -79,50 +85,40 @@ function EmbeddedStripePaymentForm({
   }
 
   return (
-    <section className="rounded-[1.25rem] border border-[rgba(104,13,36,0.16)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+    <section className="rounded-[1.15rem] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-4 flex items-start gap-3">
-        <CreditCard size={18} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-warm)] text-[var(--color-burgundy)]">
+          <CreditCard size={18} />
+        </span>
         <div>
           <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">
-            {isEnglish ? 'Secure card payment' : 'Pago seguro con tarjeta'}
+            {t('app.premium.checkout.secureCard')}
           </h2>
           <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
-            {isEnglish
-              ? 'Stripe securely captures card data inside the app. Hacienda de Letras never stores PAN or CVV.'
-              : 'Stripe captura los datos de tarjeta dentro de la app. Hacienda de Letras nunca guarda PAN ni CVV.'}
+            {t('app.premium.checkout.stripeCopy')}
           </p>
         </div>
       </div>
       <PaymentElement />
-      <label className="mt-4 flex items-start gap-3 rounded-[1rem] bg-[#fffaf5] px-4 py-3 text-[12px] leading-5 text-[var(--color-muted)]">
+      <label className="mt-4 flex items-start gap-3 rounded-[1rem] bg-[var(--color-surface-warm)] px-4 py-3 text-[12px] leading-5 text-[var(--color-muted)]">
         <input
           type="checkbox"
           checked={accepted}
           onChange={(event) => setAccepted(event.target.checked)}
-          className="mt-1"
+          className="mt-1 accent-[var(--color-burgundy)]"
         />
-        <span>
-          {isEnglish
-            ? 'I accept that the backend and Stripe webhook validate the final payment status.'
-            : 'Acepto que el backend y el webhook de Stripe validen el estado final del pago.'}
-        </span>
+        <span>{t('app.premium.checkout.acceptWebhook')}</span>
       </label>
-      <button
-        type="button"
-        onClick={submitPayment}
-        disabled={!stripe || !elements || !accepted || processing}
-        className="mt-4 flex min-h-[48px] w-full items-center justify-center rounded-[1rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white disabled:opacity-50"
-      >
-        {processing ? (isEnglish ? 'Processing...' : 'Procesando...') : (isEnglish ? 'Pay in app' : 'Pagar en la app')}
-      </button>
+      <PrimaryButton onClick={submitPayment} disabled={!stripe || !elements || !accepted || processing} className="mt-4">
+        {processing ? t('app.premium.checkout.processing') : t('app.premium.checkout.payInApp')}
+      </PrimaryButton>
     </section>
   )
 }
 
 export function CheckoutScreen() {
-  const { isEnglish, language } = useAppPreferences()
+  const { t, locale, language } = useAppPreferences()
   const { session } = useAuth()
-  const locale = isEnglish ? 'en-US' : 'es-MX'
   const [cart, setCart] = useState<CustomerCart | null>(null)
   const [order, setOrder] = useState<CustomerOrder | null>(null)
   const [paymentSession, setPaymentSession] = useState<CustomerPaymentSession | null>(null)
@@ -141,16 +137,16 @@ export function CheckoutScreen() {
         const response = await customerClient.cart(session.access_token)
         if (active) setCart(response.data)
       } catch {
-        if (active) setMessage(isEnglish ? 'Could not load checkout.' : 'No fue posible cargar checkout.')
+        if (active) setMessage(t('app.premium.checkout.loadError'))
       } finally {
         if (active) setLoading(false)
       }
     }
-    load()
+    void load()
     return () => {
       active = false
     }
-  }, [session?.access_token, isEnglish])
+  }, [session?.access_token, t])
 
   const createOrder = async () => {
     if (!session?.access_token || submitting) return
@@ -167,17 +163,13 @@ export function CheckoutScreen() {
       try {
         const paymentResponse = await customerClient.paymentSession(session.access_token, response.data.id)
         setPaymentSession(paymentResponse.data)
-        setMessage(isEnglish
-          ? 'Your order is ready. Complete the payment without leaving the app.'
-          : 'Tu orden está lista. Completa el pago sin salir de la app.')
+        setMessage(t('app.premium.checkout.orderReady'))
       } catch {
         setPaymentSession(null)
-        setMessage(isEnglish
-          ? 'Your order was created, but online payment is temporarily unavailable.'
-          : 'Tu orden fue creada, pero el pago en línea no está disponible temporalmente.')
+        setMessage(t('app.premium.checkout.paymentUnavailable'))
       }
     } catch {
-      setMessage(isEnglish ? 'Could not create the order.' : 'No fue posible crear la orden.')
+      setMessage(t('app.premium.checkout.createError'))
     } finally {
       setSubmitting(false)
     }
@@ -203,35 +195,33 @@ export function CheckoutScreen() {
   return (
     <div className="space-y-6 pb-3">
       <SectionHeading
-        eyebrow={isEnglish ? 'Checkout' : 'Checkout'}
-        title={isEnglish ? 'Confirm order' : 'Confirmar orden'}
+        eyebrow={t('app.premium.checkout.eyebrow')}
+        title={t('app.premium.checkout.title')}
       />
 
-      {message ? (
-        <p className="rounded-[1rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 text-[12px] text-[var(--color-muted)]">
-          {message}
-        </p>
-      ) : null}
+      <AppToast message={message} tone={order ? 'success' : 'danger'} />
 
       {order ? (
-        <section className="rounded-[1.35rem] border border-[rgba(42,115,88,0.28)] bg-[rgba(42,115,88,0.08)] p-5 shadow-[0_14px_30px_rgba(42,115,88,0.08)]">
-          <CheckCircle2 size={26} className="text-[#2a7358]" />
-          <h1 className="mt-4 text-[2rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
-            {order.orderNumber}
-          </h1>
-          <p className="mt-2 text-[13px] leading-5 text-[var(--color-muted)]">
-            {isEnglish
-              ? 'Real order created with pending payment. Payment is completed inside this checkout.'
-              : 'Orden real creada con pago pendiente. El pago se completa dentro de este checkout.'}
-          </p>
-          <div className="mt-4 rounded-[1rem] bg-white p-4">
-            <div className="flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
-              <span>{isEnglish ? 'Status' : 'Estado'}</span>
-              <strong className="text-[var(--color-burgundy)]">{order.status}</strong>
+        <section className="rounded-[1.25rem] bg-[linear-gradient(145deg,rgba(63,117,79,0.12),rgba(255,250,242,0.96))] p-5 shadow-[var(--shadow-soft)]">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 size={26} className="mt-0.5 shrink-0 text-[var(--color-vineyard)]" />
+            <div className="min-w-0">
+              <h1 className="break-words text-[2rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+                {order.orderNumber}
+              </h1>
+              <p className="mt-2 text-[13px] leading-5 text-[var(--color-muted)]">
+                {t('app.premium.checkout.orderCreated')}
+              </p>
             </div>
-            <div className="mt-2 flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
-              <span>Total</span>
+          </div>
+          <div className="mt-4 grid gap-2 rounded-[1rem] bg-white/82 p-4">
+            <div className="flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
+              <span>{t('common.total')}</span>
               <strong className="text-[var(--color-burgundy)]">{money(order.total, locale)}</strong>
+            </div>
+            <div className="flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
+              <span>{t('common.status.pending_payment')}</span>
+              <StatusBadge tone="warning">{order.status}</StatusBadge>
             </div>
           </div>
           {paymentSession && stripeOptions && isStripePublishableKeyConfigured() && stripePromise ? (
@@ -240,46 +230,37 @@ export function CheckoutScreen() {
                 <EmbeddedStripePaymentForm
                   clientSecret={paymentSession.clientSecret}
                   orderId={order.id}
-                  isEnglish={isEnglish}
                   onMessage={setMessage}
                 />
               </Elements>
             </div>
           ) : (
-            <p className="mt-5 rounded-[1rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] px-4 py-3 text-[12px] text-[var(--color-alert)]">
-              {isEnglish
-                ? 'Stripe Payment Element is not available yet. No payment was collected.'
-                : 'Stripe Payment Element aún no está disponible. No se realizó ningún cobro.'}
-            </p>
+            <AppToast message={t('app.premium.checkout.stripeUnavailable')} tone="danger" />
           )}
           <Link
             to="/app/perfil"
-            className="mt-4 flex min-h-[48px] items-center justify-center rounded-[1rem] border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[13px] font-bold text-[var(--color-burgundy)]"
+            className="mt-4 flex min-h-[48px] items-center justify-center rounded-[0.95rem] bg-white px-4 text-[13px] font-bold text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(84,17,36,0.14)]"
           >
-            {isEnglish ? 'View my orders' : 'Ver mis órdenes'}
+            {t('app.premium.checkout.viewOrders')}
           </Link>
         </section>
       ) : loading ? (
-        <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[13px] text-[var(--color-muted)]">
-          {isEnglish ? 'Loading checkout...' : 'Cargando checkout...'}
-        </section>
+        <LoadingState label={t('common.loading')} />
       ) : !cart || cart.items.length === 0 ? (
-        <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[13px] text-[var(--color-muted)]">
-          {isEnglish ? 'Your cart is empty.' : 'Tu carrito está vacío.'}
-          <Link to="/app/tienda" className="mt-4 block font-semibold text-[var(--color-burgundy)]">
-            {isEnglish ? 'Return to store' : 'Volver a tienda'}
-          </Link>
-        </section>
+        <EmptyState
+          title={t('app.premium.checkout.empty')}
+          action={<PrimaryButton to="/app/vinos">{t('app.premium.checkout.returnStore')}</PrimaryButton>}
+        />
       ) : (
         <>
-          <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
-            <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">{isEnglish ? 'Items' : 'Partidas'}</h2>
+          <section className="rounded-[1.15rem] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
+            <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">{t('app.premium.checkout.items')}</h2>
             <div className="mt-3 space-y-3">
               {cart.items.map((item) => (
-                <div key={item.id} className="flex justify-between gap-3 border-t border-[rgba(220,202,181,0.52)] pt-3 first:border-t-0 first:pt-0">
+                <div key={item.id} className="flex justify-between gap-3 border-t border-[rgba(170,125,67,0.18)] pt-3 first:border-t-0 first:pt-0">
                   <div className="min-w-0">
                     <p className="break-words text-[13px] font-semibold text-[var(--color-ink)]">{item.name}</p>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.quantity} × {money(item.unitPrice, locale)}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.quantity} x {money(item.unitPrice, locale)}</p>
                   </div>
                   <strong className="shrink-0 text-[13px] text-[var(--color-burgundy)]">{money(item.subtotal, locale)}</strong>
                 </div>
@@ -287,55 +268,53 @@ export function CheckoutScreen() {
             </div>
           </section>
 
-          <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-[#fffaf5] p-4">
+          <section className="rounded-[1.15rem] bg-[var(--color-surface-warm)] p-4 shadow-[inset_0_0_0_1px_rgba(170,125,67,0.14)]">
             <label className="block">
               <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">
-                {isEnglish ? 'Promotion code' : 'Código promocional'}
+                {t('app.premium.checkout.promotion')}
               </span>
               <input
                 value={discountCode}
                 onChange={(event) => setDiscountCode(event.target.value.toUpperCase())}
-                placeholder={isEnglish ? 'Optional' : 'Opcional'}
-                className="mt-2 w-full rounded-[1rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none"
+                placeholder={t('app.premium.checkout.optional')}
+                className="mt-2 min-h-12 w-full rounded-[0.95rem] border border-[rgba(170,125,67,0.28)] bg-white px-4 text-[13px] outline-none"
               />
             </label>
             <p className="mt-2 text-[11px] leading-5 text-[var(--color-muted)]">
-              {isEnglish
-                ? 'The backend validates whether the promotion is published, active and eligible.'
-                : 'El backend valida que la promoción esté publicada, vigente y sea elegible.'}
+              {t('app.premium.checkout.promotionHelp')}
             </p>
           </section>
 
-          <section className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-4">
+          <section className="rounded-[1.15rem] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
             <div className="space-y-2 text-[13px] text-[var(--color-muted)]">
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Subtotal' : 'Subtotal'}</span><strong>{money(totals?.subtotal, locale)}</strong></div>
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Discounts' : 'Descuentos'}</span><strong>{money(totals?.discountTotal, locale)}</strong></div>
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Taxes' : 'Impuestos'}</span><strong>{money(totals?.taxTotal, locale)}</strong></div>
-              <div className="flex justify-between gap-3"><span>{isEnglish ? 'Pickup' : 'Recolección'}</span><strong>{money(totals?.shippingTotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.subtotal')}</span><strong>{money(totals?.subtotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.discounts')}</span><strong>{money(totals?.discountTotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.taxes')}</span><strong>{money(totals?.taxTotal, locale)}</strong></div>
+              <div className="flex justify-between gap-3"><span>{t('app.premium.cart.pickup')}</span><strong>{money(totals?.shippingTotal, locale)}</strong></div>
             </div>
-            <div className="mt-4 flex items-end justify-between border-t border-[rgba(220,202,181,0.78)] pt-4">
-              <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">Total</span>
+            <div className="mt-4 flex items-end justify-between border-t border-[rgba(170,125,67,0.2)] pt-4">
+              <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{t('common.total')}</span>
               <strong className="text-[1.7rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{money(totals?.total, locale)}</strong>
             </div>
           </section>
 
-          <section className="grid gap-3 rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 text-[12px] text-[var(--color-muted)]">
+          <section className="grid gap-3 rounded-[1.15rem] bg-[var(--color-panel)] p-4 text-[12px] text-[var(--color-muted)] shadow-[var(--shadow-card)]">
             <div className="flex items-start gap-3">
               <CreditCard size={17} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />
-              <p>{isEnglish ? 'Card details are captured only by Stripe Elements inside the app.' : 'Los datos de tarjeta los captura únicamente Stripe Elements dentro de la app.'}</p>
+              <p>{t('app.premium.checkout.stripeCopy')}</p>
             </div>
             <div className="flex items-start gap-3">
               <PackageCheck size={17} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />
-              <p>{isEnglish ? 'Fulfillment is limited to pickup at Hacienda until shipping rules are approved.' : 'La entrega se limita a recolección en Hacienda hasta aprobar reglas de envío.'}</p>
+              <p>{t('app.pickupOnly')}</p>
             </div>
             <div className="flex items-start gap-3">
               <ShieldCheck size={17} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" />
-              <p>{isEnglish ? 'Totals are recalculated by the backend before creating the order.' : 'Los totales se recalculan en backend antes de crear la orden.'}</p>
+              <p>{t('app.backendTotals')}</p>
             </div>
           </section>
 
           <PrimaryButton onClick={createOrder} disabled={submitting}>
-            {submitting ? (isEnglish ? 'Creating order...' : 'Creando orden...') : (isEnglish ? 'Create order' : 'Crear orden')}
+            {submitting ? t('app.premium.checkout.creatingOrder') : t('app.premium.checkout.createOrder')}
           </PrimaryButton>
         </>
       )}

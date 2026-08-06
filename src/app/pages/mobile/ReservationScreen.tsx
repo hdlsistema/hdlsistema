@@ -25,10 +25,10 @@ function normalizeSlot(slot: CustomerAvailabilitySlot) {
   }
 }
 
-function formatDateTime(value: string | null | undefined, locale: string) {
-  if (!value) return locale === 'en-US' ? 'To be confirmed' : 'Por confirmar'
+function formatDateTime(value: string | null | undefined, locale: string, fallback: string) {
+  if (!value) return fallback
   const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return locale === 'en-US' ? 'To be confirmed' : 'Por confirmar'
+  if (Number.isNaN(date.getTime())) return fallback
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -40,7 +40,7 @@ function makeIdempotencyKey(prefix: string) {
 }
 
 export function ReservationScreen() {
-  const { isEnglish, locale, language } = useAppPreferences()
+  const { t, locale, language } = useAppPreferences()
   const { session } = useAuth()
   const location = useLocation()
   const requestedExperienceId = (location.state as { experienceId?: string } | null)?.experienceId
@@ -79,11 +79,11 @@ export function ReservationScreen() {
       setSelectedSlotId((current) => current && nextSlots.some((slot) => slot.id === current) ? current : nextSlots[0]?.id ?? '')
     } catch {
       setSlots([])
-      setOperationError(isEnglish ? 'Availability could not be loaded.' : 'No fue posible cargar disponibilidad.')
+      setOperationError(t('app.premium.reservation.availabilityError'))
     } finally {
       setLoadingSlots(false)
     }
-  }, [isEnglish, selectedExperienceId, token])
+  }, [selectedExperienceId, t, token])
 
   const loadReservations = useCallback(async () => {
     if (!token) return
@@ -124,14 +124,14 @@ export function ReservationScreen() {
         language,
         idempotencyKey: makeIdempotencyKey('reservation'),
       })
-      setMessage(isEnglish ? 'Reservation created.' : 'Reservación creada.')
+      setMessage(t('app.premium.reservation.created'))
       setNotes('')
       await Promise.all([loadSlots(), loadReservations()])
     } catch (err) {
       const status = err && typeof err === 'object' && 'status' in err ? Number((err as { status?: unknown }).status) : 0
       setOperationError(status === 409
-        ? (isEnglish ? 'This slot no longer has enough capacity.' : 'Este horario ya no tiene cupo suficiente.')
-        : (isEnglish ? 'Reservation could not be created.' : 'No fue posible crear la reservación.'))
+        ? t('app.premium.reservation.capacityConflict')
+        : t('app.premium.reservation.createError'))
     } finally {
       setSubmitting(false)
     }
@@ -142,11 +142,11 @@ export function ReservationScreen() {
     setSubmitting(true)
     setOperationError('')
     try {
-      await customerClient.cancelReservation(token, reservation.id, 'Cancelación solicitada desde app')
-      setMessage(isEnglish ? 'Reservation cancelled.' : 'Reservación cancelada.')
+      await customerClient.cancelReservation(token, reservation.id, t('app.premium.reservation.cancel'))
+      setMessage(t('app.premium.reservation.cancelled'))
       await Promise.all([loadSlots(), loadReservations()])
     } catch {
-      setOperationError(isEnglish ? 'Reservation could not be cancelled.' : 'No fue posible cancelar la reservación.')
+      setOperationError(t('app.premium.reservation.cancelError'))
     } finally {
       setSubmitting(false)
     }
@@ -161,10 +161,10 @@ export function ReservationScreen() {
         experienceSlotId: slotId,
         idempotencyKey: makeIdempotencyKey('reschedule'),
       })
-      setMessage(isEnglish ? 'Reservation rescheduled.' : 'Reservación reprogramada.')
+      setMessage(t('app.premium.reservation.rescheduled'))
       await Promise.all([loadSlots(), loadReservations()])
     } catch {
-      setOperationError(isEnglish ? 'Reservation could not be rescheduled.' : 'No fue posible reprogramar la reservación.')
+      setOperationError(t('app.premium.reservation.rescheduleError'))
     } finally {
       setSubmitting(false)
     }
@@ -173,21 +173,19 @@ export function ReservationScreen() {
   return (
     <div className="space-y-6 pb-3">
       <section className="space-y-3">
-        <SectionHeading eyebrow={isEnglish ? 'Real availability' : 'Disponibilidad real'} title={isEnglish ? 'Plan your experience' : 'Planea tu experiencia'} />
+        <SectionHeading eyebrow={t('app.premium.reservation.eyebrow')} title={t('app.premium.reservation.title')} />
         <p className="text-[13px] leading-5 text-[var(--color-muted)]">
-          {isEnglish
-            ? 'Choose a published experience and a live available slot. Payment will be connected later.'
-            : 'Elige una experiencia publicada y un horario disponible en vivo. El pago se conectará más adelante.'}
+          {t('app.premium.reservation.subtitle')}
         </p>
       </section>
 
       <section className="overflow-hidden rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
         {loading ? (
-          <div className="p-5 text-[12px] text-[var(--color-muted)]">{isEnglish ? 'Loading published experiences...' : 'Cargando experiencias publicadas...'}</div>
+          <div className="p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingExperiences')}</div>
         ) : error ? (
           <div className="p-5 text-[12px] text-[var(--color-alert)]">
             <p>{error}</p>
-            <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">{isEnglish ? 'Retry' : 'Reintentar'}</button>
+            <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">{t('common.retry')}</button>
           </div>
         ) : featuredExperience ? (
           <>
@@ -195,7 +193,7 @@ export function ReservationScreen() {
               <img src={imageField(featuredExperience, '/turismo.jpeg')} alt={textField(featuredExperience, 'title', 'Experiencia')} className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(40,14,17,0.78))]" />
               <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#f0cf92]">{isEnglish ? 'Selected experience' : 'Experiencia seleccionada'}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#f0cf92]">{t('app.premium.reservation.selectedExperience')}</p>
                 <h2 className="mt-1 text-[1.9rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
                   {textField(featuredExperience, 'title', 'Experiencia')}
                 </h2>
@@ -215,22 +213,22 @@ export function ReservationScreen() {
                 {textField(featuredExperience, 'short_description') || textField(featuredExperience, 'description')}
               </p>
               <p className="text-[14px] font-semibold text-[var(--color-burgundy)]">
-                {formatCurrency(numberField(featuredExperience, 'base_price'), locale)} {isEnglish ? 'per person' : 'por persona'}
+                {formatCurrency(numberField(featuredExperience, 'base_price'), locale)} {t('app.premium.reservation.perPerson')}
               </p>
             </div>
           </>
         ) : (
-          <div className="p-5 text-[12px] text-[var(--color-muted)]">{isEnglish ? 'No published experiences available.' : 'No hay experiencias publicadas disponibles.'}</div>
+          <div className="p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.noExperiences')}</div>
         )}
       </section>
 
       <section className="space-y-3">
-        <SectionHeading title={isEnglish ? 'Choose a real slot' : 'Elige un horario real'} />
+        <SectionHeading title={t('app.premium.reservation.chooseSlot')} />
         {loadingSlots ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{isEnglish ? 'Loading availability...' : 'Cargando disponibilidad...'}</div>
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingAvailability')}</div>
         ) : slots.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
-            {isEnglish ? 'No available slots for this experience yet.' : 'Aún no hay horarios disponibles para esta experiencia.'}
+            {t('app.premium.reservation.noSlots')}
           </div>
         ) : (
           <div className="grid gap-3">
@@ -241,8 +239,8 @@ export function ReservationScreen() {
                 onClick={() => setSelectedSlotId(slot.id)}
                 className={`rounded-[1.1rem] border p-4 text-left text-[12px] transition ${selectedSlotId === slot.id ? 'border-[var(--color-burgundy)] bg-[#fff4f6]' : 'border-[rgba(220,202,181,0.78)] bg-white'}`}
               >
-                <span className="flex items-center gap-2 font-semibold text-[var(--color-ink)]"><Clock3 size={14} />{formatDateTime(slot.startAt, locale)}</span>
-                <span className="mt-2 block text-[11px] text-[var(--color-muted)]">{slot.available} {isEnglish ? 'spots available' : 'lugares disponibles'} · {formatCurrency(slot.price, locale)}</span>
+                <span className="flex items-center gap-2 font-semibold text-[var(--color-ink)]"><Clock3 size={14} />{formatDateTime(slot.startAt, locale, t('common.toBeConfirmed'))}</span>
+                <span className="mt-2 block text-[11px] text-[var(--color-muted)]">{slot.available} {t('app.premium.reservation.spotsAvailable')} · {formatCurrency(slot.price, locale)}</span>
               </button>
             ))}
           </div>
@@ -254,14 +252,14 @@ export function ReservationScreen() {
           <div className="flex items-center gap-3">
             <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#f8eee5] text-[var(--color-burgundy)]"><Users size={18} /></span>
             <div>
-              <p className="text-[13px] font-semibold text-[var(--color-ink)]">{isEnglish ? 'Guests' : 'Personas'}</p>
-              <p className="mt-1 text-[10px] text-[var(--color-muted)]">{isEnglish ? 'Capacity is validated by backend' : 'El cupo se valida en backend'}</p>
+              <p className="text-[13px] font-semibold text-[var(--color-ink)]">{t('app.premium.reservation.guests')}</p>
+              <p className="mt-1 text-[10px] text-[var(--color-muted)]">{t('app.premium.reservation.guestsHelp')}</p>
             </div>
           </div>
           <div className="flex items-center gap-1 rounded-full border border-[rgba(104,13,36,0.13)] bg-[#fffaf5] p-1">
-            <button type="button" aria-label={isEnglish ? 'Decrease guests' : 'Disminuir personas'} onClick={() => setPeople((current) => Math.max(1, current - 1))} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-burgundy)]"><Minus size={14} /></button>
+            <button type="button" aria-label={t('app.premium.decreaseQuantity')} onClick={() => setPeople((current) => Math.max(1, current - 1))} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-burgundy)]"><Minus size={14} /></button>
             <span className="w-6 text-center text-[12px] font-semibold text-[var(--color-ink)]">{people}</span>
-            <button type="button" aria-label={isEnglish ? 'Increase guests' : 'Aumentar personas'} onClick={() => setPeople((current) => Math.min(20, current + 1))} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white"><Plus size={14} /></button>
+            <button type="button" aria-label={t('app.premium.increaseQuantity')} onClick={() => setPeople((current) => Math.min(20, current + 1))} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white"><Plus size={14} /></button>
           </div>
         </div>
         <textarea
@@ -269,17 +267,17 @@ export function ReservationScreen() {
           onChange={(event) => setNotes(event.target.value)}
           maxLength={1000}
           rows={3}
-          placeholder={isEnglish ? 'Optional note for your visit' : 'Nota opcional para tu visita'}
+          placeholder={t('app.premium.reservation.notePlaceholder')}
           className="mt-4 w-full rounded-[1rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none"
         />
       </section>
 
       {selectedSlot ? (
         <section className="rounded-[1.3rem] bg-[linear-gradient(145deg,#fffaf5,#f2dfca)] p-5 shadow-[0_16px_34px_rgba(74,32,28,0.07)]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{isEnglish ? 'Summary' : 'Resumen'}</p>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{t('app.premium.reservation.summary')}</p>
           <div className="mt-4 space-y-2 text-[12px]">
-            <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">{isEnglish ? 'Date' : 'Fecha'}</span><span className="text-right font-semibold text-[var(--color-ink)]">{formatDateTime(selectedSlot.startAt, locale)}</span></div>
-            <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">{isEnglish ? 'Guests' : 'Personas'}</span><span className="font-semibold text-[var(--color-ink)]">{people}</span></div>
+            <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">{t('app.premium.reservation.date')}</span><span className="text-right font-semibold text-[var(--color-ink)]">{formatDateTime(selectedSlot.startAt, locale, t('common.toBeConfirmed'))}</span></div>
+            <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">{t('app.premium.reservation.guests')}</span><span className="font-semibold text-[var(--color-ink)]">{people}</span></div>
             <div className="flex items-center justify-between gap-4"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(selectedSlot.price * people, locale)}</span></div>
           </div>
         </section>
@@ -290,20 +288,20 @@ export function ReservationScreen() {
 
       <PrimaryButton onClick={createReservation} disabled={!selectedSlot || submitting}>
         <CalendarDays size={16} />
-        {submitting ? (isEnglish ? 'Processing...' : 'Procesando...') : (isEnglish ? 'Confirm reservation' : 'Confirmar reservación')}
+        {submitting ? t('app.premium.reservation.processing') : t('app.premium.reservation.confirm')}
       </PrimaryButton>
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
-          <SectionHeading eyebrow={isEnglish ? 'My bookings' : 'Mis reservaciones'} title={isEnglish ? 'Your reservations' : 'Tus reservaciones'} />
-          <button type="button" onClick={() => void loadReservations()} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--color-burgundy)]" aria-label={isEnglish ? 'Refresh reservations' : 'Actualizar reservaciones'}>
+          <SectionHeading eyebrow={t('app.premium.reservation.myBookings')} title={t('app.premium.reservation.yourBookings')} />
+          <button type="button" onClick={() => void loadReservations()} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--color-burgundy)]" aria-label={t('app.premium.reservation.refresh')}>
             <RefreshCw size={16} />
           </button>
         </div>
         {loadingReservations ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{isEnglish ? 'Loading reservations...' : 'Cargando reservaciones...'}</div>
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingReservations')}</div>
         ) : reservations.length === 0 ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{isEnglish ? 'You do not have reservations yet.' : 'Aún no tienes reservaciones.'}</div>
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.noReservations')}</div>
         ) : (
           <div className="grid gap-3">
             {reservations.map((reservation) => (
@@ -312,7 +310,7 @@ export function ReservationScreen() {
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>
                     <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.experienceTitle}</h3>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{formatDateTime(reservation.startAt, locale)}</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{formatDateTime(reservation.startAt, locale, t('common.toBeConfirmed'))}</p>
                   </div>
                   <span className="rounded-full bg-[#f8eee5] px-3 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">{reservation.status}</span>
                 </div>
@@ -324,13 +322,13 @@ export function ReservationScreen() {
                       className="w-full rounded-[0.9rem] border border-[#dccab5] bg-white px-3 py-2 text-[12px] outline-none"
                       disabled={submitting}
                     >
-                      <option value="">{isEnglish ? 'Reschedule to...' : 'Reprogramar a...'}</option>
+                      <option value="">{t('app.premium.reservation.rescheduleTo')}</option>
                       {slots.filter((slot) => slot.id !== reservation.slotId).slice(0, 8).map((slot) => (
-                        <option key={slot.id} value={slot.id}>{formatDateTime(slot.startAt, locale)} · {slot.available}</option>
+                        <option key={slot.id} value={slot.id}>{formatDateTime(slot.startAt, locale, t('common.toBeConfirmed'))} · {slot.available}</option>
                       ))}
                     </select>
                     <button type="button" onClick={() => void cancelReservation(reservation)} disabled={submitting} className="rounded-[0.9rem] border border-[rgba(157,71,63,0.28)] px-3 py-2 text-[12px] font-semibold text-[var(--color-alert)]">
-                      {isEnglish ? 'Cancel reservation' : 'Cancelar reservación'}
+                      {t('app.premium.reservation.cancel')}
                     </button>
                   </div>
                 ) : null}
