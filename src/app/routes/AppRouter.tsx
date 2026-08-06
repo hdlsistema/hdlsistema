@@ -82,6 +82,8 @@ export function AppRouter() {
         <Route path="home" element={<HomeScreen />} />
         <Route path="tienda" element={<StoreScreen />} />
         <Route path="tienda/:wineId" element={<WineDetailScreen />} />
+        <Route path="vinos" element={<StoreScreen />} />
+        <Route path="vinos/:wineId" element={<WineDetailScreen />} />
         <Route path="experiencias" element={<ExperiencesScreen />} />
         <Route path="experiencias/:experienceId" element={<ExperienceDetailScreen />} />
         <Route path="eventos" element={<EventsScreen />} />
@@ -97,6 +99,14 @@ export function AppRouter() {
         <Route path="mapa" element={<MapScreen />} />
         <Route
           path="club"
+          element={
+            <ProtectedRoute>
+              <ClubScreen />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="membresias"
           element={
             <ProtectedRoute>
               <ClubScreen />

@@ -1,42 +1,47 @@
-import { Grape, Home, ShoppingBag, UserRound, Wine } from 'lucide-react'
+import { Home, ShoppingBag, UserRound, Wine, ShoppingCart } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
-export function BottomTabs() {
-  const { isEnglish } = useAppPreferences()
+export function AppBottomNavigation({ cartCount = 0 }: { cartCount?: number }) {
+  const { t } = useAppPreferences()
 
   const tabs = [
-    { to: '/app/home', label: isEnglish ? 'Home' : 'Inicio', icon: Home },
-    { to: '/app/tienda', label: isEnglish ? 'Store' : 'Tienda', icon: ShoppingBag },
-    { to: '/app/experiencias', label: isEnglish ? 'Experiences' : 'Experiencias', icon: Wine },
-    { to: '/app/club', label: 'Club', icon: Grape },
-    { to: '/app/perfil', label: isEnglish ? 'Account' : 'Mi cuenta', icon: UserRound },
+    { to: '/app/home', label: t('app.nav.home'), icon: Home },
+    { to: '/app/vinos', label: t('app.nav.store'), icon: ShoppingBag },
+    { to: '/app/experiencias', label: t('app.nav.experiences'), icon: Wine },
+    { to: '/app/carrito', label: t('app.nav.cart'), icon: ShoppingCart, count: cartCount },
+    { to: '/app/perfil', label: t('app.nav.profile'), icon: UserRound },
   ]
 
   return (
-    <nav className="sticky bottom-0 z-30 grid grid-cols-5 border-t border-[rgba(156,124,76,0.22)] bg-[rgba(228,214,192,0.96)] pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_rgba(78,46,26,0.12)] backdrop-blur-xl">
-      {tabs.map(({ to, label, icon: Icon }) => (
+    <nav className="absolute inset-x-0 bottom-0 z-30 grid grid-cols-5 bg-[rgba(255,250,242,0.94)] px-2 pb-[var(--safe-bottom)] pt-2 shadow-[0_-12px_32px_rgba(78,46,26,0.1)] backdrop-blur-xl">
+      {tabs.map(({ to, label, icon: Icon, count }) => (
         <NavLink
           key={to}
           to={to}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-1.5 px-1 py-3 text-[11px] outline-none ring-0 shadow-none transition-colors focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:shadow-none focus-visible:shadow-none ${
-              isActive ? 'text-[#6f1024]' : 'text-[#5d4c3e]'
+            `flex min-w-0 flex-col items-center gap-1 px-1 py-2 text-[10px] font-semibold transition-colors ${
+              isActive ? 'text-[var(--color-burgundy)]' : 'text-[var(--color-muted)]'
             }`
           }
         >
           {({ isActive }) => (
             <>
               <span
-                className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                className={`relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
                   isActive
-                    ? 'bg-[rgba(111,16,36,0.12)] text-[#6f1024]'
-                    : 'bg-transparent text-[#7b1028]'
+                    ? 'bg-[rgba(84,17,36,0.12)] text-[var(--color-burgundy)]'
+                    : 'bg-transparent text-[var(--color-muted-strong)]'
                 }`}
               >
                 <Icon size={18} strokeWidth={1.85} />
+                {count && count > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-gold)] px-1 text-[9px] font-bold text-white">
+                    {count > 99 ? '99+' : count}
+                  </span>
+                ) : null}
               </span>
-              <span className={isActive ? 'font-semibold' : 'font-medium'}>
+              <span className="max-w-full truncate">
                 {label}
               </span>
             </>
@@ -45,4 +50,8 @@ export function BottomTabs() {
       ))}
     </nav>
   )
+}
+
+export function BottomTabs() {
+  return <AppBottomNavigation />
 }
