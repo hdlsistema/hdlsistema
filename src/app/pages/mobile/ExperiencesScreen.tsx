@@ -1,449 +1,115 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { CalendarDays, Clock3, Users } from 'lucide-react'
 import {
-  ArrowRight,
-  CalendarDays,
-  Clock3,
-  MapPin,
-  Sparkles,
-  Users,
-  Wine,
-} from 'lucide-react'
+  AppSectionHeader,
+  EditorialCard,
+  EmptyState,
+  ErrorState,
+  HeroEditorial,
+  LoadingState,
+  PillRow,
+  StatusBadge,
+} from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
-import {
-  contentRouteId,
-  formatCurrency,
-  imageField,
-  numberField,
-  textField,
-} from '../../utils/publicContent'
+import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
-type Category =
-  | 'Todas'
-  | 'Catas'
-  | 'Recorridos'
-  | 'Gastronomía'
-  | 'Especiales'
-  | 'All'
-  | 'Tastings'
-  | 'Tours'
-  | 'Gastronomy'
-  | 'Special'
-
-const categoriesES: Category[] = [
-  'Todas',
-  'Catas',
-  'Recorridos',
-  'Gastronomía',
-  'Especiales',
-]
-
-const categoriesEN: Category[] = [
-  'All',
-  'Tastings',
-  'Tours',
-  'Gastronomy',
-  'Special',
-]
-
-function normalizeText(value: string) {
+function normalize(value: string) {
   return value.toLocaleLowerCase('es-MX')
 }
 
-function getCategory(title: string): Category {
-  const normalizedTitle = normalizeText(title)
-
-  if (normalizedTitle.includes('cata')) {
-    return 'Catas'
-  }
-
-  if (
-    normalizedTitle.includes('recorrido') ||
-    normalizedTitle.includes('viñedo')
-  ) {
-    return 'Recorridos'
-  }
-
-  if (
-    normalizedTitle.includes('cena') ||
-    normalizedTitle.includes('restaurante') ||
-    normalizedTitle.includes('picnic')
-  ) {
-    return 'Gastronomía'
-  }
-
-  return 'Especiales'
-}
-
 export function ExperiencesScreen() {
-  const { isEnglish, locale } = useAppPreferences()
+  const { t, isEnglish, locale } = useAppPreferences()
   const { records: experiences, loading, error, retry } = usePublicContent('experiences')
-  const [activeCategory, setActiveCategory] =
-    useState<Category>(isEnglish ? 'All' : 'Todas')
-
-  const categories = isEnglish ? categoriesEN : categoriesES
+  const categories = useMemo(
+    () => isEnglish
+      ? ['All', 'Tastings', 'Tours', 'Gastronomy', 'Special']
+      : ['Todas', 'Catas', 'Recorridos', 'Gastronomía', 'Especiales'],
+    [isEnglish],
+  )
+  const [activeCategory, setActiveCategory] = useState(0)
 
   const filteredExperiences = useMemo(() => {
-    if (activeCategory === 'Todas' || activeCategory === 'All') {
-      return experiences
-    }
-
-    return experiences.filter(
-      (experience) =>
-        getCategory(textField(experience, 'title')) === activeCategory ||
-        (isEnglish && (() => {
-          const esCategory = getCategory(textField(experience, 'title'))
-          const enMap: Record<Category, Category> = {
-            'Catas': 'Tastings',
-            'Recorridos': 'Tours',
-            'Gastronomía': 'Gastronomy',
-            'Especiales': 'Special',
-            'Todas': 'All',
-            'All': 'All',
-            'Tastings': 'Tastings',
-            'Tours': 'Tours',
-            'Gastronomy': 'Gastronomy',
-            'Special': 'Special',
-          }
-          return enMap[esCategory] === activeCategory
-        })()),
-    )
-  }, [activeCategory, experiences, isEnglish])
+    if (activeCategory === 0) return experiences
+    const category = normalize(categories[activeCategory] ?? '')
+    return experiences.filter((experience) => {
+      const target = normalize([
+        textField(experience, 'title'),
+        textField(experience, 'category'),
+        textField(experience, 'description'),
+      ].join(' '))
+      if (category.includes('tasting') || category.includes('cata')) return target.includes('cata') || target.includes('tasting')
+      if (category.includes('tour') || category.includes('recorrido')) return target.includes('recorrido') || target.includes('tour') || target.includes('viñedo')
+      if (category.includes('gastronom')) return target.includes('gastronom') || target.includes('cena') || target.includes('maridaje')
+      return true
+    })
+  }, [activeCategory, categories, experiences])
 
   return (
-    <div className="pb-8">
-      <section className="relative h-[270px] overflow-hidden rounded-[1.75rem]">
-        <img
-          src="/turismo.jpeg"
-          alt="Experiencias en Hacienda de Letras"
-          className="h-full w-full object-cover"
+    <div className="space-y-6 pb-2">
+      <HeroEditorial
+        eyebrow={t('app.premium.experiences.eyebrow')}
+        title={t('app.premium.experiences.title')}
+        subtitle={t('app.premium.experiences.subtitle')}
+        image="/turismo.jpeg"
+        alt={t('app.nav.experiences')}
+      />
+
+      <section className="space-y-4">
+        <AppSectionHeader
+          eyebrow={t('app.premium.experiences.choose')}
+          title={t('app.nav.experiences')}
+          action={<StatusBadge>{filteredExperiences.length}</StatusBadge>}
         />
-
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.06)_0%,rgba(35,5,13,0.24)_42%,rgba(35,5,13,0.94)_100%)]" />
-
-        <div className="absolute left-5 top-5">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-[#2f0913]/50 px-3 py-2 text-[9px] font-bold uppercase tracking-[0.17em] text-[#f1d29c] backdrop-blur-md">
-            <Sparkles size={12} />
-            {isEnglish ? 'Experience the estate' : 'Vive la hacienda'}
-          </span>
-        </div>
-
-        <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-          <p className="text-[10px] font-bold uppercase tracking-[0.21em] text-[#e5c58f]">
-            {isEnglish ? 'Wine · History · Scenery' : 'Vino · Historia · Paisaje'}
-          </p>
-
-          <h1
-            className="mt-2 max-w-[310px] text-[35px] font-normal leading-[0.98] text-white"
-            style={{
-              fontFamily: 'var(--font-display)',
-            }}
-          >
-            {isEnglish ? 'Experiences to savor, without rushing.' : 'Experiencias que se viven sin prisa.'}
-          </h1>
-
-          <p className="mt-3 max-w-[315px] text-[12px] leading-5 text-white/78">
-            {isEnglish
-              ? 'Discover tastings, tours, gastronomy and special moments among vineyards.'
-              : 'Descubre catas, recorridos, gastronomía y momentos especiales entre viñedos.'}
-          </p>
-        </div>
-      </section>
-
-      <section className="mt-7">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#a77b45]">
-              <span className="h-px w-7 bg-[#b48a55]" />
-              {isEnglish ? 'Choose your moment' : 'Elige tu momento'}
-            </p>
-
-            <h2
-              className="mt-2 text-[29px] font-normal leading-none text-[#4f0f1f]"
-              style={{
-                fontFamily: 'var(--font-display)',
-              }}
-            >
-              {isEnglish ? 'Explore the estate' : 'Explora la hacienda'}
-            </h2>
-          </div>
-
-          <span className="text-[10px] font-semibold text-[#8b7668]">
-            {filteredExperiences.length}{' '}
-            {filteredExperiences.length === 1
-              ? (isEnglish ? 'experience' : 'experiencia')
-              : (isEnglish ? 'experiences' : 'experiencias')}
-          </span>
-        </div>
-
-        <div className="mt-5 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {categories.map((category) => {
-            const isActive = category === activeCategory
-
-            return (
-              <button
-                key={category}
-                type="button"
-                onClick={() => setActiveCategory(category)}
-                className="shrink-0 rounded-full border px-4 py-2.5 text-[11px] font-semibold transition"
-                style={{
-                  borderColor: isActive
-                    ? '#681126'
-                    : 'rgba(205, 181, 153, 0.72)',
-                  backgroundColor: isActive
-                    ? '#681126'
-                    : '#fffaf3',
-                  color: isActive ? '#ffffff' : '#715c50',
-                  outline: 'none',
-                  boxShadow: isActive
-                    ? '0 9px 20px rgba(104, 17, 38, 0.17)'
-                    : 'none',
-                }}
-              >
-                {category}
-              </button>
-            )
-          })}
-        </div>
+        <PillRow items={categories} activeIndex={activeCategory} onSelect={setActiveCategory} />
       </section>
 
       {loading ? (
-        <section className="mt-5 rounded-[1.5rem] border border-[#dfcdb8] bg-[#fffaf3] p-7 text-center text-[12px] text-[#7f6a59]">
-          {isEnglish ? 'Loading published experiences...' : 'Cargando experiencias publicadas...'}
-        </section>
+        <LoadingState label={t('app.premium.experiences.loading')} />
       ) : error ? (
-        <section className="mt-5 rounded-[1.5rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-7 text-center text-[12px] text-[var(--color-alert)]">
-          <p>{error}</p>
-          <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">
-            {isEnglish ? 'Retry' : 'Reintentar'}
-          </button>
-        </section>
+        <ErrorState message={error} retryLabel={t('app.premium.retry')} onRetry={retry} />
+      ) : filteredExperiences.length === 0 ? (
+        <EmptyState title={t('app.premium.experiences.empty')} description={t('app.premium.contentPreparing')} />
       ) : (
-        <section className="mt-5 space-y-6">
-        {filteredExperiences.map((experience) => {
-          const title = textField(experience, 'title', isEnglish ? 'Experience' : 'Experiencia')
-          const image = imageField(experience, '/turismo.jpeg')
-          const price = formatCurrency(numberField(experience, 'base_price'), locale)
-          const summary = textField(experience, 'short_description') || textField(experience, 'description')
-          const durationMinutes = numberField(experience, 'duration_minutes')
-          const capacity = numberField(experience, 'capacity')
-
-          return (
-            <article
-              key={experience.id}
-              className="overflow-hidden rounded-[1.65rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_20px_44px_rgba(64,28,19,0.1)]"
-            >
-              <div className="relative h-[255px] overflow-hidden bg-[#eadfce]">
-                <img
-                  src={image}
-                  alt={title}
-                  className="h-full w-full object-cover"
-                  onError={(event) => {
-                    event.currentTarget.src = '/turismo.jpeg'
-                  }}
-                />
-
-                <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.04)_0%,rgba(35,5,13,0.16)_42%,rgba(35,5,13,0.95)_100%)]" />
-
-                <span className="absolute left-4 top-4 rounded-full border border-white/35 bg-white/95 px-3 py-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-[#681126] shadow-sm">
-                  {isEnglish ? 'Published' : 'Publicado'}
-                </span>
-
-                <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-                  <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.17em] text-[#e8c78e]">
-                    <MapPin size={12} />
-                    Hacienda de Letras
-                  </p>
-
-                  <h3
-                    className="mt-2 max-w-[310px] text-[31px] font-normal leading-[0.98] text-white"
-                    style={{
-                      fontFamily:
-                        'var(--font-display)',
-                    }}
-                  >
-                    {title}
-                  </h3>
-
-                  <div className="mt-4 flex items-end justify-between gap-3">
-                    <span className="text-[18px] font-bold text-white">
-                      {price}
-                    </span>
-
-                    <span className="max-w-[130px] text-right text-[9px] font-semibold leading-4 text-white/68">
-                      {isEnglish ? 'Subject to availability' : 'Sujeto a disponibilidad'}
-                    </span>
+        <section className="grid gap-4">
+          {filteredExperiences.map((experience) => {
+            const title = textField(experience, 'title', t('app.nav.experiences'))
+            const price = numberField(experience, 'base_price')
+            const duration = numberField(experience, 'duration_minutes')
+            const capacity = numberField(experience, 'capacity')
+            return (
+              <EditorialCard
+                key={experience.id}
+                to={`/app/experiencias/${contentRouteId(experience)}`}
+                image={imageField(experience, '/turismo.jpeg')}
+                eyebrow="Hacienda de Letras"
+                title={title}
+                description={textField(experience, 'short_description') || textField(experience, 'description') || t('app.premium.informationSoon')}
+                actionLabel={t('app.premium.experiences.details')}
+                meta={
+                  <div className="grid grid-cols-3 gap-2 text-[10px] text-[var(--color-muted)]">
+                    <StatusBadge>{price > 0 ? formatCurrency(price, locale) : t('app.premium.pricePending')}</StatusBadge>
+                    <span className="inline-flex items-center gap-1"><Clock3 size={12} />{duration > 0 ? `${duration} ${t('app.minutes')}` : t('app.premium.informationSoon')}</span>
+                    <span className="inline-flex items-center gap-1"><Users size={12} />{capacity > 0 ? `${capacity}` : t('app.premium.availabilityPending')}</span>
                   </div>
-                </div>
-              </div>
-
-              <div className="p-5">
-                <p
-                  className="text-[13px] leading-6 text-[#725f54]"
-                  style={{
-                    display: '-webkit-box',
-                    WebkitLineClamp: 3,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {summary}
-                </p>
-
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <div className="rounded-[1rem] bg-[#f4eadf] px-3 py-3">
-                    <div className="flex items-center gap-2 text-[#681126]">
-                      <Clock3 size={14} />
-
-                      <span className="text-[9px] font-bold uppercase tracking-[0.12em]">
-                        {isEnglish ? 'Duration' : 'Duración'}
-                      </span>
-                    </div>
-
-                    <p className="mt-2 text-[11px] font-semibold text-[#4e3930]">
-                      {durationMinutes > 0
-                        ? `${durationMinutes} ${isEnglish ? 'minutes' : 'minutos'}`
-                        : (isEnglish ? 'To be confirmed' : 'Por confirmar')}
-                    </p>
-                  </div>
-
-                  <div className="rounded-[1rem] bg-[#f4eadf] px-3 py-3">
-                    <div className="flex items-center gap-2 text-[#681126]">
-                      <Users size={14} />
-
-                      <span className="text-[9px] font-bold uppercase tracking-[0.12em]">
-                        {isEnglish ? 'Modality' : 'Modalidad'}
-                      </span>
-                    </div>
-
-                    <p className="mt-2 text-[11px] font-semibold text-[#4e3930]">
-                      {capacity > 0
-                        ? `${capacity} ${isEnglish ? 'people' : 'personas'}`
-                        : (isEnglish ? 'To be confirmed' : 'Por confirmar')}
-                    </p>
-                  </div>
-                </div>
-
-                <Link
-                  to={`/app/experiencias/${contentRouteId(experience)}`}
-                  className="mt-5 flex min-h-[46px] w-full items-center justify-center rounded-full border border-[#681126] px-5 text-[12px] font-bold text-[#681126]"
-                >
-                  {isEnglish ? 'View published details' : 'Ver detalles publicados'}
-                </Link>
-
-                <Link
-                  to="/app/reservacion"
-                  state={{
-                    experienceId: contentRouteId(experience),
-                    experienceTitle: title,
-                  }}
-                  className="mt-5 flex min-h-[52px] w-full items-center justify-between rounded-full bg-[#681126] px-5 shadow-[0_13px_26px_rgba(104,17,38,0.2)] transition hover:-translate-y-0.5"
-                  style={{
-                    color: '#ffffff',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <span
-                    className="inline-flex min-w-0 items-center gap-2 text-[13px] font-bold"
-                    style={{
-                      color: '#ffffff',
-                    }}
-                  >
-                    <CalendarDays
-                      size={16}
-                      color="#ffffff"
-                      className="shrink-0"
-                    />
-
-                    <span
-                      className="truncate"
-                      style={{
-                        color: '#ffffff',
-                      }}
-                    >
-                      Consultar disponibilidad
-                    </span>
-                  </span>
-
-                  <ArrowRight
-                    size={17}
-                    color="#ffffff"
-                    className="shrink-0"
-                  />
-                </Link>
-              </div>
-            </article>
-          )
-        })}
-      </section>
+                }
+              />
+            )
+          })}
+        </section>
       )}
 
-      {!loading && !error && filteredExperiences.length === 0 ? (
-        <section className="mt-6 rounded-[1.5rem] border border-[#dfcdb8] bg-[#fffaf3] p-7 text-center">
-          <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#681126] text-[#e5c58f]">
-            <Wine size={20} />
-          </span>
-
-          <h3
-            className="mt-4 text-[25px] text-[#4f0f1f]"
-            style={{
-              fontFamily: 'var(--font-display)',
-            }}
-          >
-            {isEnglish ? 'Coming soon' : 'Muy pronto'}
-          </h3>
-
-          <p className="mt-2 text-[12px] leading-5 text-[#7f6a59]">
-            {isEnglish
-              ? 'We are preparing new experiences for this category.'
-              : 'Estamos preparando nuevas experiencias para esta categoría.'}
-          </p>
-        </section>
-      ) : null}
-
-      <section className="relative mt-7 overflow-hidden rounded-[1.7rem] bg-[#2f0913] p-6 text-white shadow-[0_20px_46px_rgba(47,9,19,0.2)]">
-        <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full border border-[#dbc59d]/20" />
-        <div className="absolute -right-5 -top-5 h-28 w-28 rounded-full border border-[#dbc59d]/20" />
-
-        <div className="relative">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[#dbc59d]/35 text-[#dbc59d]">
-            <Sparkles size={19} />
-          </span>
-
-          <p className="mt-5 text-[9px] font-bold uppercase tracking-[0.19em] text-[#dbc59d]">
-            ALQIA Sommelier
-          </p>
-
-          <h3
-            className="mt-2 max-w-[280px] text-[28px] font-normal leading-[1.02] text-white"
-            style={{
-              fontFamily: 'var(--font-display)',
-            }}
-          >
-	            {isEnglish
-	              ? 'Sommelier guidance for experiences is coming soon.'
-	              : 'La guía de Sommelier para experiencias estará disponible próximamente.'}
-          </h3>
-
-          <p className="mt-3 max-w-[290px] text-[12px] leading-5 text-white/68">
-	            {isEnglish
-	              ? 'For now, reserve from published experiences and live availability.'
-	              : 'Por ahora, reserva desde experiencias publicadas y disponibilidad en vivo.'}
-          </p>
-
-          <Link
-            to="/app/sommelier"
-            className="mt-5 inline-flex items-center gap-2 text-[12px] font-bold"
-            style={{
-              color: '#e5c58f',
-              textDecoration: 'none',
-            }}
-          >
-	            {isEnglish ? 'View status' : 'Ver estado'}
-            <ArrowRight size={15} color="#e5c58f" />
-          </Link>
-        </div>
+      <section className="rounded-[1.2rem] bg-[var(--color-burgundy-deep)] p-5 text-white shadow-[var(--shadow-float)]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d7bd8e]">Hacienda de Letras</p>
+        <h2 className="mt-2 text-[1.75rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+          {t('app.premium.home.reserveTitle')}
+        </h2>
+        <p className="mt-3 text-[12px] leading-5 text-white/72">{t('app.premium.home.reserveCopy')}</p>
+        <Link to="/app/reservacion" className="mt-4 inline-flex items-center gap-2 text-[12px] font-semibold text-[#d7bd8e]">
+          <CalendarDays size={14} />
+          {t('app.premium.experiences.reserve')}
+        </Link>
       </section>
     </div>
   )

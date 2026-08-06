@@ -41,20 +41,20 @@ function AuthShell({
   children: ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-[#fffaf3] px-5 py-10 text-[#4f0f1f]">
+    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fffaf5_0%,#f0dcc7_100%)] px-5 py-10 text-[var(--color-burgundy)]">
       <div className="fixed right-5 top-5 z-10">
         <LanguageSelector />
       </div>
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-[520px] flex-col justify-center">
-        <Link to="/" className="mx-auto mb-8 block">
-          <img src="/Logo-HDL-2.svg" alt="Hacienda de Letras" className="h-20 w-auto" />
+        <Link to="/" className="mx-auto mb-8 block rounded-full bg-white/72 px-6 py-3 shadow-[var(--shadow-soft)]">
+          <img src="/Logo-HDL-2.svg" alt="Hacienda de Letras" className="h-14 w-auto" />
         </Link>
-        <section className="rounded-[2rem] border border-[#dccab5] bg-white p-6 shadow-[0_24px_80px_rgba(80,28,28,0.13)] md:p-9">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b48a55]">
+        <section className="rounded-[1.35rem] border border-[rgba(170,125,67,0.22)] bg-[rgba(255,250,242,0.94)] p-6 shadow-[var(--shadow-float)] backdrop-blur md:p-9">
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-gold)]">
             {eyebrow}
           </p>
-          <h1 className="mt-3 text-[36px] leading-tight">{title}</h1>
-          <p className="mt-3 text-[13px] leading-6 text-[#7f6a59]">{note}</p>
+          <h1 className="mt-3 text-[2.4rem] leading-[0.92] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>{title}</h1>
+          <p className="mt-3 text-[13px] leading-6 text-[var(--color-muted)]">{note}</p>
           {children}
         </section>
       </div>

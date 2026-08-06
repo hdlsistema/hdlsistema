@@ -1,20 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { CalendarDays, Check, Clock3, MapPin, Ticket } from 'lucide-react'
-import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { CalendarDays, Clock3, MapPin, Ticket } from 'lucide-react'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
-import {
-  formatCurrency,
-  formatPublicDate,
-  formatPublicTimeRange,
-  imageField,
-  numberField,
-  textField,
-} from '../../utils/publicContent'
+import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { formatCurrency, formatPublicDate, formatPublicTimeRange, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function EventDetailScreen() {
   const { eventId } = useParams()
-  const { isEnglish, locale } = useAppPreferences()
+  const { t, locale } = useAppPreferences()
   const [event, setEvent] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -23,129 +17,71 @@ export function EventDetailScreen() {
     let active = true
     setLoading(true)
     setError(null)
-
     if (!eventId) {
-      setEvent(null)
-      setError(isEnglish ? 'Event not found.' : 'Evento no encontrado.')
+      setError(t('app.eventNotFound'))
       setLoading(false)
       return
     }
-
     publicContentClient
       .getBySlug('events', eventId, locale)
       .then((response) => {
         if (active) setEvent(response.data)
       })
       .catch(() => {
-        if (active) {
-          setEvent(null)
-          setError(isEnglish ? 'Event not available.' : 'Evento no disponible.')
-        }
+        if (active) setError(t('app.eventNotFound'))
       })
       .finally(() => {
         if (active) setLoading(false)
       })
-
     return () => {
       active = false
     }
-  }, [eventId, isEnglish, locale])
+  }, [eventId, locale, t])
 
-  if (loading) {
-    return (
-      <div className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-white p-6 text-[13px] text-[var(--color-muted)]">
-        {isEnglish ? 'Loading event...' : 'Cargando evento...'}
-      </div>
-    )
-  }
+  if (loading) return <LoadingState label={t('app.premium.events.loading')} />
+  if (error || !event) return <ErrorState message={error ?? t('app.eventNotFound')} />
 
-  if (error || !event) {
-    return (
-      <div className="rounded-[1.3rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-6 text-[13px] text-[var(--color-alert)]">
-        {error}
-      </div>
-    )
-  }
-
-  const eventTitle = textField(event, 'title', isEnglish ? 'Event' : 'Evento')
-  const eventSummary = textField(event, 'short_description') || textField(event, 'description')
-  const eventDate = formatPublicDate(event.start_at, locale, isEnglish ? 'Date to be confirmed' : 'Fecha por confirmar')
-  const eventSchedule = formatPublicTimeRange(event.start_at, event.end_at, locale)
-  const eventVenue = textField(event, 'venue', 'Hacienda de Letras')
-  const eventPriceAmount = numberField(event, 'price')
-  const eventPrice = eventPriceAmount > 0
-    ? formatCurrency(eventPriceAmount, locale)
-    : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
-  const includedItems = eventSummary
-    ? eventSummary.split('.').map((item) => item.trim()).filter(Boolean)
-    : [isEnglish ? 'Information to be confirmed' : 'Información por confirmar']
+  const title = textField(event, 'title', t('app.nav.events'))
+  const summary = textField(event, 'short_description') || textField(event, 'description') || t('app.premium.informationSoon')
+  const price = numberField(event, 'price')
+  const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
 
   return (
-    <div className="space-y-6 pb-3">
-      <section className="relative min-h-[320px] overflow-hidden rounded-[1.55rem] shadow-[0_24px_50px_rgba(49,19,19,0.2)]">
-        <img src={imageField(event, '/romantic%20dinners%20evento.webp')} alt={eventTitle} className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(27,8,11,0.05),rgba(27,8,11,0.84))]" />
-        <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.14] px-3 py-1.5 text-[10px] backdrop-blur-sm">
-            <CalendarDays size={12} />
-            {isEnglish ? 'Special event' : 'Evento especial'}
-          </span>
-          <h1 className="mt-3 text-[2.6rem] leading-[0.88]" style={{ fontFamily: 'var(--font-display)' }}>
-            {eventTitle}
-          </h1>
-          <p className="mt-3 text-[13px] leading-5 text-white/[0.82]">{eventSummary}</p>
-        </div>
-      </section>
-
+    <div className="space-y-6 pb-2">
+      <BackButton label={t('app.premium.back')} />
+      <HeroEditorial
+        eyebrow={t('app.premium.events.eyebrow')}
+        title={title}
+        subtitle={summary}
+        image={imageField(event, '/romantic%20dinners%20evento.webp')}
+        alt={title}
+      />
       <section className="grid grid-cols-2 gap-3">
         {[
-          { icon: CalendarDays, label: isEnglish ? 'Date' : 'Fecha', value: eventDate },
-          { icon: Clock3, label: isEnglish ? 'Schedule' : 'Horario', value: eventSchedule },
-          { icon: MapPin, label: isEnglish ? 'Venue' : 'Lugar', value: eventVenue },
-          { icon: Ticket, label: isEnglish ? 'Ticket' : 'Entrada', value: eventPrice },
+          { icon: CalendarDays, label: t('app.premium.events.date'), value: formatPublicDate(event.start_at, locale, t('common.datePending')) },
+          { icon: Clock3, label: t('app.premium.events.schedule'), value: formatPublicTimeRange(event.start_at, event.end_at, locale) },
+          { icon: MapPin, label: t('app.location'), value: textField(event, 'venue', 'Hacienda de Letras') },
+          { icon: Ticket, label: t('app.premium.events.ticket'), value: price > 0 ? formatCurrency(price, locale) : t('app.premium.events.ticketPending') },
         ].map((item) => {
           const Icon = item.icon
           return (
-            <article key={item.label} className="min-w-0 rounded-[1.15rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_12px_28px_rgba(74,32,28,0.05)]">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#f7ece2] text-[var(--color-burgundy)]">
-                <Icon size={17} />
-              </span>
-              <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--color-gold)]">{item.label}</p>
-              <p className="mt-1 break-words text-[13px] font-semibold leading-5 text-[var(--color-ink)]">{item.value}</p>
+            <article key={item.label} className="rounded-[1.05rem] bg-[rgba(255,250,242,0.84)] p-4 shadow-[var(--shadow-card)]">
+              <Icon size={17} className="text-[var(--color-burgundy)]" />
+              <p className="mt-3 text-[9px] font-semibold uppercase tracking-[0.13em] text-[var(--color-gold)]">{item.label}</p>
+              <p className="mt-1 break-words text-[12px] font-semibold leading-4 text-[var(--color-ink)]">{item.value}</p>
             </article>
           )
         })}
       </section>
-
-      <section className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_16px_34px_rgba(74,32,28,0.06)]">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Your ticket includes' : 'Tu entrada incluye'}</p>
-        <div className="mt-4 space-y-3">
-          {includedItems.map((item) => (
-            <div key={item} className="flex items-start gap-3 text-[13px] leading-5 text-[var(--color-ink)]">
-              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#f4e5d8] text-[var(--color-burgundy)]">
-                <Check size={12} />
-              </span>
-              <span>{item.trim()}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="rounded-[1.3rem] border border-[rgba(220,202,181,0.78)] bg-[linear-gradient(145deg,#fffaf5,#f5e6d4)] p-5 shadow-[0_16px_34px_rgba(74,32,28,0.06)]">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] text-[var(--color-muted)]">{isEnglish ? 'Price per person' : 'Precio por persona'}</p>
-            <p className="mt-1 text-[1.85rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>
-              {eventPrice}
-            </p>
+      <section className="space-y-3">
+        <AppSectionHeader eyebrow={t('app.publishedDetails')} title={t('app.publishedDetails')} />
+        {includedItems.length ? (
+          <div className="grid gap-2">
+            {includedItems.map((item) => <StatusBadge key={item}>{item}</StatusBadge>)}
           </div>
-          <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-semibold text-[var(--color-burgundy)]">MXN</span>
-        </div>
-        <p className="mt-5 rounded-[1rem] border border-[rgba(104,13,36,0.13)] bg-white px-4 py-3 text-[12px] leading-5 text-[var(--color-muted)]">
-          {isEnglish
-            ? 'Customer ticket purchase is not active yet. This event detail only shows published information.'
-            : 'La compra de boletos para cliente aún no está activa. Este detalle solo muestra información publicada.'}
-        </p>
+        ) : (
+          <EmptyState title={t('app.premium.contentPreparing')} description={t('app.premium.informationSoon')} />
+        )}
       </section>
     </div>
   )

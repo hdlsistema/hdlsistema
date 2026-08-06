@@ -1,16 +1,34 @@
-import { Link, useNavigate } from 'react-router-dom'
 import { useEffect, useMemo, useState } from 'react'
-import { Grape, Sparkles } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
 import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
-import { PillRow, SearchField, SectionHeading, WineCard } from '../../components/mobile/PremiumMobileUi'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import {
+  AppSectionHeader,
+  AppToast,
+  EmptyState,
+  ErrorState,
+  HeroEditorial,
+  LoadingState,
+  PillRow,
+  SearchField,
+  StatusBadge,
+  WineCard,
+} from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
-import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
+import {
+  contentRouteId,
+  formatCurrency,
+  imageField,
+  numberField,
+  textField,
+} from '../../utils/publicContent'
 
 export function StoreScreen() {
-  const { isEnglish, locale } = useAppPreferences()
+  const { t, isEnglish, locale } = useAppPreferences()
   const { session } = useAuth()
   const navigate = useNavigate()
   const { records: wines, loading, error, retry } = usePublicContent('wines')
@@ -19,11 +37,26 @@ export function StoreScreen() {
   const [order, setOrder] = useState<'featured' | 'price_asc' | 'price_desc' | 'name'>('featured')
   const [addingId, setAddingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+
   const filters = useMemo(
-    () => isEnglish
-      ? ['All', 'Reds', 'Whites', 'Rosés', 'Sparkling']
-      : ['Todos', 'Tintos', 'Blancos', 'Rosados', 'Espumosos'],
-    [isEnglish],
+    () => [
+      t('app.premium.wines.all'),
+      t('app.premium.wines.reds'),
+      t('app.premium.wines.whites'),
+      t('app.premium.wines.roses'),
+      t('app.premium.wines.sparkling'),
+    ],
+    [t],
+  )
+
+  const sortOptions = useMemo(
+    () => [
+      { value: 'featured', label: t('app.premium.wines.featuredFirst') },
+      { value: 'price_asc', label: t('app.premium.wines.priceAsc') },
+      { value: 'price_desc', label: t('app.premium.wines.priceDesc') },
+      { value: 'name', label: t('app.premium.wines.name') },
+    ],
+    [t],
   )
 
   useEffect(() => {
@@ -42,8 +75,9 @@ export function StoreScreen() {
   }, [search, session?.access_token])
 
   const filteredWines = useMemo(() => {
-    const target = search.trim().toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
-    const family = filters[activeFilter]?.toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
+    const activeLocale = isEnglish ? 'en-US' : 'es-MX'
+    const target = search.trim().toLocaleLowerCase(activeLocale)
+    const family = filters[activeFilter]?.toLocaleLowerCase(activeLocale)
     const filtered = wines.filter((wine) => {
       const searchable = [
         textField(wine, 'name'),
@@ -52,7 +86,7 @@ export function StoreScreen() {
         textField(wine, 'grape_variety'),
         textField(wine, 'wine_type'),
         textField(wine, 'description'),
-      ].join(' ').toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
+      ].join(' ').toLocaleLowerCase(activeLocale)
       const matchesSearch = !target || searchable.includes(target)
       const matchesFamily =
         activeFilter === 0 ||
@@ -63,7 +97,12 @@ export function StoreScreen() {
     return [...filtered].sort((a, b) => {
       if (order === 'price_asc') return numberField(a, 'price') - numberField(b, 'price')
       if (order === 'price_desc') return numberField(b, 'price') - numberField(a, 'price')
-      if (order === 'name') return textField(a, 'name').localeCompare(textField(b, 'name'), isEnglish ? 'en-US' : 'es-MX')
+      if (order === 'name') {
+        return textField(a, 'name').localeCompare(
+          textField(b, 'name'),
+          isEnglish ? 'en-US' : 'es-MX',
+        )
+      }
       return Number(b.featured ?? 0) - Number(a.featured ?? 0)
     })
   }, [activeFilter, filters, isEnglish, order, search, wines])
@@ -83,9 +122,9 @@ export function StoreScreen() {
         quantity: 1,
         idempotencyKey: `cart-${wineId}-${Date.now()}`,
       })
-      setMessage(isEnglish ? 'Added to cart.' : 'Agregado al carrito.')
+      setMessage(t('app.premium.addCartSuccess'))
     } catch {
-      setMessage(isEnglish ? 'Could not add this wine.' : 'No fue posible agregar este vino.')
+      setMessage(t('app.premium.addCartError'))
     } finally {
       setAddingId(null)
     }
@@ -105,103 +144,92 @@ export function StoreScreen() {
   }
 
   return (
-    <div className="space-y-6 pb-3">
-      <section className="overflow-hidden rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-[linear-gradient(135deg,#fffaf4,#f2dfc9)] p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-gold)]">{isEnglish ? 'Wine boutique' : 'Boutique de vinos'}</p>
-        <h1 className="mt-2 text-[2.15rem] leading-[0.92] text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>
-          {isEnglish ? 'Our selection' : 'Nuestra selección'}
-        </h1>
-        <p className="mt-3 max-w-[290px] text-[13px] leading-5 text-[var(--color-muted)]">
-          {isEnglish
-            ? 'Labels with the identity of Aguascalientes, chosen to share, give and remember.'
-            : 'Etiquetas con identidad de Aguascalientes, elegidas para compartir, regalar y recordar.'}
-        </p>
-      </section>
+    <div className="space-y-6 pb-2">
+      <HeroEditorial
+        compact
+        eyebrow={t('app.premium.wines.eyebrow')}
+        title={t('app.premium.wines.title')}
+        subtitle={t('app.premium.wines.subtitle')}
+        image="/Slide-1.webp"
+        alt={t('app.premium.wines.title')}
+      />
 
       <SearchField
-        placeholder={isEnglish ? 'Search wine, grape or label' : 'Buscar vino, uva o etiqueta'}
+        placeholder={t('app.premium.wines.search')}
         value={search}
         onChange={setSearch}
       />
 
       <section className="space-y-3">
-        <PillRow
-          items={filters}
-          activeIndex={activeFilter}
-          onSelect={selectFilter}
+        <PillRow items={filters} activeIndex={activeFilter} onSelect={selectFilter} />
+        <AppToast
+          message={message}
+          tone={message === t('app.premium.addCartError') ? 'danger' : 'success'}
         />
-        {message ? (
-          <p className="rounded-[0.95rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 text-[12px] text-[var(--color-muted)]">
-            {message}
-          </p>
-        ) : null}
-        <label className="block">
-          <span className="sr-only">{isEnglish ? 'Sort wines' : 'Ordenar vinos'}</span>
-          <select
+        <div className="flex min-h-12 items-center gap-3 rounded-[1rem] bg-[rgba(255,250,242,0.84)] px-4 shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]">
+          <SlidersHorizontal size={16} className="text-[var(--color-burgundy)]" />
+          <span className="sr-only">{t('app.premium.wines.sort')}</span>
+          <CrystalSelect
             value={order}
-            onChange={(event) => setOrder(event.target.value as typeof order)}
-            className="w-full rounded-[1rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)] outline-none"
-          >
-            <option value="featured">{isEnglish ? 'Featured first' : 'Destacados primero'}</option>
-            <option value="price_asc">{isEnglish ? 'Price: low to high' : 'Precio: menor a mayor'}</option>
-            <option value="price_desc">{isEnglish ? 'Price: high to low' : 'Precio: mayor a menor'}</option>
-            <option value="name">{isEnglish ? 'Name' : 'Nombre'}</option>
-          </select>
-        </label>
+            onChange={(value) => setOrder(value as typeof order)}
+            options={sortOptions}
+            className="min-w-0 flex-1"
+            buttonClassName="min-h-10 border-transparent bg-transparent px-0 text-[12px] shadow-none"
+            menuClassName="left-auto right-0 min-w-[15rem]"
+          />
+        </div>
       </section>
 
       <section className="space-y-4">
-        <SectionHeading
-          eyebrow={isEnglish ? 'Hacienda de Letras Cellar' : 'Cava Hacienda de Letras'}
-          title={isEnglish ? 'Available wines' : 'Vinos disponibles'}
+        <AppSectionHeader
+          eyebrow="Hacienda de Letras"
+          title={t('app.premium.wines.title')}
+          action={<StatusBadge>{filteredWines.length}</StatusBadge>}
         />
         {loading ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
-            {isEnglish ? 'Loading published wines...' : 'Cargando vinos publicados...'}
-          </div>
+          <LoadingState label={t('app.premium.wines.loading')} />
         ) : error ? (
-          <div className="rounded-[1.2rem] border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] p-5 text-[12px] text-[var(--color-alert)]">
-            <p>{error}</p>
-            <button type="button" onClick={retry} className="mt-3 font-semibold text-[var(--color-burgundy)]">
-              {isEnglish ? 'Retry' : 'Reintentar'}
-            </button>
-          </div>
+          <ErrorState message={error} retryLabel={t('app.premium.retry')} onRetry={retry} />
         ) : filteredWines.length === 0 ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
-            {isEnglish ? 'No published wines match this search.' : 'No hay vinos publicados para esta búsqueda.'}
-          </div>
+          <EmptyState
+            title={t('app.premium.wines.empty')}
+            description={t('app.premium.contentPreparing')}
+          />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filteredWines.map((wine, index) => {
               const stockControlled = Boolean(wine.stock_control_enabled)
               const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
+              const price = numberField(wine, 'price')
               return (
                 <WineCard
                   key={wine.id}
                   wine={{
                     id: contentRouteId(wine),
-                    name: textField(wine, 'name', isEnglish ? 'Wine' : 'Vino'),
-                    kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'status'),
-                    price: formatCurrency(numberField(wine, 'price'), locale),
+                    name: textField(wine, 'name', t('app.nav.store')),
+                    kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'wine_type'),
+                    price: price > 0
+                      ? formatCurrency(price, locale)
+                      : t('app.premium.pricePending'),
                     image: imageField(wine, '/Logo-HDL-2.svg'),
                     varietal: textField(wine, 'grape_variety'),
-                    harvest: textField(wine, 'vintage'),
+                    description: textField(wine, 'short_description') || textField(wine, 'description'),
                   }}
                   badge={
                     soldOut
-                      ? (isEnglish ? 'Sold out' : 'Agotado')
+                      ? t('app.premium.soldOut')
                       : index === 0
-                        ? (isEnglish ? 'Featured' : 'Destacado')
-                        : textField(wine, 'status') || (isEnglish ? 'Available' : 'Disponible')
+                        ? t('app.premium.featured')
+                        : textField(wine, 'status') || t('app.premium.available')
                   }
                   onAdd={() => addWineToCart(String(wine.id))}
                   addDisabled={soldOut || addingId === String(wine.id)}
                   addLabel={
                     soldOut
-                      ? (isEnglish ? 'Wine sold out' : 'Vino agotado')
+                      ? t('app.premium.soldOut')
                       : addingId === String(wine.id)
-                        ? (isEnglish ? 'Adding wine' : 'Agregando vino')
-                        : (isEnglish ? 'Add to cart' : 'Agregar al carrito')
+                        ? t('app.premium.adding')
+                        : t('app.premium.addToCart')
                   }
                 />
               )
@@ -209,35 +237,6 @@ export function StoreScreen() {
           </div>
         )}
       </section>
-
-      <Link
-        to="/app/club"
-        className="relative block overflow-hidden rounded-[1.35rem] bg-[linear-gradient(135deg,#5c0f23,#8e1f37)] p-5 text-white shadow-[0_18px_38px_rgba(93,15,35,0.2)]"
-      >
-        <div className="absolute -right-10 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full border border-white/10" />
-        <div className="relative flex items-center gap-4">
-          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-[#d9b56f] bg-white/5 text-[#f0cf92]">
-            <Grape size={22} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#efcf93]">Wine Club</p>
-              <Sparkles size={12} className="text-[#efcf93]" />
-            </div>
-            <h2
-              className="mt-1 text-[1.45rem] leading-none text-[#f3dfb4]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {isEnglish ? 'Benefits in every bottle' : 'Beneficios en cada botella'}
-            </h2>
-            <p className="mt-2 text-[11px] leading-4 text-[#f6ead3]">
-              {isEnglish
-                ? 'Pre-sales, special selections and exclusive experiences.'
-                : 'Preventa, selecciones especiales y experiencias exclusivas.'}
-            </p>
-          </div>
-        </div>
-      </Link>
     </div>
   )
 }
