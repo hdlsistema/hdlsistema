@@ -20,10 +20,11 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top, rgba(255, 250, 244, 0.94), rgba(244, 238, 228, 0.96)),
+    radial-gradient(circle at 50% -10%, rgba(255, 251, 244, 0.98), rgba(246, 236, 222, 0.96) 42%, rgba(232, 217, 199, 0.98)),
     var(--color-page);
   color: var(--color-ink);
   font-family: var(--font-body);
+  overflow-x: hidden;
 }
 
 button,
@@ -41,6 +42,31 @@ a {
 img {
   display: block;
   max-width: 100%;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+.app-scrollbar-none {
+  scrollbar-width: none;
+}
+
+.app-scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 ::selection {
