@@ -56,7 +56,7 @@ Modulo de gestion completa del flujo de reservaciones.
 
 **Funciones incluidas:**
 - Visualizacion en tabla de todas las reservaciones con ordenamiento y busqueda
-- Datos por reservacion: nombre del huesped, experiencia seleccionada, fecha y hora, numero de personas, monto total, canal de origen, lugar de procedencia, metodo de pago, referencia de pago, si el pago fue via app, telefono, correo electronico
+- Datos por reservacion: nombre del cliente, experiencia seleccionada, fecha y hora, numero de personas, monto total, canal de origen, lugar de procedencia, metodo de pago, referencia de pago, si el pago fue via app, telefono, correo electronico
 - Creacion de nuevas reservaciones desde el panel
 - Descarga de reporte en formato CSV
 - Gestion de estados: Confirmada, Pendiente, Completada, Cancelada
@@ -186,7 +186,7 @@ Modulo especial que permite al personal de la hacienda visualizar en tiempo real
 
 - En escritorio: se muestra un marco de telefono (estilo iPhone) con la aplicacion completa en su interior
 - En dispositivo movil: se muestra la aplicacion directamente en pantalla completa
-- Navegacion completa entre las 12 pantallas de la app del huesped
+- Navegacion completa entre las 12 pantallas de la App Hacienda de Letras
 
 ---
 

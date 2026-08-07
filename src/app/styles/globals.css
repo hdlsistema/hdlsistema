@@ -8,6 +8,7 @@
 html,
 body,
 #root {
+  width: 100%;
   min-height: 100%;
 }
 
@@ -25,6 +26,10 @@ body {
   color: var(--color-ink);
   font-family: var(--font-body);
   overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
 }
 
 button,
@@ -67,6 +72,70 @@ textarea:focus-visible {
 
 .app-scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.app-preview-shell {
+  --app-pad: 16px;
+  width: 100%;
+  max-width: none;
+}
+
+.app-page {
+  padding: 12px var(--app-pad) 8px;
+}
+
+.app-bottom-nav {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+}
+
+.app-editorial-card {
+  grid-template-columns: minmax(0, 1fr) 38%;
+}
+
+.app-map-height {
+  height: calc(100dvh - 148px - var(--safe-bottom));
+  min-height: 320px;
+  max-height: 520px;
+}
+
+@media (min-width: 360px) {
+  .app-preview-shell {
+    --app-pad: 18px;
+  }
+}
+
+@media (min-width: 390px) {
+  .app-preview-shell {
+    --app-pad: 20px;
+  }
+}
+
+@media (max-width: 360px) {
+  .app-editorial-card {
+    grid-template-columns: 1fr;
+  }
+
+  .app-editorial-card__media {
+    min-height: 136px;
+  }
+}
+
+@media (min-width: 768px) {
+  .app-preview-shell {
+    width: min(430px, 100vw);
+    margin: 0 auto;
+  }
+
+  .app-bottom-nav {
+    right: auto;
+    left: 50%;
+    width: min(430px, 100vw);
+    transform: translateX(-50%);
+  }
 }
 
 ::selection {

@@ -38,8 +38,8 @@ export function EventDetailScreen() {
     }
   }, [eventId, locale, t])
 
-  if (loading) return <LoadingState label={t('app.premium.events.loading')} />
-  if (error || !event) return <ErrorState message={error ?? t('app.eventNotFound')} />
+  if (loading) return <div className="app-page"><LoadingState label={t('app.premium.events.loading')} /></div>
+  if (error || !event) return <div className="app-page"><ErrorState message={error ?? t('app.eventNotFound')} /></div>
 
   const title = textField(event, 'title', t('app.nav.events'))
   const summary = textField(event, 'short_description') || textField(event, 'description') || t('app.premium.informationSoon')
@@ -47,7 +47,7 @@ export function EventDetailScreen() {
   const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
 
   return (
-    <div className="space-y-6 pb-2">
+    <div className="app-page space-y-6">
       <BackButton label={t('app.premium.back')} />
       <HeroEditorial
         eyebrow={t('app.premium.events.eyebrow')}
@@ -56,7 +56,7 @@ export function EventDetailScreen() {
         image={imageField(event, '/romantic%20dinners%20evento.webp')}
         alt={title}
       />
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-3">
         {[
           { icon: CalendarDays, label: t('app.premium.events.date'), value: formatPublicDate(event.start_at, locale, t('common.datePending')) },
           { icon: Clock3, label: t('app.premium.events.schedule'), value: formatPublicTimeRange(event.start_at, event.end_at, locale) },

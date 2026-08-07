@@ -11,6 +11,7 @@ import {
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
+import { appPath } from '../../utils/appRoutes'
 import {
   contentRouteId,
   formatCurrency,
@@ -65,7 +66,7 @@ export function EventsScreen() {
   }, [activeCategory, categories, events])
 
   return (
-    <div className="space-y-6 pb-2">
+    <div className="app-page space-y-6">
       <HeroEditorial
         eyebrow={t('app.premium.events.eyebrow')}
         title={t('app.premium.events.title')}
@@ -109,7 +110,7 @@ export function EventsScreen() {
             return (
               <EditorialCard
                 key={event.id}
-                to={`/app/eventos/${contentRouteId(event)}`}
+                to={appPath(`/eventos/${contentRouteId(event)}`)}
                 image={imageField(event, '/romantic%20dinners%20evento.webp')}
                 eyebrow={formatPublicDate(
                   event.start_at,

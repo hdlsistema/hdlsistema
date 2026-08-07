@@ -163,10 +163,10 @@ export function ProfileScreen() {
   ]
 
   return (
-    <div className="space-y-6 pb-3">
+    <div className="app-page space-y-6">
       <section className="overflow-hidden rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
-        <div className="flex items-center gap-4">
-          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#6a1028,#a34452)] text-[1.7rem] text-white shadow-[0_12px_28px_rgba(104,13,36,0.2)]" style={{ fontFamily: 'var(--font-display)' }}>
+        <div className="flex items-center gap-3">
+          <div className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(145deg,#6a1028,#a34452)] text-[1.45rem] text-white shadow-[0_12px_28px_rgba(104,13,36,0.2)] min-[390px]:h-20 min-[390px]:w-20 min-[390px]:text-[1.7rem]" style={{ fontFamily: 'var(--font-display)' }}>
             {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
             <span className="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-[#d2aa61] text-white">
               <WalletCards size={13} />
@@ -174,7 +174,7 @@ export function ProfileScreen() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.profile.myAccount')}</p>
-            <h1 className="mt-1 break-words text-[2rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 className="mt-1 break-words text-[clamp(28px,7vw,34px)] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
               {displayName}
             </h1>
             <p className="mt-2 text-[12px] text-[var(--color-muted)]">
@@ -190,11 +190,11 @@ export function ProfileScreen() {
         </label>
 
         <form className="mt-5 grid gap-3" onSubmit={saveProfile}>
-          <input name="firstName" defaultValue={customerMe?.profile.firstName ?? profile?.first_name ?? ''} placeholder={t('app.premium.profile.firstName')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <input name="lastName" defaultValue={customerMe?.profile.lastName ?? profile?.last_name ?? ''} placeholder={t('app.premium.profile.lastName')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <input name="displayName" defaultValue={customerMe?.profile.displayName ?? profile?.display_name ?? ''} placeholder={t('app.premium.profile.displayName')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <input name="phone" defaultValue={customerMe?.profile.phone ?? profile?.phone ?? ''} placeholder={t('app.premium.profile.phone')} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none" />
-          <select name="language" defaultValue={preferences?.language ?? profile?.preferred_language ?? 'es'} className="rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] outline-none">
+          <input name="firstName" defaultValue={customerMe?.profile.firstName ?? profile?.first_name ?? ''} placeholder={t('app.premium.profile.firstName')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
+          <input name="lastName" defaultValue={customerMe?.profile.lastName ?? profile?.last_name ?? ''} placeholder={t('app.premium.profile.lastName')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
+          <input name="displayName" defaultValue={customerMe?.profile.displayName ?? profile?.display_name ?? ''} placeholder={t('app.premium.profile.displayName')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
+          <input name="phone" defaultValue={customerMe?.profile.phone ?? profile?.phone ?? ''} placeholder={t('app.premium.profile.phone')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
+          <select name="language" defaultValue={preferences?.language ?? profile?.preferred_language ?? 'es'} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none">
             <option value="es">Español</option>
             <option value="en">English</option>
           </select>
@@ -216,7 +216,7 @@ export function ProfileScreen() {
           <AppToast message={message} />
         </form>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(124px,1fr))] gap-3">
           {[
             [String(reservations.length), t('app.premium.profile.reservations')],
             [String(orders.length), t('app.premium.profile.orders')],
@@ -264,7 +264,7 @@ export function ProfileScreen() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[13px] font-semibold text-[var(--color-ink)]">{item.label}</span>
-                    <span className="mt-1 block truncate text-[10px] text-[var(--color-muted)]">{item.detail}</span>
+                    <span className="mt-1 block overflow-wrap-anywhere text-[11px] text-[var(--color-muted)]" style={{ overflowWrap: 'anywhere' }}>{item.detail}</span>
                   </span>
                   <ChevronRight size={16} className="shrink-0 text-[var(--color-muted)]" />
                 </button>
@@ -295,7 +295,7 @@ export function ProfileScreen() {
                     {order.status}
                   </StatusBadge>
                 </div>
-                <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-[var(--color-muted)]">
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-[12px] text-[var(--color-muted)]">
                   <span>{order.items.length} {order.items.length === 1 ? t('app.premium.cart.item') : t('app.premium.cart.items')}</span>
                   <strong className="text-[var(--color-burgundy)]">
                     {new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(order.total ?? 0))}

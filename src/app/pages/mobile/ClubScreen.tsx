@@ -59,7 +59,7 @@ export function ClubScreen() {
   }, [loadMembership])
 
   return (
-    <div className="space-y-6 pb-2">
+    <div className="app-page space-y-6">
       <HeroEditorial
         eyebrow={t('app.premium.club.eyebrow')}
         title={t('app.premium.club.title')}
@@ -86,7 +86,7 @@ export function ClubScreen() {
             {membershipError} {t('app.premium.retry')}
           </button>
         ) : membership ? (
-          <div className="mt-5 grid grid-cols-3 gap-2">
+	          <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(92px,1fr))] gap-2">
             {[
               [String(loyalty?.pointsBalance ?? membership.pointsBalance ?? 0), t('app.premium.profile.points')],
               [formatDate(membership.renewalDate, locale, t('common.toBeConfirmed')), t('app.premium.club.renewal')],
@@ -109,7 +109,7 @@ export function ClubScreen() {
           {benefits.length === 0 ? (
             <EmptyState title={t('app.premium.club.benefits')} description={t('app.premium.informationSoon')} />
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-3">
               {benefits.map((benefit) => (
                 <article key={benefit.id} className="rounded-[1.05rem] bg-[rgba(255,250,242,0.86)] p-4 shadow-[var(--shadow-card)]">
                   <Gift size={18} className="text-[var(--color-burgundy)]" />

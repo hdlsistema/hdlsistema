@@ -1,15 +1,16 @@
 import { CalendarDays, Grape, ShoppingBag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { appPath } from '../../utils/appRoutes'
 
 export function QuickActions() {
   const { isEnglish } = useAppPreferences()
 
   const actions = [
-    { label: isEnglish ? 'Buy wine' : 'Comprar vino', to: '/app/tienda', icon: ShoppingBag },
-    { label: isEnglish ? 'Book experience' : 'Reservar experiencia', to: '/app/reservacion', icon: CalendarDays },
-    { label: isEnglish ? 'Events' : 'Eventos', to: '/app/eventos', icon: CalendarDays },
-    { label: 'Wine Club', to: '/app/club', icon: Grape },
+    { label: isEnglish ? 'Buy wine' : 'Comprar vino', to: appPath('/vinos'), icon: ShoppingBag },
+    { label: isEnglish ? 'Book experience' : 'Reservar experiencia', to: appPath('/reservacion'), icon: CalendarDays },
+    { label: isEnglish ? 'Events' : 'Eventos', to: appPath('/eventos'), icon: CalendarDays },
+    { label: 'Wine Club', to: appPath('/membresias'), icon: Grape },
   ]
 
   return (

@@ -15,6 +15,7 @@ import {
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { isStripePublishableKeyConfigured, stripePromise } from '../../payments/stripe'
+import { appPath } from '../../utils/appRoutes'
 
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
@@ -70,7 +71,7 @@ function EmbeddedStripePaymentForm({
       elements,
       clientSecret,
       confirmParams: {
-        return_url: `${window.location.origin}/app/pago/procesando?orderId=${encodeURIComponent(orderId)}`,
+	        return_url: `${window.location.origin}${appPath('/pago/procesando')}?orderId=${encodeURIComponent(orderId)}`,
       },
       redirect: 'if_required',
     })
@@ -81,11 +82,11 @@ function EmbeddedStripePaymentForm({
       return
     }
 
-    navigate(`/app/pago/procesando?orderId=${encodeURIComponent(orderId)}`, { replace: true })
+    navigate(`${appPath('/pago/procesando')}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
   }
 
   return (
-    <section className="rounded-[1.15rem] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
+    <section className="min-w-0 rounded-[1.15rem] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
       <div className="mb-4 flex items-start gap-3">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-surface-warm)] text-[var(--color-burgundy)]">
           <CreditCard size={18} />
@@ -99,7 +100,9 @@ function EmbeddedStripePaymentForm({
           </p>
         </div>
       </div>
-      <PaymentElement />
+      <div className="min-w-0">
+        <PaymentElement />
+      </div>
       <label className="mt-4 flex items-start gap-3 rounded-[1rem] bg-[var(--color-surface-warm)] px-4 py-3 text-[12px] leading-5 text-[var(--color-muted)]">
         <input
           type="checkbox"
@@ -193,7 +196,7 @@ export function CheckoutScreen() {
     : null, [paymentSession?.clientSecret])
 
   return (
-    <div className="space-y-6 pb-3">
+    <div className="app-page space-y-6">
       <SectionHeading
         eyebrow={t('app.premium.checkout.eyebrow')}
         title={t('app.premium.checkout.title')}
@@ -215,11 +218,11 @@ export function CheckoutScreen() {
             </div>
           </div>
           <div className="mt-4 grid gap-2 rounded-[1rem] bg-white/82 p-4">
-            <div className="flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
+	            <div className="flex flex-wrap justify-between gap-3 text-[13px] text-[var(--color-muted)]">
               <span>{t('common.total')}</span>
               <strong className="text-[var(--color-burgundy)]">{money(order.total, locale)}</strong>
             </div>
-            <div className="flex justify-between gap-3 text-[13px] text-[var(--color-muted)]">
+	            <div className="flex flex-wrap justify-between gap-3 text-[13px] text-[var(--color-muted)]">
               <span>{t('common.status.pending_payment')}</span>
               <StatusBadge tone="warning">{order.status}</StatusBadge>
             </div>
@@ -238,7 +241,7 @@ export function CheckoutScreen() {
             <AppToast message={t('app.premium.checkout.stripeUnavailable')} tone="danger" />
           )}
           <Link
-            to="/app/perfil"
+	            to={appPath('/perfil')}
             className="mt-4 flex min-h-[48px] items-center justify-center rounded-[0.95rem] bg-white px-4 text-[13px] font-bold text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(84,17,36,0.14)]"
           >
             {t('app.premium.checkout.viewOrders')}
@@ -249,7 +252,7 @@ export function CheckoutScreen() {
       ) : !cart || cart.items.length === 0 ? (
         <EmptyState
           title={t('app.premium.checkout.empty')}
-          action={<PrimaryButton to="/app/vinos">{t('app.premium.checkout.returnStore')}</PrimaryButton>}
+	          action={<PrimaryButton to={appPath('/vinos')}>{t('app.premium.checkout.returnStore')}</PrimaryButton>}
         />
       ) : (
         <>
@@ -257,12 +260,12 @@ export function CheckoutScreen() {
             <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">{t('app.premium.checkout.items')}</h2>
             <div className="mt-3 space-y-3">
               {cart.items.map((item) => (
-                <div key={item.id} className="flex justify-between gap-3 border-t border-[rgba(170,125,67,0.18)] pt-3 first:border-t-0 first:pt-0">
+                <div key={item.id} className="flex min-w-0 justify-between gap-3 border-t border-[rgba(170,125,67,0.18)] pt-3 first:border-t-0 first:pt-0">
                   <div className="min-w-0">
                     <p className="break-words text-[13px] font-semibold text-[var(--color-ink)]">{item.name}</p>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">{item.quantity} x {money(item.unitPrice, locale)}</p>
                   </div>
-                  <strong className="shrink-0 text-[13px] text-[var(--color-burgundy)]">{money(item.subtotal, locale)}</strong>
+                  <strong className="shrink-0 text-right text-[13px] text-[var(--color-burgundy)]">{money(item.subtotal, locale)}</strong>
                 </div>
               ))}
             </div>
@@ -292,7 +295,7 @@ export function CheckoutScreen() {
               <div className="flex justify-between gap-3"><span>{t('app.premium.cart.taxes')}</span><strong>{money(totals?.taxTotal, locale)}</strong></div>
               <div className="flex justify-between gap-3"><span>{t('app.premium.cart.pickup')}</span><strong>{money(totals?.shippingTotal, locale)}</strong></div>
             </div>
-            <div className="mt-4 flex items-end justify-between border-t border-[rgba(170,125,67,0.2)] pt-4">
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-2 border-t border-[rgba(170,125,67,0.2)] pt-4">
               <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{t('common.total')}</span>
               <strong className="text-[1.7rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{money(totals?.total, locale)}</strong>
             </div>

@@ -1,19 +1,16 @@
 import { Link } from 'react-router-dom'
-import { CalendarDays, Grape, MapPin, Sparkles, Wine } from 'lucide-react'
-import { useAuth } from '../../../contexts/AuthContext'
+import { ChevronRight, Grape, MapPin, Sparkles } from 'lucide-react'
 import {
-  AppSectionHeader,
   EditorialCard,
   EmptyState,
   ErrorState,
-  HeroEditorial,
-  LoadingState,
   PrimaryButton,
+  Skeleton,
   StatusBadge,
-  WineCard,
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
+import { appPath } from '../../utils/appRoutes'
 import {
   contentRouteId,
   formatCurrency,
@@ -42,291 +39,214 @@ function campaignImage(record: Record<string, unknown>) {
 
 function campaignRoute(record: Record<string, unknown>) {
   const route = campaignContent(record).cta_path
-  return typeof route === 'string' &&
-    ['/app/tienda', '/app/experiencias', '/app/eventos', '/app/club', '/app/reservacion'].includes(route)
-    ? route
-    : '/app/tienda'
+  const normalized = typeof route === 'string'
+    ? route.replace(/^\/app/, '').replace('/tienda', '/vinos')
+    : '/vinos'
+  return appPath(normalized)
 }
 
 export function HomeScreen() {
   const { t, isEnglish, locale } = useAppPreferences()
-  const { profile, user } = useAuth()
-  const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
-  const { records: events, loading: loadingEvents, error: eventsError, retry: retryEvents } = usePublicContent('events')
   const { records: promotions } = usePublicContent('promotions')
   const { records: plans } = usePublicContent('membership-plans')
   const { records: campaigns } = usePublicContent('campaigns')
 
-  const firstName = profile?.first_name ||
-    profile?.display_name?.split(' ')[0] ||
-    user?.email?.split('@')[0] ||
-    ''
   const featuredCampaign = campaigns[0]
   const featuredPromotion = promotions[0]
+  const modules = [
+    {
+      to: appPath('/membresias'),
+      icon: Grape,
+      eyebrow: t('app.premium.home.clubTitle'),
+      title: plans[0]
+        ? textField(plans[0], 'name', t('app.premium.home.clubTitle'))
+        : t('app.premium.home.clubTitle'),
+      copy: t('app.premium.home.clubCopy'),
+    },
+    {
+      to: appPath('/mapa'),
+      icon: MapPin,
+      eyebrow: t('app.premium.home.mapTitle'),
+      title: t('app.nav.map'),
+      copy: t('app.premium.home.mapCopy'),
+    },
+    {
+      to: appPath('/sommelier'),
+      icon: Sparkles,
+      eyebrow: t('app.premium.home.sommelierTitle'),
+      title: t('app.premium.contentPreparing'),
+      copy: t('app.premium.home.sommelierCopy'),
+    },
+  ]
 
   return (
-    <div className="space-y-7 pb-2">
-      <HeroEditorial
-        eyebrow={t('app.premium.home.eyebrow')}
-        title={t('app.premium.home.title')}
-        subtitle={t('app.premium.home.subtitle')}
-        image="/Hacienda-de-Letras hacienda.jpg"
-        alt="Hacienda de Letras"
-        action={
-          <PrimaryButton to="/app/experiencias" className="w-fit rounded-full px-4">
+    <div className="pb-2">
+      <section className="relative -mt-px min-h-[clamp(360px,72vh,480px)] overflow-hidden bg-[#2D1811]">
+        <img
+          src="/Hacienda-de-Letras hacienda.jpg"
+          alt="Hacienda de Letras"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,20,15,0.05)_25%,rgba(35,20,15,0.75)_100%)]" />
+        <div className="relative flex min-h-[clamp(360px,72vh,480px)] flex-col justify-end px-[var(--app-pad)] pb-6 text-white">
+          <p className="text-[10px] font-semibold uppercase text-[#E2C58E]">
+            {t('app.premium.home.eyebrow')}
+          </p>
+          <h1
+            className="mt-2 max-w-[18rem] text-[clamp(32px,9vw,42px)] leading-[0.95] text-white"
+            style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
+          >
+            {t('app.premium.home.title')}
+          </h1>
+          <p className="mt-3 max-w-[18rem] text-[14px] leading-5 text-white/86">
+            {t('app.premium.home.subtitle')}
+          </p>
+          <PrimaryButton to={appPath('/reservacion')} className="mt-5 rounded-[12px]">
             {t('app.premium.experiences.reserve')}
-            <Sparkles size={15} />
           </PrimaryButton>
-        }
-      />
+        </div>
+      </section>
 
-      {firstName ? (
-        <section className="rounded-[1.15rem] bg-[rgba(255,250,242,0.82)] p-4 shadow-[var(--shadow-soft)]">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">
-            {t('app.premium.home.welcome')}
-          </p>
-          <h2
-            className="mt-1 text-[1.55rem] leading-none text-[var(--color-ink)]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {t('app.premium.home.welcomeBack')}, {firstName}
-          </h2>
-        </section>
-      ) : null}
-
-      <section className="grid grid-cols-2 gap-3">
-        {[
-          { to: '/app/vinos', icon: Wine, title: t('app.nav.store'), copy: t('app.premium.home.wines') },
-          { to: '/app/reservacion', icon: CalendarDays, title: t('app.nav.reservations'), copy: t('app.premium.home.reserveCopy') },
-          { to: '/app/club', icon: Grape, title: t('app.premium.home.clubTitle'), copy: t('app.premium.home.clubCopy') },
-          { to: '/app/mapa', icon: MapPin, title: t('app.premium.home.mapTitle'), copy: t('app.premium.home.mapCopy') },
-        ].map((item) => {
-          const Icon = item.icon
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="min-w-0 rounded-[1.1rem] bg-[rgba(255,250,242,0.82)] p-4 shadow-[var(--shadow-card)]"
+      <div className="space-y-7 px-[var(--app-pad)]">
+        <Link
+          to={appPath('/vinos')}
+          className="relative z-10 -mt-7 flex min-h-[88px] items-center justify-between gap-4 rounded-[16px] bg-[#FFF9F1] p-4 shadow-[0_16px_34px_rgba(58,32,18,0.13)]"
+        >
+          <span className="min-w-0">
+            <span
+              className="block text-[1.35rem] leading-none text-[#2D1811]"
+              style={{ fontFamily: 'var(--font-display)' }}
             >
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-surface-warm)] text-[var(--color-burgundy)]">
-                <Icon size={18} />
-              </span>
-              <h3 className="mt-3 truncate text-[14px] font-semibold text-[var(--color-ink)]">
-                {item.title}
-              </h3>
-              <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--color-muted)]">
-                {item.copy}
-              </p>
-            </Link>
-          )
-        })}
-      </section>
+              {t('app.premium.home.wines')}
+            </span>
+            <span className="mt-2 block text-[12px] leading-4 text-[#776053]">
+              {t('app.premium.home.winesCopy')}
+            </span>
+          </span>
+          <ChevronRight size={18} className="shrink-0 text-[#690D2B]" />
+        </Link>
 
-      <section className="space-y-4">
-        <AppSectionHeader
-          eyebrow={t('app.premium.wines.eyebrow')}
-          title={t('app.premium.home.wines')}
-          action={
-            <Link to="/app/vinos" className="text-[12px] font-semibold text-[var(--color-gold)]">
-              {t('app.premium.viewAll')}
-            </Link>
-          }
-        />
-        {loadingWines ? (
-          <LoadingState label={t('app.premium.wines.loading')} />
-        ) : winesError ? (
-          <ErrorState
-            message={winesError}
-            retryLabel={t('app.premium.retry')}
-            onRetry={retryWines}
-          />
-        ) : wines.length === 0 ? (
-          <EmptyState
-            title={t('app.premium.contentPreparing')}
-            description={t('app.premium.informationSoon')}
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {wines.slice(0, 4).map((wine, index) => (
-              <WineCard
-                key={wine.id}
-                wine={{
-                  id: contentRouteId(wine),
-                  name: textField(wine, 'name', t('app.nav.store')),
-                  kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'wine_type'),
-                  price: numberField(wine, 'price') > 0
-                    ? formatCurrency(numberField(wine, 'price'), locale)
-                    : t('app.premium.pricePending'),
-                  image: imageField(wine, '/Logo-HDL-2.svg'),
-                  varietal: textField(wine, 'grape_variety'),
-                }}
-                badge={index === 0 ? t('app.premium.featured') : t('app.premium.selection')}
-              />
-            ))}
+        <section className="space-y-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">
+              {t('app.premium.experiences.eyebrow')}
+            </p>
+            <h2
+              className="mt-1 text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              {t('app.premium.home.experiences')}
+            </h2>
           </div>
-        )}
-      </section>
 
-      <section className="space-y-4">
-        <AppSectionHeader
-          eyebrow={t('app.premium.experiences.eyebrow')}
-          title={t('app.premium.home.experiences')}
-          action={
-            <Link to="/app/experiencias" className="text-[12px] font-semibold text-[var(--color-gold)]">
-              {t('app.premium.viewAll')}
-            </Link>
-          }
-        />
-        {loadingExperiences ? (
-          <LoadingState label={t('app.premium.experiences.loading')} />
-        ) : experiencesError ? (
-          <ErrorState
-            message={experiencesError}
-            retryLabel={t('app.premium.retry')}
-            onRetry={retryExperiences}
-          />
-        ) : experiences.length === 0 ? (
-          <EmptyState
-            title={t('app.premium.contentPreparing')}
-            description={t('app.premium.informationSoon')}
-          />
-        ) : (
-          <div className="grid gap-3">
-            {experiences.slice(0, 2).map((experience) => (
-              <EditorialCard
-                key={experience.id}
-                to={`/app/experiencias/${contentRouteId(experience)}`}
-                image={imageField(experience, '/turismo.jpeg')}
-                eyebrow="Hacienda de Letras"
-                title={textField(experience, 'title', t('app.nav.experiences'))}
-                description={textField(experience, 'short_description') || textField(experience, 'description')}
-                meta={
-                  <StatusBadge>
-                    {numberField(experience, 'base_price') > 0
-                      ? formatCurrency(numberField(experience, 'base_price'), locale)
-                      : t('app.premium.pricePending')}
-                  </StatusBadge>
-                }
-                actionLabel={t('app.premium.experiences.details')}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-4">
-        <AppSectionHeader
-          eyebrow={t('app.premium.events.eyebrow')}
-          title={t('app.premium.home.events')}
-          action={
-            <Link to="/app/eventos" className="text-[12px] font-semibold text-[var(--color-gold)]">
-              {t('app.premium.open')}
-            </Link>
-          }
-        />
-        {loadingEvents ? (
-          <LoadingState label={t('app.premium.events.loading')} />
-        ) : eventsError ? (
-          <ErrorState
-            message={eventsError}
-            retryLabel={t('app.premium.retry')}
-            onRetry={retryEvents}
-          />
-        ) : events.length === 0 ? (
-          <EmptyState
-            title={t('app.premium.contentPreparing')}
-            description={t('app.premium.informationSoon')}
-          />
-        ) : (
-          <div className="grid gap-3">
-            {events.slice(0, 2).map((event) => (
-              <EditorialCard
-                key={event.id}
-                to={`/app/eventos/${contentRouteId(event)}`}
-                image={imageField(event, '/romantic%20dinners%20evento.webp')}
-                eyebrow={textField(event, 'venue') || 'Hacienda de Letras'}
-                title={textField(event, 'title', t('app.nav.events'))}
-                description={textField(event, 'short_description') || textField(event, 'description')}
-                actionLabel={t('app.premium.events.details')}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {featuredCampaign || featuredPromotion ? (
-        <section className="grid gap-3">
-          {featuredCampaign ? (
-            <EditorialCard
-              to={campaignRoute(featuredCampaign)}
-              image={campaignImage(featuredCampaign) || '/Slide-1.webp'}
-              eyebrow={isEnglish ? 'Published campaign' : 'Campaña publicada'}
-              title={
-                campaignText(featuredCampaign, 'title') ||
-                textField(featuredCampaign, 'name', isEnglish ? 'Campaign' : 'Campaña')
-              }
-              description={campaignText(featuredCampaign, 'body') || textField(featuredCampaign, 'description')}
-              actionLabel={campaignText(featuredCampaign, 'cta_label') || t('app.premium.open')}
+          {loadingExperiences ? (
+            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+              <Skeleton className="h-[160px] w-[min(86%,340px)] shrink-0" />
+              <Skeleton className="h-[160px] w-[min(86%,340px)] shrink-0" />
+            </div>
+          ) : experiencesError ? (
+            <ErrorState
+              message={t('app.premium.contentUnavailable')}
+              retryLabel={t('app.premium.retry')}
+              onRetry={retryExperiences}
             />
-          ) : null}
-          {featuredPromotion ? (
-            <Link
-              to="/app/tienda"
-              className="rounded-[1.2rem] bg-[rgba(255,250,242,0.86)] p-5 shadow-[var(--shadow-card)]"
-            >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">
-                {isEnglish ? 'Published promotion' : 'Promoción publicada'}
-              </p>
-              <h2
-                className="mt-2 text-[1.7rem] leading-none text-[var(--color-ink)]"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {textField(featuredPromotion, 'title') || textField(featuredPromotion, 'name', 'Promoción')}
-              </h2>
-            </Link>
-          ) : null}
+          ) : experiences.length === 0 ? (
+            <EmptyState
+              title={t('app.premium.contentPreparing')}
+              description={t('app.premium.informationSoon')}
+            />
+          ) : (
+            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+              {experiences.slice(0, 4).map((experience) => (
+                <div key={experience.id} className="w-[min(86%,340px)] shrink-0">
+                  <EditorialCard
+                    to={appPath(`/experiencias/${contentRouteId(experience)}`)}
+                    image={imageField(experience, '')}
+                    eyebrow={textField(experience, 'category') || 'Hacienda de Letras'}
+                    title={textField(experience, 'title', t('app.nav.experiences'))}
+                    description={textField(experience, 'short_description') || textField(experience, 'description')}
+                    meta={
+                      <StatusBadge>
+                        {numberField(experience, 'base_price') > 0
+                          ? formatCurrency(numberField(experience, 'base_price'), locale)
+                          : t('app.premium.pricePending')}
+                      </StatusBadge>
+                    }
+                    actionLabel={t('app.premium.experiences.details')}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
-      ) : null}
 
-      <section className="grid gap-3">
-        <Link
-          to="/app/club"
-          className="rounded-[1.2rem] bg-[var(--color-burgundy-deep)] p-5 text-white shadow-[var(--shadow-float)]"
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#d7bd8e]">
-            {t('app.premium.home.clubTitle')}
-          </p>
-          <h2
-            className="mt-2 text-[1.8rem] leading-none"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {plans[0]
-              ? textField(plans[0], 'name', t('app.premium.club.title'))
-              : t('app.premium.club.title')}
-          </h2>
-          <p className="mt-3 text-[12px] leading-5 text-white/72">
-            {t('app.premium.home.clubCopy')}
-          </p>
-        </Link>
-        <Link
-          to="/app/sommelier"
-          className="rounded-[1.2rem] bg-[rgba(255,250,242,0.86)] p-5 shadow-[var(--shadow-card)]"
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">
-            {t('app.premium.home.sommelierTitle')}
-          </p>
-          <h2
-            className="mt-2 text-[1.7rem] leading-none text-[var(--color-ink)]"
-            style={{ fontFamily: 'var(--font-display)' }}
-          >
-            {t('app.premium.contentPreparing')}
-          </h2>
-          <p className="mt-3 text-[12px] leading-5 text-[var(--color-muted)]">
-            {t('app.premium.home.sommelierCopy')}
-          </p>
-        </Link>
-      </section>
+        {featuredCampaign || featuredPromotion ? (
+          <section className="space-y-3">
+            {featuredCampaign ? (
+              <EditorialCard
+                to={campaignRoute(featuredCampaign)}
+                image={campaignImage(featuredCampaign) || '/Slide-1.webp'}
+                eyebrow={isEnglish ? 'Published campaign' : 'Campaña publicada'}
+                title={
+                  campaignText(featuredCampaign, 'title') ||
+                  textField(featuredCampaign, 'name', isEnglish ? 'Campaign' : 'Campaña')
+                }
+                description={campaignText(featuredCampaign, 'body') || textField(featuredCampaign, 'description')}
+                actionLabel={campaignText(featuredCampaign, 'cta_label') || t('app.premium.open')}
+              />
+            ) : null}
+            {featuredPromotion ? (
+              <Link
+                to={appPath('/vinos')}
+                className="block rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1] p-4"
+              >
+                <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
+                  {isEnglish ? 'Published promotion' : 'Promoción publicada'}
+                </span>
+                <span
+                  className="mt-1 block text-[clamp(22px,6vw,28px)] leading-none text-[#2D1811]"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  {textField(featuredPromotion, 'title') || textField(featuredPromotion, 'name', 'Promoción')}
+                </span>
+              </Link>
+            ) : null}
+          </section>
+        ) : null}
+
+        <section className="space-y-3">
+          {modules.map((item) => {
+            const Icon = item.icon
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="grid min-h-[112px] grid-cols-[36px_1fr_auto] items-center gap-3 rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1] p-4"
+              >
+                <span className="inline-flex h-11 w-11 items-center justify-center text-[#B88A4A]">
+                  <Icon size={24} strokeWidth={1.45} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
+                    {item.eyebrow}
+                  </span>
+                  <span
+                    className="mt-1 block text-[clamp(18px,5vw,21px)] leading-none text-[#2D1811]"
+                    style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
+                  >
+                    {item.title}
+                  </span>
+                  <span className="mt-2 line-clamp-2 block text-[11px] leading-4 text-[#776053]">
+                    {item.copy}
+                  </span>
+                </span>
+                <ChevronRight size={17} className="text-[#690D2B]" />
+              </Link>
+            )
+          })}
+        </section>
+      </div>
     </div>
   )
 }

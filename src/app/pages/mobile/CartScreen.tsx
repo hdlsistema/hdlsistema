@@ -11,6 +11,7 @@ import {
   SectionHeading,
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { appPath } from '../../utils/appRoutes'
 
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
@@ -95,7 +96,7 @@ export function CartScreen() {
   const totals = cart?.totals
 
   return (
-    <div className="space-y-6 pb-3">
+    <div className="app-page space-y-6">
       <SectionHeading
         eyebrow={t('app.premium.cart.eyebrow')}
         title={t('app.premium.cart.title')}
@@ -120,7 +121,7 @@ export function CartScreen() {
         <EmptyState
           title={t('app.premium.cart.emptyTitle')}
           description={t('app.premium.cart.emptyCopy')}
-          action={<PrimaryButton to="/app/vinos">{t('app.premium.cart.explore')}</PrimaryButton>}
+          action={<PrimaryButton to={appPath('/vinos')}>{t('app.premium.cart.explore')}</PrimaryButton>}
         />
       ) : (
         <>
@@ -147,7 +148,7 @@ export function CartScreen() {
                     <Trash2 size={16} />
                   </button>
                 </div>
-                <div className="mt-4 flex items-center justify-between gap-4">
+	                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <QuantitySelector
                     value={item.quantity}
                     onChange={(quantity) => void updateQuantity(item, quantity)}
@@ -167,7 +168,7 @@ export function CartScreen() {
               <div className="flex justify-between gap-3"><span>{t('app.premium.cart.taxes')}</span><strong>{money(totals?.taxTotal, locale)}</strong></div>
               <div className="flex justify-between gap-3"><span>{t('app.premium.cart.pickup')}</span><strong>{money(totals?.shippingTotal, locale)}</strong></div>
             </div>
-            <div className="mt-4 flex items-end justify-between border-t border-[rgba(170,125,67,0.22)] pt-4">
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-2 border-t border-[rgba(170,125,67,0.22)] pt-4">
               <span className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{t('common.total')}</span>
               <strong className="text-[1.7rem] leading-none text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{money(totals?.total, locale)}</strong>
             </div>
@@ -177,7 +178,7 @@ export function CartScreen() {
           </section>
 
           <div className="grid gap-3">
-            <PrimaryButton to="/app/checkout">
+            <PrimaryButton to={appPath('/checkout')}>
               {t('app.premium.cart.continue')}
               <ArrowRight size={15} />
             </PrimaryButton>

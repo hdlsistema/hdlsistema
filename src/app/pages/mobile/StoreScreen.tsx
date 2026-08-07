@@ -6,19 +6,17 @@ import { customerClient } from '../../../services/customer.service'
 import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import {
-  AppSectionHeader,
   AppToast,
   EmptyState,
   ErrorState,
-  HeroEditorial,
-  LoadingState,
   PillRow,
   SearchField,
-  StatusBadge,
+  Skeleton,
   WineCard,
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
+import { appPath } from '../../utils/appRoutes'
 import {
   contentRouteId,
   formatCurrency,
@@ -67,7 +65,7 @@ export function StoreScreen() {
         eventName: 'wine_search',
         entityType: 'wine',
         accessToken: session?.access_token,
-        metadata: { route: '/app/tienda' },
+        metadata: { route: appPath('/vinos') },
         eventKey: appActivityEventKey('wine_search', undefined, String(Date.now())),
       })
     }, 500)
@@ -109,7 +107,7 @@ export function StoreScreen() {
 
   const addWineToCart = async (wineId: string) => {
     if (!session?.access_token) {
-      navigate('/app/login')
+      navigate(appPath('/login'))
       return
     }
     if (addingId) return
@@ -138,105 +136,112 @@ export function StoreScreen() {
       eventName: 'wine_filter_used',
       entityType: 'wine',
       accessToken: session?.access_token,
-      metadata: { route: '/app/tienda', filter },
+      metadata: { route: appPath('/vinos'), filter },
       eventKey: appActivityEventKey('wine_filter_used', undefined, `${filter}-${Date.now()}`),
     })
   }
 
   return (
-    <div className="space-y-6 pb-2">
-      <HeroEditorial
-        compact
-        eyebrow={t('app.premium.wines.eyebrow')}
-        title={t('app.premium.wines.title')}
-        subtitle={t('app.premium.wines.subtitle')}
-        image="/Slide-1.webp"
-        alt={t('app.premium.wines.title')}
-      />
-
-      <SearchField
-        placeholder={t('app.premium.wines.search')}
-        value={search}
-        onChange={setSearch}
-      />
-
-      <section className="space-y-3">
+    <div className="space-y-5 px-[var(--app-pad)] pb-2 pt-3">
+      <section className="space-y-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1
+              className="text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]"
+              style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
+            >
+              {t('app.premium.wines.title')}
+            </h1>
+          </div>
+          <div className="relative shrink-0">
+            <CrystalSelect
+              value={order}
+              onChange={(value) => setOrder(value as typeof order)}
+              options={sortOptions}
+              className="w-11"
+              buttonClassName="h-10 min-h-10 w-11 justify-center rounded-full border-[rgba(184,138,74,0.2)] bg-[#FFF9F1] px-0 text-[#690D2B] shadow-none"
+              menuClassName="left-auto right-0 min-w-[15rem]"
+            />
+            <SlidersHorizontal
+              size={16}
+              className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[#690D2B]"
+            />
+            <span className="sr-only">{t('app.premium.wines.sort')}</span>
+          </div>
+        </div>
+        <SearchField
+          placeholder={t('app.premium.wines.search')}
+          value={search}
+          onChange={setSearch}
+        />
         <PillRow items={filters} activeIndex={activeFilter} onSelect={selectFilter} />
         <AppToast
           message={message}
           tone={message === t('app.premium.addCartError') ? 'danger' : 'success'}
         />
-        <div className="flex min-h-12 items-center gap-3 rounded-[1rem] bg-[rgba(255,250,242,0.84)] px-4 shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]">
-          <SlidersHorizontal size={16} className="text-[var(--color-burgundy)]" />
-          <span className="sr-only">{t('app.premium.wines.sort')}</span>
-          <CrystalSelect
-            value={order}
-            onChange={(value) => setOrder(value as typeof order)}
-            options={sortOptions}
-            className="min-w-0 flex-1"
-            buttonClassName="min-h-10 border-transparent bg-transparent px-0 text-[12px] shadow-none"
-            menuClassName="left-auto right-0 min-w-[15rem]"
-          />
-        </div>
       </section>
 
-      <section className="space-y-4">
-        <AppSectionHeader
-          eyebrow="Hacienda de Letras"
-          title={t('app.premium.wines.title')}
-          action={<StatusBadge>{filteredWines.length}</StatusBadge>}
+      {loading ? (
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-2.5">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div key={index} className="space-y-2">
+              <Skeleton className="aspect-[4/5]" />
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-3 w-20" />
+            </div>
+          ))}
+        </section>
+      ) : error ? (
+        <ErrorState
+          message={t('app.premium.contentUnavailable')}
+          retryLabel={t('app.premium.retry')}
+          onRetry={retry}
         />
-        {loading ? (
-          <LoadingState label={t('app.premium.wines.loading')} />
-        ) : error ? (
-          <ErrorState message={error} retryLabel={t('app.premium.retry')} onRetry={retry} />
-        ) : filteredWines.length === 0 ? (
-          <EmptyState
-            title={t('app.premium.wines.empty')}
-            description={t('app.premium.contentPreparing')}
-          />
-        ) : (
-          <div className="grid grid-cols-2 gap-3">
-            {filteredWines.map((wine, index) => {
-              const stockControlled = Boolean(wine.stock_control_enabled)
-              const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
-              const price = numberField(wine, 'price')
-              return (
-                <WineCard
-                  key={wine.id}
-                  wine={{
-                    id: contentRouteId(wine),
-                    name: textField(wine, 'name', t('app.nav.store')),
-                    kind: textField(wine, 'subtitle') || textField(wine, 'origin') || textField(wine, 'wine_type'),
-                    price: price > 0
-                      ? formatCurrency(price, locale)
-                      : t('app.premium.pricePending'),
-                    image: imageField(wine, '/Logo-HDL-2.svg'),
-                    varietal: textField(wine, 'grape_variety'),
-                    description: textField(wine, 'short_description') || textField(wine, 'description'),
-                  }}
-                  badge={
-                    soldOut
-                      ? t('app.premium.soldOut')
-                      : index === 0
-                        ? t('app.premium.featured')
-                        : textField(wine, 'status') || t('app.premium.available')
-                  }
-                  onAdd={() => addWineToCart(String(wine.id))}
-                  addDisabled={soldOut || addingId === String(wine.id)}
-                  addLabel={
-                    soldOut
-                      ? t('app.premium.soldOut')
-                      : addingId === String(wine.id)
-                        ? t('app.premium.adding')
-                        : t('app.premium.addToCart')
-                  }
-                />
-              )
-            })}
-          </div>
-        )}
-      </section>
+      ) : filteredWines.length === 0 ? (
+        <EmptyState
+          title={t('app.premium.wines.empty')}
+          description={t('app.premium.contentPreparing')}
+        />
+      ) : (
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-x-2.5 gap-y-5">
+          {filteredWines.map((wine, index) => {
+            const stockControlled = Boolean(wine.stock_control_enabled)
+            const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
+            const price = numberField(wine, 'price')
+            return (
+              <WineCard
+                key={wine.id}
+                wine={{
+                  id: contentRouteId(wine),
+                  name: textField(wine, 'name', t('app.nav.store')),
+                  kind: textField(wine, 'wine_type') || textField(wine, 'origin') || textField(wine, 'subtitle'),
+                  price: price > 0 ? formatCurrency(price, locale) : t('app.premium.pricePending'),
+                  image: imageField(wine, ''),
+                  varietal: textField(wine, 'grape_variety'),
+                  description: textField(wine, 'short_description') || textField(wine, 'description'),
+                }}
+                badge={
+                  soldOut
+                    ? t('app.premium.soldOut')
+                    : index === 0
+                      ? t('app.premium.featured')
+                      : undefined
+                }
+                onAdd={() => addWineToCart(String(wine.id))}
+                addDisabled={soldOut || addingId === String(wine.id)}
+                addLabel={
+                  soldOut
+                    ? t('app.premium.soldOut')
+                    : addingId === String(wine.id)
+                      ? t('app.premium.adding')
+                      : t('app.premium.addToCart')
+                }
+              />
+            )
+          })}
+        </section>
+      )}
     </div>
   )
 }

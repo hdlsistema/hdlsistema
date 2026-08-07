@@ -13,6 +13,7 @@ import {
   ShoppingBag,
 } from 'lucide-react'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { appPath } from '../../utils/appRoutes'
 
 type ButtonTone = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -32,7 +33,7 @@ export function AppSectionHeader({
   action?: ReactNode
 }) {
   return (
-    <div className="flex items-end justify-between gap-4">
+    <div className="flex min-w-0 items-end justify-between gap-3">
       <div className="min-w-0">
         {eyebrow ? (
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">
@@ -40,13 +41,13 @@ export function AppSectionHeader({
           </p>
         ) : null}
         <h2
-          className="mt-1 text-[1.62rem] leading-[0.98] text-[var(--color-ink)]"
+          className="mt-1 text-[clamp(28px,7vw,34px)] leading-[0.98] text-[var(--color-ink)]"
           style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
         >
           {title}
         </h2>
         {subtitle ? (
-          <p className="mt-2 max-w-[31rem] text-[12px] leading-5 text-[var(--color-muted)]">
+          <p className="mt-2 max-w-[31rem] text-[14px] leading-5 text-[var(--color-muted)]">
             {subtitle}
           </p>
         ) : null}
@@ -80,8 +81,8 @@ export function HeroEditorial({
   return (
     <section
       className={cx(
-        'relative isolate overflow-hidden rounded-[1.35rem] bg-[var(--color-burgundy-deep)] text-white shadow-[var(--shadow-float)]',
-        compact ? 'min-h-[220px]' : 'min-h-[292px]',
+        'relative isolate min-w-0 overflow-hidden rounded-[1.25rem] bg-[var(--color-burgundy-deep)] text-white shadow-[var(--shadow-float)]',
+        compact ? 'min-h-[220px]' : 'min-h-[clamp(360px,72vh,480px)]',
       )}
     >
       {image ? (
@@ -90,20 +91,20 @@ export function HeroEditorial({
         <div className="absolute inset-0 bg-[linear-gradient(140deg,#4d1022,#8f4538_58%,#d8bb89)]" />
       )}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(26,7,8,0.18),rgba(26,7,8,0.78))]" />
-      <div className="relative flex min-h-[inherit] flex-col justify-end p-5">
+      <div className="relative flex min-h-[inherit] flex-col justify-end px-[var(--app-pad)] pb-6 pt-8">
         {eyebrow ? (
           <p className="max-w-full text-[10px] font-semibold uppercase tracking-[0.2em] text-[#ead0a2]">
             {eyebrow}
           </p>
         ) : null}
         <h1
-          className="mt-2 max-w-[19rem] text-[2.45rem] leading-[0.9] text-white"
+          className="mt-2 max-w-[19rem] text-[clamp(32px,9vw,42px)] leading-[0.95] text-white"
           style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
         >
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-3 max-w-[20rem] text-[12px] leading-5 text-white/82">
+          <p className="mt-3 max-w-[20rem] text-[14px] leading-5 text-white/84">
             {subtitle}
           </p>
         ) : null}
@@ -140,6 +141,24 @@ export function ImageFallback({
   )
 }
 
+export function EditorialImagePlaceholder({
+  label,
+  className,
+}: {
+  label?: string
+  className?: string
+}) {
+  const { t } = useAppPreferences()
+  return (
+    <div className={cx('flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(145deg,#EEE2D2,#E5D6C4)] text-center', className)}>
+      <ImageIcon size={18} strokeWidth={1.5} className="text-[#B88A4A]" aria-hidden="true" />
+      <span className="mt-2 max-w-[8rem] px-3 text-[10px] font-semibold leading-4 text-[#9B7042]">
+        {label ?? t('app.premium.imagePending')}
+      </span>
+    </div>
+  )
+}
+
 export function SearchField({ placeholder, value, onChange }: {
   placeholder: string
   value?: string
@@ -165,7 +184,7 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
   onSelect?: (index: number) => void
 }) {
   return (
-    <div className="app-scrollbar-none flex gap-2 overflow-x-auto pb-1">
+    <div className="app-scrollbar-none flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
@@ -174,10 +193,10 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
             type="button"
             onClick={() => onSelect?.(index)}
             className={cx(
-              'min-h-10 shrink-0 rounded-full px-4 text-[12px] font-semibold transition-colors',
+              'min-h-8 shrink-0 rounded-full px-3 text-[12px] font-semibold transition-colors',
               active
-                ? 'bg-[var(--color-burgundy)] text-white'
-                : 'bg-[rgba(255,250,242,0.86)] text-[var(--color-muted-strong)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]',
+                ? 'bg-[#690D2B] text-white'
+                : 'bg-[#FFF9F1] text-[#776053] shadow-[inset_0_0_0_1px_rgba(184,138,74,0.18)]',
             )}
           >
             {item}
@@ -229,7 +248,7 @@ export function PrimaryButton({
   className?: string
 }) {
   const classes = cx(
-    'inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-[0.95rem] px-5 py-3 text-center text-[13px] font-semibold leading-5 transition-transform',
+        'inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] px-4 py-3 text-center text-[14px] font-semibold leading-5 transition-transform',
     tone === 'primary' && 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_24px_rgba(84,17,36,0.16)]',
     tone === 'secondary' && 'bg-[var(--color-surface-warm)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]',
     tone === 'ghost' && 'bg-transparent text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(84,17,36,0.16)]',
@@ -273,8 +292,8 @@ export function FloatingCartButton({ count = 0 }: { count?: number }) {
   const { t } = useAppPreferences()
   return (
     <Link
-      to="/app/carrito"
-      className="fixed bottom-[calc(var(--safe-bottom)+4.6rem)] right-4 z-40 inline-flex h-[3.25rem] min-h-[3.25rem] w-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white shadow-[var(--shadow-float)] md:absolute"
+      to={appPath('/carrito')}
+      className="absolute bottom-[calc(var(--safe-bottom)+4.6rem)] right-[var(--app-pad)] z-40 inline-flex h-[3.25rem] min-h-[3.25rem] w-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white shadow-[var(--shadow-float)]"
       aria-label={t('app.premium.openCart')}
     >
       <ShoppingBag size={19} />
@@ -351,9 +370,9 @@ export function StatusBadge({
 
 export function LoadingState({ label }: { label: string }) {
   return (
-    <div className="rounded-[1.15rem] bg-[rgba(255,250,242,0.78)] p-5 text-[12px] text-[var(--color-muted)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.16)]">
-      <Loader2 size={17} className="mb-3 animate-spin text-[var(--color-burgundy)]" />
-      {label}
+    <div className="flex min-h-[72px] items-center gap-3 rounded-[16px] bg-[#FFF9F1] px-4 text-[12px] text-[#776053] shadow-[inset_0_0_0_1px_rgba(184,138,74,0.14)]">
+      <Loader2 size={16} className="shrink-0 animate-spin text-[#690D2B]" />
+      <span>{label}</span>
     </div>
   )
 }
@@ -363,12 +382,13 @@ export function ErrorState({ message, retryLabel, onRetry }: {
   retryLabel?: string
   onRetry?: () => void
 }) {
+  const { t } = useAppPreferences()
   return (
-    <div className="rounded-[1.15rem] bg-[rgba(154,68,59,0.08)] p-5 text-[12px] leading-5 text-[var(--color-alert)] shadow-[inset_0_0_0_1px_rgba(154,68,59,0.18)]">
-      <AlertCircle size={17} className="mb-3" />
-      <p>{message}</p>
+    <div className="flex min-h-[74px] items-center gap-3 rounded-[16px] bg-[#FFF9F1] px-4 text-[12px] leading-5 text-[#776053] shadow-[inset_0_0_0_1px_rgba(154,68,59,0.18)]">
+      <AlertCircle size={16} className="shrink-0 text-[#9A443B]" />
+      <p className="min-w-0 flex-1">{message || t('app.premium.contentUnavailable')}</p>
       {onRetry && retryLabel ? (
-        <button type="button" onClick={onRetry} className="mt-3 font-semibold text-[var(--color-burgundy)]">
+        <button type="button" onClick={onRetry} className="shrink-0 font-semibold text-[#690D2B]">
           {retryLabel}
         </button>
       ) : null}
@@ -386,19 +406,19 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="rounded-[1.2rem] bg-[rgba(255,250,242,0.78)] p-5 text-center shadow-[inset_0_0_0_1px_rgba(170,125,67,0.16)]">
-      <ImageIcon size={22} className="mx-auto text-[var(--color-gold)]" />
-      <h3 className="mt-3 text-[1.35rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+    <div className="rounded-[16px] bg-[#FFF9F1] p-4 text-center shadow-[inset_0_0_0_1px_rgba(184,138,74,0.14)]">
+      <ImageIcon size={18} className="mx-auto text-[#B88A4A]" />
+      <h3 className="mt-2 text-[1.2rem] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
         {title}
       </h3>
-      {description ? <p className="mt-2 text-[12px] leading-5 text-[var(--color-muted)]">{description}</p> : null}
+      {description ? <p className="mt-2 text-[12px] leading-5 text-[#776053]">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cx('animate-pulse rounded-[1rem] bg-[rgba(170,125,67,0.14)]', className)} />
+  return <div className={cx('animate-pulse rounded-[16px] bg-[rgba(184,138,74,0.14)]', className)} />
 }
 
 export function AppToast({ message, tone = 'neutral' }: { message: string; tone?: 'neutral' | 'success' | 'danger' }) {
@@ -483,30 +503,34 @@ export function WineCard({
   addDisabled?: boolean
   addLabel?: string
 }) {
-  const detailPath = `/app/tienda/${wine.id}`
+  const detailPath = appPath(`/vinos/${wine.id}`)
   return (
-    <article className="group min-w-0 overflow-hidden rounded-[1.18rem] bg-[rgba(255,250,242,0.9)] shadow-[var(--shadow-card)]">
-      <Link to={detailPath} className="relative flex h-[172px] items-center justify-center overflow-hidden bg-[linear-gradient(145deg,#f8ecd9,#ead8c2)] p-4">
+    <article className="group min-w-0">
+      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#EEE2D2,#E5D6C4)]">
         {badge ? (
-          <span className="absolute left-3 top-3 max-w-[calc(100%-1.5rem)] truncate rounded-full bg-white/90 px-2.5 py-1 text-[8px] font-bold uppercase tracking-[0.1em] text-[var(--color-burgundy)]">
+          <span className="absolute left-2.5 top-2.5 z-10 max-w-[calc(100%-1.25rem)] truncate rounded-full bg-[#FFF9F1]/92 px-2 py-1 text-[8px] font-bold uppercase text-[#690D2B]">
             {badge}
           </span>
         ) : null}
-        <ImageFallback src={wine.image} alt={wine.name} contain className="max-h-[135px] max-w-[82%] drop-shadow-[0_16px_14px_rgba(61,28,17,0.16)]" />
+        {wine.image ? (
+          <ImageFallback src={wine.image} alt={wine.name} className="h-full w-full" />
+        ) : (
+          <EditorialImagePlaceholder />
+        )}
       </Link>
-      <div className="p-3.5">
+      <div className="pt-2">
         <Link to={detailPath}>
-          <h3 className="line-clamp-2 min-h-[38px] text-[16px] leading-[1.08] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
-            {wine.name}
-          </h3>
           {wine.kind || wine.varietal ? (
-            <p className="mt-1 line-clamp-1 text-[11px] text-[var(--color-muted)]">
+            <p className="line-clamp-1 text-[10px] font-semibold uppercase text-[#B88A4A]">
               {[wine.kind, wine.varietal].filter(Boolean).join(' · ')}
             </p>
           ) : null}
+          <h3 className="mt-0.5 line-clamp-2 min-h-[39px] text-[18px] leading-[1.06] text-[#2D1811]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+            {wine.name}
+          </h3>
         </Link>
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-[14px] font-bold text-[var(--color-burgundy)]">
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[12px] font-semibold text-[#690D2B]">
             {wine.price}
           </span>
           <CompactAddButton onClick={onAdd} disabled={addDisabled} ariaLabel={addLabel} />
@@ -534,26 +558,27 @@ export function EditorialCard({
   actionLabel?: string
 }) {
   return (
-    <Link to={to} className="block overflow-hidden rounded-[1.22rem] bg-[rgba(255,250,242,0.9)] shadow-[var(--shadow-card)]">
-      <div className="relative h-[210px] overflow-hidden bg-[var(--color-soft)]">
-        <ImageFallback src={image} alt={title} className="h-full w-full" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(42,14,15,0.02),rgba(42,14,15,0.68))]" />
-        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-          {eyebrow ? <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#e5c48d]">{eyebrow}</p> : null}
-          <h3 className="mt-1 text-[1.65rem] leading-none text-white" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
-            {title}
-          </h3>
-        </div>
-      </div>
-      <div className="p-4">
-        {description ? <p className="line-clamp-2 text-[12px] leading-5 text-[var(--color-muted)]">{description}</p> : null}
+    <Link to={to} className="app-editorial-card grid min-h-[148px] min-w-0 overflow-hidden rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1]">
+      <div className="min-w-0 p-4">
+        {eyebrow ? <p className="line-clamp-1 text-[9px] font-semibold uppercase text-[#B88A4A]">{eyebrow}</p> : null}
+        <h3 className="mt-1 line-clamp-2 text-[clamp(18px,5vw,21px)] leading-[1.05] text-[#2D1811]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+          {title}
+        </h3>
+        {description ? <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-[#776053]">{description}</p> : null}
         {meta ? <div className="mt-3">{meta}</div> : null}
         {actionLabel ? (
-          <p className="mt-4 inline-flex items-center gap-2 text-[12px] font-semibold text-[var(--color-burgundy)]">
+          <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#690D2B]">
             {actionLabel}
             <ArrowRight size={14} />
           </p>
         ) : null}
+      </div>
+      <div className="app-editorial-card__media relative h-full min-h-[148px] overflow-hidden">
+        {image ? (
+          <ImageFallback src={image} alt={title} className="h-full w-full" />
+        ) : (
+          <EditorialImagePlaceholder />
+        )}
       </div>
     </Link>
   )

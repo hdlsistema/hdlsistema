@@ -3,6 +3,7 @@ import { Sparkles, Wine } from 'lucide-react'
 import { AppSectionHeader, EmptyState, ErrorState, HeroEditorial, LoadingState, WineCard } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
+import { appPath } from '../../utils/appRoutes'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function SommelierScreen() {
@@ -10,7 +11,7 @@ export function SommelierScreen() {
   const { records: wines, loading, error, retry } = usePublicContent('wines')
 
   return (
-    <div className="space-y-6 pb-2">
+    <div className="app-page space-y-6">
       <HeroEditorial
         compact
         eyebrow={t('app.premium.home.sommelierTitle')}
@@ -36,7 +37,7 @@ export function SommelierScreen() {
         ) : wines.length === 0 ? (
           <EmptyState title={t('app.premium.contentPreparing')} description={t('app.premium.informationSoon')} />
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-3">
             {wines.slice(0, 4).map((wine) => {
               const price = numberField(wine, 'price')
               return (
@@ -57,7 +58,7 @@ export function SommelierScreen() {
         )}
       </section>
 
-      <Link to="/app/vinos" className="flex min-h-12 items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-5 text-[13px] font-semibold text-white">
+      <Link to={appPath('/vinos')} className="flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[14px] font-semibold text-white">
         <Wine size={16} />
         {t('app.nav.store')}
       </Link>

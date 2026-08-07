@@ -16,7 +16,7 @@ export function MapScreen() {
   ]
 
   return (
-    <div className="space-y-6 pb-2">
+    <div className="app-page space-y-6">
       <HeroEditorial
         compact
         eyebrow={t('app.premium.home.mapTitle')}
@@ -36,7 +36,7 @@ export function MapScreen() {
             coordinates: place.coordinates,
             label: place.name,
           }))}
-          className="h-[430px]"
+          className="app-map-height"
         />
       </section>
 

@@ -40,20 +40,27 @@ function AuthShell({
   note: string
   children: ReactNode
 }) {
+  const location = useLocation()
+  const appMode = location.pathname.startsWith('/app/')
+
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fffaf5_0%,#f0dcc7_100%)] px-5 py-10 text-[var(--color-burgundy)]">
-      <div className="fixed right-5 top-5 z-10">
-        <LanguageSelector />
-      </div>
-      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-[520px] flex-col justify-center">
-        <Link to="/" className="mx-auto mb-8 block rounded-full bg-white/72 px-6 py-3 shadow-[var(--shadow-soft)]">
-          <img src="/Logo-HDL-2.svg" alt="Hacienda de Letras" className="h-14 w-auto" />
-        </Link>
-        <section className="rounded-[1.35rem] border border-[rgba(170,125,67,0.22)] bg-[rgba(255,250,242,0.94)] p-6 shadow-[var(--shadow-float)] backdrop-blur md:p-9">
+    <div className={appMode ? 'overflow-x-hidden bg-[#FBF7F0] px-[var(--app-pad)] pb-6 pt-3 text-[var(--color-burgundy)]' : 'min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fffaf5_0%,#f0dcc7_100%)] px-5 py-10 text-[var(--color-burgundy)]'}>
+      {!appMode ? (
+        <div className="fixed right-5 top-5 z-10">
+          <LanguageSelector />
+        </div>
+      ) : null}
+      <div className={appMode ? 'mx-auto flex w-full min-w-0 flex-col justify-start' : 'mx-auto flex min-h-[calc(100vh-5rem)] max-w-[520px] flex-col justify-center'}>
+        {!appMode ? (
+          <Link to="/" className="mx-auto mb-8 block rounded-full bg-white/72 px-6 py-3 shadow-[var(--shadow-soft)]">
+            <img src="/hacienda de letras logo 2.png" alt="Hacienda de Letras" className="h-14 w-auto" />
+          </Link>
+        ) : null}
+        <section className={appMode ? 'rounded-[18px] border border-[rgba(170,125,67,0.22)] bg-[#FFF9F1] p-5 shadow-[0_14px_32px_rgba(58,32,18,0.1)]' : 'rounded-[1.35rem] border border-[rgba(170,125,67,0.22)] bg-[rgba(255,250,242,0.94)] p-6 shadow-[var(--shadow-float)] backdrop-blur md:p-9'}>
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-gold)]">
             {eyebrow}
           </p>
-          <h1 className="mt-3 text-[2.4rem] leading-[0.92] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>{title}</h1>
+          <h1 className="mt-3 text-[clamp(32px,9vw,42px)] leading-[0.95] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>{title}</h1>
           <p className="mt-3 text-[13px] leading-6 text-[var(--color-muted)]">{note}</p>
           {children}
         </section>
@@ -107,7 +114,7 @@ export function LoginPage() {
       title={t('auth.login')}
       note={t('auth.loginNote')}
     >
-      <form className="mt-7 space-y-4" onSubmit={submit}>
+	      <form className="mt-7 space-y-4" onSubmit={submit}>
         <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
         <PasswordField show={showPassword} setShow={setShowPassword} />
         <Link to={recoverPath} className="block text-[12px] font-semibold text-[#681126]">
@@ -204,7 +211,7 @@ export function RegisterPage() {
       note={t('auth.createAccountNote')}
     >
       <form className="mt-7 space-y-4" onSubmit={submit}>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
           <Field icon={<User size={17} />} label={t('auth.firstName')} name="firstName" />
           <Field icon={<User size={17} />} label={t('auth.lastName')} name="lastName" />
         </div>
@@ -346,13 +353,13 @@ function Field({
       <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
         {label}
       </span>
-      <div className="flex items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
+	      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
         <span className="text-[#8a6c59]">{icon}</span>
         <input
           required={required}
           name={name}
           type={type}
-          className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+	          className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[14px] outline-none"
         />
       </div>
     </label>
@@ -372,13 +379,13 @@ function PasswordField({
       <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
         {t('auth.password')}
       </span>
-      <div className="flex items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
+	      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
         <LockKeyhole size={17} className="text-[#8a6c59]" />
         <input
           required
           name="password"
           type={show ? 'text' : 'password'}
-          className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[13px] outline-none"
+	          className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[14px] outline-none"
         />
         <button
           type="button"
@@ -405,7 +412,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={loading}
-      className="inline-flex min-h-[53px] w-full items-center justify-center gap-3 rounded-full bg-[#681126] px-6 text-[14px] font-bold text-white disabled:opacity-60"
+	      className="inline-flex min-h-[53px] w-full min-w-0 items-center justify-center gap-3 rounded-full bg-[#681126] px-4 text-[14px] font-bold text-white disabled:opacity-60"
     >
       {loading ? t('auth.processing') : children}
       <ArrowRight size={17} />

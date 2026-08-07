@@ -9,6 +9,8 @@ interface CopyTree {
   [key: string]: string | CopyTree
 }
 
+const includeControlCopy = import.meta.env.VITE_HDL_APP_TARGET !== 'mobile'
+
 const dictionary = {
   es: {
     common: {
@@ -116,6 +118,8 @@ const dictionary = {
         loading: 'Cargando contenido...',
         informationSoon: 'Información próximamente',
         pricePending: 'Precio por confirmar',
+        imagePending: 'Imagen pendiente',
+        contentUnavailable: 'Este contenido no está disponible por el momento.',
         availabilityPending: 'Disponibilidad por confirmar',
         contentPreparing: 'Contenido en preparación',
         addToCart: 'Agregar al carrito',
@@ -130,13 +134,14 @@ const dictionary = {
         decreaseQuantity: 'Disminuir cantidad',
         increaseQuantity: 'Aumentar cantidad',
         home: {
-          eyebrow: 'Hacienda de Letras',
-          title: 'Una visita a la cava, desde tu mano.',
-          subtitle: 'Vinos, experiencias y momentos para planear tu próxima visita con calma.',
+          eyebrow: 'BIENVENIDO A',
+          title: 'Hacienda de Letras',
+          subtitle: 'Vinos con historia, experiencias que perduran.',
           welcome: 'Bienvenida',
           welcomeBack: 'Qué gusto verte de nuevo',
-          wines: 'Vinos destacados',
-          experiences: 'Experiencias para reservar',
+          wines: 'Explora nuestros vinos',
+          winesCopy: 'Descubre etiquetas seleccionadas de nuestra hacienda.',
+          experiences: 'Experiencias destacadas',
           events: 'Próximos eventos',
           clubTitle: 'Wine Club',
           clubCopy: 'Un espacio para membresías reales cuando tu cuenta tenga un plan activo.',
@@ -147,10 +152,10 @@ const dictionary = {
           mapTitle: 'Llegar a la hacienda',
           mapCopy: 'Consulta el mapa configurado de Hacienda de Letras.',
         },
-        wines: {
-          eyebrow: 'Cava',
-          title: 'Vinos de la casa',
-          subtitle: 'Explora etiquetas publicadas desde el Centro de Control.',
+	        wines: {
+	          eyebrow: 'Cava',
+	          title: 'Vinos de la casa',
+	          subtitle: 'Explora etiquetas publicadas por Hacienda de Letras.',
           search: 'Buscar vino, uva o etiqueta',
           all: 'Todos',
           reds: 'Tintos',
@@ -388,10 +393,10 @@ const dictionary = {
       pickupOnly: 'La entrega se limita a recolección en Hacienda hasta aprobar reglas de envío.',
       backendTotals: 'Los totales se recalculan en backend antes de crear la orden.',
     },
-    control: {
-      groupMain: 'Centro de control app',
-      groupAdditional: 'Funciones adicionales',
-      dashboard: 'Dashboard',
+	    ...(includeControlCopy ? { control: {
+	      groupMain: 'Centro de control app',
+	      groupAdditional: 'Funciones adicionales',
+	      dashboard: 'Dashboard',
       reservations: 'Reservaciones',
       wines: 'Vinos',
       experiences: 'Experiencias',
@@ -412,9 +417,9 @@ const dictionary = {
       operatingCenter: 'Centro de control operativo premium',
       alertCenter: 'Centro de alertas',
       notifications: 'Notificaciones y alertas',
-      wineOfAguascalientes: 'El vino de Aguascalientes',
-      tradition: 'Tradición que se vive, experiencia que permanece.',
-    },
+	      wineOfAguascalientes: 'El vino de Aguascalientes',
+	      tradition: 'Tradición que se vive, experiencia que permanece.',
+	    } } : {}),
   },
   en: {
     common: {
@@ -522,6 +527,8 @@ const dictionary = {
         loading: 'Loading content...',
         informationSoon: 'Information coming soon',
         pricePending: 'Price to be confirmed',
+        imagePending: 'Image pending',
+        contentUnavailable: 'This content is not available right now.',
         availabilityPending: 'Availability to be confirmed',
         contentPreparing: 'Content in preparation',
         addToCart: 'Add to cart',
@@ -536,13 +543,14 @@ const dictionary = {
         decreaseQuantity: 'Decrease quantity',
         increaseQuantity: 'Increase quantity',
         home: {
-          eyebrow: 'Hacienda de Letras',
-          title: 'A cellar visit, in your hand.',
-          subtitle: 'Wines, experiences and moments to plan your next visit calmly.',
+          eyebrow: 'WELCOME TO',
+          title: 'Hacienda de Letras',
+          subtitle: 'Wines with history, experiences that remain.',
           welcome: 'Welcome',
           welcomeBack: 'Good to see you again',
-          wines: 'Featured wines',
-          experiences: 'Experiences to book',
+          wines: 'Explore our wines',
+          winesCopy: 'Discover selected labels from our estate.',
+          experiences: 'Featured experiences',
           events: 'Upcoming events',
           clubTitle: 'Wine Club',
           clubCopy: 'A space for real memberships when your account has an active plan.',
@@ -553,10 +561,10 @@ const dictionary = {
           mapTitle: 'Get to the estate',
           mapCopy: 'Open the configured Hacienda de Letras map.',
         },
-        wines: {
-          eyebrow: 'Cellar',
-          title: 'Estate wines',
-          subtitle: 'Explore labels published from the Control Center.',
+	        wines: {
+	          eyebrow: 'Cellar',
+	          title: 'Estate wines',
+	          subtitle: 'Explore labels published by Hacienda de Letras.',
           search: 'Search wine, grape or label',
           all: 'All',
           reds: 'Reds',
@@ -794,10 +802,10 @@ const dictionary = {
       pickupOnly: 'Fulfillment is limited to pickup at Hacienda until shipping rules are approved.',
       backendTotals: 'Totals are recalculated by the backend before creating the order.',
     },
-    control: {
-      groupMain: 'App control center',
-      groupAdditional: 'Additional functions',
-      dashboard: 'Dashboard',
+	    ...(includeControlCopy ? { control: {
+	      groupMain: 'App control center',
+	      groupAdditional: 'Additional functions',
+	      dashboard: 'Dashboard',
       reservations: 'Reservations',
       wines: 'Wines',
       experiences: 'Experiences',
@@ -818,9 +826,9 @@ const dictionary = {
       operatingCenter: 'Premium operational command center',
       alertCenter: 'Alert center',
       notifications: 'Notifications and alerts',
-      wineOfAguascalientes: 'The wine of Aguascalientes',
-      tradition: 'Tradition to live, experience to keep.',
-    },
+	      wineOfAguascalientes: 'The wine of Aguascalientes',
+	      tradition: 'Tradition to live, experience to keep.',
+	    } } : {}),
   },
 } as const satisfies Record<AppLanguage, CopyTree>
 

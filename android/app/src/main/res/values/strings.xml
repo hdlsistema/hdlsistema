@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hacienda de Letras</string>
+    <string name="title_activity_main">Hacienda de Letras</string>
+    <string name="package_name">com.haciendadeletras.app</string>
+    <string name="custom_url_scheme">com.haciendadeletras.app</string>
+</resources>

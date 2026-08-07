@@ -14,6 +14,7 @@ import {
   PrimaryButton,
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { appPath } from '../../utils/appRoutes'
 import { formatCurrency, formatPublicDate, formatPublicTimeRange, imageField, numberField, textField } from '../../utils/publicContent'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
@@ -90,8 +91,8 @@ export function ExperienceDetailScreen() {
     return summary.split('.').map((item) => item.trim()).filter(Boolean).slice(0, 4)
   }, [experience])
 
-  if (loading) return <LoadingState label={t('app.loadingExperience')} />
-  if (error || !experience) return <ErrorState message={error ?? t('app.experienceUnavailable')} />
+  if (loading) return <div className="app-page"><LoadingState label={t('app.loadingExperience')} /></div>
+  if (error || !experience) return <div className="app-page"><ErrorState message={error ?? t('app.experienceUnavailable')} /></div>
 
   const title = textField(experience, 'title', t('app.nav.experiences'))
   const description = textField(experience, 'description') || textField(experience, 'short_description') || t('app.premium.informationSoon')
@@ -101,7 +102,7 @@ export function ExperienceDetailScreen() {
   const location = textField(experience, 'location', 'Hacienda de Letras')
 
   return (
-    <div className="space-y-6 pb-2">
+    <div className="app-page space-y-6">
       <BackButton label={t('app.premium.back')} />
       <HeroEditorial
         eyebrow={t('app.publishedExperience')}
@@ -111,7 +112,7 @@ export function ExperienceDetailScreen() {
         alt={title}
       />
 
-      <section className="grid grid-cols-2 gap-3">
+      <section className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-3">
         {[
           { icon: Clock3, label: t('app.duration'), value: durationMinutes > 0 ? `${durationMinutes} ${t('app.minutes')}` : t('app.premium.informationSoon') },
           { icon: Users, label: t('app.capacity'), value: capacity > 0 ? `${capacity} ${t('app.people')}` : t('app.premium.availabilityPending') },
@@ -160,7 +161,7 @@ export function ExperienceDetailScreen() {
         )}
       </section>
 
-      <PrimaryButton to="/app/reservacion">
+      <PrimaryButton to={appPath('/reservacion')}>
         <CalendarDays size={16} />
         {t('app.reserveLive')}
       </PrimaryButton>

@@ -1,20 +1,20 @@
 import { Outlet } from 'react-router-dom'
+import { AppEdgePanel } from './AppEdgePanel'
 import { AppHeader } from './AppHeader'
 import { AppBottomNavigation } from './BottomTabs'
-import { FloatingCartButton } from './PremiumMobileUi'
 import { useCartCount } from '../../hooks/useCartCount'
 
 export function MobileShell() {
   const cartCount = useCartCount()
 
   return (
-    <div className="relative mx-auto flex h-full min-h-screen w-full max-w-[520px] flex-col overflow-x-hidden bg-[var(--color-panel-strong)] md:my-6 md:min-h-[860px] md:rounded-[2rem] md:shadow-[0_24px_70px_rgba(42,26,20,0.18)]">
+    <div className="app-preview-shell relative flex min-h-[100dvh] w-full flex-col overflow-hidden bg-[#FBF7F0]">
       <AppHeader />
-      <main className="app-scrollbar-none flex-1 space-y-5 overflow-y-auto px-4 pb-[calc(var(--safe-bottom)+6.2rem)] pt-2 sm:px-5">
+      <main className="app-scrollbar-none min-h-0 flex-1 overflow-y-auto pb-[calc(76px+var(--safe-bottom))]">
         <Outlet />
       </main>
-      <FloatingCartButton count={cartCount} />
       <AppBottomNavigation cartCount={cartCount} />
+      <AppEdgePanel />
     </div>
   )
 }

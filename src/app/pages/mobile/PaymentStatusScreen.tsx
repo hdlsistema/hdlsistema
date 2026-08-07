@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerPaymentStatus } from '../../../services/customer.service'
 import { AppToast, PrimaryButton, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { appPath } from '../../utils/appRoutes'
 
 type PaymentStatusMode = 'processing' | 'success' | 'failed'
 
@@ -49,9 +50,9 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
         setStatus(response.data)
         if (mode === 'processing') {
           if (response.data.orderStatus === 'paid' || response.data.paymentStatus === 'paid') {
-            navigate(`/app/pago/exitoso?orderId=${encodeURIComponent(orderId)}`, { replace: true })
+            navigate(`${appPath('/pago/exitoso')}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
           } else if (['failed', 'cancelled'].includes(response.data.paymentStatus)) {
-            navigate(`/app/pago/fallido?orderId=${encodeURIComponent(orderId)}`, { replace: true })
+            navigate(`${appPath('/pago/fallido')}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
           }
         }
       } catch {
@@ -73,7 +74,7 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
       : <Loader2 size={30} className="animate-spin text-[var(--color-burgundy)]" />
 
   return (
-    <div className="space-y-6 pb-3">
+    <div className="app-page space-y-6">
       <SectionHeading eyebrow={t('app.premium.payment.eyebrow')} title={titleFor(mode, t)} />
 
       <section className="rounded-[1.25rem] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
@@ -94,21 +95,21 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
           <AppToast message={message} tone="danger" />
         ) : status ? (
           <div className="mt-4 space-y-2 rounded-[1rem] bg-[var(--color-surface-warm)] p-4 text-[13px] text-[var(--color-muted)]">
-            <div className="flex justify-between gap-3"><span>{t('app.premium.payment.order')}</span><strong>{status.orderNumber}</strong></div>
-            <div className="flex justify-between gap-3"><span>{t('app.premium.payment.orderStatus')}</span><StatusBadge>{status.orderStatus}</StatusBadge></div>
-            <div className="flex justify-between gap-3"><span>{t('app.premium.payment.paymentStatus')}</span><StatusBadge tone={status.paymentStatus === 'paid' ? 'success' : 'warning'}>{status.paymentStatus}</StatusBadge></div>
-            <div className="flex justify-between gap-3"><span>{t('common.total')}</span><strong>{money(status.amount, locale)}</strong></div>
+	            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.order')}</span><strong>{status.orderNumber}</strong></div>
+	            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.orderStatus')}</span><StatusBadge>{status.orderStatus}</StatusBadge></div>
+	            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.paymentStatus')}</span><StatusBadge tone={status.paymentStatus === 'paid' ? 'success' : 'warning'}>{status.paymentStatus}</StatusBadge></div>
+	            <div className="flex flex-wrap justify-between gap-3"><span>{t('common.total')}</span><strong>{money(status.amount, locale)}</strong></div>
           </div>
         ) : null}
 
         <div className="mt-5 grid gap-3">
           {status?.canRetry ? (
-            <Link to="/app/checkout" className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
+            <Link to={appPath('/checkout')} className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
               <RotateCcw size={16} />
               {t('app.premium.payment.retryPayment')}
             </Link>
           ) : null}
-          <PrimaryButton to="/app/perfil" tone={status?.canRetry ? 'ghost' : 'primary'}>
+          <PrimaryButton to={appPath('/perfil')} tone={status?.canRetry ? 'ghost' : 'primary'}>
             {t('app.premium.payment.viewOrders')}
           </PrimaryButton>
         </div>
