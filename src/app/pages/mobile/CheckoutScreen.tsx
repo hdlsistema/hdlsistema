@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerCart, type CustomerOrder, type CustomerPaymentSession } from '../../../services/customer.service'
+import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { isStripePublishableKeyConfigured, stripePromise } from '../../payments/stripe'
@@ -23,14 +24,33 @@ function EmbeddedStripePaymentForm({
   isEnglish: boolean
   onMessage: (message: string) => void
 }) {
+  const { session } = useAuth()
   const stripe = useStripe()
   const elements = useElements()
   const navigate = useNavigate()
   const [accepted, setAccepted] = useState(false)
   const [processing, setProcessing] = useState(false)
 
+  useEffect(() => {
+    trackAppActivity({
+      eventName: 'checkout_payment_form_viewed',
+      entityType: 'order',
+      entityId: orderId,
+      accessToken: session?.access_token,
+      metadata: { route: '/app/checkout' },
+    })
+  }, [orderId, session?.access_token])
+
   const submitPayment = async () => {
     if (!stripe || !elements || processing || !accepted) return
+    trackAppActivity({
+      eventName: 'checkout_payment_attempted',
+      entityType: 'order',
+      entityId: orderId,
+      accessToken: session?.access_token,
+      metadata: { route: '/app/checkout', result: 'started' },
+      eventKey: appActivityEventKey('checkout_payment_attempted', orderId, String(Date.now())),
+    })
     setProcessing(true)
     onMessage('')
     const submitResult = await elements.submit()

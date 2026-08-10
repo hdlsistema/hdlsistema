@@ -43,6 +43,20 @@ const hasManagementConfig = Boolean(
 
 const describePhase2 = hasManagementConfig ? describe : describe.skip
 
+describe('vinculación Auth a customer', () => {
+  it('mantiene el trigger de perfil/customer y el evento de registro idempotente', () => {
+    const authMigration = readFileSync(resolve(__dirname, '../migrations/018_auth_customer_role.sql'), 'utf8')
+    const activityMigration = readFileSync(resolve(__dirname, '../migrations/033_customer_app_traceability.sql'), 'utf8')
+
+    expect(authMigration).toContain('after insert on auth.users')
+    expect(authMigration).toContain('on conflict (user_id) do update')
+    expect(authMigration).toContain("where code = 'customer'")
+    expect(activityMigration).toContain('after insert on public.customers')
+    expect(activityMigration).toContain("'customer_signup_completed'")
+    expect(activityMigration).toContain('on conflict do nothing')
+  })
+})
+
 async function runValidation(): Promise<ValidationResult> {
   const supabaseUrl = process.env.SUPABASE_URL as string
   const accessToken = process.env.SUPABASE_ACCESS_TOKEN as string

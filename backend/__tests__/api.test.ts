@@ -360,6 +360,173 @@ describe('Fase 3 auth API', () => {
   })
 })
 
+describe('Dashboard operativo real', () => {
+  const adminUser = {
+    id: '00000000-0000-0000-0000-000000000040',
+    email: 'admin@alqia.tech',
+    created_at: '2026-08-10T00:00:00.000Z',
+    email_confirmed_at: '2026-08-10T00:00:00.000Z',
+  }
+
+  function signInAs(role: string) {
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: role } }]
+  }
+
+  it('requiere sesión administrativa', async () => {
+    const res = await request(app).get('/api/admin/dashboard')
+    expect(res.status).toBe(401)
+  })
+
+  it('bloquea a customer', async () => {
+    signInAs('customer')
+    const res = await request(app)
+      .get('/api/admin/dashboard')
+      .set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(403)
+  })
+
+  it('resume únicamente registros persistidos para un admin', async () => {
+    signInAs('admin')
+    supabaseMock.tableData.customers = [{ id: 'customer-1', archived_at: null }]
+    supabaseMock.tableData.reservations = [
+      {
+        id: 'reservation-1', reservation_number: 'RES-001', status: 'confirmed', people_count: 2,
+        total: 1300, currency: 'MXN', created_at: '2026-08-10T10:00:00.000Z',
+      },
+      {
+        id: 'reservation-2', reservation_number: 'RES-002', status: 'pending', people_count: 4,
+        total: 2600, currency: 'MXN', created_at: '2026-08-10T09:00:00.000Z',
+      },
+    ]
+    supabaseMock.tableData.orders = [
+      {
+        id: 'order-1', order_number: 'ORD-001', status: 'pending_payment', total: 1300,
+        currency: 'MXN', created_at: '2026-08-10T10:00:00.000Z',
+      },
+    ]
+    supabaseMock.tableData.payments = [
+      { id: 'payment-1', status: 'paid', amount: 1000, refunded_amount: 0, currency: 'MXN' },
+      { id: 'payment-2', status: 'partially_refunded', amount: 700, refunded_amount: 200, currency: 'MXN' },
+    ]
+    supabaseMock.tableData.experience_slots = [
+      {
+        id: 'slot-1', start_at: '2026-12-10T18:00:00.000Z', end_at: '2026-12-10T19:30:00.000Z',
+        capacity: 12, reserved_count: 3, status: 'published', is_bookable: true,
+        operational_status: 'open', experiences: { title: 'Cata real' },
+      },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/dashboard')
+      .set('Authorization', 'Bearer admin-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.metrics).toMatchObject({
+      customers: 1,
+      activeReservations: 2,
+      pendingReservations: 1,
+      confirmedReservations: 1,
+      pendingPaymentOrders: 1,
+      confirmedPayments: 1,
+      collected: [{ currency: 'MXN', amount: 1500 }],
+    })
+    expect(res.body.data.upcomingSlots).toMatchObject([{ experienceTitle: 'Cata real', available: 9 }])
+    expect(JSON.stringify(res.body)).not.toContain('simulad')
+  })
+})
+
+describe('Trazabilidad App a Centro de Control', () => {
+  const customerUser = {
+    id: '00000000-0000-0000-0000-000000000041',
+    email: 'cliente.trace@alqia.tech',
+    created_at: '2026-08-10T00:00:00.000Z',
+    email_confirmed_at: '2026-08-10T00:00:00.000Z',
+  }
+  const customerId = '00000000-0000-0000-0000-000000000042'
+
+  function authenticateAs(role: string) {
+    supabaseMock.authUser = customerUser
+    supabaseMock.tableData.user_roles = [{ user_id: customerUser.id, roles: { code: role } }]
+  }
+
+  it('acepta actividad no sensible sin sesión y no requiere autenticación para navegar', async () => {
+    const res = await request(app)
+      .post('/api/customer/activity')
+      .send({
+        sessionId: 'app-anonymous-session',
+        eventName: 'wine_list_viewed',
+        eventKey: 'app-anonymous-session:catalog:1',
+        metadata: { route: '/app/vinos', locale: 'es' },
+      })
+
+    expect(res.status).toBe(202)
+    expect(res.body.data).toEqual({ accepted: true, duplicate: false })
+    expect(supabaseMock.tableData.customer_app_events).toMatchObject([{
+      customer_id: null,
+      event_name: 'wine_list_viewed',
+      module: 'content',
+    }])
+  })
+
+  it('vincula al customer autenticado, deduplica y lo expone solo a roles administrativos', async () => {
+    authenticateAs('customer')
+    supabaseMock.tableData.customers = [{ id: customerId, user_id: customerUser.id, display_name: 'Cliente Trace' }]
+    const payload = {
+      sessionId: 'app-authenticated-session',
+      eventName: 'cart_item_added',
+      entityType: 'cart',
+      entityId: 'cart-trace-1',
+      eventKey: 'app-authenticated-session:cart:add:1',
+      metadata: { itemType: 'wine', quantity: 1 },
+    }
+
+    const first = await request(app).post('/api/customer/activity').set('Authorization', 'Bearer customer-token').send(payload)
+    const duplicate = await request(app).post('/api/customer/activity').set('Authorization', 'Bearer customer-token').send(payload)
+    const forbidden = await request(app).get('/api/admin/activity').set('Authorization', 'Bearer customer-token')
+
+    expect(first.status).toBe(202)
+    expect(duplicate.body.data).toEqual({ accepted: true, duplicate: true })
+    expect(forbidden.status).toBe(403)
+    expect(supabaseMock.tableData.customer_app_events).toMatchObject([{
+      customer_id: customerId,
+      event_name: 'cart_item_added',
+      entity_id: 'cart-trace-1',
+      module: 'cart',
+    }])
+
+    authenticateAs('admin')
+    const admin = await request(app).get('/api/admin/activity').set('Authorization', 'Bearer admin-token')
+    expect(admin.status).toBe(200)
+    expect(admin.body.data).toHaveLength(1)
+    expect(admin.body.data[0]).toMatchObject({ eventName: 'cart_item_added', module: 'cart' })
+  })
+
+  it('deriva estados de carrito desde registros reales y conserva el umbral comercial sin inventarlo', async () => {
+    authenticateAs('admin')
+    supabaseMock.tableData.customers = [{ id: customerId, user_id: customerUser.id, display_name: 'Cliente Trace' }]
+    supabaseMock.tableData.carts = [{
+      id: 'cart-trace-1', customer_id: customerId, cart_status: 'active', currency: 'MXN',
+      created_at: '2026-08-10T10:00:00.000Z', updated_at: '2026-08-10T10:05:00.000Z',
+      customers: { id: customerId, display_name: 'Cliente Trace' },
+      cart_items: [{ id: 'item-trace-1', cart_id: 'cart-trace-1', item_type: 'wine', item_id: 'wine-1', name_snapshot: 'Vino real', quantity: 2, unit_price: 650, subtotal: 1300, currency: 'MXN' }],
+    }]
+    supabaseMock.tableData.customer_app_events = [{
+      id: 'event-trace-1', customer_id: customerId, session_id: 'app-authenticated-session', event_name: 'checkout_started', entity_type: 'cart', entity_id: 'cart-trace-1', source: 'backend', metadata: {}, occurred_at: '2026-08-10T10:06:00.000Z', created_at: '2026-08-10T10:06:00.000Z', module: 'checkout', status: 'started', result: 'started',
+    }]
+
+    const list = await request(app).get('/api/admin/carts').set('Authorization', 'Bearer admin-token')
+    const detail = await request(app).get('/api/admin/carts/cart-trace-1').set('Authorization', 'Bearer admin-token')
+
+    expect(list.status).toBe(200)
+    expect(list.body.configuration.abandonmentThresholdMinutes).toBeNull()
+    expect(list.body.data[0]).toMatchObject({ status: 'checkout_started', quantity: 2, estimatedValue: 1300 })
+    expect(detail.status).toBe(200)
+    expect(detail.body.data.events[0]).toMatchObject({ eventName: 'checkout_started' })
+  })
+})
+
 describe('Fase 4B content API', () => {
   it('rechaza endpoints editoriales administrativos sin sesión', async () => {
     const res = await request(app).get('/api/admin/wines')

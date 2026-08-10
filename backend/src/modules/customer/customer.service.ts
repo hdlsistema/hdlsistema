@@ -11,6 +11,8 @@ import {
   type UserContext,
 } from '../operations/operationErrors'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
+import { recordBusinessActivity } from '../activity/activity.service'
+import type { AppEventName } from '../activity/activity.schemas'
 import type {
   CancelCustomerReservationPayload,
   AddCustomerCartItemPayload,
@@ -136,6 +138,31 @@ function customerDisplayName(customer: CustomerRow) {
   return [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() || customer.email || 'Cliente'
 }
 
+function recordCustomerOperation(
+  customer: CustomerRow,
+  user: UserContext,
+  eventName: AppEventName,
+  entityType: 'customer' | 'reservation' | 'cart' | 'cart_item' | 'order',
+  entityId: string,
+  eventKey: string,
+  metadata: Record<string, unknown> = {},
+) {
+  void recordBusinessActivity({
+    sessionId: `customer-${customer.id}`,
+    eventName,
+    entityType,
+    entityId,
+    eventKey: eventKey.replace(/[^a-zA-Z0-9:_-]/g, '-').slice(0, 180),
+    metadata,
+  }, { userId: user.userId, customerId: customer.id })
+}
+
+function cartIdFrom(data: unknown) {
+  if (!data || typeof data !== 'object') return null
+  const id = (data as Record<string, unknown>).id
+  return typeof id === 'string' ? id : null
+}
+
 function queueReservationEmail(event: 'reservation.created' | 'reservation.rescheduled' | 'reservation.cancelled', reservation: CustomerReservationData, customer: CustomerRow, user: UserContext, locale?: string | null) {
   void enqueueAndProcessTransactionalEmail({
     eventType: event,
@@ -218,6 +245,8 @@ export async function updateCustomerMe(payload: CustomerProfilePatch, user: User
     p_transactional_push: payload.transactionalPush ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
+  const customer = await getCustomerForUser(user)
+  recordCustomerOperation(customer, user, 'customer_profile_updated', 'customer', customer.id, `customer-profile-updated-${customer.id}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}`)
   return { data: result.data }
 }
 
@@ -279,6 +308,7 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
   const response = await getCustomerReservation(String(result.data), user)
   const customer = await getCustomerForUser(user)
   queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
+  recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
   return response
 }
 
@@ -292,6 +322,7 @@ export async function cancelCustomerReservation(id: string, payload: CancelCusto
   const response = await getCustomerReservation(String(result.data), user)
   const customer = await getCustomerForUser(user)
   queueReservationEmail('reservation.cancelled', response.data, customer, user)
+  recordCustomerOperation(customer, user, 'reservation_cancelled', 'reservation', response.data.id, `reservation-cancelled-${response.data.id}-${response.data.updatedAt}`)
   return response
 }
 
@@ -306,6 +337,7 @@ export async function rescheduleCustomerReservation(id: string, payload: Resched
   const response = await getCustomerReservation(String(result.data), user)
   const customer = await getCustomerForUser(user)
   queueReservationEmail('reservation.rescheduled', response.data, customer, user)
+  recordCustomerOperation(customer, user, 'reservation_rescheduled', 'reservation', response.data.id, `reservation-rescheduled-${response.data.id}-${response.data.rescheduledAt ?? response.data.updatedAt}`)
   return response
 }
 
@@ -395,6 +427,15 @@ export async function addCustomerCartItem(payload: AddCustomerCartItemPayload, u
     p_idempotency_key: payload.idempotencyKey,
   })
   if (result.error) normalizeDatabaseError(result.error)
+  const customer = await getCustomerForUser(user)
+  const cartId = cartIdFrom(result.data)
+  if (cartId) {
+    recordCustomerOperation(customer, user, 'cart_created', 'cart', cartId, `cart-created-${cartId}`)
+    recordCustomerOperation(customer, user, 'cart_item_added', 'cart', cartId, `cart-item-added-${payload.idempotencyKey}`, {
+      itemType: payload.itemType,
+      quantity: payload.quantity,
+    })
+  }
   return { data: result.data }
 }
 
@@ -406,6 +447,11 @@ export async function updateCustomerCartItem(id: string, payload: UpdateCustomer
     p_idempotency_key: payload.idempotencyKey ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
+  const customer = await getCustomerForUser(user)
+  const cartId = cartIdFrom(result.data)
+  if (cartId) {
+    recordCustomerOperation(customer, user, 'cart_quantity_updated', 'cart', cartId, `cart-item-updated-${payload.idempotencyKey ?? `${id}-${payload.quantity}`}`, { quantity: payload.quantity })
+  }
   return { data: result.data }
 }
 
@@ -415,6 +461,9 @@ export async function removeCustomerCartItem(id: string, user: UserContext) {
     p_cart_item_id: id,
   })
   if (result.error) normalizeDatabaseError(result.error)
+  const customer = await getCustomerForUser(user)
+  const cartId = cartIdFrom(result.data)
+  if (cartId) recordCustomerOperation(customer, user, 'cart_item_removed', 'cart', cartId, `cart-item-removed-${id}`)
   return { data: result.data }
 }
 
@@ -435,6 +484,7 @@ export async function createCustomerOrder(payload: CreateCustomerOrderPayload, u
   const response = await getCustomerOrder(String(result.data), user)
   const customer = await getCustomerForUser(user)
   queueOrderEmails(response.data, customer, user, payload.language)
+  recordCustomerOperation(customer, user, 'checkout_started', 'order', String((response.data as Record<string, unknown>).id ?? result.data), `checkout-started-${String((response.data as Record<string, unknown>).id ?? result.data)}`)
   return response
 }
 

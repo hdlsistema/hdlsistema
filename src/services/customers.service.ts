@@ -105,6 +105,9 @@ export type CustomerHistoryItem = {
   id: string
   action: string
   entityType: string
+  entityId?: string | null
+  source?: string
+  metadata?: Record<string, unknown>
   createdAt: string
 }
 

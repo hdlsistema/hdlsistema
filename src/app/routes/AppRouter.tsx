@@ -3,9 +3,12 @@ import { adminRoles } from '../../contexts/AuthContext'
 import { ProtectedRoute } from '../../routes/ProtectedRoute'
 import { RoleRoute } from '../../routes/RoleRoute'
 import { MobileShell } from '../components/mobile/MobileShell'
+import { AppActivityTracker } from '../components/mobile/AppActivityTracker'
 import { ControlLayout } from '../layout/ControlLayout'
 import { AppPreviewPage } from '../pages/control/AppPreviewPage'
 import { AvailabilityPage } from '../pages/control/AvailabilityPage'
+import { AppActivityPage } from '../pages/control/AppActivityPage'
+import { CartsPage } from '../pages/control/CartsPage'
 import { CheckInPage } from '../pages/control/CheckInPage'
 import { CustomersPage } from '../pages/control/CustomersPage'
 import { DashboardPage } from '../pages/control/DashboardPage'
@@ -44,6 +47,10 @@ import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
 import { IntelligencePage } from '../pages/future/IntelligencePage'
 import { ReportsPage } from '../pages/future/ReportsPage'
 
+function TrackedMobileShell() {
+  return <><AppActivityTracker /><MobileShell /></>
+}
+
 function RedirectWineDetail() {
   const { wineId } = useParams<{ wineId: string }>()
   return <Navigate to={`/app/tienda/${wineId ?? ''}`} replace />
@@ -63,8 +70,8 @@ export function AppRouter() {
       <Route path="/recuperar" element={<RecoverPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      {/* App móvil del huésped — independiente del Centro de Control */}
-      <Route path="/app" element={<MobileShell />}>
+      {/* App Hacienda de Letras — independiente del Centro de Control */}
+      <Route path="/app" element={<TrackedMobileShell />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="registro" element={<RegisterPage />} />
@@ -162,6 +169,8 @@ export function AppRouter() {
         <Route path="experiencias" element={<EditorialContentPage entity="experiences" />} />
         <Route path="eventos" element={<EditorialContentPage entity="events" />} />
         <Route path="clientes" element={<CustomersPage />} />
+        <Route path="actividad" element={<AppActivityPage />} />
+        <Route path="carritos" element={<CartsPage />} />
         <Route path="promociones" element={<EditorialContentPage entity="promotions" />} />
         <Route path="membresias" element={<EditorialContentPage entity="membership-plans" />} />
         <Route path="campanas" element={<EditorialContentPage entity="campaigns" />} />

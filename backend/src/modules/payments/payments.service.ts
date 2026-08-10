@@ -7,6 +7,8 @@ import {
 import { env } from '../../config/env'
 import { getStripeClient, isStripeWebhookConfigured, stripeEnvironment } from '../../config/stripe'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
+import { recordBusinessActivity } from '../activity/activity.service'
+import type { AppEventName } from '../activity/activity.schemas'
 import {
   assertNoError,
   httpError,
@@ -179,6 +181,17 @@ function safeStripeIntent(intent: Stripe.PaymentIntent) {
 function customerName(customer: CustomerRow | null) {
   if (!customer) return 'Cliente'
   return customer.display_name || [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() || customer.email || 'Cliente'
+}
+
+function recordPaymentActivity(eventName: AppEventName, order: CustomerOrderRow, paymentId: string, eventKey: string, result: 'succeeded' | 'failed' | 'cancelled' | 'processing') {
+  void recordBusinessActivity({
+    sessionId: `payment-${order.id}`,
+    eventName,
+    entityType: 'payment',
+    entityId: paymentId,
+    eventKey: eventKey.replace(/[^a-zA-Z0-9:_-]/g, '-').slice(0, 180),
+    metadata: { result },
+  }, { customerId: order.customer_id, userId: order.user_id ?? undefined })
 }
 
 async function getCustomerForPayment(user: UserContext) {
@@ -626,6 +639,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       })
       .eq('id', order.id)
     await queueOrderPaidEmail(order)
+    recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')
     return
   }
 
@@ -634,6 +648,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       .from('orders')
       .update({ status: 'processing', updated_at: now })
       .eq('id', order.id)
+    recordPaymentActivity('payment_processing', order, payment.id, `payment-processing-${intent.id}`, 'processing')
     return
   }
 
@@ -651,6 +666,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       .from('orders')
       .update({ status: 'pending_payment', updated_at: now })
       .eq('id', order.id)
+    recordPaymentActivity(paymentStatus === 'failed' ? 'payment_failed' : 'payment_cancelled', order, payment.id, `payment-${paymentStatus}-${intent.id}`, paymentStatus)
   }
 }
 
@@ -692,6 +708,14 @@ async function persistRefundFromWebhook(charge: Stripe.Charge) {
       .update({ status: 'refunded', updated_at: now })
       .eq('id', payment.order_id)
   }
+
+  const orderResult = await supabaseAdminClient
+    .from('orders')
+    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,metadata')
+    .eq('id', payment.order_id)
+    .maybeSingle()
+  const order = assertNoError<CustomerOrderRow | null>(orderResult).data
+  if (order) recordPaymentActivity('payment_refunded', order, payment.id, `payment-refunded-${charge.id}`, 'succeeded')
 }
 
 async function handleStripeEvent(event: Stripe.Event) {

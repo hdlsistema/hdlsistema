@@ -1,8 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Grape, Sparkles } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
+import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
 import { PillRow, SearchField, SectionHeading, WineCard } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
@@ -24,6 +25,21 @@ export function StoreScreen() {
       : ['Todos', 'Tintos', 'Blancos', 'Rosados', 'Espumosos'],
     [isEnglish],
   )
+
+  useEffect(() => {
+    const queryLength = search.trim().length
+    if (queryLength < 2) return
+    const timer = window.setTimeout(() => {
+      trackAppActivity({
+        eventName: 'wine_search',
+        entityType: 'wine',
+        accessToken: session?.access_token,
+        metadata: { route: '/app/tienda', queryLength },
+        eventKey: appActivityEventKey('wine_search', undefined, String(Date.now())),
+      })
+    }, 500)
+    return () => window.clearTimeout(timer)
+  }, [search, session?.access_token])
 
   const filteredWines = useMemo(() => {
     const target = search.trim().toLocaleLowerCase(isEnglish ? 'en-US' : 'es-MX')
@@ -75,6 +91,19 @@ export function StoreScreen() {
     }
   }
 
+  const selectFilter = (index: number) => {
+    setActiveFilter(index)
+    const filter = filters[index]
+    if (!filter) return
+    trackAppActivity({
+      eventName: 'wine_filter_used',
+      entityType: 'wine',
+      accessToken: session?.access_token,
+      metadata: { route: '/app/tienda', filter },
+      eventKey: appActivityEventKey('wine_filter_used', undefined, `${filter}-${Date.now()}`),
+    })
+  }
+
   return (
     <div className="space-y-6 pb-3">
       <section className="overflow-hidden rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-[linear-gradient(135deg,#fffaf4,#f2dfc9)] p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
@@ -99,7 +128,7 @@ export function StoreScreen() {
         <PillRow
           items={filters}
           activeIndex={activeFilter}
-          onSelect={setActiveFilter}
+          onSelect={selectFilter}
         />
         {message ? (
           <p className="rounded-[0.95rem] border border-[rgba(220,202,181,0.78)] bg-white px-4 py-3 text-[12px] text-[var(--color-muted)]">

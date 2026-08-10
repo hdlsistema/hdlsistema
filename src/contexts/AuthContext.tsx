@@ -18,6 +18,7 @@ import {
   type AuthProfile,
   type UserRole,
 } from '../services/auth.service'
+import { appActivityEventKey, trackAppActivity } from '../services/appActivity.service'
 
 const ADMIN_ROLES: UserRole[] = [
   'super_admin',
@@ -101,7 +102,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true)
       try {
         const data = await signInService(email, password)
-        return await loadIdentity(data.session)
+        const nextRoles = await loadIdentity(data.session)
+        if (data.session?.user) {
+          trackAppActivity({
+            eventName: 'customer_login',
+            entityType: 'customer',
+            entityId: data.session.user.id,
+            accessToken: data.session.access_token,
+            metadata: { result: 'succeeded' },
+            eventKey: appActivityEventKey('customer_login', data.session.user.id, 'session'),
+          })
+        }
+        return nextRoles
       } finally {
         if (mounted.current) setIsLoading(false)
       }
@@ -110,12 +122,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const signOut = useCallback(async () => {
+    if (session?.user) {
+      trackAppActivity({
+        eventName: 'customer_logout',
+        entityType: 'customer',
+        entityId: session.user.id,
+        accessToken: session.access_token,
+        metadata: { result: 'succeeded' },
+        eventKey: appActivityEventKey('customer_logout', session.user.id, 'session'),
+      })
+    }
     await signOutService()
     setSession(null)
     setUser(null)
     setProfile(null)
     setRoles([])
-  }, [])
+  }, [session])
 
   const refreshProfile = useCallback(async () => {
     await loadIdentity(session)

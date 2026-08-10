@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Archive,
   BadgeCheck,
@@ -942,10 +943,27 @@ function HistoryPanel({ items }: { items: CustomerHistoryItem[] }) {
       </div>
       {items.length ? items.slice(0, 6).map((item) => (
         <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[var(--color-soft)] px-3 py-2 text-sm">
-          <span className="font-medium text-[var(--color-ink)]">{item.action}</span>
+          <span className="min-w-0"><span className="block truncate font-medium text-[var(--color-ink)]">{item.action}</span>{historyEntityRoute(item) ? <Link to={historyEntityRoute(item)!} className="mt-1 block text-xs text-[var(--color-burgundy)]">Ver {historyEntityLabel(item)}</Link> : null}</span>
           <span className="text-xs text-[var(--color-muted)]">{formatDate(item.createdAt)}</span>
         </div>
       )) : <p className="text-sm text-[var(--color-muted)]">Sin eventos de auditoría todavía.</p>}
     </div>
   )
+}
+
+function historyEntityRoute(item: CustomerHistoryItem) {
+  if (!item.entityId) return null
+  if (item.entityType === 'cart') return `/control/carritos?cartId=${encodeURIComponent(item.entityId)}`
+  if (item.entityType === 'order') return '/control/ordenes'
+  if (item.entityType === 'reservation') return '/control/reservaciones'
+  if (item.entityType === 'membership') return '/control/wine-club'
+  return null
+}
+
+function historyEntityLabel(item: CustomerHistoryItem) {
+  if (item.entityType === 'cart') return 'carrito'
+  if (item.entityType === 'order') return 'orden'
+  if (item.entityType === 'reservation') return 'reservación'
+  if (item.entityType === 'membership') return 'membresía'
+  return 'registro'
 }

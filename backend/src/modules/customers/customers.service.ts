@@ -1,5 +1,6 @@
 import { supabaseAdminClient } from '../../config/supabase'
 import { randomUUID } from 'crypto'
+import { listActivityForCustomer } from '../activity/activity.service'
 import {
   assertNoError,
   httpError,
@@ -629,20 +630,39 @@ export async function listCustomerMemberships(id: string, user: UserContext) {
 export async function listCustomerHistory(id: string, user: UserContext) {
   requireOperationRole(user, readRoles)
   await getCustomerOrThrow(id)
-  const rows = assertNoError<AuditRow[]>(
+  const [auditRows, appActivity] = await Promise.all([
+    assertNoError<AuditRow[]>(
     await supabaseAdminClient
       .from('audit_logs')
       .select('id,action,entity_type,created_at')
       .eq('entity_id', id)
       .order('created_at', { ascending: false })
       .limit(50),
-  ).data ?? []
-  return { data: rows.map((item) => ({
-    id: item.id,
-    action: item.action,
-    entityType: item.entity_type,
-    createdAt: item.created_at,
-  })) }
+    ).data ?? [],
+    listActivityForCustomer(id),
+  ])
+  return {
+    data: [
+      ...auditRows.map((item) => ({
+        id: item.id,
+        action: item.action,
+        entityType: item.entity_type,
+        entityId: id,
+        source: 'audit_log',
+        createdAt: item.created_at,
+        metadata: {},
+      })),
+      ...appActivity.map((item) => ({
+        id: item.id,
+        action: item.eventName,
+        entityType: item.entityType ?? 'activity',
+        entityId: item.entityId,
+        source: 'mobile_app',
+        createdAt: item.occurredAt,
+        metadata: item.metadata,
+      })),
+    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 100),
+  }
 }
 
 export async function listCustomerNotes(id: string, user: UserContext) {

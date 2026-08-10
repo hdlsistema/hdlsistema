@@ -1,8 +1,7 @@
 import {
-  Bolt,
   Building2,
+  Activity,
   CalendarDays,
-  ChartColumn,
   Cog,
   Gift,
   LayoutDashboard,
@@ -11,6 +10,7 @@ import {
   PackageSearch,
   QrCode,
   ShoppingBag,
+  ShoppingCart,
   Sparkles,
   Truck,
   Users,
@@ -59,6 +59,16 @@ export function ControlLayout() {
           to: '/control/clientes',
           label: t('control.customers'),
           icon: Users,
+        },
+        {
+          to: '/control/actividad',
+          label: 'Actividad App',
+          icon: Activity,
+        },
+        {
+          to: '/control/carritos',
+          label: 'Carritos',
+          icon: ShoppingCart,
         },
         {
           to: '/control/promociones',
@@ -120,21 +130,11 @@ export function ControlLayout() {
           label: t('control.appView'),
           icon: WineOff,
         },
-        {
-          to: '/control/reportes',
-          label: t('control.reports'),
-          icon: Bolt,
-        },
       ],
     },
     {
       label: t('control.groupAdditional'),
       items: [
-        {
-          to: '/control/futuro/intelligence',
-          label: 'ALQIA Intelligence',
-          icon: ChartColumn,
-        },
         {
           to: '/control/configuracion',
           label: t('control.settings'),
