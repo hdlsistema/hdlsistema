@@ -5,6 +5,25 @@ import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 
+function campaignContent(record: Record<string, unknown>) {
+  const content = record.content
+  return content && typeof content === 'object' && !Array.isArray(content)
+    ? content as Record<string, unknown>
+    : {}
+}
+
+function campaignText(record: Record<string, unknown>, key: string) {
+  const value = campaignContent(record)[key]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function campaignRoute(record: Record<string, unknown>) {
+  const route = campaignContent(record).cta_path
+  return typeof route === 'string' && ['/app/tienda', '/app/experiencias', '/app/eventos', '/app/club', '/app/reservacion'].includes(route)
+    ? route
+    : '/app/tienda'
+}
+
 export function HomeScreen() {
   const { isEnglish, locale } = useAppPreferences()
   const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
@@ -12,6 +31,7 @@ export function HomeScreen() {
   const { records: events, loading: loadingEvents, error: eventsError, retry: retryEvents } = usePublicContent('events')
   const { records: promotions } = usePublicContent('promotions')
   const { records: plans } = usePublicContent('membership-plans')
+  const { records: campaigns } = usePublicContent('campaigns')
 
   const actions = [
     {
@@ -198,8 +218,17 @@ export function HomeScreen() {
         )}
       </section>
 
-      {promotions.length || plans.length ? (
+      {promotions.length || plans.length || campaigns.length ? (
         <section className="grid gap-3">
+          {campaigns[0] ? (
+            <Link to={campaignRoute(campaigns[0])} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-[linear-gradient(135deg,#fffaf4,#f2dfc9)] p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{isEnglish ? 'Published campaign' : 'Campaña publicada'}</p>
+              <h3 className="mt-1 text-[1.35rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+                {campaignText(campaigns[0], 'title') || textField(campaigns[0], 'name', isEnglish ? 'Campaign' : 'Campaña')}
+              </h3>
+              {campaignText(campaigns[0], 'body') ? <p className="mt-2 text-[12px] leading-5 text-[var(--color-muted)]">{campaignText(campaigns[0], 'body')}</p> : null}
+            </Link>
+          ) : null}
           {promotions[0] ? (
             <Link to="/app/tienda" className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{isEnglish ? 'Published promotion' : 'Promoción publicada'}</p>

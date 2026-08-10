@@ -80,10 +80,11 @@ export const contentConfigs: Record<ContentRouteEntity, ContentConfig> = {
     route: 'campaigns',
     entityType: 'campaign',
     table: 'campaigns',
-    publicEnabled: false,
+    publicEnabled: true,
     searchColumns: ['name', 'channel'],
     adminSelect: '*',
-    publicSelect: 'id,name,channel,status,scheduled_at,locale,version',
+    publicSelect:
+      'id,name,channel,content,status,visible_in_app,sort_order,publish_at,unpublish_at,published_at,locale,version',
     publishStatus: 'active',
     unpublishStatus: 'paused',
     archiveStatus: 'cancelled',

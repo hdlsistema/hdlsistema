@@ -34,7 +34,7 @@ export function StoreScreen() {
         eventName: 'wine_search',
         entityType: 'wine',
         accessToken: session?.access_token,
-        metadata: { route: '/app/tienda', queryLength },
+        metadata: { route: '/app/tienda' },
         eventKey: appActivityEventKey('wine_search', undefined, String(Date.now())),
       })
     }, 500)
