@@ -42,7 +42,6 @@ import { CheckoutScreen } from '../pages/mobile/CheckoutScreen'
 import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
-import { ReportsPage } from '../pages/future/ReportsPage'
 
 function TrackedMobileShell() {
   return <><AppActivityTracker /><MobileShell /></>
@@ -215,7 +214,7 @@ export function AppRouter() {
           path="futuro/campanas"
           element={<Navigate to="/control/campanas" replace />}
         />
-        <Route path="futuro/reportes" element={<ReportsPage />} />
+        <Route path="futuro/reportes" element={<Navigate to="/control/dashboard" replace />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

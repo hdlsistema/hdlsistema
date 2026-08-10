@@ -2,6 +2,7 @@ import type { ReactElement } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { MobileShell } from '../app/components/mobile/MobileShell'
+import { AppActivityTracker } from '../app/components/mobile/AppActivityTracker'
 import { CartScreen } from '../app/pages/mobile/CartScreen'
 import { CheckoutScreen } from '../app/pages/mobile/CheckoutScreen'
 import { ClubScreen } from '../app/pages/mobile/ClubScreen'
@@ -44,10 +45,14 @@ function protectedScreen(screen: ReactElement) {
   return <MobileProtectedRoute>{screen}</MobileProtectedRoute>
 }
 
+function TrackedMobileShell() {
+  return <><AppActivityTracker /><MobileShell /></>
+}
+
 export function MobileRouter() {
   return (
     <Routes>
-      <Route path="/" element={<MobileShell />}>
+      <Route path="/" element={<TrackedMobileShell />}>
         <Route index element={<RootRedirect />} />
         <Route path="login" element={<MobileLoginPage />} />
         <Route path="registro" element={<MobileRegisterPage />} />

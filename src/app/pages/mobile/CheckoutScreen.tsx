@@ -44,7 +44,7 @@ function EmbeddedStripePaymentForm({
       entityType: 'order',
       entityId: orderId,
       accessToken: session?.access_token,
-      metadata: { route: '/app/checkout' },
+      metadata: { route: appPath('/checkout') },
     })
   }, [orderId, session?.access_token])
 
@@ -55,7 +55,7 @@ function EmbeddedStripePaymentForm({
       entityType: 'order',
       entityId: orderId,
       accessToken: session?.access_token,
-      metadata: { route: '/app/checkout', result: 'started' },
+      metadata: { route: appPath('/checkout'), result: 'started' },
       eventKey: appActivityEventKey('checkout_payment_attempted', orderId, String(Date.now())),
     })
     setProcessing(true)
