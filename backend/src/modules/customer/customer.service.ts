@@ -297,19 +297,24 @@ export async function getCustomerReservation(id: string, user: UserContext) {
 
 export async function createCustomerReservation(payload: CreateCustomerReservationPayload, user: UserContext) {
   assertCustomerAccess(user)
-  const result = await rpcClient(user).rpc('create_customer_reservation', {
-    p_experience_slot_id: payload.experienceSlotId,
-    p_people_count: payload.peopleCount,
-    p_customer_notes: payload.customerNotes ?? null,
-    p_language: payload.language,
-    p_idempotency_key: payload.idempotencyKey,
-  })
-  if (result.error) normalizeDatabaseError(result.error)
-  const response = await getCustomerReservation(String(result.data), user)
   const customer = await getCustomerForUser(user)
-  queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
-  recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
-  return response
+  try {
+    const result = await rpcClient(user).rpc('create_customer_reservation', {
+      p_experience_slot_id: payload.experienceSlotId,
+      p_people_count: payload.peopleCount,
+      p_customer_notes: payload.customerNotes ?? null,
+      p_language: payload.language,
+      p_idempotency_key: payload.idempotencyKey,
+    })
+    if (result.error) normalizeDatabaseError(result.error)
+    const response = await getCustomerReservation(String(result.data), user)
+    queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
+    recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
+    return response
+  } catch (error) {
+    recordCustomerOperation(customer, user, 'reservation_failed', 'customer', customer.id, `reservation-failed-${payload.idempotencyKey}`, { result: 'failed' })
+    throw error
+  }
 }
 
 export async function cancelCustomerReservation(id: string, payload: CancelCustomerReservationPayload, user: UserContext) {
