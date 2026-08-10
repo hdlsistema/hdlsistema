@@ -28,17 +28,6 @@ type EventCategory =
   | 'Gastronomía'
   | 'Privados'
 
-type EventVisual =
-  | {
-      type: 'photo'
-      asset: string
-    }
-  | {
-      type: 'logo'
-      asset: string
-      background: string
-    }
-
 const categories: EventCategory[] = [
   'Todos',
   'Festivales',
@@ -53,35 +42,6 @@ const categoryLabels: Record<EventCategory, { es: string; en: string }> = {
   'Vendimias': { es: 'Vendimias', en: 'Harvests' },
   'Gastronomía': { es: 'Gastronomía', en: 'Gastronomy' },
   'Privados': { es: 'Privados', en: 'Private' },
-}
-
-function getFestivalIdentities(isEnglish: boolean) {
-  return [
-    {
-      name: 'Vendimia',
-      subtitle: isEnglish ? 'Wine tradition' : 'Tradición vinícola',
-      logo: '/Logo-vendimia.svg',
-      background: 'linear-gradient(145deg, #efe4d2 0%, #c5a36c 48%, #5b1a29 100%)',
-    },
-    {
-      name: 'Espuma y Vino',
-      subtitle: isEnglish ? 'Festival' : 'Festival',
-      logo: '/festival%20espuma.svg',
-      background: 'linear-gradient(145deg, #edf2f6 0%, #6086a5 48%, #142c47 100%)',
-    },
-    {
-      name: 'Vino en Colores',
-      subtitle: isEnglish ? 'Art and wine' : 'Arte y vino',
-      logo: '/Logo-Vino-en-Colores%20fesitval.webp',
-      background: 'linear-gradient(145deg, #fff7e8 0%, #efb580 48%, #862943 100%)',
-    },
-    {
-      name: '1000 Copas',
-      subtitle: isEnglish ? 'Celebration' : 'Celebración',
-      logo: '/festival%201000%20copas.svg',
-      background: 'linear-gradient(145deg, #f4eadb 0%, #b89162 48%, #4f0f1f 100%)',
-    },
-  ]
 }
 
 function normalizeText(value: string) {
@@ -114,85 +74,6 @@ function getEventCategory(title: string): EventCategory {
   return 'Festivales'
 }
 
-function getEventVisual(title: string, index: number): EventVisual {
-  const normalizedTitle = normalizeText(title)
-
-  if (
-    normalizedTitle.includes('1000') ||
-    normalizedTitle.includes('copas')
-  ) {
-    return {
-      type: 'logo',
-      asset: '/festival%201000%20copas.svg',
-      background:
-        'linear-gradient(145deg, #e9dcc8 0%, #a67b55 47%, #4f0f1f 100%)',
-    }
-  }
-
-  if (normalizedTitle.includes('vendimia')) {
-    return {
-      type: 'logo',
-      asset: '/Logo-vendimia.svg',
-      background:
-        'linear-gradient(145deg, #e8ddc8 0%, #a88a59 47%, #532035 100%)',
-    }
-  }
-
-  if (normalizedTitle.includes('espuma')) {
-    return {
-      type: 'logo',
-      asset: '/festival%20espuma.svg',
-      background:
-        'linear-gradient(145deg, #dfeaf0 0%, #5681a0 48%, #172f48 100%)',
-    }
-  }
-
-  if (
-    normalizedTitle.includes('vino en colores') ||
-    normalizedTitle.includes('colores')
-  ) {
-    return {
-      type: 'logo',
-      asset: '/Logo-Vino-en-Colores%20fesitval.webp',
-      background:
-        'linear-gradient(145deg, #fff2dc 0%, #dc9d78 48%, #772039 100%)',
-    }
-  }
-
-  if (
-    normalizedTitle.includes('cena') ||
-    normalizedTitle.includes('maridaje') ||
-    normalizedTitle.includes('romant')
-  ) {
-    return {
-      type: 'photo',
-      asset: '/romantic%20dinners%20evento.webp',
-    }
-  }
-
-  if (
-    normalizedTitle.includes('corporativo') ||
-    normalizedTitle.includes('privado')
-  ) {
-    return {
-      type: 'photo',
-      asset: '/Picnic%20evento.webp',
-    }
-  }
-
-  const fallbackPhotos = [
-    '/independencia%20evento.webp',
-    '/san%20valentin%20evento.webp',
-    '/Tarde-Leyendas%20evento.webp',
-    '/1-Halloween%20evento.webp',
-  ]
-
-  return {
-    type: 'photo',
-    asset: fallbackPhotos[index % fallbackPhotos.length],
-  }
-}
-
 function getEventBadge(title: string, index: number, isEnglish: boolean) {
   const normalizedTitle = normalizeText(title)
 
@@ -221,42 +102,15 @@ function getEventBadge(title: string, index: number, isEnglish: boolean) {
   return 'Festival'
 }
 
-function EventArtwork({
-  visual,
-  title,
-}: {
-  visual: EventVisual
-  title: string
-}) {
-  if (visual.type === 'logo') {
-    return (
-      <div
-        className="absolute inset-0 flex items-center justify-center p-8"
-        style={{
-          background: visual.background,
-        }}
-      >
-        <div className="flex h-[142px] w-[142px] items-center justify-center rounded-[1.7rem] bg-white/95 p-5 shadow-[0_22px_50px_rgba(35,5,13,0.24)]">
-          <img
-            src={visual.asset}
-            alt={title}
-            draggable={false}
-            className="max-h-full max-w-full object-contain"
-          />
-        </div>
-      </div>
-    )
-  }
-
+function EventArtwork({ asset, title }: { asset: string; title: string }) {
   return (
     <img
-      src={visual.asset}
+      src={asset}
       alt={title}
       draggable={false}
       className="absolute inset-0 h-full w-full object-cover"
       onError={(imageEvent) => {
-        imageEvent.currentTarget.src =
-          '/romantic%20dinners%20evento.webp'
+        imageEvent.currentTarget.src = '/Slide-1.webp'
       }}
     />
   )
@@ -267,8 +121,6 @@ export function EventsScreen() {
   const { records: events, loading, error, retry } = usePublicContent('events')
   const [activeCategory, setActiveCategory] =
     useState<EventCategory>('Todos')
-
-  const festivalIdentities = useMemo(() => getFestivalIdentities(isEnglish), [isEnglish])
 
   const filteredEvents = useMemo(() => {
     if (activeCategory === 'Todos') {
@@ -289,18 +141,15 @@ export function EventsScreen() {
   const featuredPrice = featuredPriceAmount > 0
     ? formatCurrency(featuredPriceAmount, locale)
     : (isEnglish ? 'Access to be confirmed' : 'Acceso por confirmar')
-  const featuredVisual = featuredEvent
-    ? {
-        type: 'photo' as const,
-        asset: imageField(featuredEvent, getEventVisual(featuredTitle, 0).type === 'photo' ? getEventVisual(featuredTitle, 0).asset : '/romantic%20dinners%20evento.webp'),
-      }
+  const featuredImage = featuredEvent
+    ? imageField(featuredEvent, '/Slide-1.webp')
     : null
 
   return (
     <div className="min-w-0 overflow-x-hidden pb-9">
       <section className="relative h-[285px] overflow-hidden rounded-[1.8rem]">
         <img
-          src="/romantic%20dinners%20evento.webp"
+          src={featuredImage ?? '/Slide-1.webp'}
           alt="Eventos de Hacienda de Letras"
           draggable={false}
           className="absolute inset-0 h-full w-full object-cover"
@@ -332,55 +181,6 @@ export function EventsScreen() {
               ? 'Festivals, seasons and gatherings that transform the hacienda.'
               : 'Festivales, temporadas y encuentros que transforman la hacienda.'}
           </p>
-        </div>
-      </section>
-
-      <section className="mt-7">
-        <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[0.2em] text-[#a77b45]">
-          <span className="h-px w-7 bg-[#b48a55]" />
-          {isEnglish ? 'Editorial identities' : 'Identidades editoriales'}
-        </p>
-
-        <h2
-          className="mt-2 text-[29px] font-normal leading-none text-[#4f0f1f]"
-          style={{
-            fontFamily: 'var(--font-display)',
-          }}
-        >
-          {isEnglish ? 'Event families' : 'Familias de eventos'}
-        </h2>
-
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          {festivalIdentities.map((festival) => (
-            <article
-              key={festival.name}
-              className="min-w-0 overflow-hidden rounded-[1.35rem] border border-[#dfcdb8] bg-[#fffaf3] p-3 shadow-[0_14px_30px_rgba(64,28,19,0.08)]"
-            >
-              <div
-                className="flex h-[125px] items-center justify-center rounded-[1rem] p-4"
-                style={{
-                  background: festival.background,
-                }}
-              >
-                <div className="flex h-[92px] w-[92px] items-center justify-center rounded-[1rem] bg-white/95 p-3 shadow-md">
-                  <img
-                    src={festival.logo}
-                    alt={festival.name}
-                    draggable={false}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              </div>
-
-              <h3 className="mt-3 line-clamp-2 text-[13px] font-bold leading-4 text-[#4f0f1f]">
-                {festival.name}
-              </h3>
-
-              <p className="mt-1 text-[8px] font-bold uppercase tracking-[0.11em] text-[#a77b45]">
-                {festival.subtitle}
-              </p>
-            </article>
-          ))}
         </div>
       </section>
 
@@ -427,17 +227,14 @@ export function EventsScreen() {
             {isEnglish ? 'Retry' : 'Reintentar'}
           </button>
         </section>
-      ) : featuredEvent && featuredVisual ? (
+      ) : featuredEvent && featuredImage ? (
         <section className="mt-6">
           <Link
             to={`/app/eventos/${contentRouteId(featuredEvent)}`}
             className="block overflow-hidden rounded-[1.75rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_24px_54px_rgba(64,28,19,0.14)]"
           >
             <div className="relative h-[330px] overflow-hidden bg-[#d8c6b3]">
-              <EventArtwork
-                visual={featuredVisual}
-                title={featuredTitle}
-              />
+              <EventArtwork asset={featuredImage} title={featuredTitle} />
 
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.02)_0%,rgba(35,5,13,0.08)_40%,rgba(35,5,13,0.95)_100%)]" />
 
@@ -516,14 +313,7 @@ export function EventsScreen() {
         {remainingEvents.map((event, index) => {
           const actualIndex = index + 1
           const eventTitle = textField(event, 'title', isEnglish ? 'Event' : 'Evento')
-          const fallbackVisual = getEventVisual(eventTitle, actualIndex)
-          const eventVisual = {
-            type: 'photo' as const,
-            asset: imageField(
-              event,
-              fallbackVisual.type === 'photo' ? fallbackVisual.asset : '/romantic%20dinners%20evento.webp',
-            ),
-          }
+          const eventImage = imageField(event, '/Slide-1.webp')
           const eventVenue = textField(event, 'venue', 'Hacienda de Letras')
           const eventDate = formatPublicDate(event.start_at, locale, isEnglish ? 'Date to be confirmed' : 'Fecha por confirmar')
           const eventPriceAmount = numberField(event, 'price')
@@ -538,7 +328,7 @@ export function EventsScreen() {
               className="block overflow-hidden rounded-[1.6rem] border border-[#dfcdb8] bg-[#fffaf3] shadow-[0_18px_40px_rgba(64,28,19,0.1)]"
             >
               <div className="relative h-[245px] overflow-hidden bg-[#d8c6b3]">
-                <EventArtwork visual={eventVisual} title={eventTitle} />
+                <EventArtwork asset={eventImage} title={eventTitle} />
 
                 <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,5,13,0.02)_0%,rgba(35,5,13,0.08)_38%,rgba(35,5,13,0.94)_100%)]" />
 
