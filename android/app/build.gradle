@@ -1,4 +1,38 @@
+import java.util.Properties
+
 apply plugin: 'com.android.application'
+
+def loadHaciendaSigningProperties() {
+    def props = new Properties()
+    def signingEnv = System.getenv("HACIENDA_SIGNING_ENV")
+    def defaultFile = new File(System.getProperty("user.home"), ".hacienda-secrets/hacienda-signing.env")
+    def signingFile = signingEnv ? new File(signingEnv) : defaultFile
+
+    if (signingFile.exists()) {
+        signingFile.withInputStream { props.load(it) }
+    }
+
+    [
+        "HACIENDA_UPLOAD_STORE_FILE",
+        "HACIENDA_UPLOAD_STORE_PASSWORD",
+        "HACIENDA_UPLOAD_KEY_ALIAS",
+        "HACIENDA_UPLOAD_KEY_PASSWORD"
+    ].each { key ->
+        def value = System.getenv(key)
+        if (value != null && value.trim()) {
+            props.setProperty(key, value)
+        }
+    }
+
+    return props
+}
+
+def haciendaSigning = loadHaciendaSigningProperties()
+def haciendaReleaseSigningReady =
+    haciendaSigning.getProperty("HACIENDA_UPLOAD_STORE_FILE") &&
+    haciendaSigning.getProperty("HACIENDA_UPLOAD_STORE_PASSWORD") &&
+    haciendaSigning.getProperty("HACIENDA_UPLOAD_KEY_ALIAS") &&
+    haciendaSigning.getProperty("HACIENDA_UPLOAD_KEY_PASSWORD")
 
 android {
     namespace = "com.haciendadeletras.app"
@@ -16,10 +50,31 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (haciendaReleaseSigningReady) {
+                storeFile file(haciendaSigning.getProperty("HACIENDA_UPLOAD_STORE_FILE"))
+                storePassword haciendaSigning.getProperty("HACIENDA_UPLOAD_STORE_PASSWORD")
+                keyAlias haciendaSigning.getProperty("HACIENDA_UPLOAD_KEY_ALIAS")
+                keyPassword haciendaSigning.getProperty("HACIENDA_UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
+            if (haciendaReleaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+tasks.whenTaskAdded { task ->
+    if (task.name == "bundleRelease" && !haciendaReleaseSigningReady) {
+        task.doFirst {
+            throw new GradleException("Release signing is not configured. Provide Hacienda upload signing properties outside the repository.")
         }
     }
 }
