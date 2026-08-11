@@ -47,6 +47,7 @@ export const env = {
   SUPABASE_SERVICE_ROLE_KEY: requireEnv('SUPABASE_SERVICE_ROLE_KEY'),
 
   // OpenAI — reservado para ALQIA; solo integración del lado servidor
+  AI_PROVIDER: optionalEnv('AI_PROVIDER', 'openai'),
   OPENAI_API_KEY: warnOptionalEnv('OPENAI_API_KEY'),
   OPENAI_MODEL: optionalEnv('OPENAI_MODEL', 'gpt-4o-mini'),
   OPENAI_EMBEDDING_MODEL: optionalEnv('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
