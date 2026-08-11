@@ -12,16 +12,14 @@ import { CartsPage } from '../pages/control/CartsPage'
 import { CheckInPage } from '../pages/control/CheckInPage'
 import { CustomersPage } from '../pages/control/CustomersPage'
 import { DashboardPage } from '../pages/control/DashboardPage'
-import { DistributorsOperationsPage } from '../pages/control/DistributorsOperationsPage'
 import { EditorialContentPage } from '../pages/control/EditorialContentPage'
-import { InventoryOperationsPage } from '../pages/control/InventoryOperationsPage'
-import { LogisticsOperationsPage } from '../pages/control/LogisticsOperationsPage'
 import { OrdersPage } from '../pages/control/OrdersPage'
 import { PaymentsPage } from '../pages/control/PaymentsPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
 import { WineClubPage } from '../pages/control/WineClubPage'
 import { LandingPage } from '../pages/public/LandingPage'
+import { LegalPage } from '../pages/public/LegalPage'
 import {
   AppAuthCallbackPage,
   LoginPage,
@@ -44,7 +42,6 @@ import { CheckoutScreen } from '../pages/mobile/CheckoutScreen'
 import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
-import { IntelligencePage } from '../pages/future/IntelligencePage'
 import { ReportsPage } from '../pages/future/ReportsPage'
 
 function TrackedMobileShell() {
@@ -65,6 +62,10 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/privacidad" element={<LegalPage type="privacy" />} />
+      <Route path="/politica-de-privacidad" element={<LegalPage type="privacy" />} />
+      <Route path="/terminos" element={<LegalPage type="terms" />} />
+      <Route path="/terminos-y-condiciones" element={<LegalPage type="terms" />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/recuperar" element={<RecoverPage />} />
@@ -179,10 +180,7 @@ export function AppRouter() {
         <Route path="pagos" element={<PaymentsPage />} />
         <Route path="check-in" element={<CheckInPage />} />
         <Route path="wine-club" element={<WineClubPage />} />
-        <Route path="inventario" element={<InventoryOperationsPage />} />
-        <Route path="logistica" element={<LogisticsOperationsPage />} />
-        <Route path="distribuidores" element={<DistributorsOperationsPage />} />
-        <Route path="reportes" element={<ReportsPage />} />
+        <Route path="reportes" element={<Navigate to="/control/dashboard" replace />} />
         <Route path="configuracion" element={<SettingsPage />} />
         <Route path="app" element={<AppPreviewPage />} />
 
@@ -202,20 +200,7 @@ export function AppRouter() {
         <Route path="app/perfil" element={<Navigate to="/app/perfil" replace />} />
 
         {/* Módulos futuros */}
-        <Route path="futuro/inventario" element={<Navigate to="/control/inventario" replace />} />
-        <Route
-          path="futuro/vinedos"
-          element={<Navigate to="/control/futuro/inventario" replace />}
-        />
-        <Route path="futuro/logistica" element={<Navigate to="/control/logistica" replace />} />
-        <Route
-          path="futuro/distribuidores"
-          element={<Navigate to="/control/distribuidores" replace />}
-        />
-        <Route
-          path="futuro/intelligence"
-          element={<IntelligencePage />}
-        />
+        <Route path="futuro/intelligence" element={<Navigate to="/control/dashboard" replace />} />
         <Route
           path="futuro/campanas"
           element={<Navigate to="/control/campanas" replace />}

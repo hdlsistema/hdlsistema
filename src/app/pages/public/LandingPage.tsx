@@ -1073,6 +1073,17 @@ export function LandingPage() {
               </Link>
             </div>
           </div>
+
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#dbc59d]">
+              Legal
+            </p>
+
+            <div className="mt-5 flex flex-col gap-3 text-[13px] text-white/65">
+              <Link to="/privacidad">Política de privacidad</Link>
+              <Link to="/terminos">Términos y condiciones</Link>
+            </div>
+          </div>
         </div>
 
         <div className="mx-auto mt-12 flex max-w-[1320px] flex-col justify-between gap-4 border-t border-white/10 pt-7 text-[11px] text-white/38 md:flex-row">
@@ -1253,7 +1264,17 @@ export function LandingPage() {
 
                   <span>
                     Confirmo que cumplo con la edad requerida y acepto los
-                    términos, condiciones y aviso de privacidad.
+                    {' '}
+                    <Link to="/terminos" target="_blank" rel="noreferrer" className="font-bold text-[#681126] underline">
+                      términos y condiciones
+                    </Link>
+                    {' '}
+                    y la
+                    {' '}
+                    <Link to="/privacidad" target="_blank" rel="noreferrer" className="font-bold text-[#681126] underline">
+                      política de privacidad
+                    </Link>
+                    .
                   </span>
                 </label>
                 </>
