@@ -15,7 +15,7 @@ import {
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
-import { formatCurrency, formatPublicDate, formatPublicTimeRange, imageField, numberField, textField } from '../../utils/publicContent'
+import { formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
   return {
@@ -100,6 +100,7 @@ export function ExperienceDetailScreen() {
   const capacity = numberField(experience, 'capacity')
   const price = numberField(experience, 'base_price')
   const location = textField(experience, 'location', 'Hacienda de Letras')
+  const gallery = galleryImages(experience, 'experience_images', imageField(experience, ''))
 
   return (
     <div className="app-page space-y-6">
@@ -140,6 +141,22 @@ export function ExperienceDetailScreen() {
           <EmptyState title={t('app.premium.contentPreparing')} description={t('app.premium.informationSoon')} />
         )}
       </section>
+
+      {gallery.length > 1 ? (
+        <section className="space-y-3">
+          <AppSectionHeader eyebrow={t('app.publishedDetails')} title="Galería" />
+          <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+            {gallery.map((image) => (
+              <img
+                key={image.id}
+                src={image.url}
+                alt={image.alt || title}
+                className="h-28 w-40 shrink-0 rounded-[1rem] object-cover shadow-[var(--shadow-card)]"
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <AppSectionHeader eyebrow={t('app.liveAvailability')} title={t('app.liveAvailability')} />

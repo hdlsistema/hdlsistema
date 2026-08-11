@@ -1,17 +1,55 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { CalendarDays, Clock3, MapPin, Ticket } from 'lucide-react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { CalendarDays, Clock3, MapPin, Minus, Plus, ShoppingCart, Ticket } from 'lucide-react'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
-import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
-import { formatCurrency, formatPublicDate, formatPublicTimeRange, imageField, numberField, textField } from '../../utils/publicContent'
+import { formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
+import { appPath } from '../../utils/appRoutes'
+import { useAuth } from '../../../contexts/AuthContext'
+import { customerClient } from '../../../services/customer.service'
+
+type EventTicketType = {
+  id: string
+  name?: string | null
+  description?: string | null
+  price?: number | string | null
+  capacity?: number | null
+  sold_count?: number | null
+  active?: boolean | null
+  status?: string | null
+  visible_in_app?: boolean | null
+  sales_start_at?: string | null
+  sales_end_at?: string | null
+}
+
+function liveTicket(ticket: EventTicketType) {
+  const now = Date.now()
+  const starts = ticket.sales_start_at ? new Date(ticket.sales_start_at).getTime() : null
+  const ends = ticket.sales_end_at ? new Date(ticket.sales_end_at).getTime() : null
+  return ticket.active !== false
+    && ticket.visible_in_app !== false
+    && ticket.status === 'published'
+    && (starts === null || starts <= now)
+    && (ends === null || ends >= now)
+}
+
+function ticketAvailable(ticket: EventTicketType) {
+  return Math.max(Number(ticket.capacity ?? 0) - Number(ticket.sold_count ?? 0), 0)
+}
 
 export function EventDetailScreen() {
   const { eventId } = useParams()
+  const navigate = useNavigate()
   const { t, locale } = useAppPreferences()
+  const { session } = useAuth()
   const [event, setEvent] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [quantityByTicket, setQuantityByTicket] = useState<Record<string, number>>({})
+  const [addingTicket, setAddingTicket] = useState('')
+  const [cartMessage, setCartMessage] = useState('')
+  const [cartError, setCartError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -45,6 +83,35 @@ export function EventDetailScreen() {
   const summary = textField(event, 'short_description') || textField(event, 'description') || t('app.premium.informationSoon')
   const price = numberField(event, 'price')
   const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
+  const gallery = galleryImages(event, 'event_images', imageField(event, ''))
+  const ticketTypes = (Array.isArray(event.event_ticket_types) ? event.event_ticket_types : [])
+    .filter((item): item is EventTicketType => Boolean(item && typeof item === 'object' && 'id' in item))
+    .filter(liveTicket)
+
+  const addTicketToCart = async (ticket: EventTicketType) => {
+    const token = session?.access_token
+    if (!token) {
+      navigate(appPath('/login'))
+      return
+    }
+    const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(ticketAvailable(ticket), 1))
+    setAddingTicket(ticket.id)
+    setCartError('')
+    setCartMessage('')
+    try {
+      await customerClient.addCartItem(token, {
+        itemType: 'event_ticket',
+        itemId: ticket.id,
+        quantity,
+        idempotencyKey: `event_ticket_${ticket.id}_${Date.now()}`,
+      })
+      setCartMessage(t('app.premium.events.ticketAdded', 'Boleto agregado al carrito.'))
+    } catch {
+      setCartError(t('app.premium.events.ticketAddError', 'No fue posible agregar el boleto.'))
+    } finally {
+      setAddingTicket('')
+    }
+  }
 
   return (
     <div className="app-page space-y-6">
@@ -82,6 +149,61 @@ export function EventDetailScreen() {
         ) : (
           <EmptyState title={t('app.premium.contentPreparing')} description={t('app.premium.informationSoon')} />
         )}
+      </section>
+
+      {gallery.length > 1 ? (
+        <section className="space-y-3">
+          <AppSectionHeader eyebrow={t('app.publishedDetails')} title="Galería" />
+          <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+            {gallery.map((image) => (
+              <img
+                key={image.id}
+                src={image.url}
+                alt={image.alt || title}
+                className="h-28 w-40 shrink-0 rounded-[1rem] object-cover shadow-[var(--shadow-card)]"
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      <section className="space-y-3">
+        <AppSectionHeader eyebrow={t('app.premium.events.ticket')} title={t('app.premium.events.accessOptions', 'Boletos disponibles')} />
+        {ticketTypes.length === 0 ? (
+          <EmptyState title={t('app.premium.events.ticketPending')} description={t('app.premium.events.noTicketsConfigured', 'La información de acceso se publicará cuando Hacienda confirme boletos, precios y capacidad.')} />
+        ) : (
+          <div className="grid gap-3">
+            {ticketTypes.map((ticket) => {
+              const available = ticketAvailable(ticket)
+              const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(available, 1))
+              return (
+                <article key={ticket.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="text-[18px] leading-tight text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{ticket.name ?? t('app.premium.events.ticket')}</h3>
+                      {ticket.description ? <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">{ticket.description}</p> : null}
+                      <p className="mt-2 text-[13px] font-semibold text-[var(--color-burgundy)]">{formatCurrency(Number(ticket.price ?? 0), locale)}</p>
+                      <p className="mt-1 text-[11px] text-[var(--color-muted)]">{available} {t('app.premium.reservation.spotsAvailable')}</p>
+                    </div>
+                    <Ticket className="shrink-0 text-[var(--color-gold)]" size={24} strokeWidth={1.45} />
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-1 rounded-full border border-[rgba(104,13,36,0.13)] bg-[#fffaf5] p-1">
+                      <button type="button" disabled={available < 1} onClick={() => setQuantityByTicket((current) => ({ ...current, [ticket.id]: Math.max(1, quantity - 1) }))} className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-burgundy)]"><Minus size={14} /></button>
+                      <span className="w-7 text-center text-[12px] font-semibold text-[var(--color-ink)]">{quantity}</span>
+                      <button type="button" disabled={available < 1} onClick={() => setQuantityByTicket((current) => ({ ...current, [ticket.id]: Math.min(available, quantity + 1) }))} className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white disabled:opacity-50"><Plus size={14} /></button>
+                    </div>
+                    <PrimaryButton onClick={() => void addTicketToCart(ticket)} disabled={available < 1 || addingTicket === ticket.id}>
+                      <ShoppingCart size={16} />
+                      {addingTicket === ticket.id ? t('app.premium.reservation.processing') : t('app.premium.events.addTicket', 'Agregar boleto')}
+                    </PrimaryButton>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+        )}
+        {cartMessage ? <p className="rounded-[1rem] bg-[#edf5ed] p-3 text-[12px] text-[#3f6f4b]">{cartMessage}</p> : null}
+        {cartError ? <p className="rounded-[1rem] bg-[rgba(157,71,63,0.08)] p-3 text-[12px] text-[var(--color-alert)]">{cartError}</p> : null}
       </section>
     </div>
   )

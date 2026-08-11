@@ -8,6 +8,7 @@ import type {
   EditorialFormValues,
 } from './forms/editorialFormTypes'
 import { statusLabel } from './forms/editorialFormMappers'
+import { CrystalSelect } from '../../../components/shared/CrystalSelect'
 
 type EditorialFormShellProps = {
   definition: EditorialDefinition
@@ -89,23 +90,23 @@ function StandardField({
 
   if (field.type === 'select') {
     return (
-      <select value={value} onChange={(event) => onChange(event.target.value)} className={inputClass}>
+      <CrystalSelect value={value} onChange={onChange}>
         <option value="">Sin cambio</option>
         {field.options?.map((option) => (
           <option key={option.value} value={option.value}>
             {option.label}
           </option>
         ))}
-      </select>
+      </CrystalSelect>
     )
   }
 
   if (field.type === 'boolean') {
     return (
-      <select value={value || 'false'} onChange={(event) => onChange(event.target.value)} className={inputClass}>
+      <CrystalSelect value={value || 'false'} onChange={onChange}>
         <option value="true">Sí</option>
         <option value="false">No</option>
-      </select>
+      </CrystalSelect>
     )
   }
 
@@ -240,6 +241,12 @@ function CampaignContentField({
           className="min-h-11 rounded-xl border border-[var(--color-line)] bg-white px-3 text-[13px] text-[var(--color-ink)] outline-none"
         />
       </div>
+      <input
+        value={parsed.image_url ?? ''}
+        onChange={(event) => onChange(updateCompositeValue(value, 'image_url', event.target.value))}
+        placeholder="URL de imagen publicada"
+        className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 text-[13px] text-[var(--color-ink)] outline-none"
+      />
       <details className="rounded-xl border border-[var(--color-line)] bg-white p-3">
         <summary className="cursor-pointer text-[13px] font-semibold text-[var(--color-burgundy)]">Modo avanzado JSON</summary>
         <textarea

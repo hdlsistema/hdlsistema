@@ -46,6 +46,7 @@ export type EditorialDefinition = {
   secondaryLabel: string
   listLabel: string
   singularLabel: string
+  createLabel?: string
   orderBy: 'sort_order' | 'created_at' | 'updated_at' | 'published_at' | 'name' | 'title'
   publishStatus: string
   microcopy: string

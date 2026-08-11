@@ -106,12 +106,18 @@ describe('formularios editoriales especializados', () => {
       name: 'Vendimia',
       channel: 'email',
       audience_definition: JSON.stringify({ segment: 'clientes frecuentes', notes: 'Alta intención' }),
-      content: JSON.stringify({ subject: 'Vendimia', body: 'Reserva tu lugar', cta_label: 'Reservar', cta_url: '/app/eventos' }),
+      content: JSON.stringify({ subject: 'Vendimia', body: 'Reserva tu lugar', cta_label: 'Reservar', cta_url: '/app/eventos', image_url: 'https://cdn.hacienda.test/vendimia.webp' }),
     })
 
     expect(membershipPayload.benefits).toEqual({ items: ['Cata mensual', 'Acceso preferente'] })
     expect(campaignPayload.audience_definition).toEqual({ segment: 'clientes frecuentes', notes: 'Alta intención' })
-    expect(campaignPayload.content).toMatchObject({ subject: 'Vendimia', body: 'Reserva tu lugar' })
+    expect(campaignPayload.content).toMatchObject({
+      subject: 'Vendimia',
+      body: 'Reserva tu lugar',
+      cta_label: 'Reservar',
+      cta_url: '/app/eventos',
+      image_url: 'https://cdn.hacienda.test/vendimia.webp',
+    })
   })
 
   it('mapea errores 422 por campo cuando el backend envía detalles', () => {

@@ -14,7 +14,7 @@ import {
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
-import { formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
+import { formatCurrency, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
 
 export function WineDetailScreen() {
   const { wineId } = useParams()
@@ -71,6 +71,7 @@ export function WineDetailScreen() {
   const stockControlled = Boolean(wine.stock_control_enabled)
   const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0
   const coverImage = imageField(wine, '')
+  const gallery = galleryImages(wine, 'wine_images', coverImage)
 
   const addToCart = async () => {
     if (!session?.access_token) {
@@ -152,6 +153,22 @@ export function WineDetailScreen() {
               )
             })}
           </div>
+        ) : null}
+
+        {gallery.length > 1 ? (
+          <section className="space-y-3">
+            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">Galería</p>
+            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+              {gallery.map((image) => (
+                <img
+                  key={image.id}
+                  src={image.url}
+                  alt={image.alt || wineName}
+                  className="h-28 w-36 shrink-0 rounded-[1rem] object-cover shadow-[var(--shadow-card)]"
+                />
+              ))}
+            </div>
+          </section>
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-4">

@@ -50,9 +50,8 @@ export function HomeScreen() {
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
   const { records: promotions } = usePublicContent('promotions')
   const { records: plans } = usePublicContent('membership-plans')
-  const { records: campaigns } = usePublicContent('campaigns')
+  const { records: campaigns, loading: loadingCampaigns, error: campaignsError, retry: retryCampaigns } = usePublicContent('campaigns')
 
-  const featuredCampaign = campaigns[0]
   const featuredPromotion = promotions[0]
   const modules = [
     {
@@ -181,38 +180,53 @@ export function HomeScreen() {
           )}
         </section>
 
-        {featuredCampaign || featuredPromotion ? (
-          <section className="space-y-3">
-            {featuredCampaign ? (
-              <EditorialCard
-                to={campaignRoute(featuredCampaign)}
-                image={campaignImage(featuredCampaign) || '/Slide-1.webp'}
-                eyebrow={isEnglish ? 'Published campaign' : 'Campaña publicada'}
-                title={
-                  campaignText(featuredCampaign, 'title') ||
-                  textField(featuredCampaign, 'name', isEnglish ? 'Campaign' : 'Campaña')
-                }
-                description={campaignText(featuredCampaign, 'body') || textField(featuredCampaign, 'description')}
-                actionLabel={campaignText(featuredCampaign, 'cta_label') || t('app.premium.open')}
-              />
-            ) : null}
-            {featuredPromotion ? (
-              <Link
-                to={appPath('/vinos')}
-                className="block rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1] p-4"
-              >
-                <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
-                  {isEnglish ? 'Published promotion' : 'Promoción publicada'}
-                </span>
-                <span
-                  className="mt-1 block text-[clamp(22px,6vw,28px)] leading-none text-[#2D1811]"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {textField(featuredPromotion, 'title') || textField(featuredPromotion, 'name', 'Promoción')}
-                </span>
-              </Link>
-            ) : null}
-          </section>
+        <section className="space-y-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">{t('app.premium.home.campaignsEyebrow')}</p>
+            <h2 className="mt-1 text-[clamp(26px,7vw,32px)] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
+              {t('app.premium.home.liveCampaigns')}
+            </h2>
+          </div>
+
+          {loadingCampaigns ? (
+            <Skeleton className="h-[132px] w-full" />
+          ) : campaignsError ? (
+            <ErrorState message={t('app.premium.contentUnavailable')} retryLabel={t('app.premium.retry')} onRetry={retryCampaigns} />
+          ) : campaigns.length === 0 ? null : (
+            <div className="grid gap-3">
+              {campaigns.slice(0, 3).map((campaign) => (
+                <EditorialCard
+                  key={campaign.id}
+                  to={campaignRoute(campaign)}
+                  image={campaignImage(campaign) || '/Slide-1.webp'}
+                  eyebrow={textField(campaign, 'channel', t('app.premium.home.campaignsEyebrow'))}
+                  title={
+                    campaignText(campaign, 'title') ||
+                    textField(campaign, 'name', t('app.premium.home.campaignsEyebrow'))
+                  }
+                  description={campaignText(campaign, 'body') || textField(campaign, 'description')}
+                  actionLabel={campaignText(campaign, 'cta_label') || t('app.premium.open')}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {featuredPromotion ? (
+          <Link
+            to={appPath('/vinos')}
+            className="block rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1] p-4"
+          >
+            <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
+              {isEnglish ? 'Published promotion' : 'Promoción publicada'}
+            </span>
+            <span
+              className="mt-1 block text-[clamp(22px,6vw,28px)] leading-none text-[#2D1811]"
+              style={{ fontFamily: 'var(--font-display)' }}
+            >
+              {textField(featuredPromotion, 'title') || textField(featuredPromotion, 'name', 'Promoción')}
+            </span>
+          </Link>
         ) : null}
 
         <section className="space-y-3">

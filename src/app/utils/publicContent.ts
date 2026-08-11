@@ -26,6 +26,51 @@ export function imageField(record: ContentRecord, fallback: string) {
   return textField(record, 'cover_image_url') || fallback
 }
 
+type GalleryImage = {
+  id?: string
+  url?: string
+  alt_text?: string | null
+  sort_order?: number | null
+  status?: string | null
+  visible_in_app?: boolean | null
+  publish_at?: string | null
+  unpublish_at?: string | null
+  archived_at?: string | null
+  deleted_at?: string | null
+}
+
+function isLiveGalleryImage(image: GalleryImage) {
+  const now = Date.now()
+  const startsAt = image.publish_at ? new Date(image.publish_at).getTime() : null
+  const endsAt = image.unpublish_at ? new Date(image.unpublish_at).getTime() : null
+  return Boolean(image.url)
+    && image.visible_in_app !== false
+    && (image.status === undefined || image.status === null || image.status === 'published')
+    && !image.archived_at
+    && !image.deleted_at
+    && (startsAt === null || startsAt <= now)
+    && (endsAt === null || endsAt > now)
+}
+
+export function galleryImages(record: ContentRecord, key: string, fallbackUrl = '') {
+  const value = record[key]
+  const images = Array.isArray(value)
+    ? value.filter((item): item is GalleryImage => Boolean(item && typeof item === 'object'))
+    : []
+
+  const liveImages = images
+    .filter(isLiveGalleryImage)
+    .sort((left, right) => Number(left.sort_order ?? 0) - Number(right.sort_order ?? 0))
+    .map((image) => ({
+      id: image.id ?? image.url ?? '',
+      url: image.url ?? '',
+      alt: image.alt_text ?? '',
+    }))
+
+  if (liveImages.length > 0) return liveImages
+  return fallbackUrl ? [{ id: fallbackUrl, url: fallbackUrl, alt: '' }] : []
+}
+
 export function formatCurrency(value: number, locale: AppLocale = DEFAULT_LOCALE) {
   return formatI18nCurrency(value, locale, 'MXN')
 }

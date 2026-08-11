@@ -87,6 +87,7 @@ function toInputValue(record: ContentRecord | null, field: EditorialField) {
       body: campaignValue(value, 'body'),
       cta_label: campaignValue(value, 'cta_label'),
       cta_url: campaignValue(value, 'cta_url'),
+      image_url: campaignValue(value, 'image_url'),
       advancedJson: '',
     })
   }
@@ -142,11 +143,13 @@ export function serializeEditorialPayload(definition: EditorialDefinition, value
       const body = typeof parsed.body === 'string' ? parsed.body.trim() : ''
       const ctaLabel = typeof parsed.cta_label === 'string' ? parsed.cta_label.trim() : ''
       const ctaUrl = typeof parsed.cta_url === 'string' ? parsed.cta_url.trim() : ''
+      const imageUrl = typeof parsed.image_url === 'string' ? parsed.image_url.trim() : ''
       payload.content = parseGuidedJson(rawValue ?? '', {
         subject,
         body,
         cta_label: ctaLabel,
         cta_url: ctaUrl,
+        image_url: imageUrl,
       })
       return payload
     }

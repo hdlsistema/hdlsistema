@@ -21,6 +21,7 @@ import {
   type PublicationAction,
 } from '../../../services/content.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { EditorialConfirmDialog } from './editorial/EditorialConfirmDialog'
 import {
   actionErrorMessage,
@@ -500,7 +501,8 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     }
   }
 
-  const selectedTitle = selected ? getRecordTitle(selected, config) : `Nuevo ${config.singularLabel}`
+  const createLabel = config.createLabel ?? `Nuevo ${config.singularLabel}`
+  const selectedTitle = selected ? getRecordTitle(selected, config) : createLabel
   const isBusy = saving || busyAction !== null
   const FormComponent = {
     wines: WineEditorialForm,
@@ -553,16 +555,15 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       </div>
 
       <div className="grid gap-3 rounded-xl border border-[var(--color-line)] bg-white p-3 md:grid-cols-[150px_minmax(0,1fr)_auto]">
-        <select
+        <CrystalSelect
           value={scheduleAction}
-          onChange={(event) => setScheduleAction(event.target.value as PublicationAction)}
-          className="min-h-10 rounded-lg border border-[var(--color-line)] px-3 text-[13px] outline-none"
+          onChange={(value) => setScheduleAction(value as PublicationAction)}
         >
           <option value="publish">Publicar</option>
           <option value="unpublish">Despublicar</option>
           <option value="archive">Archivar</option>
           <option value="restore">Restaurar</option>
-        </select>
+        </CrystalSelect>
         <input
           type="datetime-local"
           value={scheduleAt}
@@ -668,7 +669,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-soft)] transition hover:brightness-110"
         >
           <Plus size={17} />
-          Nuevo {config.singularLabel}
+          {createLabel}
         </button>
       </div>
 
@@ -685,10 +686,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
                   className="w-full bg-transparent py-2 text-[var(--color-ink)] outline-none"
                 />
               </label>
-              <select
+              <CrystalSelect
                 value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="min-h-11 rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none"
+                onChange={setStatusFilter}
               >
                 <option value="">Todos los estados</option>
                 {statusOptions.map((option) => (
@@ -696,7 +696,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
                     {option.label}
                   </option>
                 ))}
-              </select>
+              </CrystalSelect>
             </div>
           </div>
 
