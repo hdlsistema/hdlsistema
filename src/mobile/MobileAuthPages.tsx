@@ -1,14 +1,8 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
+import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import {
-  resendVerification,
-  resetPassword,
-  signUpCustomer,
-  updatePassword,
-  type AuthServiceError,
-} from '../services/auth.service'
+import { resendVerification, resetPassword, signInWithOAuth, signUpCustomer, updatePassword, type AuthServiceError } from '../services/auth.service'
 import { useAppPreferences } from '../app/context/AppPreferencesContext'
 import { translateErrorCode, type AppLanguage } from '../app/i18n'
 
@@ -16,62 +10,43 @@ function getErrorMessage(error: unknown, language: AppLanguage) {
   if (error && typeof error === 'object' && 'code' in error) {
     return translateErrorCode(language, String((error as AuthServiceError).code), (error as AuthServiceError).message)
   }
-  if (error && typeof error === 'object' && 'message' in error) {
-    return String((error as AuthServiceError).message)
-  }
+  if (error && typeof error === 'object' && 'message' in error) return String((error as AuthServiceError).message)
   return translateErrorCode(language, 'auth_error')
 }
 
 function safeRedirect(path: unknown, fallback: string) {
-  if (typeof path !== 'string') return fallback
-  if (!path.startsWith('/') || path.startsWith('//')) return fallback
+  if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) return fallback
   return path
 }
 
-function AuthShell({
-  eyebrow,
-  title,
-  note,
-  children,
-}: {
-  eyebrow: string
-  title: string
-  note: string
-  children: ReactNode
-}) {
+function AuthShell({ eyebrow, title, note, children }: { eyebrow: string; title: string; note: string; children: ReactNode }) {
   return (
-    <div className="overflow-x-hidden bg-[#FBF7F0] px-[var(--app-pad)] pb-6 pt-3 text-[var(--color-burgundy)]">
-      <div className="mx-auto flex w-full min-w-0 flex-col justify-start">
-        <section className="rounded-[18px] border border-[rgba(170,125,67,0.22)] bg-[#FFF9F1] p-5 shadow-[0_14px_32px_rgba(58,32,18,0.1)]">
-          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-gold)]">
-            {eyebrow}
-          </p>
-          <h1 className="mt-3 text-[clamp(32px,9vw,42px)] leading-[0.95] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
-            {title}
-          </h1>
-          <p className="mt-3 text-[13px] leading-6 text-[var(--color-muted)]">{note}</p>
-          {children}
-        </section>
+    <main className="native-auth-screen">
+      <div className="native-auth-screen__hero" aria-hidden="true">
+        <div className="native-auth-screen__hero-veil" />
+        <img src="/hacienda de letras logo 2.png" alt="" className="native-auth-screen__logo" />
       </div>
-    </div>
+      <section className="native-auth-screen__content">
+        <p className="native-auth-screen__eyebrow">{eyebrow}</p>
+        <h1>{title}</h1>
+        <p className="native-auth-screen__note">{note}</p>
+        {children}
+      </section>
+    </main>
   )
 }
 
 export function MobileLoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { signIn, roles, isAuthenticated } = useAuth()
+  const { signIn, isAuthenticated } = useAuth()
   const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const destination = useMemo(() => safeRedirect((location.state as { from?: string } | null)?.from, '/home'), [location.state])
 
-  const destination = useMemo(() => {
-    const from = (location.state as { from?: string } | null)?.from
-    return safeRedirect(from, '/home')
-  }, [location.state])
-
-  if (isAuthenticated && roles.length) return <Navigate to={destination} replace />
+  if (isAuthenticated) return <Navigate to={destination} replace />
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -90,19 +65,20 @@ export function MobileLoginPage() {
   }
 
   return (
-    <AuthShell eyebrow={t('auth.secureAccess')} title={t('auth.login')} note={t('auth.loginNote')}>
-      <form className="mt-7 space-y-4" onSubmit={submit}>
-        <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
-        <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Link to="/recuperar" className="block text-[12px] font-semibold text-[#681126]">
-          {t('auth.forgotPassword')}
-        </Link>
-        {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
+    <AuthShell eyebrow="Acceso seguro" title="Bienvenido" note="Inicia sesión para continuar tu experiencia en Hacienda de Letras.">
+      <form className="native-auth-form" onSubmit={submit}>
+        <SocialAuthActions onError={setError} />
+        <div className="native-auth-divider"><span>{t('auth.orEmail')}</span></div>
+        <Field icon={<Mail size={18} />} label={t('auth.email')} name="email" type="email" autoComplete="email" />
+        <PasswordField show={showPassword} setShow={setShowPassword} autoComplete="current-password" />
+        <div className="native-auth-form__options">
+          <CheckControl name="remember" label={t('auth.rememberMe')} defaultChecked />
+          <Link to="/recuperar" className="native-auth-form__link">{t('auth.forgotPassword')}</Link>
+        </div>
+        {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
         <SubmitButton loading={loading}>{t('auth.login')}</SubmitButton>
       </form>
-      <p className="mt-6 text-center text-[12px] text-[#7f6a59]">
-        {t('auth.noAccount')} <Link className="font-bold text-[#681126]" to="/registro">{t('auth.createAccount')}</Link>
-      </p>
+      <p className="native-auth-screen__footnote">{t('auth.noAccount')} <Link to="/registro">{t('auth.createAccount')}</Link></p>
     </AuthShell>
   )
 }
@@ -122,20 +98,9 @@ export function MobileRegisterPage() {
     const password = String(form.get('password') ?? '')
     const confirmPassword = String(form.get('confirmPassword') ?? '')
     const email = String(form.get('email') ?? '').trim().toLowerCase()
-
-    if (password.length < 8) {
-      setError(t('auth.passwordMin'))
-      return
-    }
-    if (password !== confirmPassword) {
-      setError(t('auth.passwordsMismatch'))
-      return
-    }
-    if (form.get('terms') !== 'on') {
-      setError(t('auth.termsRequired'))
-      return
-    }
-
+    if (password.length < 8) return setError(t('auth.passwordMin'))
+    if (password !== confirmPassword) return setError(t('auth.passwordsMismatch'))
+    if (form.get('terms') !== 'on') return setError(t('auth.termsRequired'))
     setLoading(true)
     try {
       await signUpCustomer({
@@ -143,7 +108,6 @@ export function MobileRegisterPage() {
         password,
         firstName: String(form.get('firstName') ?? ''),
         lastName: String(form.get('lastName') ?? ''),
-        phone: String(form.get('phone') ?? ''),
         preferredLanguage: language,
       })
       setSuccessEmail(email)
@@ -156,42 +120,32 @@ export function MobileRegisterPage() {
 
   if (successEmail) {
     return (
-      <AuthShell eyebrow={t('auth.verifyEmail')} title={t('auth.accountCreated')} note={t('auth.verifyNote')}>
-        <button
-          type="button"
-          onClick={() => resendVerification(successEmail)}
-          className="mt-7 inline-flex min-h-[50px] w-full items-center justify-center rounded-full border border-[#681126] px-4 text-[13px] font-bold text-[#681126]"
-        >
-          {t('auth.resendVerification')}
-        </button>
-        <Link
-          to="/login"
-          className="mt-3 inline-flex min-h-[50px] w-full items-center justify-center rounded-full bg-[#681126] px-4 text-[13px] font-bold text-white"
-        >
-          {t('auth.goToLogin')}
-        </Link>
+      <AuthShell eyebrow="Cuenta creada" title="Revisa tu correo" note="Te enviamos un enlace para confirmar tu cuenta y continuar.">
+        <div className="native-auth-success">
+          <span><Check size={23} strokeWidth={1.6} /></span>
+          <p>Tu cuenta está lista para confirmar.</p>
+        </div>
+        <button type="button" onClick={() => void resendVerification(successEmail)} className="native-auth-secondary">{t('auth.resendVerification')}</button>
+        <Link to="/login" className="native-auth-primary native-auth-primary--link">{t('auth.goToLogin')} <ArrowRight size={18} /></Link>
       </AuthShell>
     )
   }
 
   return (
-    <AuthShell eyebrow={t('auth.customerAccount')} title={t('auth.createAccount')} note={t('auth.createAccountNote')}>
-      <form className="mt-7 space-y-4" onSubmit={submit}>
-        <div className="grid gap-4">
-          <Field icon={<User size={17} />} label={t('auth.firstName')} name="firstName" />
-          <Field icon={<User size={17} />} label={t('auth.lastName')} name="lastName" />
-        </div>
-        <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
-        <Field icon={<User size={17} />} label={t('auth.phone')} name="phone" type="tel" required={false} />
-        <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
-        <label className="flex items-start gap-3 text-[11px] leading-5 text-[#6f5a4d]">
-          <input required name="terms" type="checkbox" className="mt-1 accent-[#681126]" />
-          <span>{t('auth.terms')}</span>
-        </label>
-        {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
+    <AuthShell eyebrow="Tu cuenta" title="Crear cuenta" note="Guarda tus visitas, reservas y preferencias en un solo lugar.">
+      <form className="native-auth-form" onSubmit={submit}>
+        <SocialAuthActions onError={setError} />
+        <div className="native-auth-divider"><span>{t('auth.orEmail')}</span></div>
+        <Field icon={<User size={18} />} label={t('auth.firstName')} name="firstName" autoComplete="given-name" />
+        <Field icon={<User size={18} />} label={t('auth.lastName')} name="lastName" autoComplete="family-name" />
+        <Field icon={<Mail size={18} />} label={t('auth.email')} name="email" type="email" autoComplete="email" />
+        <PasswordField show={showPassword} setShow={setShowPassword} autoComplete="new-password" />
+        <Field icon={<LockKeyhole size={18} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password" />
+        <CheckControl name="terms" label={t('auth.terms')} required />
+        {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
         <SubmitButton loading={loading}>{t('auth.createAccount')}</SubmitButton>
       </form>
+      <p className="native-auth-screen__footnote">¿Ya tienes cuenta? <Link to="/login">{t('auth.login')}</Link></p>
     </AuthShell>
   )
 }
@@ -214,15 +168,17 @@ export function MobileRecoverPage() {
   }
 
   return (
-    <AuthShell eyebrow={t('auth.recovery')} title={t('auth.resetAccess')} note={t('auth.recoveryNote')}>
+    <AuthShell eyebrow="Recuperar acceso" title="Restablece tu contraseña" note="Escribe tu correo y te enviaremos un enlace seguro para continuar.">
       {sent ? (
-        <p className="mt-7 rounded-[1rem] bg-[#f7efe4] p-4 text-[13px] text-[#5f463a]">
-          {t('auth.recoverySent')}
-        </p>
+        <div className="native-auth-success">
+          <span><Check size={23} strokeWidth={1.6} /></span>
+          <p>{t('auth.recoverySent')}</p>
+          <Link to="/login" className="native-auth-secondary">Volver a iniciar sesión</Link>
+        </div>
       ) : (
-        <form className="mt-7 space-y-4" onSubmit={submit}>
-          <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
-          {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
+        <form className="native-auth-form" onSubmit={submit}>
+          <Field icon={<Mail size={18} />} label={t('auth.email')} name="email" type="email" autoComplete="email" />
+          {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
           <SubmitButton>{t('auth.sendLink')}</SubmitButton>
         </form>
       )}
@@ -241,15 +197,9 @@ export function MobileResetPasswordPage() {
     setError('')
     const form = new FormData(event.currentTarget)
     const password = String(form.get('password') ?? '')
-    const confirmPassword = String(form.get('confirmPassword') ?? '')
-    if (password.length < 8) {
-      setError(t('auth.passwordMin'))
-      return
-    }
-    if (password !== confirmPassword) {
-      setError(t('auth.passwordsMismatch'))
-      return
-    }
+    const confirmation = String(form.get('confirmPassword') ?? '')
+    if (password.length < 8) return setError(t('auth.passwordMin'))
+    if (password !== confirmation) return setError(t('auth.passwordsMismatch'))
     try {
       await updatePassword(password)
       navigate('/login', { replace: true })
@@ -259,11 +209,11 @@ export function MobileResetPasswordPage() {
   }
 
   return (
-    <AuthShell eyebrow={t('auth.newPassword')} title={t('auth.definePassword')} note={t('auth.resetNote')}>
-      <form className="mt-7 space-y-4" onSubmit={submit}>
-        <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
-        {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
+    <AuthShell eyebrow="Nueva contraseña" title="Define tu acceso" note="Elige una contraseña segura para continuar.">
+      <form className="native-auth-form" onSubmit={submit}>
+        <PasswordField show={showPassword} setShow={setShowPassword} autoComplete="new-password" />
+        <Field icon={<LockKeyhole size={18} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password" />
+        {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
         <SubmitButton>{t('auth.updatePassword')}</SubmitButton>
       </form>
     </AuthShell>
@@ -272,100 +222,79 @@ export function MobileResetPasswordPage() {
 
 export function MobileAuthCallbackPage() {
   const { isAuthenticated, isLoading } = useAuth()
-  const { t } = useAppPreferences()
-
-  if (isLoading) {
-    return (
-      <AuthShell eyebrow={t('auth.secureAccess')} title={t('auth.validatingSession')} note={t('auth.validatingNote')}>
-        <p className="mt-7 text-[13px] text-[#7f6a59]">{t('auth.oneMoment')}</p>
-      </AuthShell>
-    )
-  }
-
+  if (isLoading) return <div className="native-auth-screen"><div className="native-auth-screen__content"><span className="mobile-launch-screen__loader" aria-label="Cargando" /></div></div>
   return <Navigate to={isAuthenticated ? '/home' : '/login'} replace />
 }
 
-function Field({
-  icon,
-  label,
-  name,
-  type = 'text',
-  required = true,
-}: {
-  icon: ReactNode
-  label: string
-  name: string
-  type?: string
-  required?: boolean
-}) {
+function Field({ icon, label, name, type = 'text', autoComplete }: { icon: ReactNode; label: string; name: string; type?: string; autoComplete?: string }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
-        {label}
-      </span>
-      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
-        <span className="text-[#8a6c59]">{icon}</span>
-        <input
-          required={required}
-          name={name}
-          type={type}
-          className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[14px] outline-none"
-        />
+    <label className="native-auth-field">
+      <span>{label}</span>
+      <div>
+        {icon}
+        <input required name={name} type={type} autoComplete={autoComplete} />
       </div>
     </label>
   )
 }
 
-function PasswordField({
-  show,
-  setShow,
-}: {
-  show: boolean
-  setShow: (value: boolean) => void
-}) {
+function PasswordField({ show, setShow, autoComplete }: { show: boolean; setShow: (value: boolean) => void; autoComplete: string }) {
   const { t } = useAppPreferences()
   return (
-    <label className="block">
-      <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
-        {t('auth.password')}
-      </span>
-      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
-        <LockKeyhole size={17} className="text-[#8a6c59]" />
-        <input
-          required
-          name="password"
-          type={show ? 'text' : 'password'}
-          className="min-h-[52px] min-w-0 flex-1 bg-transparent text-[14px] outline-none"
-        />
-        <button
-          type="button"
-          onClick={() => setShow(!show)}
-          className="text-[#681126]"
-          aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
-        >
-          {show ? <EyeOff size={17} /> : <Eye size={17} />}
+    <label className="native-auth-field">
+      <span>{t('auth.password')}</span>
+      <div>
+        <LockKeyhole size={18} />
+        <input required name="password" type={show ? 'text' : 'password'} autoComplete={autoComplete} />
+        <button type="button" onClick={() => setShow(!show)} aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}>
+          {show ? <EyeOff size={18} /> : <Eye size={18} />}
         </button>
       </div>
     </label>
   )
 }
 
-function SubmitButton({
-  children,
-  loading = false,
-}: {
-  children: ReactNode
-  loading?: boolean
-}) {
+function SubmitButton({ children, loading = false }: { children: ReactNode; loading?: boolean }) {
   const { t } = useAppPreferences()
+  return <button type="submit" disabled={loading} className="native-auth-primary">{loading ? t('auth.processing') : children}<ArrowRight size={18} /></button>
+}
+
+function CheckControl({ name, label, required = false, defaultChecked = false }: { name: string; label: string; required?: boolean; defaultChecked?: boolean }) {
   return (
-    <button
-      type="submit"
-      disabled={loading}
-      className="inline-flex min-h-[53px] w-full min-w-0 items-center justify-center gap-3 rounded-full bg-[#681126] px-4 text-[14px] font-bold text-white disabled:opacity-60"
-    >
-      {loading ? t('auth.processing') : children}
-      <ArrowRight size={17} />
-    </button>
+    <label className="native-auth-check">
+      <input required={required} name={name} type="checkbox" defaultChecked={defaultChecked} />
+      <span className="native-auth-check__mark" aria-hidden="true"><Check size={12} strokeWidth={2.8} /></span>
+      <span>{label}</span>
+    </label>
+  )
+}
+
+function SocialAuthActions({ onError }: { onError: (message: string) => void }) {
+  const { t, language } = useAppPreferences()
+  const [provider, setProvider] = useState<'google' | 'apple' | null>(null)
+
+  const continueWith = async (nextProvider: 'google' | 'apple') => {
+    if (provider) return
+    onError('')
+    setProvider(nextProvider)
+    try {
+      await signInWithOAuth(nextProvider)
+    } catch (error) {
+      onError(getErrorMessage(error, language))
+      setProvider(null)
+    }
+  }
+
+  return (
+    <div className="native-auth-social" aria-label={t('auth.socialAccess')}>
+      <button type="button" className="native-auth-social__google" onClick={() => void continueWith('google')} disabled={Boolean(provider)}>
+        <img src="/brand/google.svg" alt="" aria-hidden="true" />
+        {provider === 'google' ? t('auth.processing') : t('auth.continueGoogle')}
+      </button>
+      <button type="button" className="native-auth-social__apple" onClick={() => void continueWith('apple')} disabled={Boolean(provider)}>
+        <img src="/brand/apple.svg" alt="" aria-hidden="true" />
+        {provider === 'apple' ? t('auth.processing') : t('auth.continueApple')}
+      </button>
+    </div>
   )
 }

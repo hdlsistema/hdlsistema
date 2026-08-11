@@ -26,16 +26,13 @@ import {
   MobileResetPasswordPage,
 } from './MobileAuthPages'
 import { MobileProtectedRoute } from './MobileProtectedRoute'
+import { MobileBrandSplash } from './MobileLaunchGate'
 
 function RootRedirect() {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fffaf3] text-[#681126]">
-        Verificando sesión...
-      </div>
-    )
+    return <MobileBrandSplash />
   }
 
   return <Navigate to={isAuthenticated ? '/home' : '/login'} replace />

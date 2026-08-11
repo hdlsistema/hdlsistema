@@ -98,6 +98,18 @@ export async function signIn(email: string, password: string) {
   }
 }
 
+export async function signInWithOAuth(provider: 'google' | 'apple') {
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${APP_URL}/auth/callback` },
+    })
+    if (error) throw error
+  } catch (error) {
+    throw normalizeError(error)
+  }
+}
+
 export async function signOut() {
   const { error } = await supabase.auth.signOut()
   if (error) throw normalizeError(error)
