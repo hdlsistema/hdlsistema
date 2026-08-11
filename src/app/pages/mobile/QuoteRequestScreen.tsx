@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient, publicCommercialClient, type PublicCommercialItem } from '../../../services/commercial.service'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
 
 const socialTypes = ['Boda', 'Pedida de mano', 'XV años', 'Bautizo', 'Primera Comunión', 'Baby Shower', 'Cumpleaños', 'Aniversario', 'Posada', 'Reunión familiar', 'Sesión fotográfica', 'Otro']
 const businessTypes = ['Evento corporativo', 'Convención', 'Presentación', 'Capacitación', 'Comida empresarial', 'Cena empresarial', 'Integración de equipo', 'Evento de fin de año', 'Otro']
@@ -110,7 +111,7 @@ export function QuoteRequestScreen() {
           ))}
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <input type="date" value={preferredDate} onChange={(event) => setPreferredDate(event.target.value)} className="rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3 text-[13px] outline-none" />
+          <CrystalDateField value={preferredDate} onChange={setPreferredDate} placeholder="Fecha ideal" buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[13px]" />
           <input type="number" min={1} value={guestCount} onChange={(event) => setGuestCount(Number(event.target.value))} className="rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3 text-[13px] outline-none" />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3">

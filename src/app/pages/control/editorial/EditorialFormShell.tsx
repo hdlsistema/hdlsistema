@@ -8,6 +8,7 @@ import type {
   EditorialFormValues,
 } from './forms/editorialFormTypes'
 import { statusLabel } from './forms/editorialFormMappers'
+import { CrystalDateTimeField } from '../../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../../components/shared/CrystalSelect'
 
 type EditorialFormShellProps = {
@@ -110,9 +111,13 @@ function StandardField({
     )
   }
 
+  if (field.type === 'datetime') {
+    return <CrystalDateTimeField value={value} onChange={onChange} placeholder={field.placeholder ?? 'Seleccionar fecha'} />
+  }
+
   return (
     <input
-      type={field.type === 'number' ? 'number' : field.type === 'datetime' ? 'datetime-local' : 'text'}
+      type={field.type === 'number' ? 'number' : 'text'}
       step={field.type === 'number' ? 'any' : undefined}
       value={value}
       onChange={(event) => onChange(event.target.value)}

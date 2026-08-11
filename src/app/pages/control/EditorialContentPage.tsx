@@ -21,6 +21,7 @@ import {
   type PublicationAction,
 } from '../../../services/content.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { EditorialConfirmDialog } from './editorial/EditorialConfirmDialog'
 import {
@@ -564,12 +565,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
           <option value="archive">Archivar</option>
           <option value="restore">Restaurar</option>
         </CrystalSelect>
-        <input
-          type="datetime-local"
-          value={scheduleAt}
-          onChange={(event) => setScheduleAt(event.target.value)}
-          className="min-h-10 rounded-lg border border-[var(--color-line)] px-3 text-[13px] outline-none"
-        />
+        <CrystalDateTimeField value={scheduleAt} onChange={setScheduleAt} placeholder="Programar fecha" />
         <button
           type="button"
           onClick={() => requestScheduleRecord()}

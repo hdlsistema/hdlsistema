@@ -226,7 +226,7 @@ export function WineClubPage() {
         <ModalForm title="Asignar membresía" onClose={() => setFormOpen(false)} onSubmit={submitMembership} saving={saving}>
           <Field label="ID de cliente" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
           <Field label="ID de plan" value={form.planId} onChange={(value) => setForm({ ...form, planId: value })} required />
-          <Field label="Fecha de inicio" type="datetime-local" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} />
+          <Field label="Fecha de inicio" type="datetime" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} />
         </ModalForm>
       ) : null}
 

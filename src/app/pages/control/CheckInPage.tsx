@@ -9,6 +9,7 @@ import {
   type CheckinRecord,
 } from '../../../services/commerce.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 
 type PassForm = {
@@ -316,8 +317,8 @@ export function CheckInPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <Input label="ID de reservación" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
               <Input label="ID de orden pagada" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} />
-              <Input label="Válido desde" type="datetime-local" value={form.validFrom} onChange={(value) => setForm({ ...form, validFrom: value })} />
-              <Input label="Válido hasta" type="datetime-local" value={form.validUntil} onChange={(value) => setForm({ ...form, validUntil: value })} />
+              <Input label="Válido desde" type="datetime" value={form.validFrom} onChange={(value) => setForm({ ...form, validFrom: value })} />
+              <Input label="Válido hasta" type="datetime" value={form.validUntil} onChange={(value) => setForm({ ...form, validUntil: value })} />
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
@@ -345,6 +346,8 @@ function State({ title, text }: { title?: string; text: string }) {
 }
 
 function Input({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; type?: string }) {
+  if (type === 'datetime') return <CrystalDateTimeField label={label} value={value} onChange={onChange} />
+
   return <label className="block"><span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</span><input type={type} value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)] outline-none" /></label>
 }
 

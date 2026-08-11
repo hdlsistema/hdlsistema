@@ -31,6 +31,7 @@ import {
   type CustomerTag,
 } from '../../../services/customers.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
@@ -846,7 +847,7 @@ export function CustomersPage() {
                 <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className={inputClass()} />
               </Field>
               <Field label="Nacimiento">
-                <input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} className={inputClass()} />
+                <CrystalDateField value={form.birthDate} onChange={(value) => setForm({ ...form, birthDate: value })} placeholder="Seleccionar fecha" />
               </Field>
               <Field label="Origen">
                 <input value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} className={inputClass()} />

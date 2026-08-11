@@ -3,6 +3,7 @@ import { Activity, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { appActivityAdminClient, type AppActivityRecord } from '../../../services/appActivityAdmin.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 
 function dateTime(value: string) {
@@ -67,8 +68,8 @@ export function AppActivityPage() {
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Resultado
           <CrystalSelect value={result} onChange={setResult}><option value="">Todos</option><option value="started">Iniciado</option><option value="succeeded">Correcto</option><option value="processing">En proceso</option><option value="failed">Fallido</option><option value="cancelled">Cancelado</option></CrystalSelect>
         </label>
-        <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Desde<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" /></label>
-        <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Hasta<input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" /></label>
+        <CrystalDateField value={from} onChange={setFrom} label="Desde" placeholder="Inicio" className="min-w-[160px]" />
+        <CrystalDateField value={to} onChange={setTo} label="Hasta" placeholder="Fin" className="min-w-[160px]" />
       </div>
 
       {error ? <p className="rounded-lg border border-[#c87d6e] bg-[#fff7f3] px-4 py-3 text-sm text-[#7b3026]">{error}</p> : null}

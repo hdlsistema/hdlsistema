@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, Clock, Loader2, MapPin } from 'lucide-react'
+import { Loader2, MapPin } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient, publicCommercialClient, type PublicCommercialItem } from '../../../services/commercial.service'
 import { StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 function nextIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
+
+const restaurantTimes = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30']
+  .map((value) => ({ value, label: value }))
 
 export function RestaurantsScreen() {
   const { locale } = useAppPreferences()
@@ -90,14 +95,11 @@ export function RestaurantsScreen() {
 
       <section className="rounded-[20px] border border-[#EBDCC8] bg-[#FFF9F1] p-4">
         <div className="grid grid-cols-2 gap-3">
-          <label className="rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3">
-            <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.14em] text-[#B88A4A]"><CalendarDays size={14} /> Fecha</span>
-            <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className="mt-2 w-full bg-transparent text-[13px] outline-none" />
-          </label>
-          <label className="rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3">
-            <span className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[.14em] text-[#B88A4A]"><Clock size={14} /> Hora</span>
-            <input type="time" value={time} onChange={(event) => setTime(event.target.value)} className="mt-2 w-full bg-transparent text-[13px] outline-none" />
-          </label>
+          <CrystalDateField value={date} onChange={setDate} label="Fecha" placeholder="Elegir fecha" buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[13px]" />
+          <div>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Hora</span>
+            <CrystalSelect value={time} onChange={setTime} options={[{ value: '', label: 'Elegir hora' }, ...restaurantTimes]} buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[13px]" />
+          </div>
         </div>
         <label className="mt-3 block rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3">
           <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#B88A4A]">Personas</span>

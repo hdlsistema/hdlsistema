@@ -1,5 +1,6 @@
 import type { FormEvent, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import { CrystalDateTimeField } from '../../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../../components/shared/CrystalSelect'
 
 export function Metric({ icon: Icon, label, value, note }: { icon: LucideIcon; label: string; value: string; note?: string }) {
@@ -43,6 +44,10 @@ export function Field({
   min?: string
   required?: boolean
 }) {
+  if (type === 'datetime') {
+    return <CrystalDateTimeField label={label} value={value} onChange={onChange} />
+  }
+
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</span>

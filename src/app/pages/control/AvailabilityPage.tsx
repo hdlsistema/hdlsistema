@@ -22,6 +22,7 @@ import {
   type AvailabilitySlot,
 } from '../../../services/operations.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalDateField, CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
@@ -342,12 +343,7 @@ export function AvailabilityPage() {
             <option value="blocked">Bloqueado</option>
             <option value="closed">Cerrado</option>
           </CrystalSelect>
-          <input
-            type="date"
-            value={duplicateDate}
-            onChange={(event) => setDuplicateDate(event.target.value)}
-            className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]"
-          />
+          <CrystalDateField value={duplicateDate} onChange={setDuplicateDate} placeholder="Fecha a duplicar" />
           <button
             type="button"
             onClick={duplicateSelectedDay}
@@ -443,8 +439,8 @@ export function AvailabilityPage() {
               {experiences.map((experience) => <option key={experience.id} value={experience.id}>{experience.title}</option>)}
             </FormSelect>
             <div className="grid gap-4 md:grid-cols-2">
-              <FormInput label="Inicio" type="datetime-local" value={slotForm.startAt} onChange={(value) => setSlotForm({ ...slotForm, startAt: value })} required />
-              <FormInput label="Fin" type="datetime-local" value={slotForm.endAt} onChange={(value) => setSlotForm({ ...slotForm, endAt: value })} required />
+              <FormInput label="Inicio" type="datetime" value={slotForm.startAt} onChange={(value) => setSlotForm({ ...slotForm, startAt: value })} required />
+              <FormInput label="Fin" type="datetime" value={slotForm.endAt} onChange={(value) => setSlotForm({ ...slotForm, endAt: value })} required />
               <FormInput label="Capacidad" type="number" min="1" value={slotForm.capacity} onChange={(value) => setSlotForm({ ...slotForm, capacity: value })} required />
               <FormInput label="Precio especial" type="number" min="0" value={slotForm.priceOverride} onChange={(value) => setSlotForm({ ...slotForm, priceOverride: value })} />
             </div>
@@ -476,8 +472,8 @@ export function AvailabilityPage() {
               </FormSelect>
             ) : null}
             <div className="grid gap-4 md:grid-cols-2">
-              <FormInput label="Inicio" type="datetime-local" value={blockoutForm.startAt} onChange={(value) => setBlockoutForm({ ...blockoutForm, startAt: value })} required />
-              <FormInput label="Fin" type="datetime-local" value={blockoutForm.endAt} onChange={(value) => setBlockoutForm({ ...blockoutForm, endAt: value })} required />
+              <FormInput label="Inicio" type="datetime" value={blockoutForm.startAt} onChange={(value) => setBlockoutForm({ ...blockoutForm, startAt: value })} required />
+              <FormInput label="Fin" type="datetime" value={blockoutForm.endAt} onChange={(value) => setBlockoutForm({ ...blockoutForm, endAt: value })} required />
             </div>
             <FormSelect label="Tipo" value={blockoutForm.blockType} onChange={(value) => setBlockoutForm({ ...blockoutForm, blockType: value as BlockoutForm['blockType'] })}>
               <option value="manual">Manual</option>
@@ -542,6 +538,10 @@ function Modal({ title, children, onClose }: { title: string; children: ReactNod
 }
 
 function FormInput({ label, value, onChange, type = 'text', required, min }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; min?: string }) {
+  if (type === 'datetime') {
+    return <CrystalDateTimeField label={label} value={value} onChange={onChange} />
+  }
+
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</span>

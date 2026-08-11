@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { CalendarDays, Check, Loader2 } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient, publicCommercialClient, type PublicCommercialItem } from '../../../services/commercial.service'
 import { PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 import { formatCurrency } from '../../utils/publicContent'
@@ -110,11 +111,13 @@ export function CabinsScreen() {
       )}
 
       <section className="rounded-[20px] border border-[#EBDCC8] bg-[#FFF9F1] p-4">
-        <label className="block text-[10px] font-semibold uppercase tracking-[.18em] text-[#B88A4A]">Fecha de llegada</label>
-        <div className="mt-2 flex items-center gap-2 rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3">
-          <CalendarDays size={18} className="text-[#8A1238]" />
-          <input type="date" value={checkIn} onChange={(event) => setCheckIn(event.target.value)} className="min-w-0 flex-1 bg-transparent text-[14px] text-[#2D1811] outline-none" />
-        </div>
+        <CrystalDateField
+          value={checkIn}
+          onChange={setCheckIn}
+          label="Fecha de llegada"
+          placeholder="Selecciona llegada"
+          buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[14px] text-[#2D1811]"
+        />
         <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Notas para Hacienda de Letras" className="mt-3 min-h-24 w-full rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3 text-[14px] text-[#2D1811] outline-none" />
         <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#8A1238] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Solicitar cabaña'}
