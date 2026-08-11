@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight, Grape, MapPin, Sparkles } from 'lucide-react'
+import type { ContentRecord } from '../../../services/content.service'
 import {
   EditorialCard,
   EmptyState,
@@ -19,25 +20,25 @@ import {
   textField,
 } from '../../utils/publicContent'
 
-function campaignContent(record: Record<string, unknown>) {
+function campaignContent(record: ContentRecord) {
   const content = record.content
   return content && typeof content === 'object' && !Array.isArray(content)
     ? content as Record<string, unknown>
     : {}
 }
 
-function campaignText(record: Record<string, unknown>, key: string) {
+function campaignText(record: ContentRecord, key: string) {
   const value = campaignContent(record)[key]
   return typeof value === 'string' ? value.trim() : ''
 }
 
-function campaignImage(record: Record<string, unknown>) {
+function campaignImage(record: ContentRecord) {
   return campaignText(record, 'image_url') ||
     campaignText(record, 'cover_image_url') ||
     textField(record, 'cover_image_url')
 }
 
-function campaignRoute(record: Record<string, unknown>) {
+function campaignRoute(record: ContentRecord) {
   const route = campaignContent(record).cta_path
   const normalized = typeof route === 'string'
     ? route.replace(/^\/app/, '').replace('/tienda', '/vinos')
