@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Grape, MapPin, Sparkles } from 'lucide-react'
+import { ChevronRight, ConciergeBell, FileText, Grape, MapPin, Sparkles, Utensils } from 'lucide-react'
 import type { ContentRecord } from '../../../services/content.service'
+import { publicCommercialClient, type CommercialServices } from '../../../services/commercial.service'
 import {
   EditorialCard,
   EmptyState,
@@ -52,9 +54,48 @@ export function HomeScreen() {
   const { records: promotions } = usePublicContent('promotions')
   const { records: plans } = usePublicContent('membership-plans')
   const { records: campaigns, loading: loadingCampaigns, error: campaignsError, retry: retryCampaigns } = usePublicContent('campaigns')
+  const [commercial, setCommercial] = useState<CommercialServices | null>(null)
+
+  useEffect(() => {
+    let active = true
+    publicCommercialClient.services()
+      .then((response) => {
+        if (active) setCommercial(response.data)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [])
 
   const featuredPromotion = promotions[0]
   const modules = [
+    {
+      to: appPath('/experiencias'),
+      icon: Sparkles,
+      eyebrow: 'Vive la Hacienda',
+      title: t('app.nav.experiences'),
+      copy: commercial?.experiences[0]?.shortDescription || 'Catas, recorridos y momentos únicos en Hacienda de Letras.',
+    },
+    {
+      to: appPath('/cabanas'),
+      icon: ConciergeBell,
+      eyebrow: 'Hospedaje',
+      title: 'Cabañas',
+      copy: commercial?.cabins[0]?.description || 'Paquetes de hospedaje con solicitud y confirmación operativa.',
+    },
+    {
+      to: appPath('/restaurantes'),
+      icon: Utensils,
+      eyebrow: 'Gastronomía',
+      title: 'Restaurantes',
+      copy: commercial?.restaurants[0]?.description || 'Reserva mesa en Hacienda de Letras.',
+    },
+    {
+      to: appPath('/celebra'),
+      icon: FileText,
+      eyebrow: 'Celebra aquí',
+      title: 'Solicitar cotización',
+      copy: 'Haz de Hacienda de Letras el escenario de tu próxima historia.',
+    },
     {
       to: appPath('/membresias'),
       icon: Grape,

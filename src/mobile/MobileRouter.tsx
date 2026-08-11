@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { MobileShell } from '../app/components/mobile/MobileShell'
 import { AppActivityTracker } from '../app/components/mobile/AppActivityTracker'
 import { CartScreen } from '../app/pages/mobile/CartScreen'
+import { CabinsScreen } from '../app/pages/mobile/CabinsScreen'
 import { CheckoutScreen } from '../app/pages/mobile/CheckoutScreen'
 import { ClubScreen } from '../app/pages/mobile/ClubScreen'
 import { EventDetailScreen } from '../app/pages/mobile/EventDetailScreen'
@@ -14,7 +15,9 @@ import { HomeScreen } from '../app/pages/mobile/HomeScreen'
 import { MapScreen } from '../app/pages/mobile/MapScreen'
 import { PaymentStatusScreen } from '../app/pages/mobile/PaymentStatusScreen'
 import { ProfileScreen } from '../app/pages/mobile/ProfileScreen'
+import { QuoteRequestScreen } from '../app/pages/mobile/QuoteRequestScreen'
 import { ReservationScreen } from '../app/pages/mobile/ReservationScreen'
+import { RestaurantsScreen } from '../app/pages/mobile/RestaurantsScreen'
 import { SommelierScreen } from '../app/pages/mobile/SommelierScreen'
 import { StoreScreen } from '../app/pages/mobile/StoreScreen'
 import { WineDetailScreen } from '../app/pages/mobile/WineDetailScreen'
@@ -63,6 +66,9 @@ export function MobileRouter() {
         <Route path="experiencias/:experienceId" element={<ExperienceDetailScreen />} />
         <Route path="eventos" element={<EventsScreen />} />
         <Route path="eventos/:eventId" element={<EventDetailScreen />} />
+        <Route path="cabanas" element={<CabinsScreen />} />
+        <Route path="restaurantes" element={<RestaurantsScreen />} />
+        <Route path="celebra" element={protectedScreen(<QuoteRequestScreen />)} />
         <Route path="reservacion" element={protectedScreen(<ReservationScreen />)} />
         <Route path="mapa" element={<MapScreen />} />
         <Route path="membresias" element={protectedScreen(<ClubScreen />)} />

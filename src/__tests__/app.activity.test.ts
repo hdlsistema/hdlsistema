@@ -13,9 +13,12 @@ describe('trazabilidad de la app cliente', () => {
       entityType: 'wine',
       entityId: 'tempranillo-2024',
     })
-    expect(eventForAppPath('/app/carrito')).toEqual({ eventName: 'cart_viewed', entityType: 'cart' })
-    expect(eventForAppPath('/app/checkout')).toEqual({ eventName: 'checkout_started', entityType: 'order' })
-  })
+	    expect(eventForAppPath('/app/carrito')).toEqual({ eventName: 'cart_viewed', entityType: 'cart' })
+	    expect(eventForAppPath('/app/checkout')).toEqual({ eventName: 'checkout_started', entityType: 'order' })
+	    expect(eventForAppPath('/app/cabanas')).toEqual({ eventName: 'cabin_viewed', entityType: 'cabin' })
+	    expect(eventForAppPath('/app/restaurantes')).toEqual({ eventName: 'restaurant_viewed', entityType: 'restaurant' })
+	    expect(eventForAppPath('/app/celebra')).toEqual({ eventName: 'quote_started', entityType: 'quote_request' })
+	  })
 
   it('envía actividad no sensible al backend, con clave de idempotencia y token solo en header', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 202 }))

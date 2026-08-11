@@ -2,6 +2,7 @@ import {
   Activity,
   CalendarDays,
   Cog,
+  FileText,
   Gift,
   LayoutDashboard,
   Megaphone,
@@ -36,6 +37,11 @@ export function ControlLayout() {
           to: '/control/reservaciones',
           label: t('control.reservations'),
           icon: CalendarDays,
+        },
+        {
+          to: '/control/cotizaciones',
+          label: 'Cotizaciones',
+          icon: FileText,
         },
         {
           to: '/control/vinos',

@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   ChevronRight,
+  ConciergeBell,
   Globe2,
   Grape,
   HelpCircle,
@@ -54,6 +55,9 @@ export function AppEdgePanel() {
       label: t('app.premium.edge.estate', 'Vive la Hacienda'),
       items: [
         { to: appPath('/reservacion'), label: t('app.premium.edge.reserve', 'Reservar'), icon: CalendarDays },
+        { to: appPath('/cabanas'), label: 'Cabañas', icon: ConciergeBell },
+        { to: appPath('/restaurantes'), label: 'Restaurantes', icon: ShoppingBag },
+        { to: appPath('/celebra'), label: 'Celebra en Hacienda', icon: Sparkles },
         { to: appPath('/mapa'), label: t('app.nav.map'), icon: MapPinned },
         { to: appPath('/membresias'), label: t('app.nav.club'), icon: Grape },
         { to: appPath('/sommelier'), label: t('app.nav.sommelier'), icon: Sparkles },

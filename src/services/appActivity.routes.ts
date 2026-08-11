@@ -2,7 +2,7 @@ import type { AppActivityEventName } from './appActivity.service'
 
 export type AppRouteActivity = {
   eventName: AppActivityEventName
-  entityType?: 'wine' | 'experience' | 'event' | 'membership' | 'reservation' | 'cart' | 'order'
+  entityType?: 'wine' | 'experience' | 'event' | 'cabin' | 'restaurant' | 'quote_request' | 'membership' | 'reservation' | 'cart' | 'order'
   entityId?: string
 }
 
@@ -24,6 +24,9 @@ export function eventForAppPath(pathname: string): AppRouteActivity | null {
     const parts = path.split('/')
     return { eventName: 'event_viewed', entityType: 'event', entityId: parts[parts.length - 1] }
   }
+  if (path === '/cabanas') return { eventName: 'cabin_viewed', entityType: 'cabin' }
+  if (path === '/restaurantes') return { eventName: 'restaurant_viewed', entityType: 'restaurant' }
+  if (path === '/celebra') return { eventName: 'quote_started', entityType: 'quote_request' }
   if (path === '/membresias' || path === '/club') return { eventName: 'membership_viewed', entityType: 'membership' }
   if (path === '/mapa') return { eventName: 'map_opened' }
   if (path === '/sommelier') return { eventName: 'sommelier_opened' }

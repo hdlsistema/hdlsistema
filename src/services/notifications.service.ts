@@ -11,6 +11,8 @@ export type AdminNotification = {
   title: string
   body: string
   status: 'pending' | 'sent' | 'failed' | 'read'
+  data?: Record<string, unknown>
+  deepLink?: string | null
   sentAt: string | null
   readAt: string | null
   createdAt: string

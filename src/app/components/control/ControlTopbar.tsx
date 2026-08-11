@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Bell,
   ChevronDown,
@@ -206,11 +207,8 @@ export function ControlTopbar() {
                 </div>
               ) : null}
 
-              {!alertsLoading && !alertsError ? alerts.map((item) => (
-                <article
-                  key={item.id}
-                  className="rounded-[1.1rem] border border-[rgba(200,171,136,0.36)] bg-[rgba(255,255,255,0.48)] p-4"
-                >
+              {!alertsLoading && !alertsError ? alerts.map((item) => {
+                const content = (
                   <div className="flex items-start gap-3">
                     <span
                       className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
@@ -238,8 +236,25 @@ export function ControlTopbar() {
                       </p>
                     </div>
                   </div>
-                </article>
-              )) : null}
+                )
+                return item.deepLink ? (
+                  <Link
+                    key={item.id}
+                    to={item.deepLink}
+                    onClick={() => setShowAlerts(false)}
+                    className="block rounded-[1.1rem] border border-[rgba(200,171,136,0.36)] bg-[rgba(255,255,255,0.48)] p-4"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <article
+                    key={item.id}
+                    className="rounded-[1.1rem] border border-[rgba(200,171,136,0.36)] bg-[rgba(255,255,255,0.48)] p-4"
+                  >
+                    {content}
+                  </article>
+                )
+              }) : null}
             </div>
           </div>
         </div>

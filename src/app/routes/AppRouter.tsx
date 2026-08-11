@@ -28,10 +28,13 @@ import {
   ResetPasswordPage,
 } from '../pages/public/AuthPages'
 import { EventsScreen } from '../pages/mobile/EventsScreen'
+import { CabinsScreen } from '../pages/mobile/CabinsScreen'
 import { ExperienceDetailScreen } from '../pages/mobile/ExperienceDetailScreen'
 import { ExperiencesScreen } from '../pages/mobile/ExperiencesScreen'
 import { HomeScreen } from '../pages/mobile/HomeScreen'
 import { MapScreen } from '../pages/mobile/MapScreen'
+import { QuoteRequestScreen } from '../pages/mobile/QuoteRequestScreen'
+import { RestaurantsScreen } from '../pages/mobile/RestaurantsScreen'
 import { ProfileScreen } from '../pages/mobile/ProfileScreen'
 import { ReservationScreen } from '../pages/mobile/ReservationScreen'
 import { StoreScreen } from '../pages/mobile/StoreScreen'
@@ -42,6 +45,7 @@ import { CheckoutScreen } from '../pages/mobile/CheckoutScreen'
 import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
+import { QuoteRequestsPage } from '../pages/control/QuoteRequestsPage'
 
 function TrackedMobileShell() {
   return <><AppActivityTracker /><MobileShell /></>
@@ -87,6 +91,16 @@ export function AppRouter() {
         <Route path="experiencias/:experienceId" element={<ExperienceDetailScreen />} />
         <Route path="eventos" element={<EventsScreen />} />
         <Route path="eventos/:eventId" element={<EventDetailScreen />} />
+        <Route path="cabanas" element={<CabinsScreen />} />
+        <Route path="restaurantes" element={<RestaurantsScreen />} />
+        <Route
+          path="celebra"
+          element={
+            <ProtectedRoute>
+              <QuoteRequestScreen />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="reservacion"
           element={
@@ -175,6 +189,8 @@ export function AppRouter() {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reservaciones" element={<ReservationsPage />} />
+        <Route path="cotizaciones" element={<QuoteRequestsPage />} />
+        <Route path="cotizaciones/:quoteId" element={<QuoteRequestsPage />} />
         <Route path="vinos" element={<EditorialContentPage entity="wines" />} />
         <Route path="experiencias" element={<EditorialContentPage entity="experiences" />} />
         <Route path="eventos" element={<EditorialContentPage entity="events" />} />
@@ -200,6 +216,9 @@ export function AppRouter() {
         <Route path="app/experiencias" element={<Navigate to="/app/experiencias" replace />} />
         <Route path="app/eventos" element={<Navigate to="/app/eventos" replace />} />
         <Route path="app/eventos/:eventId" element={<RedirectEventDetail />} />
+        <Route path="app/cabanas" element={<Navigate to="/app/cabanas" replace />} />
+        <Route path="app/restaurantes" element={<Navigate to="/app/restaurantes" replace />} />
+        <Route path="app/celebra" element={<Navigate to="/app/celebra" replace />} />
         <Route path="app/reservacion" element={<Navigate to="/app/reservacion" replace />} />
         <Route path="app/mapa" element={<Navigate to="/app/mapa" replace />} />
         <Route path="app/club" element={<Navigate to="/app/club" replace />} />

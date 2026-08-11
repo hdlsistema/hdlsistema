@@ -15,12 +15,21 @@ export type AppActivityEventName =
   | 'experience_viewed'
   | 'event_list_viewed'
   | 'event_viewed'
+  | 'service_viewed'
+  | 'cabin_viewed'
+  | 'restaurant_viewed'
   | 'membership_viewed'
   | 'map_opened'
   | 'map_poi_opened'
   | 'sommelier_opened'
   | 'reservation_started'
+  | 'cabin_reservation_started'
+  | 'restaurant_reservation_started'
+  | 'quote_started'
   | 'reservation_created'
+  | 'cabin_reservation_submitted'
+  | 'restaurant_reservation_submitted'
+  | 'quote_submitted'
   | 'reservation_rescheduled'
   | 'reservation_cancelled'
   | 'reservation_failed'
@@ -38,7 +47,7 @@ export type AppActivityEventName =
   | 'payment_cancelled'
   | 'payment_refunded'
 
-type ActivityEntity = 'customer' | 'wine' | 'experience' | 'event' | 'membership' | 'reservation' | 'cart' | 'cart_item' | 'order' | 'payment' | 'map_poi'
+type ActivityEntity = 'customer' | 'wine' | 'experience' | 'event' | 'service' | 'cabin' | 'restaurant' | 'quote_request' | 'membership' | 'reservation' | 'cart' | 'cart_item' | 'order' | 'payment' | 'map_poi'
 type Result = 'started' | 'succeeded' | 'failed' | 'cancelled' | 'processing'
 
 type ActivityMetadata = {
@@ -46,7 +55,7 @@ type ActivityMetadata = {
   locale?: 'es' | 'en' | 'es-MX' | 'en-US'
   filter?: string
   sort?: string
-  itemType?: 'wine' | 'experience' | 'event_ticket' | 'membership'
+  itemType?: 'wine' | 'experience' | 'event_ticket' | 'membership' | 'cabin' | 'restaurant' | 'quote_request'
   quantity?: number
   result?: Result
   reason?: string
