@@ -248,7 +248,9 @@ export function PrimaryButton({
   className?: string
 }) {
   const classes = cx(
-        'inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] px-4 py-3 text-center text-[14px] font-semibold leading-5 transition-transform',
+    'app-primary-button',
+    `app-primary-button--${tone}`,
+    'inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] px-4 py-3 text-center text-[14px] font-semibold leading-5 transition-transform',
     tone === 'primary' && 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_24px_rgba(84,17,36,0.16)]',
     tone === 'secondary' && 'bg-[var(--color-surface-warm)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]',
     tone === 'ghost' && 'bg-transparent text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(84,17,36,0.16)]',

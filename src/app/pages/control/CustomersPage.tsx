@@ -31,6 +31,7 @@ import {
   type CustomerTag,
 } from '../../../services/customers.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 type CustomerForm = {
@@ -507,24 +508,24 @@ export function CustomersPage() {
                 placeholder="Buscar por nombre, correo, teléfono o número"
               />
             </label>
-            <select value={segmentFilter} onChange={(event) => setSegmentFilter(event.target.value)} className={inputClass()}>
+            <CrystalSelect value={segmentFilter} onChange={setSegmentFilter}>
               <option value="">Todos los segmentos</option>
               {segments.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
               ))}
-            </select>
-            <select value={tagFilter} onChange={(event) => setTagFilter(event.target.value)} className={inputClass()}>
+            </CrystalSelect>
+            <CrystalSelect value={tagFilter} onChange={setTagFilter}>
               <option value="">Todas las etiquetas</option>
               {tags.map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
               ))}
-            </select>
-            <select value={consentFilter} onChange={(event) => setConsentFilter(event.target.value)} className={inputClass()}>
+            </CrystalSelect>
+            <CrystalSelect value={consentFilter} onChange={setConsentFilter}>
               <option value="">Todo consentimiento</option>
               <option value="email">Correo autorizado</option>
               <option value="push">Push autorizado</option>
               <option value="none">Sin consentimiento</option>
-            </select>
+            </CrystalSelect>
           </div>
         </Panel>
 
@@ -731,12 +732,12 @@ export function CustomersPage() {
                 <div className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
                   <h3 className="font-semibold text-[var(--color-ink)]">Etiquetas</h3>
                   <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <select value={assignTagId} onChange={(event) => setAssignTagId(event.target.value)} className={inputClass()} disabled={!writable}>
+                    <CrystalSelect value={assignTagId} onChange={setAssignTagId} disabled={!writable}>
                       <option value="">Seleccionar etiqueta</option>
                       {tags.map((item) => (
                         <option key={item.id} value={item.id}>{item.name}</option>
                       ))}
-                    </select>
+                    </CrystalSelect>
                     <button type="button" onClick={assignTag} disabled={!writable || saving || !assignTagId} className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--color-line)] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">
                       <Tag size={15} />
                       Asignar
@@ -851,17 +852,17 @@ export function CustomersPage() {
                 <input value={form.source} onChange={(event) => setForm({ ...form, source: event.target.value })} className={inputClass()} />
               </Field>
               <Field label="Segmento">
-                <select value={form.segment} onChange={(event) => setForm({ ...form, segment: event.target.value as CustomerSegment })} className={inputClass()}>
+                <CrystalSelect value={form.segment} onChange={(value) => setForm({ ...form, segment: value as CustomerSegment })}>
                   {segments.map((item) => (
                     <option key={item.value} value={item.value}>{item.label}</option>
                   ))}
-                </select>
+                </CrystalSelect>
               </Field>
               <Field label="Idioma">
-                <select value={form.preferredLanguage} onChange={(event) => setForm({ ...form, preferredLanguage: event.target.value as 'es' | 'en' })} className={inputClass()}>
+                <CrystalSelect value={form.preferredLanguage} onChange={(value) => setForm({ ...form, preferredLanguage: value as 'es' | 'en' })}>
                   <option value="es">Español</option>
                   <option value="en">Inglés</option>
-                </select>
+                </CrystalSelect>
               </Field>
               <div className="grid gap-3 rounded-lg border border-[var(--color-line)] p-3">
                 <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--color-ink)]">

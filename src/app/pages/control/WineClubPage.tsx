@@ -4,6 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { membershipsClient, type MembershipRecord } from '../../../services/phase7e.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { ActionButton, Field, Metric, ModalForm, StateBlock } from './phase7e/ControlOperationsUi'
 import { downloadCsv, formatDate, operationKey } from './phase7e/operationsUtils'
 
@@ -156,14 +157,14 @@ export function WineClubPage() {
             <Search size={16} className="text-[var(--color-muted)]" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar folio de membresía..." className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
           </label>
-          <select value={status} onChange={(event) => setStatus(event.target.value)} className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]">
+          <CrystalSelect value={status} onChange={setStatus}>
             <option value="">Todos los estados</option>
             <option value="pending">Pendiente</option>
             <option value="active">Activa</option>
             <option value="paused">Pausada</option>
             <option value="cancelled">Cancelada</option>
             <option value="expired">Expirada</option>
-          </select>
+          </CrystalSelect>
           <button type="button" onClick={() => { setSearch(''); setStatus('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">Limpiar</button>
         </div>
       </section>

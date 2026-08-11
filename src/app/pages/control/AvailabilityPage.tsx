@@ -22,6 +22,7 @@ import {
   type AvailabilitySlot,
 } from '../../../services/operations.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 type SlotForm = {
@@ -323,26 +324,24 @@ export function AvailabilityPage() {
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
         <div className="grid gap-3 md:grid-cols-[1fr_220px_220px_auto]">
-          <select
+          <CrystalSelect
             value={experienceFilter}
-            onChange={(event) => setExperienceFilter(event.target.value)}
-            className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]"
+            onChange={setExperienceFilter}
           >
             <option value="">Todas las experiencias</option>
             {experiences.map((experience) => (
               <option key={experience.id} value={experience.id}>{experience.title}</option>
             ))}
-          </select>
-          <select
+          </CrystalSelect>
+          <CrystalSelect
             value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]"
+            onChange={setStatusFilter}
           >
             <option value="">Todos los estados</option>
             <option value="open">Abierto</option>
             <option value="blocked">Bloqueado</option>
             <option value="closed">Cerrado</option>
-          </select>
+          </CrystalSelect>
           <input
             type="date"
             value={duplicateDate}
@@ -555,9 +554,9 @@ function FormSelect({ label, value, onChange, children }: { label: string; value
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)] outline-none">
+      <CrystalSelect value={value} onChange={onChange}>
         {children}
-      </select>
+      </CrystalSelect>
     </label>
   )
 }

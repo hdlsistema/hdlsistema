@@ -14,6 +14,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import { customerClient, type CustomerMe, type CustomerMembership, type CustomerReservation, type CustomerLoyaltySummary, type CustomerOrder } from '../../../services/customer.service'
 import { AppToast, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { AppSelect } from '../../components/mobile/AppSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 export function ProfileScreen() {
@@ -28,7 +29,14 @@ export function ProfileScreen() {
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [loadingCustomer, setLoadingCustomer] = useState(true)
+  const [language, setLanguage] = useState<'es' | 'en'>('es')
 
+  const handleSignOut = async () => {
+    await signOut()
+  }
+
+  const preferences = customerMe?.preferences
+  const customer = customerMe?.customer
   const displayName = profile?.display_name || user?.email || t('app.premium.profile.title')
   const initials = useMemo(() => {
     const source = displayName.split(' ').filter(Boolean)
@@ -84,6 +92,11 @@ export function ProfileScreen() {
     }
   }, [profile?.avatar_url])
 
+  useEffect(() => {
+    const nextLanguage = preferences?.language ?? profile?.preferred_language ?? 'es'
+    setLanguage(nextLanguage === 'en' ? 'en' : 'es')
+  }, [preferences?.language, profile?.preferred_language])
+
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!user || isSaving) return
@@ -96,7 +109,7 @@ export function ProfileScreen() {
         lastName: String(form.get('lastName') ?? ''),
         displayName: String(form.get('displayName') ?? ''),
         phone: String(form.get('phone') ?? ''),
-        preferredLanguage: String(form.get('language') ?? 'es') === 'en' ? 'en' : 'es',
+        preferredLanguage: language,
         marketingEmail: form.get('marketingEmail') === 'on',
         marketingPush: form.get('marketingPush') === 'on',
         transactionalPush: form.get('transactionalPush') === 'on',
@@ -141,8 +154,6 @@ export function ProfileScreen() {
     setMessage(t('app.premium.profile.avatarUpdated'))
   }
 
-  const preferences = customerMe?.preferences
-  const customer = customerMe?.customer
   const menuGroups = [
     {
       title: t('app.premium.profile.myActivity'),
@@ -194,10 +205,15 @@ export function ProfileScreen() {
           <input name="lastName" defaultValue={customerMe?.profile.lastName ?? profile?.last_name ?? ''} placeholder={t('app.premium.profile.lastName')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
           <input name="displayName" defaultValue={customerMe?.profile.displayName ?? profile?.display_name ?? ''} placeholder={t('app.premium.profile.displayName')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
           <input name="phone" defaultValue={customerMe?.profile.phone ?? profile?.phone ?? ''} placeholder={t('app.premium.profile.phone')} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none" />
-          <select name="language" defaultValue={preferences?.language ?? profile?.preferred_language ?? 'es'} className="w-full min-w-0 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[14px] outline-none">
-            <option value="es">Español</option>
-            <option value="en">English</option>
-          </select>
+          <AppSelect
+            value={language}
+            onChange={(value) => setLanguage(value === 'en' ? 'en' : 'es')}
+            ariaLabel="Idioma"
+            options={[
+              { value: 'es', label: 'Español' },
+              { value: 'en', label: 'English' },
+            ]}
+          />
           <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
             <input name="marketingEmail" type="checkbox" defaultChecked={preferences?.marketingEmail ?? true} />
             {t('app.premium.profile.marketingEmail')}
@@ -312,7 +328,7 @@ export function ProfileScreen() {
         )}
       </section>
 
-      <button type="button" onClick={() => signOut()} className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-[rgba(104,13,36,0.2)] bg-white px-4 py-3 text-[13px] font-semibold text-[var(--color-burgundy)]">
+      <button type="button" onClick={() => void handleSignOut()} className="flex w-full items-center justify-center gap-2 rounded-[1rem] border border-[rgba(104,13,36,0.2)] bg-white px-4 py-3 text-[13px] font-semibold text-[var(--color-burgundy)]">
         <LogOut size={16} />
         {t('app.premium.profile.signOut')}
       </button>

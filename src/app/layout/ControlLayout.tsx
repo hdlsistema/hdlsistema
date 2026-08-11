@@ -1,5 +1,4 @@
 import {
-  Building2,
   Activity,
   CalendarDays,
   Cog,
@@ -12,9 +11,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Sparkles,
-  Truck,
   Users,
-  Warehouse,
   Wine,
   WineOff,
 } from 'lucide-react'
@@ -109,21 +106,6 @@ export function ControlLayout() {
           to: '/control/check-in',
           label: 'Check-in',
           icon: QrCode,
-        },
-        {
-          to: '/control/inventario',
-          label: t('control.inventory'),
-          icon: Warehouse,
-        },
-        {
-          to: '/control/logistica',
-          label: t('control.logistics'),
-          icon: Truck,
-        },
-        {
-          to: '/control/distribuidores',
-          label: t('control.distributors'),
-          icon: Building2,
         },
         {
           to: '/control/app',

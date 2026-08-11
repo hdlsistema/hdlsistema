@@ -3,6 +3,7 @@ import { Activity, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { appActivityAdminClient, type AppActivityRecord } from '../../../services/appActivityAdmin.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 
 function dateTime(value: string) {
   return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
@@ -56,15 +57,15 @@ export function AppActivityPage() {
           <input value={customer} onChange={(event) => setCustomer(event.target.value)} placeholder="Nombre o correo" className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" />
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Módulo
-          <select value={module} onChange={(event) => setModule(event.target.value)} className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]">
+          <CrystalSelect value={module} onChange={setModule}>
             <option value="">Todos</option><option value="account">Cuenta</option><option value="content">Contenido</option><option value="reservation">Reservaciones</option><option value="cart">Carrito</option><option value="checkout">Checkout</option><option value="payment">Pagos</option>
-          </select>
+          </CrystalSelect>
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Evento
           <input value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Ej. cart_viewed" className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" />
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Resultado
-          <select value={result} onChange={(event) => setResult(event.target.value)} className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]"><option value="">Todos</option><option value="started">Iniciado</option><option value="succeeded">Correcto</option><option value="processing">En proceso</option><option value="failed">Fallido</option><option value="cancelled">Cancelado</option></select>
+          <CrystalSelect value={result} onChange={setResult}><option value="">Todos</option><option value="started">Iniciado</option><option value="succeeded">Correcto</option><option value="processing">En proceso</option><option value="failed">Fallido</option><option value="cancelled">Cancelado</option></CrystalSelect>
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Desde<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" /></label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Hasta<input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" /></label>

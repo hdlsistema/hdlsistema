@@ -1,5 +1,6 @@
 import type { FormEvent, ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
+import { CrystalSelect } from '../../../components/shared/CrystalSelect'
 
 export function Metric({ icon: Icon, label, value, note }: { icon: LucideIcon; label: string; value: string; note?: string }) {
   return (
@@ -71,13 +72,9 @@ export function SelectField({
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)] outline-none"
-      >
+      <CrystalSelect value={value} onChange={onChange}>
         {children}
-      </select>
+      </CrystalSelect>
     </label>
   )
 }

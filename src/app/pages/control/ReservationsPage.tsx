@@ -22,6 +22,7 @@ import {
 } from '../../../services/operations.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 type ReservationForm = {
@@ -290,14 +291,14 @@ export function ReservationsPage() {
             <Search size={16} className="text-[var(--color-muted)]" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por cliente, correo, teléfono o folio..." className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
           </label>
-          <select value={status} onChange={(event) => setStatus(event.target.value)} className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]">
+          <CrystalSelect value={status} onChange={setStatus}>
             <option value="">Todos los estados</option>
             <option value="pending">Pendiente</option>
             <option value="confirmed">Confirmada</option>
             <option value="cancelled">Cancelada</option>
             <option value="completed">Completada</option>
             <option value="no_show">No asistió</option>
-          </select>
+          </CrystalSelect>
           <button type="button" onClick={() => { setSearch(''); setStatus('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">
             Limpiar
           </button>
@@ -373,10 +374,10 @@ export function ReservationsPage() {
 
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><CalendarDays size={16} /> Reprogramar</h4>
-              <select value={rescheduleSlotId} onChange={(event) => setRescheduleSlotId(event.target.value)} className="mt-3 min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]">
+              <CrystalSelect value={rescheduleSlotId} onChange={setRescheduleSlotId} className="mt-3">
                 <option value="">Selecciona nuevo horario</option>
                 {slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
-              </select>
+              </CrystalSelect>
               <ActionButton disabled={!writable || !rescheduleSlotId} onClick={submitReschedule}>Reprogramar</ActionButton>
             </article>
 
@@ -501,9 +502,9 @@ function FormSelect({ label, value, onChange, children }: { label: string; value
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)] outline-none">
+      <CrystalSelect value={value} onChange={onChange}>
         {children}
-      </select>
+      </CrystalSelect>
     </label>
   )
 }
