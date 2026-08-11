@@ -37,8 +37,7 @@ type CartItemRow = {
   item_id: string
   name_snapshot?: string | null
   quantity: number | string
-  unit_price: number | string
-  subtotal: number | string
+  unit_price_snapshot: number | string
   currency: string
   created_at: string
   updated_at: string
@@ -248,7 +247,7 @@ function mapCart(cart: CartRow, events: ActivityRow[], thresholdMinutes: number 
   const customer = first(cart.customers)
   const items = cart.cart_items ?? []
   const lastActivity = events[0]?.occurred_at ?? cart.updated_at ?? cart.created_at
-  const estimatedValue = items.reduce((sum, item) => sum + numberValue(item.subtotal), 0)
+  const estimatedValue = items.reduce((sum, item) => sum + numberValue(item.quantity) * numberValue(item.unit_price_snapshot), 0)
   return {
     id: cart.id,
     customerId: cart.customer_id ?? null,
@@ -265,8 +264,8 @@ function mapCart(cart: CartRow, events: ActivityRow[], thresholdMinutes: number 
       itemId: item.item_id,
       name: item.name_snapshot ?? item.item_type,
       quantity: numberValue(item.quantity),
-      unitPrice: numberValue(item.unit_price),
-      subtotal: numberValue(item.subtotal),
+      unitPrice: numberValue(item.unit_price_snapshot),
+      subtotal: numberValue(item.quantity) * numberValue(item.unit_price_snapshot),
       currency: item.currency,
     })),
     lastActivity,
@@ -285,7 +284,7 @@ export async function listCustomerCarts(query: CartsListQuery, user: UserContext
   if (customerIds?.length === 0) return { data: [], count: 0, thresholdMinutes }
   let request: any = supabaseAdminClient
     .from('carts')
-    .select('id,customer_id,user_id,cart_status,status,currency,created_at,updated_at,metadata,customers(id,display_name,first_name,last_name,email),cart_items(id,cart_id,item_type,item_id,name_snapshot,quantity,unit_price,subtotal,currency,created_at,updated_at)', { count: 'exact' })
+    .select('id,customer_id,user_id,cart_status,status,currency,created_at,updated_at,metadata,customers(id,display_name,first_name,last_name,email),cart_items(id,cart_id,item_type,item_id,name_snapshot,quantity,unit_price_snapshot,currency,created_at,updated_at)', { count: 'exact' })
     .order('updated_at', { ascending: false })
   if (query.customerId) request = request.eq('customer_id', query.customerId)
   if (customerIds) request = request.in('customer_id', customerIds)
@@ -325,7 +324,7 @@ export async function getCustomerCartActivity(id: string, user: UserContext) {
   requireOperationRole(user, activityReadRoles)
   const result = await supabaseAdminClient
     .from('carts')
-    .select('id,customer_id,user_id,cart_status,status,currency,created_at,updated_at,metadata,customers(id,display_name,first_name,last_name,email),cart_items(id,cart_id,item_type,item_id,name_snapshot,quantity,unit_price,subtotal,currency,created_at,updated_at)')
+    .select('id,customer_id,user_id,cart_status,status,currency,created_at,updated_at,metadata,customers(id,display_name,first_name,last_name,email),cart_items(id,cart_id,item_type,item_id,name_snapshot,quantity,unit_price_snapshot,currency,created_at,updated_at)')
     .eq('id', id)
     .maybeSingle()
   const cart = assertNoError<CartRow | null>(result).data

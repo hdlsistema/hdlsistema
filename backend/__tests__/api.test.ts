@@ -23,6 +23,7 @@ const supabaseMock = vi.hoisted(() => ({
   rpcData: {} as Record<string, unknown>,
   authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null } | null,
   tableData: {} as Record<string, unknown[]>,
+  selectQueries: [] as string[],
 }))
 
 const stripeMock = vi.hoisted(() => ({
@@ -108,7 +109,10 @@ vi.mock('@supabase/supabase-js', () => ({
         return next
       }
       const builder: Record<string, unknown> = {
-        select: vi.fn(() => builder),
+        select: vi.fn((query?: string) => {
+          if (query) supabaseMock.selectQueries.push(query)
+          return builder
+        }),
         insert: vi.fn((payload: unknown) => {
           state.operation = 'insert'
           state.payload = payload
@@ -217,6 +221,7 @@ beforeEach(() => {
   supabaseMock.rpcData = {}
   supabaseMock.authUser = null
   supabaseMock.tableData = {}
+  supabaseMock.selectQueries = []
   stripeMock.paymentIntentsCreate.mockReset()
   stripeMock.paymentIntentsRetrieve.mockReset()
   stripeMock.refundsCreate.mockReset()
@@ -575,7 +580,7 @@ describe('Trazabilidad App a Centro de Control', () => {
       id: 'cart-trace-1', customer_id: customerId, cart_status: 'active', currency: 'MXN',
       created_at: '2026-08-10T10:00:00.000Z', updated_at: '2026-08-10T10:05:00.000Z',
       customers: { id: customerId, display_name: 'Cliente Trace' },
-      cart_items: [{ id: 'item-trace-1', cart_id: 'cart-trace-1', item_type: 'wine', item_id: 'wine-1', name_snapshot: 'Vino real', quantity: 2, unit_price: 650, subtotal: 1300, currency: 'MXN' }],
+      cart_items: [{ id: 'item-trace-1', cart_id: 'cart-trace-1', item_type: 'wine', item_id: 'wine-1', name_snapshot: 'Vino real', quantity: 2, unit_price_snapshot: 650, currency: 'MXN' }],
     }]
     supabaseMock.tableData.customer_app_events = [{
       id: 'event-trace-1', customer_id: customerId, session_id: 'app-authenticated-session', event_name: 'checkout_started', entity_type: 'cart', entity_id: 'cart-trace-1', source: 'backend', metadata: {}, occurred_at: '2026-08-10T10:06:00.000Z', created_at: '2026-08-10T10:06:00.000Z', module: 'checkout', status: 'started', result: 'started',
@@ -587,6 +592,10 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(list.status).toBe(200)
     expect(list.body.configuration.abandonmentThresholdMinutes).toBeNull()
     expect(list.body.data[0]).toMatchObject({ status: 'checkout_started', quantity: 2, estimatedValue: 1300 })
+    expect(list.body.data[0].items[0]).toMatchObject({ unitPrice: 650, subtotal: 1300 })
+    const cartsSelect = supabaseMock.selectQueries.find((query) => query.includes('cart_items('))
+    expect(cartsSelect).toContain('unit_price_snapshot')
+    expect(cartsSelect).not.toContain('unit_price,subtotal')
     expect(detail.status).toBe(200)
     expect(detail.body.data.events[0]).toMatchObject({ eventName: 'checkout_started' })
   })
