@@ -10,6 +10,10 @@ import { enqueueAndProcessTransactionalEmail } from '../communications/communica
 import { recordBusinessActivity } from '../activity/activity.service'
 import type { AppEventName } from '../activity/activity.schemas'
 import {
+  ensureEventTicketAccessPassesForPaidOrder,
+  revokeOrderAccessPasses,
+} from '../checkin/accessPassIssuer'
+import {
   assertNoError,
   httpError,
   normalizeDatabaseError,
@@ -638,6 +642,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
         updated_at: now,
       })
       .eq('id', order.id)
+    await ensureEventTicketAccessPassesForPaidOrder(order.id)
     await queueOrderPaidEmail(order)
     recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')
     return
@@ -707,6 +712,7 @@ async function persistRefundFromWebhook(charge: Stripe.Charge) {
       .from('orders')
       .update({ status: 'refunded', updated_at: now })
       .eq('id', payment.order_id)
+    await revokeOrderAccessPasses(payment.order_id, 'stripe_refunded')
   }
 
   const orderResult = await supabaseAdminClient

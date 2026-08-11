@@ -38,14 +38,16 @@ type PassRow = {
   revoked_at?: string | null
   revocation_reason?: string | null
   created_at: string
-  reservations?: Relation<{
-    reservation_number: string
-    people_count: number
-    customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string }>
-    experiences?: Relation<{ title: string }>
-    events?: Relation<{ title: string }>
-  }>
-  orders?: Relation<{ order_number: string; status: string }>
+	  reservations?: Relation<{
+	    reservation_number: string
+	    people_count: number
+	    status?: string | null
+	    customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string }>
+	    experiences?: Relation<{ title: string }>
+	    events?: Relation<{ title: string }>
+	  }>
+	  orders?: Relation<{ order_number: string; status: string }>
+	  event_ticket_types?: Relation<{ name?: string | null; events?: Relation<{ title?: string | null }> }>
 }
 
 type CheckinRow = {
@@ -70,18 +72,21 @@ type ValidationResult = {
   reservationNumber?: string | null
   guestName?: string | null
   peopleCount?: number | null
-  status?: string | null
-  reservationStatus?: string | null
-  experienceTitle?: string | null
-  usedAt?: string | null
-}
+	  status?: string | null
+	  reservationStatus?: string | null
+	  experienceTitle?: string | null
+	  eventTitle?: string | null
+	  ticketTypeName?: string | null
+	  usedAt?: string | null
+	}
 
 const passSelect = `
   id,reservation_id,order_id,event_ticket_type_id,pass_number,status,valid_from,valid_until,used_at,
   issued_at,revoked_at,revocation_reason,created_at,
-	  reservations(reservation_number,people_count,customers(display_name,first_name,last_name),experiences(title),events(title)),
-  orders(order_number,status)
-`
+		  reservations(reservation_number,people_count,status,customers(display_name,first_name,last_name),experiences(title),events(title)),
+	  orders(order_number,status),
+	  event_ticket_types(name,events(title))
+	`
 
 const checkinSelect = `
   id,access_pass_id,checked_in_at,notes,reversed_at,reversal_reason,created_at,

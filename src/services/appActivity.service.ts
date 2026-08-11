@@ -1,6 +1,7 @@
 import { apiFetch } from './api'
 
 export type AppActivityEventName =
+  | 'app_session_started'
   | 'customer_signup_completed'
   | 'customer_login'
   | 'customer_logout'

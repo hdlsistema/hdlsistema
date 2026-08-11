@@ -72,6 +72,7 @@ function customerName(customer: CustomerRow | null) {
 }
 
 function moduleForEvent(eventName: AppEventName) {
+  if (eventName === 'app_session_started') return 'account'
   if (eventName.startsWith('customer_')) return 'account'
   if (eventName.startsWith('wine_') || eventName.startsWith('experience_') || eventName.startsWith('event_') || eventName === 'home_viewed' || eventName === 'membership_viewed' || eventName.startsWith('map_') || eventName === 'sommelier_opened') return 'content'
   if (eventName.startsWith('reservation_')) return 'reservation'

@@ -437,6 +437,71 @@ describe('Dashboard operativo real', () => {
   })
 })
 
+describe('Notificaciones administrativas reales', () => {
+  const adminUser = {
+    id: '00000000-0000-0000-0000-000000000045',
+    email: 'admin.notifications@alqia.tech',
+    created_at: '2026-08-10T00:00:00.000Z',
+    email_confirmed_at: '2026-08-10T00:00:00.000Z',
+  }
+
+  function signInAs(role: string) {
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: role } }]
+  }
+
+  it('requiere sesión administrativa', async () => {
+    const res = await request(app).get('/api/admin/notifications')
+
+    expect(res.status).toBe(401)
+  })
+
+  it('bloquea customer y no expone alertas simuladas', async () => {
+    signInAs('customer')
+
+    const res = await request(app)
+      .get('/api/admin/notifications')
+      .set('Authorization', 'Bearer customer-token')
+
+    expect(res.status).toBe(403)
+    expect(JSON.stringify(res.body)).not.toContain('Catas del sábado')
+    expect(JSON.stringify(res.body)).not.toContain('pagos pendientes')
+  })
+
+  it('lista notificaciones persistidas para admin', async () => {
+    signInAs('admin')
+    supabaseMock.tableData.notifications = [
+      {
+        id: '00000000-0000-0000-0000-000000000046',
+        channel: 'email',
+        title: 'Confirmación de reservación',
+        body: 'La reservación fue recibida.',
+        status: 'sent',
+        sent_at: '2026-08-10T10:00:00.000Z',
+        read_at: null,
+        created_at: '2026-08-10T10:00:00.000Z',
+      },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/notifications')
+      .set('Authorization', 'Bearer admin-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toMatchObject([
+      {
+        id: '00000000-0000-0000-0000-000000000046',
+        channel: 'email',
+        title: 'Confirmación de reservación',
+        body: 'La reservación fue recibida.',
+        status: 'sent',
+      },
+    ])
+    expect(res.body.unreadCount).toBe(1)
+    expect(JSON.stringify(res.body)).not.toContain('Campaña de cena romántica')
+  })
+})
+
 describe('Trazabilidad App a Centro de Control', () => {
   const customerUser = {
     id: '00000000-0000-0000-0000-000000000041',

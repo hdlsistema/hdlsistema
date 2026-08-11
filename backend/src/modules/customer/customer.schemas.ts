@@ -64,6 +64,11 @@ export const customerPaymentActionSchema = z.object({
   idempotencyKey: z.string().min(8).max(160).optional(),
 }).strict()
 
+export const registerCustomerDeviceSchema = z.object({
+  firebaseToken: z.string().trim().min(20).max(4096),
+  platform: z.enum(['android', 'ios', 'web']),
+}).strict()
+
 export type CustomerProfilePatch = z.infer<typeof customerProfilePatchSchema>
 export type CustomerAvailabilityQuery = z.infer<typeof customerAvailabilityQuerySchema>
 export type CustomerReservationListQuery = z.infer<typeof customerReservationListQuerySchema>
@@ -74,3 +79,4 @@ export type AddCustomerCartItemPayload = z.infer<typeof addCustomerCartItemSchem
 export type UpdateCustomerCartItemPayload = z.infer<typeof updateCustomerCartItemSchema>
 export type CreateCustomerOrderPayload = z.infer<typeof createCustomerOrderSchema>
 export type CustomerPaymentActionPayload = z.infer<typeof customerPaymentActionSchema>
+export type RegisterCustomerDevicePayload = z.infer<typeof registerCustomerDeviceSchema>

@@ -11,6 +11,7 @@ import {
   clearCustomerCart,
   createCustomerOrder,
   createCustomerReservation,
+  disableCustomerDevice,
   getCustomerCart,
   getCustomerMe,
   getCustomerMembership,
@@ -18,10 +19,12 @@ import {
   getCustomerOrder,
   getCustomerReservation,
   listCustomerAvailability,
+  listCustomerAccessPassesForMe,
   listCustomerMembershipBenefits,
   listCustomerMembershipHistory,
   listCustomerOrders,
   listCustomerReservations,
+  registerCustomerDevice,
   removeCustomerCartItem,
   rescheduleCustomerReservation,
   updateCustomerCartItem,
@@ -36,6 +39,7 @@ import {
   customerAvailabilityQuerySchema,
   customerProfilePatchSchema,
   customerReservationListQuerySchema,
+  registerCustomerDeviceSchema,
   rescheduleCustomerReservationSchema,
   updateCustomerCartItemSchema,
 } from './customer.schemas'
@@ -61,6 +65,26 @@ export async function patchCustomerMeController(req: Request, res: Response): Pr
   try {
     const payload = customerProfilePatchSchema.parse(req.body)
     const result = await updateCustomerMe(payload, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function registerCustomerDeviceController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = registerCustomerDeviceSchema.parse(req.body)
+    const result = await registerCustomerDevice(payload, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function disableCustomerDeviceController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = registerCustomerDeviceSchema.pick({ firebaseToken: true }).parse(req.body)
+    const result = await disableCustomerDevice(payload.firebaseToken, userContext(req))
     res.json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)
@@ -103,6 +127,15 @@ export async function listCustomerReservationsController(req: Request, res: Resp
         total: result.count,
       },
     })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function listCustomerAccessPassesController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await listCustomerAccessPassesForMe(userContext(req))
+    res.json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)
   }

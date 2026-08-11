@@ -3,6 +3,11 @@ import {
   supabaseAdminClient,
 } from '../../config/supabase'
 import {
+  ensureReservationAccessPass,
+  listCustomerAccessPasses,
+  revokeReservationAccessPasses,
+} from '../checkin/accessPassIssuer'
+import {
   assertNoError,
   httpError,
   normalizeDatabaseError,
@@ -21,6 +26,7 @@ import type {
   CustomerAvailabilityQuery,
   CustomerProfilePatch,
   CustomerReservationListQuery,
+  RegisterCustomerDevicePayload,
   RescheduleCustomerReservationPayload,
   UpdateCustomerCartItemPayload,
 } from './customer.schemas'
@@ -132,6 +138,17 @@ function mapReservation(row: ReservationRow) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+async function withReservationAccessPass(reservation: CustomerReservationData) {
+  const accessPass = await ensureReservationAccessPass({
+    id: reservation.id,
+    status: reservation.status,
+    peopleCount: reservation.peopleCount,
+    startAt: reservation.startAt,
+    endAt: reservation.endAt,
+  })
+  return { ...reservation, accessPass }
 }
 
 function customerDisplayName(customer: CustomerRow) {
@@ -250,6 +267,51 @@ export async function updateCustomerMe(payload: CustomerProfilePatch, user: User
   return { data: result.data }
 }
 
+export async function registerCustomerDevice(payload: RegisterCustomerDevicePayload, user: UserContext) {
+  assertCustomerAccess(user)
+  if (!user.userId) throw httpError(401, 'Sesión requerida')
+  const result = await supabaseAdminClient
+    .from('notification_devices')
+    .upsert({
+      user_id: user.userId,
+      firebase_token: payload.firebaseToken,
+      platform: payload.platform,
+      active: true,
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'firebase_token' })
+    .select('id,platform,active,last_seen_at,updated_at')
+    .single()
+  const device = assertNoError<{
+    id: string
+    platform: string
+    active: boolean
+    last_seen_at?: string | null
+    updated_at: string
+  }>(result).data
+  return {
+    data: {
+      id: device.id,
+      platform: device.platform,
+      active: device.active,
+      lastSeenAt: device.last_seen_at ?? null,
+      updatedAt: device.updated_at,
+    },
+  }
+}
+
+export async function disableCustomerDevice(firebaseToken: string, user: UserContext) {
+  assertCustomerAccess(user)
+  if (!user.userId) throw httpError(401, 'Sesión requerida')
+  const result = await supabaseAdminClient
+    .from('notification_devices')
+    .update({ active: false, updated_at: new Date().toISOString() })
+    .eq('user_id', user.userId)
+    .eq('firebase_token', firebaseToken)
+    .select('id')
+  return { data: assertNoError<Array<{ id: string }>>(result).data ?? [] }
+}
+
 export async function listCustomerAvailability(query: CustomerAvailabilityQuery, user: UserContext) {
   assertCustomerAccess(user)
   const result = await rpcClient(user).rpc('get_bookable_experience_slots', {
@@ -274,10 +336,8 @@ export async function listCustomerReservations(query: CustomerReservationListQue
     .order('created_at', { ascending: false })
   if (query.status) request = request.eq('status', query.status)
   const result = await request.range(from, to)
-  return {
-    data: (assertNoError<ReservationRow[]>(result).data ?? []).map(mapReservation),
-    count: result.count ?? 0,
-  }
+  const data = await Promise.all((assertNoError<ReservationRow[]>(result).data ?? []).map((row) => withReservationAccessPass(mapReservation(row))))
+  return { data, count: result.count ?? 0 }
 }
 
 export async function getCustomerReservation(id: string, user: UserContext) {
@@ -292,7 +352,7 @@ export async function getCustomerReservation(id: string, user: UserContext) {
     .maybeSingle()
   const row = assertNoError<ReservationRow | null>(result).data
   if (!row) throw httpError(404, 'Reservación no encontrada')
-  return { data: mapReservation(row) }
+  return { data: await withReservationAccessPass(mapReservation(row)) }
 }
 
 export async function createCustomerReservation(payload: CreateCustomerReservationPayload, user: UserContext) {
@@ -310,7 +370,7 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
     const response = await getCustomerReservation(String(result.data), user)
     queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
     recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
-    return response
+    return { data: await withReservationAccessPass(response.data) }
   } catch (error) {
     recordCustomerOperation(customer, user, 'reservation_failed', 'customer', customer.id, `reservation-failed-${payload.idempotencyKey}`, { result: 'failed' })
     throw error
@@ -326,6 +386,7 @@ export async function cancelCustomerReservation(id: string, payload: CancelCusto
   if (result.error) normalizeDatabaseError(result.error)
   const response = await getCustomerReservation(String(result.data), user)
   const customer = await getCustomerForUser(user)
+  await revokeReservationAccessPasses(response.data.id, 'customer_reservation_cancelled')
   queueReservationEmail('reservation.cancelled', response.data, customer, user)
   recordCustomerOperation(customer, user, 'reservation_cancelled', 'reservation', response.data.id, `reservation-cancelled-${response.data.id}-${response.data.updatedAt}`)
   return response
@@ -341,9 +402,16 @@ export async function rescheduleCustomerReservation(id: string, payload: Resched
   if (result.error) normalizeDatabaseError(result.error)
   const response = await getCustomerReservation(String(result.data), user)
   const customer = await getCustomerForUser(user)
+  const data = await withReservationAccessPass(response.data)
   queueReservationEmail('reservation.rescheduled', response.data, customer, user)
   recordCustomerOperation(customer, user, 'reservation_rescheduled', 'reservation', response.data.id, `reservation-rescheduled-${response.data.id}-${response.data.rescheduledAt ?? response.data.updatedAt}`)
-  return response
+  return { data }
+}
+
+export async function listCustomerAccessPassesForMe(user: UserContext) {
+  assertCustomerAccess(user)
+  const customer = await getCustomerForUser(user)
+  return listCustomerAccessPasses(customer.id, String(user.userId))
 }
 
 export async function getCustomerMembership(user: UserContext) {

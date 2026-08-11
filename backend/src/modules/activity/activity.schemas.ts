@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const appEventNames = [
+  'app_session_started',
   'customer_signup_completed',
   'customer_login',
   'customer_logout',
