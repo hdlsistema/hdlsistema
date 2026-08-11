@@ -16,10 +16,14 @@ export type DashboardSummary = {
     confirmedPayments: number
     collected: Array<{ currency: string; amount: number }>
     activeCustomersRecent: number
-    activeCarts: number
-    convertedCarts: number
-    checkoutStarted: number
-  }
+	    activeCarts: number
+	    convertedCarts: number
+	    checkoutStarted: number
+	    visitorsRecent: number
+	    occupancyRate: number
+	    conversionRate: number
+	    publishedMapPois: number
+	  }
   upcomingSlots: Array<{
     id: string
     experienceTitle: string

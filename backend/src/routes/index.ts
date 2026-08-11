@@ -14,10 +14,14 @@ import { adminDashboardRouter } from '../modules/dashboard/dashboard.routes'
 import { adminActivityRouter, customerActivityRouter } from '../modules/activity/activity.routes'
 import { adminInventoryRouter } from '../modules/inventory/inventory.routes'
 import { adminMembershipsRouter } from '../modules/memberships/memberships.routes'
+import { adminNotificationsRouter } from '../modules/notifications/notifications.routes'
 import { adminOrdersRouter } from '../modules/orders/orders.routes'
 import { adminPaymentsRouter, paymentWebhooksRouter } from '../modules/payments/payments.routes'
 import { adminReservationsRouter } from '../modules/reservations/reservations.routes'
+import { adminSettingsRouter } from '../modules/settings/settings.routes'
 import { adminShipmentsRouter } from '../modules/shipments/shipments.routes'
+import { customerSommelierRouter } from '../modules/sommelier/sommelier.routes'
+import { publicMapRouter } from '../modules/map/map.routes'
 import {
   adminContentRouter,
   previewContentRouter,
@@ -37,6 +41,7 @@ router.use('/public', publicRouter)
 router.use('/auth', authRouter)
 router.use('/customer', customerRouter)
 router.use('/customer', customerActivityRouter)
+router.use('/customer', customerSommelierRouter)
 router.use('/admin', adminUsersRouter)
 router.use('/admin', adminDashboardRouter)
 router.use('/admin', adminActivityRouter)
@@ -47,22 +52,17 @@ router.use('/admin', adminOrdersRouter)
 router.use('/admin', adminPaymentsRouter)
 router.use('/admin', adminCheckinRouter)
 router.use('/admin', adminCommunicationsRouter)
+router.use('/admin', adminNotificationsRouter)
 router.use('/admin', adminMembershipsRouter)
+router.use('/admin', adminSettingsRouter)
 router.use('/admin', adminInventoryRouter)
 router.use('/admin', adminShipmentsRouter)
 router.use('/admin', adminDistributorsRouter)
 router.use('/webhooks', paymentWebhooksRouter)
 router.use('/webhooks', communicationsWebhookRouter)
+router.use('/public', publicMapRouter)
 router.use('/admin', adminContentRouter)
 router.use('/public', publicContentRouter)
 router.use('/preview', previewContentRouter)
-
-// Próximas rutas — descomenta cuando estén listos los módulos:
-// router.use('/reservaciones', reservacionesRouter)
-// router.use('/experiencias',  experienciasRouter)
-// router.use('/eventos',       eventosRouter)
-// router.use('/clientes',      clientesRouter)
-// router.use('/vinos',         vinosRouter)
-// router.use('/sommelier',     sommelierRouter)
 
 export { router as apiRouter }

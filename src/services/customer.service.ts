@@ -77,6 +77,33 @@ export type CustomerReservation = {
   rescheduledAt?: string | null
   createdAt: string
   updatedAt: string
+  accessPass?: CustomerAccessPass | null
+}
+
+export type CustomerAccessPass = {
+  id: string
+  passNumber?: string | null
+  qrToken: string
+  qrPayload: string
+  status: string
+  accessType: 'reservation' | 'event_ticket' | string
+  reservationId?: string | null
+  reservationNumber?: string | null
+  reservationStatus?: string | null
+  orderId?: string | null
+  orderNumber?: string | null
+  eventTicketTypeId?: string | null
+  ticketTypeName?: string | null
+  title?: string | null
+  startsAt?: string | null
+  endsAt?: string | null
+  peopleCount?: number | null
+  validFrom?: string | null
+  validUntil?: string | null
+  usedAt?: string | null
+  issuedAt?: string | null
+  revokedAt?: string | null
+  revocationReason?: string | null
 }
 
 export type CustomerMembership = {
@@ -222,6 +249,34 @@ export type CustomerPaymentStatus = {
   failedAt: string | null
 }
 
+export type CustomerSommelierResponse = {
+  sessionId: string
+  message: {
+    id: string
+    role: 'assistant'
+    content: string
+    createdAt: string
+  }
+  usage: {
+    dailyLimit: number
+    usedToday: number
+  }
+}
+
+export type PublicMapPoi = {
+  id: string
+  slug: string
+  name: string
+  description?: string | null
+  category: string
+  coordinates: [number, number]
+  address?: string | null
+  searchKeywords: string[]
+  metadata: Record<string, unknown>
+  sortOrder: number
+  updatedAt: string
+}
+
 function assertToken(token: string | null | undefined): string {
   if (!token) throw Object.assign(new Error('Sesión requerida'), { status: 401 })
   return token
@@ -256,6 +311,20 @@ export const customerClient = {
       body: JSON.stringify(payload),
     })
   },
+  registerDevice(token: string | null | undefined, payload: { firebaseToken: string; platform: 'android' | 'ios' | 'web' }) {
+    return apiFetch<{ ok: true; data: { id: string; platform: string; active: boolean; lastSeenAt: string | null; updatedAt: string } }>('/api/customer/devices', {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  disableDevice(token: string | null | undefined, firebaseToken: string) {
+    return apiFetch<{ ok: true; data: Array<{ id: string }> }>('/api/customer/devices/disable', {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify({ firebaseToken }),
+    })
+  },
   availability(token: string | null | undefined, query?: Record<string, unknown>) {
     return apiFetch<{ ok: true; data: CustomerAvailabilitySlot[] }>(
       `/api/customer/availability${queryString(query)}`,
@@ -268,6 +337,11 @@ export const customerClient = {
       data: CustomerReservation[]
       pagination: { page: number; perPage: number; total: number }
     }>(`/api/customer/reservations${queryString(query)}`, {
+      headers: customerHeaders(token),
+    })
+  },
+  accessPasses(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: CustomerAccessPass[] }>('/api/customer/access-passes', {
       headers: customerHeaders(token),
     })
   },
@@ -383,5 +457,18 @@ export const customerClient = {
       headers: customerHeaders(token),
       body: JSON.stringify(payload),
     })
+  },
+  sommelierMessage(token: string | null | undefined, payload: { message: string; sessionId?: string; locale?: 'es-MX' | 'en-US' }) {
+    return apiFetch<{ ok: true; data: CustomerSommelierResponse }>('/api/customer/sommelier/message', {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+export const publicMapClient = {
+  pois(query: { search?: string } = {}) {
+    return apiFetch<{ ok: true; data: PublicMapPoi[] }>(`/api/public/map/pois${queryString(query)}`)
   },
 }

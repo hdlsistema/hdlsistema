@@ -48,6 +48,8 @@ type SlotRow = {
   experiences?: { title?: string | null } | Array<{ title?: string | null }> | null
 }
 
+type MapPoiRow = { id: string }
+
 type AppActivityRow = {
   id: string
   customer_id?: string | null
@@ -99,10 +101,12 @@ export async function getDashboardSummary(user: UserContext) {
     paymentsResult,
     slotsResult,
     cartsResult,
-    checkoutStartedResult,
-    recentActivityResult,
-    activeCustomerEventsResult,
-  ] = await Promise.all([
+	    checkoutStartedResult,
+	    appSessionsResult,
+	    recentActivityResult,
+	    activeCustomerEventsResult,
+	    mapPoisResult,
+	  ] = await Promise.all([
     supabaseAdminClient.from('customers').select('id', { count: 'exact', head: true }).is('archived_at', null),
     supabaseAdminClient
       .from('reservations')
@@ -138,21 +142,33 @@ export async function getDashboardSummary(user: UserContext) {
       .order('start_at', { ascending: true })
       .limit(8),
     supabaseAdminClient.from('carts').select('id,cart_status'),
-    supabaseAdminClient
-      .from('customer_app_events')
-      .select('id', { count: 'exact', head: true })
-      .eq('event_name', 'checkout_started'),
-    supabaseAdminClient
-      .from('customer_app_events')
+	    supabaseAdminClient
+	      .from('customer_app_events')
+	      .select('id', { count: 'exact', head: true })
+	      .eq('event_name', 'checkout_started'),
+	    supabaseAdminClient
+	      .from('customer_app_events')
+	      .select('session_id')
+	      .eq('event_name', 'app_session_started')
+	      .gte('occurred_at', activeSince),
+	    supabaseAdminClient
+	      .from('customer_app_events')
       .select('id,customer_id,event_name,module,entity_type,entity_id,occurred_at,customers(display_name,first_name,last_name,email)')
       .order('occurred_at', { ascending: false })
       .limit(8),
     supabaseAdminClient
-      .from('customer_app_events')
-      .select('customer_id')
-      .not('customer_id', 'is', null)
-      .gte('occurred_at', activeSince),
-  ])
+	      .from('customer_app_events')
+	      .select('customer_id')
+	      .not('customer_id', 'is', null)
+	      .gte('occurred_at', activeSince),
+	    supabaseAdminClient
+	      .from('map_pois')
+	      .select('id')
+	      .eq('status', 'published')
+	      .eq('visible_in_app', true)
+	      .is('deleted_at', null)
+	      .is('archived_at', null),
+	  ])
 
   const customers = assertNoError<CustomerRow[]>(customersResult)
   const activeReservations = assertNoError<Array<{ id: string }>>(activeReservationsResult)
@@ -164,11 +180,17 @@ export async function getDashboardSummary(user: UserContext) {
   const payments = assertNoError<PaymentRow[]>(paymentsResult).data ?? []
   const slots = assertNoError<SlotRow[]>(slotsResult).data ?? []
   const carts = assertNoError<Array<{ id: string; cart_status?: string | null }>>(cartsResult).data ?? []
-  const checkoutStarted = assertNoError<Array<{ id: string }>>(checkoutStartedResult)
-  const recentActivity = assertNoError<AppActivityRow[]>(recentActivityResult).data ?? []
-  const activeCustomerEvents = assertNoError<Array<{ customer_id?: string | null }>>(activeCustomerEventsResult).data ?? []
+	  const checkoutStarted = assertNoError<Array<{ id: string }>>(checkoutStartedResult)
+	  const appSessions = assertNoError<Array<{ session_id?: string | null }>>(appSessionsResult).data ?? []
+	  const recentActivity = assertNoError<AppActivityRow[]>(recentActivityResult).data ?? []
+	  const activeCustomerEvents = assertNoError<Array<{ customer_id?: string | null }>>(activeCustomerEventsResult).data ?? []
+	  const mapPois = assertNoError<MapPoiRow[]>(mapPoisResult).data ?? []
 
-  const confirmedPayments = payments.filter((item) => item.status === 'paid')
+	  const confirmedPayments = payments.filter((item) => item.status === 'paid')
+	  const totalCapacity = slots.reduce((sum, slot) => sum + numberValue(slot.capacity), 0)
+	  const totalReserved = slots.reduce((sum, slot) => sum + numberValue(slot.reserved_count), 0)
+	  const checkoutCount = checkoutStarted.count ?? 0
+	  const conversionRate = checkoutCount > 0 ? Math.round((confirmedPayments.length / checkoutCount) * 100) : 0
 
   return {
     generatedAt: new Date().toISOString(),
@@ -181,10 +203,14 @@ export async function getDashboardSummary(user: UserContext) {
       confirmedPayments: confirmedPayments.length,
       collected: moneyByCurrency(payments),
       activeCustomersRecent: new Set(activeCustomerEvents.map((event) => event.customer_id).filter(Boolean)).size,
-      activeCarts: carts.filter((cart) => cart.cart_status === 'active').length,
-      convertedCarts: carts.filter((cart) => cart.cart_status === 'converted').length,
-      checkoutStarted: checkoutStarted.count ?? 0,
-    },
+	      activeCarts: carts.filter((cart) => cart.cart_status === 'active').length,
+	      convertedCarts: carts.filter((cart) => cart.cart_status === 'converted').length,
+	      checkoutStarted: checkoutCount,
+	      visitorsRecent: new Set(appSessions.map((event) => event.session_id).filter(Boolean)).size,
+	      occupancyRate: totalCapacity > 0 ? Math.round((totalReserved / totalCapacity) * 100) : 0,
+	      conversionRate,
+	      publishedMapPois: mapPois.length,
+	    },
     upcomingSlots: slots.map((slot) => {
       const capacity = numberValue(slot.capacity)
       const reserved = numberValue(slot.reserved_count)

@@ -4,8 +4,9 @@ import {
   Activity,
   ChevronRight,
   CircleDollarSign,
-  Clock3,
-  RefreshCw,
+	  Clock3,
+	  MapPin,
+	  RefreshCw,
   ShoppingBag,
   Users,
 } from 'lucide-react'
@@ -155,10 +156,17 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad App en 30 días" icon={Users} />
-        <Metric label="Carritos activos" value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? 'Cargando...' : `${summary?.metrics.convertedCarts ?? 0} convertidos`} icon={ShoppingBag} />
-        <Metric label="Checkouts iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Eventos reales registrados por la App" icon={Activity} />
-      </div>
+	        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad App en 30 días" icon={Users} />
+	        <Metric label="Carritos activos" value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? 'Cargando...' : `${summary?.metrics.convertedCarts ?? 0} convertidos`} icon={ShoppingBag} />
+	        <Metric label="Checkouts iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Eventos reales registrados por la App" icon={Activity} />
+	      </div>
+
+	      <div className="grid gap-4 sm:grid-cols-4">
+	        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones app_session_started en 30 días" icon={Users} />
+	        <Metric label="Ocupación" value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail="Cupo reservado sobre horarios próximos" icon={CalendarDays} />
+	        <Metric label="Conversión" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Pagos confirmados sobre checkouts iniciados" icon={Activity} />
+	        <Metric label="Mapa" value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail="POIs publicados y visibles en App" icon={MapPin} />
+	      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Panel title="Próximos horarios" action={<Link to="/control/disponibilidad" className="text-sm font-medium text-[var(--color-burgundy)]">Ver disponibilidad</Link>}>

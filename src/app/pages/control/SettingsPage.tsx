@@ -1,5 +1,7 @@
 import { CheckCircle2, Globe2, Save, ShieldCheck, UserRound } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../../../contexts/AuthContext'
+import { settingsClient } from '../../../services/settings.service'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import {
@@ -13,6 +15,7 @@ const languageOptions = [
 ]
 
 export function SettingsPage() {
+  const { session } = useAuth()
   const {
     adminName,
     adminRole,
@@ -27,8 +30,59 @@ export function SettingsPage() {
     adminRole,
     adminEmail,
     language,
+    sommelierDailyLimit: 10,
+    cartAbandonmentMinutes: 45,
+    transactionalEmail: true,
+    transactionalPush: true,
+    marketingPush: false,
   })
   const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadSettings = useCallback(async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const response = await settingsClient.list(session?.access_token)
+      const byKey = new Map(response.data.map((item) => [item.key, item.value]))
+      const languageValue = byKey.get('customer_app.default_language')
+      const cartValue = byKey.get('customer_app.cart_abandonment')
+      const communicationsValue = byKey.get('communications.preferences')
+      const sommelierValue = byKey.get('sommelier.daily_limit')
+
+      setFormValues((current) => ({
+        ...current,
+        language: typeof languageValue === 'object'
+          && languageValue !== null
+          && 'locale' in languageValue
+          && (languageValue as { locale?: unknown }).locale === 'en-US'
+          ? 'en'
+          : 'es',
+        sommelierDailyLimit: Number(sommelierValue ?? current.sommelierDailyLimit) || 10,
+        cartAbandonmentMinutes: typeof cartValue === 'object' && cartValue !== null
+          ? Number((cartValue as { thresholdMinutes?: unknown }).thresholdMinutes ?? current.cartAbandonmentMinutes) || 45
+          : current.cartAbandonmentMinutes,
+        transactionalEmail: typeof communicationsValue === 'object' && communicationsValue !== null
+          ? Boolean((communicationsValue as { transactionalEmail?: unknown }).transactionalEmail)
+          : current.transactionalEmail,
+        transactionalPush: typeof communicationsValue === 'object' && communicationsValue !== null
+          ? Boolean((communicationsValue as { transactionalPush?: unknown }).transactionalPush)
+          : current.transactionalPush,
+        marketingPush: typeof communicationsValue === 'object' && communicationsValue !== null
+          ? Boolean((communicationsValue as { marketingPush?: unknown }).marketingPush)
+          : current.marketingPush,
+      }))
+    } catch {
+      setError('No fue posible cargar la configuración persistente.')
+    } finally {
+      setLoading(false)
+    }
+  }, [session?.access_token])
+
+  useEffect(() => {
+    void loadSettings()
+  }, [loadSettings])
 
   const copy = useMemo(
     () =>
@@ -65,8 +119,8 @@ export function SettingsPage() {
             profileNote:
               'Estos datos se reflejan en el header operativo y en el dashboard ejecutivo.',
             language: 'Idioma y experiencia',
-            languageNote:
-              'Elige el idioma base del centro de control, la app y las respuestas de IA.',
+	            languageNote:
+	              'Elige idioma base, límites de IA y preferencias operativas persistidas en backend.',
             fullName: 'Nombre completo',
             role: 'Rol',
             email: 'Correo',
@@ -201,7 +255,7 @@ export function SettingsPage() {
                   />
                 </div>
 
-                <div className="rounded-[1.1rem] border border-[rgba(220,202,181,0.72)] bg-[rgba(255,248,240,0.88)] p-4">
+	                <div className="rounded-[1.1rem] border border-[rgba(220,202,181,0.72)] bg-[rgba(255,248,240,0.88)] p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">
                     {copy.chipTitle}
                   </p>
@@ -210,33 +264,115 @@ export function SettingsPage() {
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
                     {copy.chipValue}
-                  </p>
-                </div>
-              </div>
-            </article>
+	                  </p>
+	                </div>
+
+	                <label className="block space-y-2">
+	                  <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-muted)]">
+	                    Límite diario Sommelier
+	                  </span>
+	                  <input
+	                    type="number"
+	                    min={1}
+	                    max={100}
+	                    value={formValues.sommelierDailyLimit}
+	                    onChange={(event) =>
+	                      setFormValues((current) => ({
+	                        ...current,
+	                        sommelierDailyLimit: Number(event.target.value) || 1,
+	                      }))
+	                    }
+	                    className="min-h-12 w-full rounded-xl border border-[rgba(220,202,181,0.9)] bg-white/80 px-4 text-sm text-[var(--color-ink)] outline-none"
+	                  />
+	                </label>
+
+	                <label className="block space-y-2">
+	                  <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[var(--color-muted)]">
+	                    Abandono de carrito en minutos
+	                  </span>
+	                  <input
+	                    type="number"
+	                    min={5}
+	                    max={1440}
+	                    value={formValues.cartAbandonmentMinutes}
+	                    onChange={(event) =>
+	                      setFormValues((current) => ({
+	                        ...current,
+	                        cartAbandonmentMinutes: Number(event.target.value) || 5,
+	                      }))
+	                    }
+	                    className="min-h-12 w-full rounded-xl border border-[rgba(220,202,181,0.9)] bg-white/80 px-4 text-sm text-[var(--color-ink)] outline-none"
+	                  />
+	                </label>
+
+	                <div className="grid gap-2">
+	                  {[
+	                    ['transactionalEmail', 'Email transaccional'],
+	                    ['transactionalPush', 'Push transaccional'],
+	                    ['marketingPush', 'Push marketing'],
+	                  ].map(([key, label]) => (
+	                    <label key={key} className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[rgba(220,202,181,0.72)] bg-white/70 px-4 text-sm text-[var(--color-ink)]">
+	                      <span>{label}</span>
+	                      <input
+	                        type="checkbox"
+	                        checked={Boolean(formValues[key as 'transactionalEmail' | 'transactionalPush' | 'marketingPush'])}
+	                        onChange={(event) =>
+	                          setFormValues((current) => ({
+	                            ...current,
+	                            [key]: event.target.checked,
+	                          }))
+	                        }
+	                        className="h-5 w-5 accent-[var(--color-burgundy)]"
+	                      />
+	                    </label>
+	                  ))}
+	                </div>
+	              </div>
+	            </article>
           </div>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                updatePreferences(formValues)
-                setSaved(true)
-                window.setTimeout(() => setSaved(false), 2400)
-              }}
-              className="inline-flex min-h-12 items-center gap-2 rounded-[1rem] bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(79,15,31,0.18)]"
-            >
+	            <button
+	              type="button"
+	              disabled={loading}
+	              onClick={async () => {
+	                setError('')
+	                try {
+	                  await settingsClient.update(session?.access_token, {
+	                    'customer_app.default_language': {
+	                      locale: formValues.language === 'en' ? 'en-US' : 'es-MX',
+	                    },
+	                    'sommelier.daily_limit': formValues.sommelierDailyLimit,
+	                    'customer_app.cart_abandonment': {
+	                      thresholdMinutes: formValues.cartAbandonmentMinutes,
+	                    },
+	                    'communications.preferences': {
+	                      transactionalEmail: formValues.transactionalEmail,
+	                      transactionalPush: formValues.transactionalPush,
+	                      marketingPush: formValues.marketingPush,
+	                    },
+	                  })
+	                  updatePreferences(formValues)
+	                  setSaved(true)
+	                  window.setTimeout(() => setSaved(false), 2400)
+	                } catch {
+	                  setError('No fue posible guardar la configuración persistente.')
+	                }
+	              }}
+	              className="inline-flex min-h-12 items-center gap-2 rounded-[1rem] bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(79,15,31,0.18)] disabled:cursor-wait disabled:opacity-60"
+	            >
               <Save size={16} />
               {copy.save}
             </button>
 
-            {saved ? (
+	            {saved ? (
               <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(98,142,105,0.24)] bg-[#edf6ee] px-4 text-sm font-medium text-[#47724b]">
                 <CheckCircle2 size={16} />
                 {copy.saved}
               </span>
-            ) : null}
-          </div>
+	            ) : null}
+	            {error ? <span className="text-sm font-medium text-[#9d473f]">{error}</span> : null}
+	          </div>
         </section>
 
         <aside className="rounded-[1.4rem] border border-[var(--color-line)] bg-[linear-gradient(145deg,rgba(79,15,31,0.96),rgba(113,33,51,0.92))] p-5 text-white shadow-[0_18px_44px_rgba(49,10,20,0.18)]">

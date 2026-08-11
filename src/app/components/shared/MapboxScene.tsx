@@ -37,7 +37,7 @@ export function MapboxScene({
   const mapNodeRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<mapboxgl.Map | null>(null)
   const markerRefs = useRef<mapboxgl.Marker[]>([])
-  const routeIdsRef = useRef<string[]>([])
+  const routeIdsRef = useRef<Array<{ sourceId: string; layerId: string }>>([])
   const sceneId = useId().replace(/:/g, '-')
 
   useEffect(() => {
@@ -116,22 +116,47 @@ export function MapboxScene({
       }
     })
 
-    map.on('load', () => {
+    return () => {
+      markerRefs.current.forEach((marker) => marker.remove())
+      markerRefs.current = []
+      routeIdsRef.current = []
+      map.remove()
+      mapRef.current = null
+    }
+  }, [bearing, center, pitch, zoom])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const currentMap = map
+
+    function renderOverlays() {
+      markerRefs.current.forEach((marker) => marker.remove())
+      markerRefs.current = []
+
+      for (const route of routeIdsRef.current) {
+        if (currentMap.getLayer(route.layerId)) currentMap.removeLayer(route.layerId)
+        if (currentMap.getSource(route.sourceId)) currentMap.removeSource(route.sourceId)
+      }
+      routeIdsRef.current = []
+
       markers.forEach((marker, index) => {
         const markerNode = document.createElement('div')
         markerNode.className =
           'h-4 w-4 rounded-full border-2 border-white bg-[#7d1328] shadow-[0_0_0_4px_rgba(125,19,40,0.18)]'
         markerNode.setAttribute('aria-label', marker.label ?? `marker-${index}`)
 
-        const mapMarker = new mapboxgl.Marker(markerNode).setLngLat(marker.coordinates).addTo(map)
+        const mapMarker = new mapboxgl.Marker(markerNode).setLngLat(marker.coordinates).addTo(currentMap)
         markerRefs.current.push(mapMarker)
       })
 
       routes.forEach((route, index) => {
+        if (route.coordinates.length < 2) return
         const sourceId = `${sceneId}-route-source-${index}`
         const layerId = `${sceneId}-route-layer-${index}`
 
-        map.addSource(sourceId, {
+        currentMap.addSource(sourceId, {
           type: 'geojson',
           data: {
             type: 'Feature',
@@ -143,7 +168,7 @@ export function MapboxScene({
           },
         })
 
-        map.addLayer({
+        currentMap.addLayer({
           id: layerId,
           type: 'line',
           source: sourceId,
@@ -159,20 +184,13 @@ export function MapboxScene({
           },
         })
 
-        routeIdsRef.current.push(sourceId, layerId)
+        routeIdsRef.current.push({ sourceId, layerId })
       })
-    })
-
-    return () => {
-      markerRefs.current.forEach((marker) => marker.remove())
-      markerRefs.current = []
-
-      routeIdsRef.current = []
-
-      map.remove()
-      mapRef.current = null
     }
-  }, [bearing, center, markers, pitch, routes, sceneId, zoom])
+
+    if (currentMap.loaded()) renderOverlays()
+    else currentMap.once('load', renderOverlays)
+  }, [markers, routes, sceneId])
 
   if (!MAPBOX_TOKEN) {
     return (
