@@ -20,34 +20,39 @@ const sections = {
           'Podemos tratar datos de identificación y contacto, datos de cuenta, reservaciones, compras, preferencias, membresías, interacciones con la app, dispositivos registrados para notificaciones y comunicaciones transaccionales.',
       },
       {
-        title: '2. Finalidades de uso',
+        title: '2. Datos recibidos mediante Google Sign-In',
+        body:
+          'Si eliges iniciar sesión con Google, recibimos únicamente la información básica autorizada por Google para identificar tu cuenta, como nombre, correo electrónico e identificador de cuenta. No solicitamos acceso a contactos, Gmail, Drive, Calendar, ubicación de Google ni otros datos adicionales desde Google Sign-In.',
+      },
+      {
+        title: '3. Finalidades de uso',
         body:
           'Usamos la información para crear y proteger cuentas, gestionar reservaciones, compras, boletos digitales, pagos, acceso por QR, Wine Club, atención al cliente, comunicaciones operativas y mejora de la experiencia.',
       },
       {
-        title: '3. Autenticación y proveedores externos',
+        title: '4. Autenticación y proveedores externos',
         body:
-          'La app puede permitir inicio de sesión con correo, Google o Apple. Cuando se usan proveedores externos, el tratamiento de autenticación también queda sujeto a sus políticas y configuraciones de seguridad.',
+          'La app puede permitir inicio de sesión con correo, Google o Apple. Para operar la plataforma podemos usar proveedores técnicos de autenticación, infraestructura, base de datos, pagos, correo transaccional, notificaciones y analítica operativa, siempre limitados a las finalidades descritas.',
       },
       {
-        title: '4. Pagos y datos financieros',
+        title: '5. Pagos y datos financieros',
         body:
           'Los pagos con tarjeta se procesan mediante proveedores especializados. Hacienda de Letras no almacena PAN, CVV ni datos sensibles completos de tarjeta en sus sistemas.',
       },
       {
-        title: '5. Notificaciones',
+        title: '6. Notificaciones',
         body:
           'Si la persona usuaria autoriza notificaciones, podemos registrar identificadores técnicos del dispositivo para enviar avisos transaccionales, recordatorios de reservación, boletos, cambios de estado y comunicaciones autorizadas.',
       },
       {
-        title: '6. Conservación y seguridad',
+        title: '7. Almacenamiento, conservación y seguridad',
         body:
-          'La información se conserva durante el tiempo necesario para cumplir las finalidades descritas, obligaciones operativas, fiscales, de seguridad y atención. Aplicamos controles técnicos y de acceso para reducir riesgos.',
+          'La información se almacena en servicios técnicos administrados para operar la app y se conserva durante el tiempo necesario para cumplir las finalidades descritas, obligaciones operativas, fiscales, de seguridad y atención. Aplicamos controles técnicos y de acceso para reducir riesgos.',
       },
       {
-        title: '7. Derechos y contacto',
+        title: '8. Derechos, eliminación de cuenta y contacto',
         body:
-          'Para solicitar acceso, rectificación, cancelación, oposición, aclaraciones o eliminación cuando proceda, escribe al correo de contacto indicado en esta página.',
+          'Para solicitar acceso, rectificación, cancelación, oposición, aclaraciones o eliminación de cuenta o datos cuando proceda, escribe al correo de contacto indicado en esta página. Atenderemos la solicitud conforme a los requisitos de identificación y conservación aplicables.',
       },
     ],
   },

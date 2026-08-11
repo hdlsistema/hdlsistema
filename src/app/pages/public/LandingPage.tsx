@@ -314,12 +314,15 @@ export function LandingPage() {
                   fontFamily: 'var(--font-display)',
                 }}
               >
-                El vino de Aguascalientes se vive aquí.
+                Hacienda de Letras
               </h1>
 
-              <p className="mt-7 max-w-[640px] text-[17px] leading-8 text-white/82 md:text-[19px]">
-                Descubre una hacienda donde el vino, la gastronomía y el paisaje
-                se convierten en experiencias que permanecen.
+              <p className="mt-5 text-[13px] font-semibold uppercase tracking-[0.18em] text-[#dbc59d]">
+                Aplicación oficial de Hacienda de Letras
+              </p>
+
+              <p className="mt-7 max-w-[720px] text-[17px] leading-8 text-white/82 md:text-[19px]">
+                Hacienda de Letras es la aplicación oficial para descubrir nuestros vinos, conocer experiencias y eventos, realizar reservaciones, comprar productos y boletos, y consultar tus accesos digitales desde un solo lugar.
               </p>
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -408,6 +411,88 @@ export function LandingPage() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section
+          id="app-oficial"
+          className="mx-auto grid max-w-[1320px] gap-8 px-6 py-20 md:px-10 lg:grid-cols-[1fr_0.9fr]"
+        >
+          <article className="rounded-[2rem] border border-[#dccab5] bg-white/78 p-7 shadow-[0_24px_70px_rgba(61,26,17,0.1)] backdrop-blur md:p-10">
+            <p className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.25em] text-[#9b7040]">
+              <span className="h-px w-9 bg-[#b48a55]" />
+              ¿Qué puedes hacer en la app?
+            </p>
+
+            <h2
+              className="mt-5 text-[42px] font-normal leading-[1.02] text-[#4f0f1f] md:text-[58px]"
+              style={{
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              Todo Hacienda de Letras en un solo lugar.
+            </h2>
+
+            <ul className="mt-8 grid gap-4 text-[15px] leading-7 text-[#5f463a] md:grid-cols-2">
+              {[
+                'Explorar vinos y consultar información de cada etiqueta.',
+                'Descubrir experiencias y eventos de Hacienda de Letras.',
+                'Realizar y administrar reservaciones.',
+                'Comprar productos y boletos disponibles.',
+                'Consultar tus reservaciones, compras y accesos digitales.',
+                'Acceder a Wine Club y beneficios disponibles.',
+                'Administrar tu perfil y preferencias.',
+              ].map((item) => (
+                <li key={item} className="flex gap-3 rounded-[1.2rem] border border-[#eadbc9] bg-[#fffaf4] p-4">
+                  <span className="mt-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#681126] text-white">
+                    <Check size={13} />
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <aside
+            id="google-signin"
+            className="rounded-[2rem] border border-[#d8bf9c] bg-[linear-gradient(145deg,#fffaf3,#f1e4d3)] p-7 shadow-[0_24px_70px_rgba(61,26,17,0.1)] md:p-10"
+          >
+            <span className="inline-flex h-[52px] w-[52px] items-center justify-center rounded-full border border-[#d8bf9c] bg-white text-[#681126] shadow-sm">
+              <LockKeyhole size={22} />
+            </span>
+
+            <p className="mt-7 text-[11px] font-bold uppercase tracking-[0.25em] text-[#9b7040]">
+              Inicio de sesión con Google
+            </p>
+
+            <h2
+              className="mt-4 text-[36px] font-normal leading-[1.04] text-[#4f0f1f] md:text-[48px]"
+              style={{
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              Accede a tu perfil de forma segura.
+            </h2>
+
+            <p className="mt-6 text-[15px] leading-8 text-[#5f463a]">
+              Puedes iniciar sesión con tu cuenta de Google para crear o acceder a tu perfil de Hacienda de Letras. Utilizamos la información básica autorizada por Google, como tu nombre, correo electrónico e identificador de cuenta, únicamente para identificar tu perfil, mantener tu sesión y asociar tus reservaciones, compras y preferencias.
+            </p>
+
+            <div className="mt-8 flex flex-col gap-3">
+              <Link
+                to="/politica-de-privacidad"
+                className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-[#681126] px-5 text-[13px] font-bold text-[#681126] transition hover:bg-[#681126] hover:text-white"
+              >
+                Política de Privacidad
+              </Link>
+
+              <Link
+                to="/terminos-y-condiciones"
+                className="inline-flex min-h-[48px] items-center justify-center rounded-full border border-[#d8bf9c] bg-white/70 px-5 text-[13px] font-bold text-[#681126] transition hover:bg-white"
+              >
+                Términos y Condiciones
+              </Link>
+            </div>
+          </aside>
         </section>
 
         <section className="relative z-10 mx-auto -mt-8 max-w-[1220px] px-5 md:-mt-12">
@@ -1003,7 +1088,7 @@ export function LandingPage() {
       </main>
 
       <footer className="bg-[#21060d] px-6 py-14 text-white md:px-10">
-        <div className="mx-auto grid max-w-[1320px] gap-10 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-[1320px] gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div>
             <img
               src="/Logo-HDL-2.svg"
@@ -1012,8 +1097,9 @@ export function LandingPage() {
             />
 
             <p className="mt-5 max-w-[290px] text-[13px] leading-6 text-white/58">
-              Vino, historia y experiencias que celebran la identidad de
-              Aguascalientes.
+              Hacienda de Letras
+              <br />
+              Aplicación oficial
             </p>
           </div>
 
@@ -1080,8 +1166,9 @@ export function LandingPage() {
             </p>
 
             <div className="mt-5 flex flex-col gap-3 text-[13px] text-white/65">
-              <Link to="/privacidad">Política de privacidad</Link>
-              <Link to="/terminos">Términos y condiciones</Link>
+              <Link to="/politica-de-privacidad">Política de Privacidad</Link>
+              <Link to="/terminos-y-condiciones">Términos y Condiciones</Link>
+              <Link to="/login">Acceso administrativo</Link>
             </div>
           </div>
         </div>
@@ -1265,13 +1352,13 @@ export function LandingPage() {
                   <span>
                     Confirmo que cumplo con la edad requerida y acepto los
                     {' '}
-                    <Link to="/terminos" target="_blank" rel="noreferrer" className="font-bold text-[#681126] underline">
+                    <Link to="/terminos-y-condiciones" target="_blank" rel="noreferrer" className="font-bold text-[#681126] underline">
                       términos y condiciones
                     </Link>
                     {' '}
                     y la
                     {' '}
-                    <Link to="/privacidad" target="_blank" rel="noreferrer" className="font-bold text-[#681126] underline">
+                    <Link to="/politica-de-privacidad" target="_blank" rel="noreferrer" className="font-bold text-[#681126] underline">
                       política de privacidad
                     </Link>
                     .
