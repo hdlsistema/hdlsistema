@@ -3,6 +3,7 @@ export type CommunicationEventType =
   | 'reservation.created'
   | 'reservation.rescheduled'
   | 'reservation.cancelled'
+  | 'quote.request.created'
   | 'order.created'
   | 'order.pending_payment'
   | 'order.paid'

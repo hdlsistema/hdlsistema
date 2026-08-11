@@ -23,6 +23,11 @@ import { adminShipmentsRouter } from '../modules/shipments/shipments.routes'
 import { customerSommelierRouter } from '../modules/sommelier/sommelier.routes'
 import { publicMapRouter } from '../modules/map/map.routes'
 import {
+  adminCommercialRouter,
+  customerCommercialRouter,
+  publicCommercialRouter,
+} from '../modules/commercial/commercial.routes'
+import {
   adminContentRouter,
   previewContentRouter,
   publicContentRouter,
@@ -42,11 +47,13 @@ router.use('/auth', authRouter)
 router.use('/customer', customerRouter)
 router.use('/customer', customerActivityRouter)
 router.use('/customer', customerSommelierRouter)
+router.use('/customer', customerCommercialRouter)
 router.use('/admin', adminUsersRouter)
 router.use('/admin', adminDashboardRouter)
 router.use('/admin', adminActivityRouter)
 router.use('/admin', adminAvailabilityRouter)
 router.use('/admin', adminReservationsRouter)
+router.use('/admin', adminCommercialRouter)
 router.use('/admin', adminCustomersRouter)
 router.use('/admin', adminOrdersRouter)
 router.use('/admin', adminPaymentsRouter)
@@ -61,6 +68,7 @@ router.use('/admin', adminDistributorsRouter)
 router.use('/webhooks', paymentWebhooksRouter)
 router.use('/webhooks', communicationsWebhookRouter)
 router.use('/public', publicMapRouter)
+router.use('/public', publicCommercialRouter)
 router.use('/admin', adminContentRouter)
 router.use('/public', publicContentRouter)
 router.use('/preview', previewContentRouter)

@@ -46,6 +46,13 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'La cancelación quedó registrada. Este mensaje no incluye políticas comerciales adicionales.',
       cta: 'Ver historial',
     },
+    'quote.request.created': {
+      subject: 'Recibimos tu solicitud · Hacienda de Letras',
+      preheader: 'Tu solicitud de cotización quedó registrada.',
+      title: 'Recibimos tu solicitud',
+      body: 'Gracias por escribirnos. El equipo de Hacienda de Letras revisará tu solicitud y dará seguimiento. Este correo no incluye precios ni confirma disponibilidad.',
+      cta: 'Abrir Hacienda de Letras',
+    },
     'order.created': {
       subject: 'Orden creada',
       preheader: 'Tu orden fue registrada.',
@@ -125,6 +132,13 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'The cancellation was registered. This message does not include additional commercial policies.',
       cta: 'View history',
     },
+    'quote.request.created': {
+      subject: 'We received your request · Hacienda de Letras',
+      preheader: 'Your quote request was registered.',
+      title: 'We received your request',
+      body: 'Thank you for contacting us. Hacienda de Letras will review your request and follow up. This email does not include pricing or confirm availability.',
+      cta: 'Open Hacienda de Letras',
+    },
     'order.created': {
       subject: 'Order created',
       preheader: 'Your order was registered.',
@@ -199,7 +213,7 @@ function isSensitiveKey(key: string) {
 function formatPayloadValue(key: string, value: unknown, locale: CommunicationLocale) {
   if (typeof value !== 'string' && typeof value !== 'number') return value
 
-  if (['startAt', 'renewalDate', 'expiresAt'].includes(key)) {
+  if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate'].includes(key)) {
     const date = new Date(value)
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined }).format(date)
@@ -230,6 +244,10 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       peopleCount: 'Personas',
       total: 'Total',
       currency: 'Moneda',
+      quoteNumber: 'Folio',
+      eventType: 'Tipo de evento',
+      preferredDate: 'Fecha solicitada',
+      guestCount: 'Personas',
       startAt: 'Fecha',
       renewalDate: 'Renovación',
       expiresAt: 'Expira',
@@ -245,6 +263,10 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       peopleCount: 'Guests',
       total: 'Total',
       currency: 'Currency',
+      quoteNumber: 'Reference',
+      eventType: 'Event type',
+      preferredDate: 'Requested date',
+      guestCount: 'Guests',
       startAt: 'Date',
       renewalDate: 'Renewal',
       expiresAt: 'Expires',

@@ -10,6 +10,7 @@ type NotificationRow = {
   title: string
   body: string
   status: 'pending' | 'sent' | 'failed' | 'read'
+  data?: Record<string, unknown> | null
   sent_at?: string | null
   read_at?: string | null
   created_at: string
@@ -22,6 +23,8 @@ function mapNotification(row: NotificationRow) {
     title: row.title,
     body: row.body,
     status: row.status,
+    data: row.data ?? {},
+    deepLink: typeof row.data?.deepLink === 'string' ? row.data.deepLink : null,
     sentAt: row.sent_at ?? null,
     readAt: row.read_at ?? null,
     createdAt: row.created_at,
@@ -33,7 +36,7 @@ export async function listAdminNotifications(query: NotificationListQuery, user:
 
   let request = supabaseAdminClient
     .from('notifications')
-    .select('id,channel,title,body,status,sent_at,read_at,created_at', { count: 'exact' })
+    .select('id,channel,title,body,status,data,sent_at,read_at,created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .limit(query.limit)
 

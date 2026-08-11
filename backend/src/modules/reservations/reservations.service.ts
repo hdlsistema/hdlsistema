@@ -32,6 +32,8 @@ type ReservationRow = {
   reservation_type: string
   experience_id?: string | null
   experience_slot_id?: string | null
+  cabin_package_id?: string | null
+  restaurant_location_id?: string | null
   people_count: number
   subtotal: number
   discount_total: number
@@ -41,6 +43,11 @@ type ReservationRow = {
   status: string
   customer_notes?: string | null
   internal_notes?: string | null
+  reservation_date?: string | null
+  reservation_time?: string | null
+  check_in?: string | null
+  check_out?: string | null
+  occasion?: string | null
   source?: string | null
   booking_channel?: string | null
   operational_status?: string | null
@@ -89,6 +96,24 @@ type ReservationRow = {
     reserved_count: number
     confirmed_count?: number | null
   }> | null
+  cabin_packages?: {
+    id: string
+    name: string
+    slug: string
+  } | Array<{
+    id: string
+    name: string
+    slug: string
+  }> | null
+  restaurant_locations?: {
+    id: string
+    name: string
+    slug: string
+  } | Array<{
+    id: string
+    name: string
+    slug: string
+  }> | null
 }
 
 type HistoryRow = {
@@ -101,13 +126,16 @@ type HistoryRow = {
 }
 
 const reservationSelect = `
-  id,reservation_number,customer_id,user_id,reservation_type,experience_id,experience_slot_id,
+  id,reservation_number,customer_id,user_id,reservation_type,experience_id,experience_slot_id,cabin_package_id,restaurant_location_id,
   people_count,subtotal,discount_total,tax_total,total,currency,status,customer_notes,internal_notes,
+  reservation_date,reservation_time,check_in,check_out,occasion,
   source,booking_channel,operational_status,confirmed_at,cancelled_at,cancellation_reason,
   rescheduled_at,created_at,updated_at,
   customers(id,first_name,last_name,email,phone,source),
   experiences(id,title,slug),
-  experience_slots(id,start_at,end_at,capacity,reserved_count,confirmed_count)
+  experience_slots(id,start_at,end_at,capacity,reserved_count,confirmed_count),
+  cabin_packages(id,name,slug),
+  restaurant_locations(id,name,slug)
 `
 
 function normalizeText(value: string) {
@@ -130,8 +158,15 @@ function mapReservation(row: ReservationRow) {
   const customer = firstRelation(row.customers)
   const experience = firstRelation(row.experiences)
   const slot = firstRelation(row.experience_slots)
+  const cabin = firstRelation(row.cabin_packages)
+  const restaurant = firstRelation(row.restaurant_locations)
   const confirmed = Number(slot?.confirmed_count ?? slot?.reserved_count ?? 0)
   const capacity = Number(slot?.capacity ?? 0)
+  const experienceTitle = row.reservation_type === 'cabin'
+    ? cabin?.name ?? 'Cabaña'
+    : row.reservation_type === 'restaurant'
+      ? restaurant?.name ?? 'Restaurante'
+      : experience?.title ?? 'Experiencia'
   return {
     id: row.id,
     reservationNumber: row.reservation_number,
@@ -139,11 +174,19 @@ function mapReservation(row: ReservationRow) {
     customerName: customerName(row),
     email: customer?.email ?? null,
     phone: customer?.phone ?? null,
+    reservationType: row.reservation_type,
     experienceId: row.experience_id ?? null,
-    experienceTitle: experience?.title ?? 'Experiencia',
+    experienceTitle,
     experienceSlotId: row.experience_slot_id ?? null,
     startAt: slot?.start_at ?? null,
     endAt: slot?.end_at ?? null,
+    reservationDate: row.reservation_date ?? null,
+    reservationTime: row.reservation_time ?? null,
+    checkIn: row.check_in ?? null,
+    checkOut: row.check_out ?? null,
+    occasion: row.occasion ?? null,
+    cabinPackage: cabin ? { id: cabin.id, name: cabin.name, slug: cabin.slug } : null,
+    restaurantLocation: restaurant ? { id: restaurant.id, name: restaurant.name, slug: restaurant.slug } : null,
     peopleCount: row.people_count,
     subtotal: row.subtotal,
     total: row.total,
@@ -174,6 +217,8 @@ function matchesSearch(row: ReservationRow, search?: string) {
     firstRelation(row.customers)?.email ?? '',
     firstRelation(row.customers)?.phone ?? '',
     firstRelation(row.experiences)?.title ?? '',
+    firstRelation(row.cabin_packages)?.name ?? '',
+    firstRelation(row.restaurant_locations)?.name ?? '',
     row.source ?? '',
   ].some((value) => normalizeText(String(value)).includes(target))
 }
@@ -183,6 +228,7 @@ function applyFilters(request: any, query: ReservationListQuery) {
   if (query.status) next = next.eq('status', query.status)
   if (query.experienceId) next = next.eq('experience_id', query.experienceId)
   if (query.customerId) next = next.eq('customer_id', query.customerId)
+  if (query.reservationType) next = next.eq('reservation_type', query.reservationType)
   if (query.reservationNumber) next = next.eq('reservation_number', query.reservationNumber)
   if (query.source) next = next.eq('source', query.source)
   if (query.from) next = next.gte('created_at', `${query.from}T00:00:00.000Z`)

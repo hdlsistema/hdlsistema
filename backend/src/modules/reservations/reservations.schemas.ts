@@ -11,6 +11,7 @@ export const reservationListQuerySchema = z.object({
   status: reservationStatusSchema.optional(),
   experienceId: uuid.optional(),
   customerId: uuid.optional(),
+  reservationType: z.enum(['experience', 'event', 'cabin', 'restaurant']).optional(),
   reservationNumber: z.string().max(80).optional(),
   source: z.string().max(80).optional(),
   from: z.string().date().optional(),
