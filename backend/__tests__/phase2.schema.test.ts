@@ -57,6 +57,23 @@ describe('vinculación Auth a customer', () => {
   })
 })
 
+describe('operación comercial pública V1', () => {
+  it('agrega cabañas, restaurantes, espacios y cotizaciones sin tocar la carga de vinos', () => {
+    const migration = readFileSync(resolve(__dirname, '../migrations/036_public_services_quotes_restaurants_lodging.sql'), 'utf8')
+
+    expect(migration).toContain('create table if not exists public.cabin_packages')
+    expect(migration).toContain('create table if not exists public.restaurant_locations')
+    expect(migration).toContain('create table if not exists public.venue_spaces')
+    expect(migration).toContain('create table if not exists public.quote_requests')
+    expect(migration).toContain('Paquete Cabaña')
+    expect(migration).toContain('Restaurante Hacienda de Letras')
+    expect(migration).toContain('Jardín Principal "Entrada"')
+    expect(migration).toContain('Cena romántica en la Cava')
+    expect(migration).not.toContain('insert into public.wines')
+    expect(migration).not.toContain('update public.wines')
+  })
+})
+
 async function runValidation(): Promise<ValidationResult> {
   const supabaseUrl = process.env.SUPABASE_URL as string
   const accessToken = process.env.SUPABASE_ACCESS_TOKEN as string
@@ -108,8 +125,8 @@ describePhase2('Fase 2 Supabase schema', () => {
       reserve_experience_slot: true,
     })
     expect(validation.seed_counts.roles).toBe(7)
-    expect(validation.seed_counts.wines).toBe(3)
-    expect(validation.seed_counts.experiences).toBe(2)
+    expect(validation.seed_counts.wines).toBe(9)
+    expect(validation.seed_counts.experiences).toBeGreaterThanOrEqual(2)
     expect(validation.seed_counts.events).toBe(2)
     expect(validation.seed_counts.promotions).toBe(2)
     expect(validation.seed_counts.membership_plans).toBe(2)

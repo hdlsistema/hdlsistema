@@ -48,7 +48,21 @@ bucket_rows as (
 seed_counts as (
   select jsonb_build_object(
     'roles', (select count(*) from public.roles),
-    'wines', (select count(*) from public.wines where sku like 'HDL-SEED-%'),
+    'wines', (
+      select count(*)
+      from public.wines
+      where slug in (
+        'ruby-amor-eterno',
+        'precioso-regalo',
+        'tres-mosqueteros',
+        'el-greco',
+        'muscat',
+        'dartagnan',
+        'phortos',
+        'athos',
+        'dulce-apapacho'
+      )
+    ),
     'experiences', (select count(*) from public.experiences where slug like '%-seed'),
     'events', (select count(*) from public.events where slug like '%-seed'),
     'promotions', (select count(*) from public.promotions where code in ('SEED10', 'CLUBSEED')),
