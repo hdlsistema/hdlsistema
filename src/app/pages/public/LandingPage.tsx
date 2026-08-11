@@ -322,7 +322,7 @@ export function LandingPage() {
               </p>
 
               <p className="mt-7 max-w-[720px] text-[17px] leading-8 text-white/82 md:text-[19px]">
-                Hacienda de Letras es la aplicación oficial para descubrir nuestros vinos, conocer experiencias y eventos, realizar reservaciones, comprar productos y boletos, y consultar tus accesos digitales desde un solo lugar.
+                Hacienda de Letras es la aplicación oficial para descubrir nuestros vinos, consultar experiencias y eventos, realizar reservaciones, comprar productos y boletos y acceder a los servicios digitales de Hacienda de Letras.
               </p>
 
               <div className="mt-10 flex flex-col gap-4 sm:flex-row">
@@ -957,7 +957,7 @@ export function LandingPage() {
           <div className="mx-auto grid max-w-[1400px] gap-16 lg:grid-cols-[1.4fr_1fr] lg:items-center">
             <img
               src="/imagenlandingapp.png"
-              alt="Hacienda de Letras App"
+              alt="Hacienda de Letras"
               className="w-full"
             />
 
@@ -1175,7 +1175,7 @@ export function LandingPage() {
 
         <div className="mx-auto mt-12 flex max-w-[1320px] flex-col justify-between gap-4 border-t border-white/10 pt-7 text-[11px] text-white/38 md:flex-row">
           <p>© 2026 Hacienda de Letras. Todos los derechos reservados.</p>
-          <p>Business & Experience OS</p>
+          <p>Aplicación oficial</p>
         </div>
       </footer>
 
