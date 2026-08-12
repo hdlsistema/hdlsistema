@@ -281,7 +281,7 @@ export function ReservationsPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="control-page control-page--reservations min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
@@ -311,7 +311,7 @@ export function ReservationsPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="control-metrics-strip grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={CheckCircle2} label="Confirmadas" value={String(metrics.confirmed)} />
         <Metric icon={Clock3} label="Pendientes" value={String(metrics.pending)} />
         <Metric icon={X} label="Canceladas" value={String(metrics.cancelled)} />
@@ -342,8 +342,8 @@ export function ReservationsPage() {
         <div className="rounded-[var(--radius-card)] border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</div>
       ) : null}
 
-      <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.9fr)]">
-        <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
+      <section className="control-master-detail grid min-w-0 gap-5 xl:grid-cols-[minmax(360px,0.4fr)_minmax(0,0.6fr)]">
+        <div className="control-master-list min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between gap-4 border-b border-[var(--color-line)] px-5 py-4">
             <h3 className="text-lg font-semibold text-[var(--color-ink)]">Reservaciones</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{items.length} registros</span>
@@ -386,7 +386,7 @@ export function ReservationsPage() {
         </div>
 
         {selected ? (
-          <aside className="space-y-4">
+          <aside className="control-detail-pane space-y-4">
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle operativo</p>
               <h3 className="mt-2 truncate text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.customerName}</h3>
@@ -488,7 +488,7 @@ export function ReservationsPage() {
 
 function Metric({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: string; value: string }) {
   return (
-    <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+    <article className="control-metric rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs text-[var(--color-muted)]">{label}</p>

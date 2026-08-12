@@ -243,7 +243,7 @@ export function OrdersPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="control-page control-page--orders min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle eyebrow="Operación" title="Órdenes" subtitle="Seguimiento de venta, pago, entrega e historial de cada pedido." />
         <div className="flex flex-wrap gap-3">
@@ -253,7 +253,7 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
+      <section className="control-metrics-strip grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
         <Metric icon={ShoppingBag} label="Órdenes" value={String(orders.length)} />
         <Metric icon={CheckCircle2} label="Pagadas" value={String(metrics.paid)} />
         <Metric icon={PackageCheck} label="Total" value={money(metrics.total)} />
@@ -292,8 +292,8 @@ export function OrdersPage() {
 
       {error ? <div className="rounded-[var(--radius-card)] border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</div> : null}
 
-      <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
-        <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
+      <section className="control-master-detail grid min-w-0 gap-5 xl:grid-cols-[minmax(360px,0.4fr)_minmax(0,0.6fr)]">
+        <div className="control-master-list min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
             <h3 className="text-lg font-semibold text-[var(--color-ink)]">Órdenes</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{orders.length} registros</span>
@@ -316,7 +316,7 @@ export function OrdersPage() {
         </div>
 
         {selected ? (
-          <aside className="space-y-4">
+          <aside className="control-detail-pane space-y-4">
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle</p>
               <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.orderNumber}</h3>
@@ -457,7 +457,7 @@ export function OrdersPage() {
 }
 
 function Metric({ icon: Icon, label, value }: { icon: typeof ShoppingBag; label: string; value: string }) {
-  return <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]"><div className="flex items-start justify-between gap-4"><div><p className="text-xs text-[var(--color-muted)]">{label}</p><p className="mt-3 text-3xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{value}</p></div><span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={18} /></span></div></article>
+  return <article className="control-metric rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]"><div className="flex items-center justify-between gap-3"><div><p className="text-[11px] text-[var(--color-muted)]">{label}</p><p className="control-metric__value font-semibold text-[var(--color-ink)]">{value}</p></div><span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={16} /></span></div></article>
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

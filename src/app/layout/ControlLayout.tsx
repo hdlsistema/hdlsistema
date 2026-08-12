@@ -26,7 +26,7 @@ export function ControlLayout() {
 
   const sidebarGroups = [
     {
-      label: t('control.groupMain'),
+      label: 'Operación',
       items: [
         {
           to: '/control/dashboard',
@@ -44,6 +44,51 @@ export function ControlLayout() {
           icon: FileText,
         },
         {
+          to: '/control/ordenes',
+          label: t('control.orders'),
+          icon: ShoppingBag,
+        },
+        {
+          to: '/control/disponibilidad',
+          label: t('control.availability'),
+          icon: Package,
+        },
+        {
+          to: '/control/check-in',
+          label: 'Check-in',
+          icon: QrCode,
+        },
+      ],
+    },
+    {
+      label: 'Comercial',
+      items: [
+        {
+          to: '/control/clientes',
+          label: t('control.customers'),
+          icon: Users,
+        },
+        {
+          to: '/control/pagos',
+          label: t('control.payments'),
+          icon: PackageSearch,
+        },
+        {
+          to: '/control/carritos',
+          label: 'Carritos',
+          icon: ShoppingCart,
+        },
+        {
+          to: '/control/wine-club',
+          label: 'Wine Club',
+          icon: Sparkles,
+        },
+      ],
+    },
+    {
+      label: 'Contenido',
+      items: [
+        {
           to: '/control/vinos',
           label: t('control.wines'),
           icon: Wine,
@@ -59,21 +104,6 @@ export function ControlLayout() {
           icon: CalendarDays,
         },
         {
-          to: '/control/clientes',
-          label: t('control.customers'),
-          icon: Users,
-        },
-        {
-          to: '/control/actividad',
-          label: 'Actividad App',
-          icon: Activity,
-        },
-        {
-          to: '/control/carritos',
-          label: 'Carritos',
-          icon: ShoppingCart,
-        },
-        {
           to: '/control/promociones',
           label: t('control.promotions'),
           icon: Gift,
@@ -84,45 +114,25 @@ export function ControlLayout() {
           icon: PackageSearch,
         },
         {
-          to: '/control/wine-club',
-          label: 'Wine Club',
-          icon: Sparkles,
-        },
-        {
           to: '/control/campanas',
           label: t('control.campaigns'),
           icon: Megaphone,
         },
+      ],
+    },
+    {
+      label: 'Administración',
+      items: [
         {
-          to: '/control/disponibilidad',
-          label: t('control.availability'),
-          icon: Package,
-        },
-        {
-          to: '/control/ordenes',
-          label: t('control.orders'),
-          icon: ShoppingBag,
-        },
-        {
-          to: '/control/pagos',
-          label: t('control.payments'),
-          icon: PackageSearch,
-        },
-        {
-          to: '/control/check-in',
-          label: 'Check-in',
-          icon: QrCode,
+          to: '/control/actividad',
+          label: 'Actividad App',
+          icon: Activity,
         },
         {
           to: '/control/app',
           label: t('control.appView'),
           icon: WineOff,
         },
-      ],
-    },
-    {
-      label: t('control.groupAdditional'),
-      items: [
         {
           to: '/control/configuracion',
           label: t('control.settings'),
@@ -133,11 +143,11 @@ export function ControlLayout() {
   ]
 
   return (
-    <div className="min-h-screen bg-[var(--color-page)] text-[var(--color-ink)]">
+    <div className="control-shell min-h-screen bg-[var(--color-page)] text-[var(--color-ink)]">
       <ControlTopbar />
-      <div className="mx-auto grid max-w-[1560px] gap-6 px-4 py-6 md:grid-cols-[270px_minmax(0,1fr)] xl:px-8">
+      <div className="control-layout mx-auto grid max-w-[1600px] md:grid-cols-[var(--control-sidebar-width)_minmax(0,1fr)]">
         <ControlSidebar groups={sidebarGroups} />
-        <main className="min-w-0">
+        <main className="control-main min-w-0">
           <Outlet />
         </main>
       </div>

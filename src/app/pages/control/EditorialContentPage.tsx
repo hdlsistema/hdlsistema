@@ -516,6 +516,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
 
   const actionControls = selected ? (
     <div className="space-y-4 border-t border-[var(--color-line)] pt-4">
+      <details className="control-more-actions rounded-lg border border-[var(--color-line)] bg-white">
+        <summary className="cursor-pointer px-3 py-2 text-[13px] font-semibold text-[var(--color-burgundy)]">Más acciones</summary>
+        <div className="space-y-3 border-t border-[var(--color-line)] p-3">
       <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <button
           type="button"
@@ -600,6 +603,8 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
           Retirar
         </button>
       </div>
+        </div>
+      </details>
     </div>
   ) : null
 
@@ -656,7 +661,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   }
 
   return (
-    <section className="space-y-6">
+    <section className={`control-page control-page--editorial control-page--${entity} space-y-6`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <SectionTitle eyebrow={config.eyebrow} title={config.title} subtitle={config.subtitle} />
         <button
@@ -669,8 +674,8 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         </button>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,1.05fr)]">
-        <div className="space-y-4">
+      <div className="control-master-detail grid gap-5 xl:grid-cols-[minmax(340px,0.38fr)_minmax(0,0.62fr)]">
+        <div className="control-master-list space-y-4">
           <div className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
               <label className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-muted)]">

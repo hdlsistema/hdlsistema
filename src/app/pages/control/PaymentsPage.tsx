@@ -168,7 +168,7 @@ export function PaymentsPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="control-page control-page--payments min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle eyebrow="Finanzas" title="Pagos" subtitle="Cobros, comprobantes y seguimiento financiero por orden." />
         <div className="flex flex-wrap gap-3">
@@ -178,7 +178,7 @@ export function PaymentsPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="control-metrics-strip grid gap-4 sm:grid-cols-3">
         <Metric icon={Banknote} label="Pagos" value={String(payments.length)} />
         <Metric icon={Banknote} label="Cobrado" value={money(metrics.paid)} />
         <Metric icon={RotateCcw} label="Reembolsado" value={money(metrics.refunded)} />
@@ -203,21 +203,23 @@ export function PaymentsPage() {
 
       {error ? <div className="rounded-[var(--radius-card)] border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</div> : null}
 
-      <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
-        <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
+      <section className="control-master-detail grid min-w-0 gap-5 xl:grid-cols-[minmax(650px,1.7fr)_minmax(300px,0.8fr)]">
+        <div className="control-master-list min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
 	            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pagos</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{payments.length} registros</span>
           </div>
+          <div className="control-table-head grid grid-cols-[104px_105px_minmax(120px,1fr)_90px_100px_auto] gap-3 border-b border-[var(--color-line)] bg-[var(--color-soft)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+            <span>Fecha</span><span>Orden</span><span>Cliente</span><span>Método</span><span>Monto</span><span>Estado</span>
+          </div>
           {loading ? <State text="Cargando pagos..." /> : payments.length === 0 ? <State title="Sin pagos registrados" text="Registra pagos manuales solo cuando exista comprobante operativo." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {payments.map((payment) => (
-                <button key={payment.id} type="button" onClick={() => setSelectedId(payment.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.7fr_0.6fr_auto]" style={{ backgroundColor: selected?.id === payment.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{paymentReferenceLabel(payment.paymentReference, payment.orderNumber, payment.id)}</p>
-                    <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{payment.orderNumber ?? 'Orden sin folio'}</p>
-                  </div>
-	                  <p className="text-xs text-[var(--color-muted)]">{paymentMethodLabel(payment)}</p>
+                <button key={payment.id} type="button" onClick={() => setSelectedId(payment.id)} className="grid w-full grid-cols-[104px_105px_minmax(120px,1fr)_90px_100px_auto] items-center gap-3 px-4 py-2 text-left" style={{ backgroundColor: selected?.id === payment.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
+                  <p className="whitespace-nowrap text-[11px] text-[var(--color-muted)]">{dateLabel(payment.paidAt ?? payment.createdAt)}</p>
+                  <p className="truncate text-xs font-semibold text-[var(--color-ink)]">{payment.orderNumber ?? 'Sin folio'}</p>
+                  <p className="truncate text-xs text-[var(--color-ink)]">{payment.customerName ?? 'No identificado'}</p>
+	                  <p className="truncate text-[11px] text-[var(--color-muted)]">{paymentMethodLabel(payment)}</p>
                   <p className="text-xs font-semibold text-[var(--color-ink)]">{money(payment.amount, payment.currency)}</p>
                   <StatusBadge label={statusLabel(payment.status)} />
                 </button>
@@ -227,7 +229,7 @@ export function PaymentsPage() {
         </div>
 
         {selected ? (
-          <aside className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+          <aside className="control-detail-pane rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle financiero</p>
             <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{paymentReferenceLabel(selected.paymentReference, selected.orderNumber, selected.id)}</h3>
             <div className="mt-5 grid gap-3">
@@ -293,7 +295,7 @@ export function PaymentsPage() {
 }
 
 function Metric({ icon: Icon, label, value }: { icon: typeof Banknote; label: string; value: string }) {
-  return <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]"><div className="flex items-start justify-between gap-4"><div><p className="text-xs text-[var(--color-muted)]">{label}</p><p className="mt-3 text-3xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{value}</p></div><span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={18} /></span></div></article>
+  return <article className="control-metric rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]"><div className="flex items-center justify-between gap-3"><div><p className="text-[11px] text-[var(--color-muted)]">{label}</p><p className="control-metric__value font-semibold text-[var(--color-ink)]">{value}</p></div><span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={16} /></span></div></article>
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

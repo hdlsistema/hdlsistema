@@ -44,7 +44,7 @@ export function StatusBadge({ label }: StatusBadgeProps) {
   const displayLabel = isEnglish ? (ES_TO_EN[sanitizedLabel] ?? sanitizedLabel) : sanitizedLabel
 
   return (
-    <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>
+    <span className={`control-status-badge inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${tone}`}>
       {displayLabel}
     </span>
   )

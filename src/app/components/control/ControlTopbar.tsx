@@ -85,22 +85,22 @@ export function ControlTopbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-[rgba(200,171,136,0.45)] bg-[rgba(252,247,240,0.68)] backdrop-blur-2xl">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 xl:px-8">
-          <div className="flex min-w-0 items-center gap-5">
-            <div className="hidden overflow-hidden rounded-[1.5rem] border border-white/45 bg-[rgba(255,255,255,0.28)] px-5 py-3 shadow-[0_16px_34px_rgba(84,43,23,0.08)] lg:block">
+      <header className="control-topbar sticky top-0 z-40 border-b border-[rgba(200,171,136,0.45)] bg-[rgba(252,247,240,0.86)] backdrop-blur-2xl">
+        <div className="control-topbar__inner mx-auto flex max-w-[1600px] items-center justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="control-topbar__logo hidden lg:block">
               <img
                 src="/hacienda de letras logo 2.png"
                 alt="Hacienda de Letras"
-                className="h-16 w-auto object-contain opacity-95"
+                className="h-full w-auto object-contain opacity-95"
               />
             </div>
 
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-muted)]">
                 Hacienda de Letras
               </p>
-              <p className="mt-1 text-sm text-[var(--color-muted-strong)]">
+              <p className="text-xs text-[var(--color-muted-strong)]">
                 {isEnglish
                   ? t('control.operatingCenter')
                   : t('control.operatingCenter')}
@@ -108,8 +108,8 @@ export function ControlTopbar() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-3 rounded-full border border-white/40 bg-[rgba(255,255,255,0.38)] px-4 py-2.5 text-sm text-[var(--color-muted-strong)] shadow-[0_14px_34px_rgba(89,45,26,0.08)] backdrop-blur-2xl lg:flex">
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-md border border-white/50 bg-white/36 px-3 text-xs text-[var(--color-muted-strong)] lg:flex">
               <CloudSun size={16} className="text-[var(--color-gold)]" />
               <span>{t('control.localTime')}</span>
               <span className="h-4 w-px bg-[rgba(180,138,85,0.25)]" />
@@ -125,7 +125,7 @@ export function ControlTopbar() {
             <button
               type="button"
               onClick={() => setShowAlerts(true)}
-              className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] text-[var(--color-muted)] shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/55 bg-white/38 text-[var(--color-muted)]"
             >
               <Bell size={16} />
               {unreadCount > 0 ? (
@@ -141,14 +141,14 @@ export function ControlTopbar() {
             <button
               type="button"
               onClick={() => setShowProfileMenu((current) => !current)}
-              className="flex items-center gap-3 rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] px-3 py-2 shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl"
+              className="flex h-9 items-center gap-2 rounded-md border border-white/55 bg-white/38 px-2"
             >
-              <div className="h-10 w-10 rounded-full bg-[linear-gradient(135deg,var(--color-gold-soft),var(--color-burgundy-soft))]" />
+              <div className="h-6 w-6 rounded-full bg-[linear-gradient(135deg,var(--color-gold-soft),var(--color-burgundy-soft))]" />
               <div>
-                <p className="text-sm font-medium text-[var(--color-ink)]">
+                <p className="max-w-28 truncate text-xs font-medium text-[var(--color-ink)]">
                   {adminName}
                 </p>
-                <p className="text-xs text-[var(--color-muted)]">
+                <p className="max-w-28 truncate text-[9px] text-[var(--color-muted)]">
                   {adminRole}
                 </p>
               </div>

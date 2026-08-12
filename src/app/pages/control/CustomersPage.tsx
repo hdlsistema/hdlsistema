@@ -195,11 +195,11 @@ function inputClass() {
 
 function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Users }) {
   return (
-    <Panel className="rounded-lg">
+    <Panel className="control-metric rounded-lg">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs text-[var(--color-muted)]">{label}</p>
-          <p className="mt-2 text-2xl font-semibold text-[var(--color-ink)]">{value}</p>
+          <p className="control-metric__value font-semibold text-[var(--color-ink)]">{value}</p>
         </div>
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]">
           <Icon size={18} />
@@ -491,8 +491,8 @@ export function CustomersPage() {
     : 'Seguimiento de clientes con perfiles, relaciones e historial de atención.'
 
   return (
-    <div className="min-h-full bg-[var(--color-bg)] px-4 py-6 text-[var(--color-ink)] sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-[1480px] gap-5">
+    <div className="control-page control-page--customers min-h-full text-[var(--color-ink)]">
+      <div className="grid gap-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <SectionTitle
             eyebrow="CRM"
@@ -549,7 +549,7 @@ export function CustomersPage() {
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="control-metrics-strip grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Clientes visibles" value={String(metrics.total)} icon={Users} />
           <Metric label="VIP o membresía activa" value={String(metrics.vip)} icon={BadgeCheck} />
           <Metric label="Valor histórico" value={money(metrics.revenue)} icon={UserRound} />
@@ -588,8 +588,8 @@ export function CustomersPage() {
           </div>
         </Panel>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <Panel className="rounded-lg">
+        <div className="control-master-detail grid gap-5 xl:grid-cols-[minmax(360px,0.4fr)_minmax(0,0.6fr)]">
+          <Panel className="control-master-list rounded-lg">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--color-ink)]">Directorio</h2>
@@ -656,7 +656,7 @@ export function CustomersPage() {
             )}
           </Panel>
 
-          <Panel className="rounded-lg">
+          <Panel className="control-detail-pane rounded-lg">
             {selected ? (
               <div className="grid gap-5">
                 <div className="flex items-start justify-between gap-3">

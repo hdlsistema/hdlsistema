@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  CheckCircle2,
-  CircleDashed,
   Loader2,
   Mail,
   Phone,
@@ -26,15 +24,6 @@ const statuses = [
   { value: 'lost', label: 'Perdida' },
   { value: 'cancelled', label: 'Cancelada' },
 ] as const
-
-const nextActions: Array<{ status: QuoteRequestRecord['status']; label: string }> = [
-  { status: 'contacted', label: 'Contactada' },
-  { status: 'in_progress', label: 'En proceso' },
-  { status: 'quoted', label: 'Cotizada sin envío' },
-  { status: 'won', label: 'Ganada' },
-  { status: 'lost', label: 'Perdida' },
-  { status: 'cancelled', label: 'Cancelada' },
-]
 
 function statusLabel(status: string) {
   return statuses.find((item) => item.value === status)?.label ?? safeStatusLabel(status)
@@ -211,8 +200,8 @@ export function QuoteRequestsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+    <div className="control-page control-page--quotes space-y-6">
+      <header className="control-page-title flex flex-wrap items-end justify-between gap-4">
 	        <div>
 	          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">Operación comercial</p>
 	          <h1 className="mt-2 text-[34px] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>Cotizaciones</h1>
@@ -223,15 +212,15 @@ export function QuoteRequestsPage() {
         </button>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-4">
+      <section className="control-metrics-strip grid gap-4 md:grid-cols-4">
         <Metric label="Solicitudes" value={counts.total} />
         <Metric label="Nuevas" value={counts.new} />
         <Metric label="Seguimiento" value={counts.inProgress} />
         <Metric label="Ganadas" value={counts.won} />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(480px,1.05fr)]">
-        <div className="rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/42 p-4 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
+      <section className="control-master-detail grid gap-6 xl:grid-cols-[minmax(360px,0.4fr)_minmax(0,0.6fr)]">
+        <div className="control-master-list rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/42 p-4 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
 	          <div className="grid gap-3 md:grid-cols-[210px_1fr]">
 	            <CrystalSelect value={status} onChange={setStatus}>
 	              {statuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
@@ -256,7 +245,7 @@ export function QuoteRequestsPage() {
                   <button key={item.id} type="button" onClick={() => syncSelected(item)} className={`grid w-full gap-2 px-4 py-4 text-left md:grid-cols-[1fr_auto] ${selected?.id === item.id ? 'bg-[rgba(138,31,45,0.08)]' : 'hover:bg-white/50'}`}>
                     <span>
                       <span className="block text-sm font-semibold text-[var(--color-ink)]">{item.quoteNumber} · {item.customerName}</span>
-                      <span className="mt-1 block text-sm text-[var(--color-muted-strong)]">{item.eventType} · {item.guestCount} personas · {dateLabel(item.preferredDate)}</span>
+                      <span className="mt-1 block text-[12px] text-[var(--color-muted-strong)]">{item.eventType} · {item.guestCount} personas · <span className="whitespace-nowrap">{dateLabel(item.preferredDate)}</span></span>
                     </span>
                     <span className="inline-flex h-8 items-center justify-center rounded-full bg-white/70 px-3 text-xs font-semibold text-[var(--color-burgundy)]">{statusLabel(item.status)}</span>
                   </button>
@@ -266,7 +255,7 @@ export function QuoteRequestsPage() {
           </div>
         </div>
 
-        <aside className="rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/50 p-5 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
+        <aside className="control-detail-pane rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/50 p-5 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
           {selected ? (
             <div className="space-y-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -307,13 +296,20 @@ export function QuoteRequestsPage() {
                   placeholder="Notas internas, responsable, próxima acción o acuerdos..."
                   className="mt-3 w-full rounded-2xl border border-[rgba(200,171,136,0.42)] bg-white/70 px-4 py-3 text-sm text-[var(--color-ink)] outline-none"
                 />
-                <div className="mt-3 grid gap-2 md:grid-cols-2">
-                  {nextActions.map((action) => (
-                    <button key={action.status} type="button" onClick={() => void updateStatus(action.status)} disabled={saving === action.status || selected.status === action.status} className="flex min-h-10 items-center justify-between rounded-full border border-[rgba(200,171,136,0.45)] bg-white/60 px-4 text-sm font-medium text-[var(--color-burgundy)] disabled:opacity-55">
-                      {action.label}
-                      {saving === action.status ? <Loader2 className="animate-spin" size={16} /> : selected.status === action.status ? <CheckCircle2 size={16} /> : <CircleDashed size={16} />}
-                    </button>
-                  ))}
+                <div className="mt-3 grid items-end gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+                  <label className="grid gap-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-muted)]">
+                    Cambiar estado
+                    <CrystalSelect
+                      value={selected.status}
+                      onChange={(value) => void updateStatus(value as QuoteRequestRecord['status'])}
+                      disabled={Boolean(saving)}
+                    >
+                      {statuses.filter((item) => item.value).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                    </CrystalSelect>
+                  </label>
+                  <span className="control-current-status inline-flex h-[38px] items-center rounded-md border border-[rgba(138,31,45,0.16)] bg-[rgba(138,31,45,0.07)] px-3 text-[11px] font-semibold text-[var(--color-burgundy)]">
+                    Actual: {statusLabel(selected.status)}
+                  </span>
                 </div>
 	              </section>
 	              <section className="grid gap-3 rounded-[1.1rem] border border-[rgba(200,171,136,0.42)] bg-white/58 p-4 md:grid-cols-2">
@@ -380,16 +376,16 @@ export function QuoteRequestsPage() {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-[1.25rem] border border-[rgba(200,171,136,0.45)] bg-white/44 p-5 backdrop-blur-2xl">
-      <p className="text-sm text-[var(--color-muted-strong)]">{label}</p>
-      <p className="mt-3 text-4xl text-[var(--color-ink)]">{value}</p>
+    <div className="control-metric rounded-[1.25rem] border border-[rgba(200,171,136,0.45)] bg-white/60 backdrop-blur-2xl">
+      <p className="text-[11px] text-[var(--color-muted-strong)]">{label}</p>
+      <p className="control-metric__value font-semibold text-[var(--color-ink)]">{value}</p>
     </div>
   )
 }
 
 function Detail({ label, value, icon, wide }: { label: string; value: string; icon?: ReactNode; wide?: boolean }) {
   return (
-    <div className={`rounded-2xl bg-white/58 px-4 py-3 ${wide ? 'md:col-span-2' : ''}`}>
+    <div className={`control-detail-item border-b border-[rgba(200,171,136,0.26)] px-1 py-2 ${wide ? 'md:col-span-2' : ''}`}>
       <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">
         {icon}
         {label}

@@ -12,9 +12,10 @@ export function dateTime(value?: string | null) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value))
+    hour12: false,
+  }).format(new Date(value)).replace(',', ' ·').replaceAll(' ', '\u00a0')
 }
 
 export function dateOnly(value?: string | null) {
@@ -23,7 +24,7 @@ export function dateOnly(value?: string | null) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  }).format(new Date(value))
+  }).format(new Date(value)).replaceAll(' ', '\u00a0')
 }
 
 export function shortId(value?: string | null) {

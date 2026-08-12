@@ -6,17 +6,17 @@ type SectionTitleProps = {
 
 export function SectionTitle({ eyebrow, title, subtitle }: SectionTitleProps) {
   return (
-    <header className="space-y-2">
+    <header className="control-page-title">
       {eyebrow ? (
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">{eyebrow}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-muted)]">{eyebrow}</p>
       ) : null}
       <h1
-        className="text-3xl leading-none text-[var(--color-ink)] sm:text-[2.35rem]"
+        className="text-[30px] font-semibold leading-none text-[var(--color-ink)]"
         style={{ fontFamily: 'var(--font-display)' }}
       >
         {title}
       </h1>
-      {subtitle ? <p className="max-w-3xl text-sm text-[var(--color-muted)]">{subtitle}</p> : null}
+      {subtitle ? <p className="max-w-3xl text-[13px] text-[var(--color-muted)]">{subtitle}</p> : null}
     </header>
   )
 }

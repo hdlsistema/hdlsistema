@@ -325,7 +325,7 @@ export function EditorialFormShell({
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-5 rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]"
+      className="control-editorial-form space-y-5 rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]"
     >
       <div className="flex flex-col gap-3 border-b border-[var(--color-line)] pb-4 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0">
@@ -411,13 +411,18 @@ export function EditorialFormShell({
         </div>
       ) : null}
 
-      {definition.sections.map((section) => (
-        <section key={section.title} className="space-y-4 rounded-xl border border-[var(--color-line)] bg-white p-4">
-          <div>
+      <div className="control-editorial-sections">
+      {definition.sections.map((section, index) => (
+        <details
+          key={section.title}
+          className="control-editorial-section border-t border-[var(--color-line)] py-3"
+          open={definition.entity !== 'campaigns' || index === 0}
+        >
+          <summary className="cursor-pointer list-none pr-6">
             <h3 className="text-base font-semibold text-[var(--color-ink)]">{section.title}</h3>
             <p className="mt-1 text-[13px] text-[var(--color-muted)]">{section.description}</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
+          </summary>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
             {section.fields.map((field) => (
               <FormField
                 key={field.key}
@@ -428,8 +433,9 @@ export function EditorialFormShell({
               />
             ))}
           </div>
-        </section>
+        </details>
       ))}
+      </div>
 
       {actions}
       {versions}

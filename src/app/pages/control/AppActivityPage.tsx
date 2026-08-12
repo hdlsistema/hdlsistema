@@ -69,7 +69,7 @@ export function AppActivityPage() {
   }, [load])
 
   return (
-    <div className="space-y-6">
+    <div className="control-page control-page--activity space-y-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
         <SectionTitle eyebrow="App Hacienda de Letras" title="Actividad" subtitle="Movimientos importantes de clientes para seguimiento comercial y operación." />
         <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-medium text-[var(--color-ink)] disabled:opacity-60">

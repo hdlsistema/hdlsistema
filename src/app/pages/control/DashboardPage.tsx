@@ -65,12 +65,12 @@ function Metric({
   icon: typeof Users
 }) {
   return (
-    <section className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+    <section className="control-metric rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">{label}</p>
-          <p className="mt-3 text-4xl font-normal leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{value}</p>
-          <p className="mt-2 text-sm text-[var(--color-muted)]">{detail}</p>
+          <p className="control-metric__value font-semibold leading-none text-[var(--color-ink)]">{value}</p>
+          <p className="control-metric__detail text-[var(--color-muted)]">{detail}</p>
         </div>
         <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]">
           <Icon size={20} />
@@ -82,7 +82,7 @@ function Metric({
 
 function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
+    <section className="control-panel rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
       <header className="flex items-center justify-between gap-4 border-b border-[var(--color-line)] px-5 py-4">
         <h2 className="text-xl font-normal text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{title}</h2>
         {action}
@@ -126,7 +126,7 @@ export function DashboardPage() {
     : formatMoney(0, 'MXN')
 
   return (
-    <div className="space-y-6">
+    <div className="control-page control-page--dashboard space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <SectionTitle
 	          eyebrow="Centro de Control"
@@ -151,7 +151,7 @@ export function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="control-metrics-primary grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           label="Clientes registrados"
           value={loading ? '—' : String(summary?.metrics.customers ?? 0)}
@@ -178,13 +178,11 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+
+      <div className="control-metrics-secondary grid gap-4">
 		        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad reciente" icon={Users} />
 	        <Metric label="Carritos activos" value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? 'Cargando...' : `${summary?.metrics.convertedCarts ?? 0} convertidos`} icon={ShoppingBag} />
 		        <Metric label="Pagos iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Intentos de pago registrados" icon={Activity} />
-	      </div>
-
-	      <div className="grid gap-4 sm:grid-cols-4">
 			        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones recientes" icon={Users} />
 	        <Metric label="Ocupación" value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail="Cupo reservado sobre horarios próximos" icon={CalendarDays} />
 		        <Metric label="Conversión" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Pagos confirmados sobre pagos iniciados" icon={Activity} />
