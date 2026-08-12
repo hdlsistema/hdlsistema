@@ -234,9 +234,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       setSuccess(selected ? 'Cambios guardados.' : 'Registro creado.')
       await loadRecords()
     } catch (saveError) {
-      const backendFieldErrors = extractFieldErrorsFromBackend(saveError, config)
-      setFieldErrors(backendFieldErrors)
-      setError(getSafeError(saveError, backendFieldErrors))
+      const apiFieldErrors = extractFieldErrorsFromBackend(saveError, config)
+      setFieldErrors(apiFieldErrors)
+      setError(getSafeError(saveError, apiFieldErrors))
     } finally {
       setSaving(false)
     }
@@ -263,9 +263,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       setSuccess('Acción completada.')
       await loadRecords()
     } catch (actionError) {
-      const backendFieldErrors = extractFieldErrorsFromBackend(actionError, config)
-      setFieldErrors(backendFieldErrors)
-      setError(getSafeError(actionError, backendFieldErrors))
+      const apiFieldErrors = extractFieldErrorsFromBackend(actionError, config)
+      setFieldErrors(apiFieldErrors)
+      setError(getSafeError(actionError, apiFieldErrors))
       throw actionError
     } finally {
       setBusyAction(null)
@@ -324,9 +324,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       setScheduleAt('')
       await loadRecords()
     } catch (scheduleError) {
-      const backendFieldErrors = extractFieldErrorsFromBackend(scheduleError, config)
-      setFieldErrors(backendFieldErrors)
-      setError(getSafeError(scheduleError, backendFieldErrors))
+      const apiFieldErrors = extractFieldErrorsFromBackend(scheduleError, config)
+      setFieldErrors(apiFieldErrors)
+      setError(getSafeError(scheduleError, apiFieldErrors))
       throw scheduleError
     } finally {
       setBusyAction(null)
@@ -711,7 +711,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
             <div className="rounded-[1rem] border border-dashed border-[var(--color-line)] bg-[var(--color-panel)] p-8 text-center">
               <p className="text-lg font-semibold text-[var(--color-ink)]">Sin registros</p>
               <p className="mt-2 text-sm text-[var(--color-muted)]">
-                El backend no devolvió {config.listLabel} para los filtros actuales.
+                No hay {config.listLabel} para los filtros actuales.
               </p>
             </div>
           ) : (

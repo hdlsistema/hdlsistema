@@ -50,6 +50,15 @@ function statusLabel(status: string) {
   return labels[status] ?? status
 }
 
+function paymentMethodLabel(payment: PaymentRecord) {
+  const value = `${payment.method ?? ''} ${payment.provider ?? ''}`.toLowerCase()
+  if (value.includes('card') || value.includes('tarjeta') || value.includes('stripe')) return 'Tarjeta'
+  if (value.includes('transfer')) return 'Transferencia'
+  if (value.includes('cash') || value.includes('efectivo')) return 'Efectivo'
+  if (value.includes('terminal')) return 'Terminal'
+  return payment.method ?? 'Pago registrado'
+}
+
 export function PaymentsPage() {
   const { session, roles } = useAuth()
   const token = session?.access_token
@@ -126,7 +135,7 @@ export function PaymentsPage() {
     if (!amount) return
     const reason = window.prompt('Motivo del reembolso')
     if (!reason) return
-    if (!window.confirm('¿Registrar este reembolso? El backend validará el monto disponible.')) return
+    if (!window.confirm('¿Registrar este reembolso? Se validará el monto disponible antes de guardar.')) return
     setSaving(true)
     try {
       await paymentsClient.refund(token, selected.id, { amount: Number(amount), reason, idempotencyKey: crypto.randomUUID() })
@@ -186,7 +195,7 @@ export function PaymentsPage() {
         <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
           <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4">
             <Search size={16} className="text-[var(--color-muted)]" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar referencia o proveedor..." className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
+	            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar referencia, orden o método..." className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
           </label>
           <CrystalSelect value={status} onChange={setStatus}>
             <option value="">Todos los estados</option>
@@ -204,10 +213,10 @@ export function PaymentsPage() {
       <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
         <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
-            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pagos reales</h3>
+	            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pagos</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{payments.length} registros</span>
           </div>
-          {loading ? <State text="Cargando pagos reales..." /> : payments.length === 0 ? <State title="Sin pagos registrados" text="Registra pagos manuales solo cuando exista comprobante operativo." /> : (
+          {loading ? <State text="Cargando pagos..." /> : payments.length === 0 ? <State title="Sin pagos registrados" text="Registra pagos manuales solo cuando exista comprobante operativo." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {payments.map((payment) => (
                 <button key={payment.id} type="button" onClick={() => setSelectedId(payment.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.7fr_0.6fr_auto]" style={{ backgroundColor: selected?.id === payment.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
@@ -215,7 +224,7 @@ export function PaymentsPage() {
                     <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{payment.paymentReference ?? 'Sin referencia'}</p>
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{payment.orderNumber ?? 'Orden sin folio'}</p>
                   </div>
-                  <p className="text-xs text-[var(--color-muted)]">{payment.provider} · {payment.providerEnvironment}</p>
+	                  <p className="text-xs text-[var(--color-muted)]">{paymentMethodLabel(payment)}</p>
                   <p className="text-xs font-semibold text-[var(--color-ink)]">{money(payment.amount, payment.currency)}</p>
                   <StatusBadge label={statusLabel(payment.status)} />
                 </button>
@@ -230,7 +239,7 @@ export function PaymentsPage() {
             <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.paymentReference ?? 'Pago'}</h3>
             <div className="mt-5 grid gap-3">
               <Detail label="Orden" value={selected.orderNumber ?? 'Sin folio'} />
-              <Detail label="Método" value={selected.method ?? 'Sin método'} />
+              <Detail label="Método" value={paymentMethodLabel(selected)} />
               <Detail label="Monto" value={money(selected.amount, selected.currency)} />
               <Detail label="Reembolsado" value={money(selected.refundedAmount, selected.currency)} />
               <Detail label="Fecha de pago" value={dateLabel(selected.paidAt)} />
@@ -252,11 +261,11 @@ export function PaymentsPage() {
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="ID de orden" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} required />
+              <Input label="Orden relacionada" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} required />
               <Input label="Monto" type="number" min="0.01" value={form.amount} onChange={(value) => setForm({ ...form, amount: value })} required />
               <Input label="Método" value={form.paymentMethodType} onChange={(value) => setForm({ ...form, paymentMethodType: value })} required />
               <Input label="Referencia" value={form.paymentReference} onChange={(value) => setForm({ ...form, paymentReference: value })} required />
-              <Input label="Ruta de comprobante privado" value={form.receiptStoragePath} onChange={(value) => setForm({ ...form, receiptStoragePath: value })} />
+              <Input label="Referencia de comprobante" value={form.receiptStoragePath} onChange={(value) => setForm({ ...form, receiptStoragePath: value })} />
               <Input label="Notas" value={form.notes} onChange={(value) => setForm({ ...form, notes: value })} />
             </div>
             <div className="mt-6 flex justify-end gap-3">

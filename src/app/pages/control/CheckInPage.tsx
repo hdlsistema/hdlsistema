@@ -39,6 +39,19 @@ function canOperate(roles: string[]) {
   return roles.some((role) => ['super_admin', 'admin', 'operations'].includes(role))
 }
 
+function passStatusLabel(pass: AccessPassRecord) {
+  if (pass.revokedAt) return 'Revocado'
+  const labels: Record<string, string> = {
+    active: 'Activo',
+    expired: 'Expirado',
+    issued: 'Emitido',
+    published: 'Activo',
+    revoked: 'Revocado',
+    used: 'Usado',
+  }
+  return labels[pass.status] ?? pass.status.replaceAll('_', ' ')
+}
+
 export function CheckInPage() {
   const { session, roles } = useAuth()
   const token = session?.access_token
@@ -103,11 +116,11 @@ export function CheckInPage() {
         validUntil: isoOrNull(form.validUntil),
         idempotencyKey: crypto.randomUUID(),
       })
-      setIssuedToken(response.data.qrToken ?? '')
+      setIssuedToken(response.data.qrToken ? 'issued' : '')
       setSelectedPassId(response.data.id)
       setForm(emptyPassForm)
       setFormOpen(false)
-      setToast('Pase emitido. Copia el token QR ahora; no se guarda en texto plano.')
+      setToast('Pase emitido. El código quedó listo para entrega segura.')
       await loadCheckin()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible emitir el pase.')
@@ -134,7 +147,7 @@ export function CheckInPage() {
 
   const registerValidatedCheckin = async () => {
     if (!validation?.valid || saving) return
-    if (!window.confirm('¿Registrar check-in de este pase? El backend bloqueará un segundo uso.')) return
+    if (!window.confirm('¿Registrar check-in de este pase? Se evitará registrar un segundo uso.')) return
     setSaving(true)
     try {
       await checkinsClient.register(token, {
@@ -206,7 +219,7 @@ export function CheckInPage() {
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Acceso" title="Check-in" subtitle="Pases QR seguros, validación y reversión autorizada con datos reales." />
+        <SectionTitle eyebrow="Acceso" title="Check-in" subtitle="Pases seguros, validación y reversión autorizada." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadCheckin} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
@@ -244,8 +257,8 @@ export function CheckInPage() {
 
       {issuedToken ? (
         <section className="rounded-[var(--radius-card)] border border-[#cfddca] bg-white p-4 text-sm text-[#406845] shadow-[var(--shadow-card)]">
-          <p className="font-semibold">Token QR emitido para entrega segura</p>
-          <p className="mt-2 break-all font-mono text-xs">{issuedToken}</p>
+          <p className="font-semibold">Pase emitido correctamente</p>
+          <p className="mt-2">El código quedó listo para entrega segura al visitante.</p>
         </section>
       ) : null}
 
@@ -257,7 +270,7 @@ export function CheckInPage() {
             <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pases de acceso</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{passes.length} registros</span>
           </div>
-          {loading ? <State text="Cargando pases reales..." /> : passes.length === 0 ? <State title="Sin pases emitidos" text="Emite un pase desde una reservación u orden real." /> : (
+          {loading ? <State text="Cargando pases..." /> : passes.length === 0 ? <State title="Sin pases emitidos" text="Emite un pase desde una reservación u orden." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {passes.map((pass) => (
                 <button key={pass.id} type="button" onClick={() => setSelectedPassId(pass.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.8fr_auto]" style={{ backgroundColor: selectedPass?.id === pass.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
@@ -266,7 +279,7 @@ export function CheckInPage() {
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{pass.guestName ?? 'Invitado'} · {pass.eventOrExperience ?? 'Acceso'}</p>
                   </div>
                   <p className="text-xs text-[var(--color-muted)]">{pass.usedAt ? `Usado ${dateLabel(pass.usedAt)}` : 'Sin uso'}</p>
-                  <StatusBadge label={pass.revokedAt ? 'Revocado' : pass.status} />
+                  <StatusBadge label={passStatusLabel(pass)} />
                 </button>
               ))}
             </div>
@@ -315,8 +328,8 @@ export function CheckInPage() {
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="ID de reservación" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
-              <Input label="ID de orden pagada" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} />
+              <Input label="Reservación vinculada" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
+              <Input label="Orden pagada vinculada" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} />
               <Input label="Válido desde" type="datetime" value={form.validFrom} onChange={(value) => setForm({ ...form, validFrom: value })} />
               <Input label="Válido hasta" type="datetime" value={form.validUntil} onChange={(value) => setForm({ ...form, validUntil: value })} />
             </div>

@@ -395,7 +395,7 @@ export function LandingPage() {
                         Recomendación personalizada
                       </p>
                       <p className="text-[14px] font-semibold">
-                        Consulta a ALQIA Sommelier
+                        Consulta al Sommelier Hacienda
                       </p>
                     </div>
                   </div>
@@ -805,7 +805,7 @@ export function LandingPage() {
 
             <div className="flex flex-col justify-center p-8 md:p-14">
               <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#dbc59d]">
-                ALQIA Sommelier
+                Sommelier Hacienda
               </p>
 
               <h2
@@ -819,7 +819,7 @@ export function LandingPage() {
 
               <p className="mt-6 max-w-[610px] text-[15px] leading-7 text-white/76">
                 Cuéntale qué vas a comer, qué ocasión celebras o qué sabores
-                disfrutas. ALQIA Sommelier te ayudará a elegir el vino, el
+                disfrutas. Sommelier Hacienda te ayudará a elegir el vino, el
                 maridaje o la experiencia ideal.
               </p>
 
@@ -1125,7 +1125,7 @@ export function LandingPage() {
               <Link to="/app/reservacion">Reservaciones</Link>
               <Link to="/app/eventos">Próximos eventos</Link>
               <Link to="/app/mapa">Cómo llegar</Link>
-              <Link to="/app/sommelier">ALQIA Sommelier</Link>
+              <Link to="/app/sommelier">Sommelier Hacienda</Link>
             </div>
           </div>
 

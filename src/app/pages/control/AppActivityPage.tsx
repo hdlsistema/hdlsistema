@@ -10,8 +10,61 @@ function dateTime(value: string) {
   return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
-function pretty(value: string) {
-  return value.replaceAll('_', ' ')
+function eventLabel(value: string) {
+  const labels: Record<string, string> = {
+    app_session_started: 'Sesión iniciada',
+    cart_created: 'Carrito creado',
+    cart_item_added: 'Producto agregado',
+    cart_item_removed: 'Producto retirado',
+    cart_viewed: 'Carrito consultado',
+    checkout_started: 'Pago iniciado',
+    order_created: 'Orden creada',
+    payment_failed: 'Pago fallido',
+    payment_processing: 'Pago en proceso',
+    payment_succeeded: 'Pago confirmado',
+    profile_viewed: 'Perfil consultado',
+    reservation_started: 'Reservación iniciada',
+    reservation_submitted: 'Solicitud enviada',
+    wine_viewed: 'Vino consultado',
+  }
+  return labels[value] ?? value.replaceAll('_', ' ')
+}
+
+function areaLabel(value: string) {
+  const labels: Record<string, string> = {
+    account: 'Cuenta',
+    cart: 'Carrito',
+    checkout: 'Pago',
+    content: 'Contenido',
+    payment: 'Pagos',
+    reservation: 'Reservaciones',
+  }
+  return labels[value] ?? value.replaceAll('_', ' ')
+}
+
+function entityLabel(value?: string | null) {
+  if (!value) return 'Sin registro asociado'
+  const labels: Record<string, string> = {
+    cart: 'Carrito',
+    event: 'Evento',
+    experience: 'Experiencia',
+    order: 'Orden',
+    payment: 'Pago',
+    reservation: 'Reservación',
+    wine: 'Vino',
+  }
+  return labels[value] ?? value.replaceAll('_', ' ')
+}
+
+function resultLabel(value: string) {
+  const labels: Record<string, string> = {
+    cancelled: 'Cancelado',
+    failed: 'Fallido',
+    processing: 'En proceso',
+    started: 'Iniciado',
+    succeeded: 'Correcto',
+  }
+  return labels[value] ?? value.replaceAll('_', ' ')
 }
 
 export function AppActivityPage() {
@@ -59,11 +112,11 @@ export function AppActivityPage() {
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Módulo
           <CrystalSelect value={module} onChange={setModule}>
-            <option value="">Todos</option><option value="account">Cuenta</option><option value="content">Contenido</option><option value="reservation">Reservaciones</option><option value="cart">Carrito</option><option value="checkout">Checkout</option><option value="payment">Pagos</option>
+	            <option value="">Todos</option><option value="account">Cuenta</option><option value="content">Contenido</option><option value="reservation">Reservaciones</option><option value="cart">Carrito</option><option value="checkout">Pago</option><option value="payment">Pagos</option>
           </CrystalSelect>
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Evento
-          <input value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Ej. cart_viewed" className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" />
+            <input value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Nombre de acción" className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" />
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Resultado
           <CrystalSelect value={result} onChange={setResult}><option value="">Todos</option><option value="started">Iniciado</option><option value="succeeded">Correcto</option><option value="processing">En proceso</option><option value="failed">Fallido</option><option value="cancelled">Cancelado</option></CrystalSelect>
@@ -80,7 +133,7 @@ export function AppActivityPage() {
             <tbody className="divide-y divide-[var(--color-line)]">
               {loading ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--color-muted)]">Cargando bitácora...</td></tr> : null}
               {!loading && records.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--color-muted)]"><Activity size={20} className="mx-auto mb-2" />Aún no hay actividad de App registrada.</td></tr> : null}
-              {!loading && records.map((record) => <tr key={record.id} className="align-top"><td className="px-4 py-3 text-[var(--color-muted)]">{dateTime(record.occurredAt)}</td><td className="px-4 py-3"><p className="font-medium text-[var(--color-ink)]">{record.customerName ?? 'Sesión sin identificar'}</p>{record.customerEmail ? <p className="mt-1 text-xs text-[var(--color-muted)]">{record.customerEmail}</p> : null}</td><td className="px-4 py-3 text-[var(--color-ink)]">{pretty(record.eventName)}</td><td className="px-4 py-3 text-[var(--color-muted)]">{pretty(record.module)}</td><td className="px-4 py-3 text-[var(--color-muted)]">{record.entityType ?? '—'}{record.entityId ? ` · ${record.entityId.slice(0, 8)}` : ''}</td><td className="px-4 py-3"><span className="rounded-full bg-[var(--color-soft)] px-2 py-1 text-xs text-[var(--color-ink)]">{pretty(record.status)}</span></td></tr>)}
+              {!loading && records.map((record) => <tr key={record.id} className="align-top"><td className="px-4 py-3 text-[var(--color-muted)]">{dateTime(record.occurredAt)}</td><td className="px-4 py-3"><p className="font-medium text-[var(--color-ink)]">{record.customerName ?? 'Sesión sin identificar'}</p>{record.customerEmail ? <p className="mt-1 text-xs text-[var(--color-muted)]">{record.customerEmail}</p> : null}</td><td className="px-4 py-3 text-[var(--color-ink)]">{eventLabel(record.eventName)}</td><td className="px-4 py-3 text-[var(--color-muted)]">{areaLabel(record.module)}</td><td className="px-4 py-3 text-[var(--color-muted)]">{entityLabel(record.entityType)}</td><td className="px-4 py-3"><span className="rounded-full bg-[var(--color-soft)] px-2 py-1 text-xs text-[var(--color-ink)]">{resultLabel(record.status)}</span></td></tr>)}
             </tbody>
           </table>
         </div>

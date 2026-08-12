@@ -79,7 +79,7 @@ export function WineClubPage() {
       setSelectedId(response.data.id)
       setForm(emptyForm)
       setFormOpen(false)
-      setToast('Membresía creada en Supabase.')
+      setToast('Membresía creada.')
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la membresía.')
@@ -117,7 +117,7 @@ export function WineClubPage() {
         idempotencyKey: operationKey('LOYALTY'),
       })
       setPoints(emptyPoints)
-      setToast('Puntos ajustados con auditoría.')
+      setToast('Puntos ajustados con historial.')
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible ajustar puntos.')
@@ -137,7 +137,7 @@ export function WineClubPage() {
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Wine Club" title="Wine Club" subtitle="Membresías reales, beneficios, puntos e historial operativo desde Supabase." />
+        <SectionTitle eyebrow="Wine Club" title="Wine Club" subtitle="Membresías, beneficios, puntos e historial operativo." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={load} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
@@ -177,7 +177,7 @@ export function WineClubPage() {
             <h3 className="text-lg font-semibold text-[var(--color-ink)]">Membresías de clientes</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{memberships.length} registros</span>
           </div>
-          {loading ? <StateBlock text="Cargando membresías reales..." /> : memberships.length === 0 ? <StateBlock title="Sin membresías reales" text="Asigna una membresía a un cliente existente." /> : (
+          {loading ? <StateBlock text="Cargando membresías..." /> : memberships.length === 0 ? <StateBlock title="Sin membresías" text="Asigna una membresía a un cliente existente." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {memberships.map((item) => (
                 <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.8fr_0.5fr_auto]" style={{ backgroundColor: selected?.id === item.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
@@ -224,8 +224,8 @@ export function WineClubPage() {
 
       {formOpen ? (
         <ModalForm title="Asignar membresía" onClose={() => setFormOpen(false)} onSubmit={submitMembership} saving={saving}>
-          <Field label="ID de cliente" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
-          <Field label="ID de plan" value={form.planId} onChange={(value) => setForm({ ...form, planId: value })} required />
+          <Field label="Cliente relacionado" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
+          <Field label="Plan relacionado" value={form.planId} onChange={(value) => setForm({ ...form, planId: value })} required />
           <Field label="Fecha de inicio" type="datetime" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} />
         </ModalForm>
       ) : null}

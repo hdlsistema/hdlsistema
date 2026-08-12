@@ -194,7 +194,7 @@ function validateGuidedJson(values: EditorialFormValues, key: string, errors: Ed
     const advancedJson = typeof parsed.advancedJson === 'string' ? parsed.advancedJson.trim() : ''
     if (advancedJson) JSON.parse(advancedJson)
   } catch {
-    errors[key] = 'El JSON avanzado no es válido.'
+    errors[key] = 'La configuración avanzada no es válida.'
   }
 }
 
@@ -233,7 +233,7 @@ export function validateEditorialForm(
     }
 
     if (field.key === 'slug' && value && !slugPattern.test(value)) {
-      errors[field.key] = 'El slug solo acepta minúsculas, números y guiones.'
+      errors[field.key] = 'El enlace corto solo acepta minúsculas, números y guiones.'
     }
 
     if (field.type === 'number' && value && Number.isNaN(Number(value))) {

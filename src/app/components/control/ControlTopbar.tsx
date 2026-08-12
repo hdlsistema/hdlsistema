@@ -97,7 +97,7 @@ export function ControlTopbar() {
 
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--color-muted)]">
-                Hacienda de Letras OS
+                Hacienda de Letras
               </p>
               <p className="mt-1 text-sm text-[var(--color-muted-strong)]">
                 {isEnglish
@@ -226,7 +226,13 @@ export function ControlTopbar() {
 
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--color-muted)]">
-                        {item.channel}
+	                        {item.channel === 'email'
+	                          ? 'Correo'
+	                          : item.channel === 'push'
+	                            ? 'Notificación'
+	                            : item.channel === 'sms'
+	                              ? 'Mensaje'
+	                              : 'Operación'}
                       </p>
                       <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">
                         {item.title}

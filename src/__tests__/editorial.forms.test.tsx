@@ -52,7 +52,7 @@ describe('formularios editoriales especializados', () => {
 
     expect(html).toContain('Formulario especializado')
     expect(html).toContain(sectionLabel)
-    expect(html).toContain('Qué se verá en la app pública')
+    expect(html).toContain(entity === 'campaigns' ? 'Cómo se opera' : 'Qué verá el cliente')
   })
 
   it('valida campos requeridos y slug de vinos antes de guardar', () => {

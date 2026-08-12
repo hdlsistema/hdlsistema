@@ -30,14 +30,14 @@ const sections = {
           'Usamos la información para crear y proteger cuentas, gestionar reservaciones, compras, boletos digitales, pagos, acceso por QR, Wine Club, atención al cliente, comunicaciones operativas y mejora de la experiencia.',
       },
       {
-        title: '4. Autenticación y proveedores externos',
+        title: '4. Autenticación y servicios autorizados',
         body:
-          'La app puede permitir inicio de sesión con correo, Google o Apple. Para operar la plataforma podemos usar proveedores técnicos de autenticación, infraestructura, base de datos, pagos, correo transaccional, notificaciones y analítica operativa, siempre limitados a las finalidades descritas.',
+          'La app puede permitir inicio de sesión con correo, Google o Apple. Para operar la plataforma podemos apoyarnos en servicios autorizados de acceso, alojamiento seguro, pagos, correo transaccional, notificaciones y analítica operativa, siempre limitados a las finalidades descritas.',
       },
       {
         title: '5. Pagos y datos financieros',
         body:
-          'Los pagos con tarjeta se procesan mediante proveedores especializados. Hacienda de Letras no almacena PAN, CVV ni datos sensibles completos de tarjeta en sus sistemas.',
+          'Los pagos con tarjeta se procesan mediante servicios especializados de pago seguro. Hacienda de Letras no almacena PAN, CVV ni datos sensibles completos de tarjeta en sus sistemas.',
       },
       {
         title: '6. Notificaciones',
@@ -70,7 +70,7 @@ const sections = {
       {
         title: '2. Cuentas y autenticación',
         body:
-          'El acceso puede realizarse con correo y contraseña o proveedores autorizados. Hacienda de Letras puede bloquear o limitar cuentas ante uso indebido, fraude o riesgo de seguridad.',
+          'El acceso puede realizarse con correo y contraseña o métodos autorizados. Hacienda de Letras puede bloquear o limitar cuentas ante uso indebido, fraude o riesgo de seguridad.',
       },
       {
         title: '3. Reservaciones, eventos y boletos',
@@ -80,7 +80,7 @@ const sections = {
       {
         title: '4. Pagos',
         body:
-          'Los montos finales son calculados y validados por el backend. El pago se confirma mediante el proveedor de pagos autorizado y sus mecanismos de verificación.',
+          'Los montos finales son calculados y validados por Hacienda de Letras. El pago se confirma mediante el procesador autorizado y sus mecanismos de verificación.',
       },
       {
         title: '5. Cambios, cancelaciones y reembolsos',

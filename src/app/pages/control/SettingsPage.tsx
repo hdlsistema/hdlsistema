@@ -97,7 +97,7 @@ export function SettingsPage() {
               'These details are reflected across the operating header and the executive dashboard.',
             language: 'Language and experience',
             languageNote:
-              'Choose the default language used across the control center, app preview and AI replies.',
+              'Choose the default language used across the control center, client preview and automated assistance.',
             fullName: 'Full name',
             role: 'Role',
             email: 'Email',
@@ -106,7 +106,7 @@ export function SettingsPage() {
             saved: 'Preferences updated successfully.',
             visibility: 'Live impact',
             visibilityNote:
-              'Once saved, top navigation, mobile app labels and AI response tone will follow the selected language.',
+              'Once saved, top navigation, client app labels and automated response tone will follow the selected language.',
             chipTitle: 'Active language',
             chipValue: formValues.language === 'en' ? 'English' : 'Spanish',
           }
@@ -119,8 +119,8 @@ export function SettingsPage() {
             profileNote:
               'Estos datos se reflejan en el header operativo y en el dashboard ejecutivo.',
             language: 'Idioma y experiencia',
-	            languageNote:
-	              'Elige idioma base, límites de IA y preferencias operativas persistidas en backend.',
+		            languageNote:
+		              'Elige idioma base, límites de asistencia automatizada y preferencias operativas guardadas para el equipo.',
             fullName: 'Nombre completo',
             role: 'Rol',
             email: 'Correo',
@@ -129,7 +129,7 @@ export function SettingsPage() {
             saved: 'Preferencias actualizadas correctamente.',
             visibility: 'Impacto inmediato',
             visibilityNote:
-              'Al guardar, la navegación superior, la app móvil y el tono de ALQIA seguirán el idioma seleccionado.',
+	              'Al guardar, la navegación superior, la app móvil y el tono de respuesta seguirán el idioma seleccionado.',
             chipTitle: 'Idioma activo',
             chipValue:
               formValues.language === 'en' ? 'Inglés' : 'Español',
@@ -388,7 +388,7 @@ export function SettingsPage() {
                 className="mt-2 text-[1.6rem] leading-tight"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
-                Hacienda de Letras OS
+	                Hacienda de Letras
               </p>
             </div>
           </div>

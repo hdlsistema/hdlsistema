@@ -34,7 +34,7 @@ export type EditorialConfirmState = {
 export const editorialConfirmCopies: Record<EditorialConfirmAction, EditorialConfirmCopy> = {
   publish: {
     title: 'Confirmar publicación',
-    message: 'Al publicar este contenido, será visible para clientes en la app pública si cumple las reglas de publicación.',
+    message: 'Al publicar este contenido, será visible para clientes en la app si cumple las reglas de publicación.',
     confirmLabel: 'Publicar contenido',
     impact: 'El contenido podrá aparecer para clientes cuando también esté marcado como visible en app.',
     tone: 'default',
@@ -45,7 +45,7 @@ export const editorialConfirmCopies: Record<EditorialConfirmAction, EditorialCon
     title: 'Confirmar despublicación',
     message: 'Este contenido dejará de estar visible para clientes, pero seguirá disponible en el Centro de Control.',
     confirmLabel: 'Despublicar',
-    impact: 'La app pública dejará de mostrar este contenido.',
+    impact: 'La app del cliente dejará de mostrar este contenido.',
     tone: 'default',
     afterStatus: 'Despublicado',
     visibleAfter: false,
@@ -97,7 +97,7 @@ export const editorialConfirmCopies: Record<EditorialConfirmAction, EditorialCon
   },
   retire: {
     title: 'Confirmar retiro',
-    message: 'Este contenido será retirado de la vista editorial principal. No se eliminará físicamente de la base de datos.',
+    message: 'Este contenido será retirado de la vista editorial principal. Permanecerá disponible en el historial interno.',
     confirmLabel: 'Retirar contenido',
     impact: 'El contenido saldrá del listado principal y quedará oculto para clientes.',
     tone: 'warning',

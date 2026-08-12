@@ -1,8 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { CheckCircle2, CircleDashed, Loader2, RefreshCw } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useParams } from 'react-router-dom'
+import {
+  CheckCircle2,
+  CircleDashed,
+  Loader2,
+  Mail,
+  Phone,
+  RefreshCw,
+  Save,
+  UserRound,
+} from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { quoteRequestsClient, type QuoteRequestRecord } from '../../../services/commercial.service'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
 
 const statuses = [
   { value: '', label: 'Todas' },
@@ -16,12 +26,12 @@ const statuses = [
 ] as const
 
 const nextActions: Array<{ status: QuoteRequestRecord['status']; label: string }> = [
-  { status: 'contacted', label: 'Marcar contactada' },
+  { status: 'contacted', label: 'Contactada' },
   { status: 'in_progress', label: 'En proceso' },
-  { status: 'quoted', label: 'Cotizada' },
+  { status: 'quoted', label: 'Cotizada sin envío' },
   { status: 'won', label: 'Ganada' },
   { status: 'lost', label: 'Perdida' },
-  { status: 'cancelled', label: 'Cancelar' },
+  { status: 'cancelled', label: 'Cancelada' },
 ]
 
 function statusLabel(status: string) {
@@ -30,7 +40,52 @@ function statusLabel(status: string) {
 
 function dateLabel(value?: string | null) {
   if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(`${value}T12:00:00`))
+  const date = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(date)
+}
+
+function currency(value?: number | null, code = 'MXN') {
+  if (value === null || value === undefined || Number.isNaN(value)) return ''
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: code }).format(value)
+}
+
+function metadataValue(metadata: Record<string, unknown> | undefined, key: string) {
+  const value = metadata?.[key]
+  if (value === null || value === undefined || value === '') return ''
+  if (Array.isArray(value)) return value.join(', ')
+  if (typeof value === 'object') return 'Información adicional'
+  return String(value)
+}
+
+function emailStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    queued: 'en cola',
+    pending: 'pendiente',
+    pending_configuration: 'pendiente de configuración',
+    processing: 'en proceso',
+    sent: 'enviado',
+    delivered: 'entregado',
+    failed: 'no enviado',
+  }
+  if (!status) return 'registrado'
+  return labels[status] ?? status.replaceAll('_', ' ')
+}
+
+function defaultSubject(quote: QuoteRequestRecord | null) {
+  return quote ? `Cotización ${quote.quoteNumber} · Hacienda de Letras` : 'Cotización Hacienda de Letras'
+}
+
+function defaultMessage(quote: QuoteRequestRecord | null) {
+  if (!quote) return ''
+  return [
+    `Hola ${quote.customerName || 'Cliente'},`,
+    '',
+    `Gracias por considerar Hacienda de Letras para ${quote.eventType}.`,
+    'Te compartimos la propuesta preparada con base en los datos de tu solicitud.',
+    '',
+    'Quedamos atentos a tus comentarios para confirmar ajustes, disponibilidad y siguientes pasos.',
+  ].join('\n')
 }
 
 export function QuoteRequestsPage() {
@@ -44,6 +99,25 @@ export function QuoteRequestsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [adminNotes, setAdminNotes] = useState('')
+  const [quoteForm, setQuoteForm] = useState({
+    subject: '',
+    message: '',
+    quoteAmount: '',
+    validUntil: '',
+  })
+
+  const syncSelected = useCallback((quote: QuoteRequestRecord | null) => {
+    setSelected(quote)
+    setAdminNotes(quote?.adminNotes ?? '')
+    setQuoteForm({
+      subject: defaultSubject(quote),
+      message: defaultMessage(quote),
+      quoteAmount: metadataValue(quote?.metadata, 'lastQuotedAmount'),
+      validUntil: '',
+    })
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -55,20 +129,16 @@ export function QuoteRequestsPage() {
         perPage: 50,
       })
       setItems(response.data)
-      setSelected((current) => {
-        const preferred = quoteId ? response.data.find((item) => item.id === quoteId) : null
-        if (preferred) return preferred
-        if (current) return response.data.find((item) => item.id === current.id) ?? response.data[0] ?? null
-        return response.data[0] ?? null
-      })
+      const preferred = quoteId ? response.data.find((item) => item.id === quoteId) : null
+      syncSelected(preferred ?? response.data[0] ?? null)
     } catch {
       setItems([])
-      setSelected(null)
+      syncSelected(null)
       setError('No fue posible cargar cotizaciones.')
     } finally {
       setLoading(false)
     }
-  }, [quoteId, search, status, token])
+  }, [quoteId, search, status, syncSelected, token])
 
   useEffect(() => {
     void load()
@@ -77,19 +147,65 @@ export function QuoteRequestsPage() {
   const counts = useMemo(() => ({
     total: items.length,
     new: items.filter((item) => item.status === 'new').length,
+    inProgress: items.filter((item) => item.status === 'contacted' || item.status === 'in_progress').length,
     won: items.filter((item) => item.status === 'won').length,
   }), [items])
+
+  const replaceItem = (quote: QuoteRequestRecord) => {
+    syncSelected(quote)
+    setItems((current) => current.map((item) => item.id === quote.id ? quote : item))
+  }
 
   const updateStatus = async (nextStatus: QuoteRequestRecord['status']) => {
     if (!selected) return
     setSaving(nextStatus)
     setError('')
+    setSuccess('')
     try {
-      const response = await quoteRequestsClient.update(token, selected.id, { status: nextStatus })
-      setSelected(response.data)
-      setItems((current) => current.map((item) => item.id === response.data.id ? response.data : item))
+      const response = await quoteRequestsClient.update(token, selected.id, { status: nextStatus, adminNotes })
+      replaceItem(response.data)
+      setSuccess('Estado actualizado.')
     } catch {
       setError('No fue posible actualizar la cotización.')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  const saveNotes = async () => {
+    if (!selected) return
+    setSaving('notes')
+    setError('')
+    setSuccess('')
+    try {
+      const response = await quoteRequestsClient.update(token, selected.id, { adminNotes })
+      replaceItem(response.data)
+      setSuccess('Notas internas guardadas.')
+    } catch {
+      setError('No fue posible guardar las notas.')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  const sendQuote = async () => {
+    if (!selected) return
+    setSaving('send')
+    setError('')
+    setSuccess('')
+    try {
+      const amount = quoteForm.quoteAmount.trim() ? Number(quoteForm.quoteAmount) : undefined
+      const response = await quoteRequestsClient.sendQuote(token, selected.id, {
+        subject: quoteForm.subject,
+        message: quoteForm.message,
+        quoteAmount: Number.isFinite(amount) ? amount : undefined,
+        validUntil: quoteForm.validUntil || undefined,
+        adminNotes,
+      })
+      replaceItem(response.data.quote)
+      setSuccess(`Cotización enviada. Estado del correo: ${emailStatusLabel(response.data.email.status)}.`)
+    } catch {
+      setError('No fue posible enviar la cotización por correo.')
     } finally {
       setSaving('')
     }
@@ -101,20 +217,21 @@ export function QuoteRequestsPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-muted)]">Operación comercial</p>
           <h1 className="mt-2 text-5xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>Cotizaciones</h1>
-          <p className="mt-2 text-[var(--color-muted-strong)]">Solicitudes reales de eventos sociales y empresariales desde la app.</p>
+          <p className="mt-2 text-[var(--color-muted-strong)]">Solicitudes con seguimiento, propuesta y envío por correo.</p>
         </div>
         <button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(200,171,136,0.55)] bg-white/50 px-5 text-sm font-medium text-[var(--color-burgundy)] backdrop-blur-xl">
           <RefreshCw size={16} /> Actualizar
         </button>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-4">
         <Metric label="Solicitudes" value={counts.total} />
         <Metric label="Nuevas" value={counts.new} />
+        <Metric label="Seguimiento" value={counts.inProgress} />
         <Metric label="Ganadas" value={counts.won} />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(480px,1.05fr)]">
         <div className="rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/42 p-4 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
           <div className="flex flex-wrap gap-2">
             {statuses.map((item) => (
@@ -132,9 +249,10 @@ export function QuoteRequestsPage() {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por folio, cliente, evento o teléfono..."
-            className="mt-4 min-h-12 w-full rounded-full border border-[rgba(200,171,136,0.45)] bg-white/64 px-5 text-sm outline-none"
+            className="mt-4 min-h-12 w-full rounded-full border border-[rgba(200,171,136,0.45)] bg-white/64 px-5 text-sm text-[var(--color-ink)] outline-none"
           />
           {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+          {success ? <p className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{success}</p> : null}
           <div className="mt-4 overflow-hidden rounded-[1.1rem] border border-[rgba(200,171,136,0.32)] bg-white/48">
             {loading ? (
               <div className="flex min-h-44 items-center justify-center text-[var(--color-muted)]"><Loader2 className="animate-spin" /></div>
@@ -143,7 +261,7 @@ export function QuoteRequestsPage() {
             ) : (
               <div className="divide-y divide-[rgba(200,171,136,0.25)]">
                 {items.map((item) => (
-                  <button key={item.id} type="button" onClick={() => setSelected(item)} className={`grid w-full gap-2 px-4 py-4 text-left md:grid-cols-[1fr_auto] ${selected?.id === item.id ? 'bg-[rgba(138,31,45,0.08)]' : 'hover:bg-white/50'}`}>
+                  <button key={item.id} type="button" onClick={() => syncSelected(item)} className={`grid w-full gap-2 px-4 py-4 text-left md:grid-cols-[1fr_auto] ${selected?.id === item.id ? 'bg-[rgba(138,31,45,0.08)]' : 'hover:bg-white/50'}`}>
                     <span>
                       <span className="block text-sm font-semibold text-[var(--color-ink)]">{item.quoteNumber} · {item.customerName}</span>
                       <span className="mt-1 block text-sm text-[var(--color-muted-strong)]">{item.eventType} · {item.guestCount} personas · {dateLabel(item.preferredDate)}</span>
@@ -159,28 +277,99 @@ export function QuoteRequestsPage() {
         <aside className="rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/50 p-5 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
           {selected ? (
             <div className="space-y-5">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">{selected.quoteNumber}</p>
-                <h2 className="mt-2 text-2xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.eventType}</h2>
-                <p className="mt-1 text-sm text-[var(--color-muted-strong)]">{selected.customerName}</p>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">{selected.quoteNumber}</p>
+                  <h2 className="mt-2 text-2xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.eventType}</h2>
+                  <p className="mt-1 text-sm text-[var(--color-muted-strong)]">{selected.customerName}</p>
+                </div>
+                <span className="rounded-full bg-[rgba(138,31,45,0.09)] px-4 py-2 text-sm font-semibold text-[var(--color-burgundy)]">{statusLabel(selected.status)}</span>
               </div>
-              <dl className="grid gap-3 text-sm">
-                <Detail label="Estado" value={statusLabel(selected.status)} />
+
+              <section className="grid gap-3 md:grid-cols-2">
+                <Detail icon={<UserRound size={16} />} label="Cliente" value={`${selected.contactFirstName ?? ''} ${selected.contactLastName ?? ''}`.trim() || selected.customerName} />
+                <Detail icon={<Phone size={16} />} label="Teléfono" value={selected.contactPhone || 'Sin teléfono'} />
+                <Detail icon={<Mail size={16} />} label="Correo" value={selected.contactEmail || 'Sin correo'} />
                 <Detail label="Fecha solicitada" value={dateLabel(selected.preferredDate)} />
                 <Detail label="Personas" value={String(selected.guestCount)} />
                 <Detail label="Espacio" value={selected.venueSpaceName || 'Por definir'} />
-                <Detail label="Teléfono" value={selected.contactPhone} />
-                <Detail label="Correo" value={selected.contactEmail} />
-              </dl>
-              <div className="grid gap-2">
-                {nextActions.map((action) => (
-                  <button key={action.status} type="button" onClick={() => void updateStatus(action.status)} disabled={saving === action.status || selected.status === action.status} className="flex min-h-11 items-center justify-between rounded-full border border-[rgba(200,171,136,0.45)] bg-white/60 px-4 text-sm font-medium text-[var(--color-burgundy)] disabled:opacity-55">
-                    {action.label}
-                    {saving === action.status ? <Loader2 className="animate-spin" size={16} /> : selected.status === action.status ? <CheckCircle2 size={16} /> : <CircleDashed size={16} />}
+                <Detail label="Comida" value={selected.foodPreference || 'Sin preferencia'} />
+                <Detail label="Vino" value={selected.winePreference || 'Sin preferencia'} />
+                <Detail label="Servicios" value={selected.requestedServices?.length ? selected.requestedServices.join(', ') : 'Sin servicios capturados'} wide />
+                <Detail label="Presupuesto" value={selected.budgetRange || 'No indicado'} />
+                <Detail label="Notas del cliente" value={selected.notes || 'Sin notas'} wide />
+              </section>
+
+              <section className="rounded-[1.1rem] border border-[rgba(200,171,136,0.42)] bg-white/58 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-[var(--color-ink)]">Seguimiento interno</h3>
+                  <button type="button" onClick={() => void saveNotes()} disabled={saving === 'notes'} className="inline-flex h-9 items-center gap-2 rounded-full bg-white/75 px-3 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-55">
+                    {saving === 'notes' ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Guardar
                   </button>
-                ))}
-              </div>
-              <Link to={`/control/cotizaciones/${selected.id}`} className="block text-xs text-[var(--color-muted)]">Deep link operativo listo para notificaciones.</Link>
+                </div>
+                <textarea
+                  value={adminNotes}
+                  onChange={(event) => setAdminNotes(event.target.value)}
+                  rows={3}
+                  placeholder="Notas internas, responsable, próxima acción o acuerdos..."
+                  className="mt-3 w-full rounded-2xl border border-[rgba(200,171,136,0.42)] bg-white/70 px-4 py-3 text-sm text-[var(--color-ink)] outline-none"
+                />
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {nextActions.map((action) => (
+                    <button key={action.status} type="button" onClick={() => void updateStatus(action.status)} disabled={saving === action.status || selected.status === action.status} className="flex min-h-10 items-center justify-between rounded-full border border-[rgba(200,171,136,0.45)] bg-white/60 px-4 text-sm font-medium text-[var(--color-burgundy)] disabled:opacity-55">
+                      {action.label}
+                      {saving === action.status ? <Loader2 className="animate-spin" size={16} /> : selected.status === action.status ? <CheckCircle2 size={16} /> : <CircleDashed size={16} />}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className="rounded-[1.1rem] border border-[rgba(138,31,45,0.22)] bg-[rgba(255,255,255,0.62)] p-4">
+                <h3 className="text-sm font-semibold text-[var(--color-ink)]">Enviar cotización por correo</h3>
+                <div className="mt-3 grid gap-3">
+                  <input
+                    value={quoteForm.subject}
+                    onChange={(event) => setQuoteForm((current) => ({ ...current, subject: event.target.value }))}
+                    placeholder="Asunto"
+                    className="min-h-11 rounded-2xl border border-[rgba(200,171,136,0.42)] bg-white/72 px-4 text-sm text-[var(--color-ink)] outline-none"
+                  />
+                  <textarea
+                    value={quoteForm.message}
+                    onChange={(event) => setQuoteForm((current) => ({ ...current, message: event.target.value }))}
+                    rows={5}
+                    placeholder="Mensaje de la propuesta"
+                    className="rounded-2xl border border-[rgba(200,171,136,0.42)] bg-white/72 px-4 py-3 text-sm text-[var(--color-ink)] outline-none"
+                  />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <input
+                      value={quoteForm.quoteAmount}
+                      onChange={(event) => setQuoteForm((current) => ({ ...current, quoteAmount: event.target.value }))}
+                      placeholder="Monto cotizado MXN"
+                      inputMode="decimal"
+                      className="min-h-11 rounded-2xl border border-[rgba(200,171,136,0.42)] bg-white/72 px-4 text-sm text-[var(--color-ink)] outline-none"
+                    />
+                    <CrystalDateField
+                      value={quoteForm.validUntil}
+                      onChange={(value) => setQuoteForm((current) => ({ ...current, validUntil: value }))}
+                      placeholder="Vigente hasta"
+                      buttonClassName="min-h-11 rounded-2xl border-[rgba(200,171,136,0.42)] bg-white/72 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void sendQuote()}
+                    disabled={saving === 'send' || !selected.contactEmail || quoteForm.subject.length < 3 || quoteForm.message.length < 10}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-55"
+                  >
+                    {saving === 'send' ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />}
+                    Enviar cotización
+                  </button>
+                  <p className="text-xs text-[var(--color-muted)]">
+                    {quoteForm.quoteAmount ? `Importe visible: ${currency(Number(quoteForm.quoteAmount))}` : 'El correo se envía al contacto registrado y queda en el historial operativo.'}
+                  </p>
+                </div>
+              </section>
             </div>
           ) : (
             <p className="text-sm text-[var(--color-muted)]">Selecciona una cotización.</p>
@@ -200,11 +389,14 @@ function Metric({ label, value }: { label: string; value: number }) {
   )
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
+function Detail({ label, value, icon, wide }: { label: string; value: string; icon?: ReactNode; wide?: boolean }) {
   return (
-    <div className="rounded-2xl bg-white/58 px-4 py-3">
-      <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">{label}</dt>
-      <dd className="mt-1 text-[var(--color-ink)]">{value}</dd>
+    <div className={`rounded-2xl bg-white/58 px-4 py-3 ${wide ? 'md:col-span-2' : ''}`}>
+      <dt className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">
+        {icon}
+        {label}
+      </dt>
+      <dd className="mt-1 whitespace-pre-wrap text-sm text-[var(--color-ink)]">{value}</dd>
     </div>
   )
 }

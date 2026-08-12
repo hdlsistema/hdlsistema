@@ -29,7 +29,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
   wines: {
     entity: 'wines',
     title: 'Vinos',
-    subtitle: 'Catálogo real conectado al backend editorial.',
+    subtitle: 'Catálogo de vinos para publicación y venta.',
     eyebrow: 'Contenido editorial',
     primaryLabel: 'name',
     secondaryLabel: 'sku',
@@ -39,14 +39,14 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
     orderBy: 'name',
     publishStatus: 'published',
     microcopy: 'Este contenido será visible en la app cuando esté publicado.',
-    publicSummary: 'La app pública usa nombre, descripción, ficha, precio, disponibilidad comercial, imagen y visibilidad.',
+    publicSummary: 'La app del cliente usa nombre, descripción, ficha, precio, disponibilidad comercial, imagen y visibilidad.',
     sections: [
       {
         title: 'Información principal',
         description: 'Identifica el vino y prepara el enlace público.',
         fields: [
           { key: 'name', label: 'Nombre', type: 'text', required: true, publishRequired: true, publicVisible: true },
-          { key: 'slug', label: 'Slug', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
+          { key: 'slug', label: 'Enlace corto', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
           { key: 'sku', label: 'SKU', type: 'text', required: true },
           { key: 'subtitle', label: 'Descripción corta', type: 'text', nullable: true, publicVisible: true },
           { key: 'description', label: 'Descripción larga', type: 'textarea', nullable: true, publishRequired: true, publicVisible: true },
@@ -74,7 +74,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
         title: 'Contenido visible en app',
         description: 'Controla si el vino aparece para clientes cuando el estado lo permita.',
         fields: [
-          { key: 'cover_image_url', label: 'Imagen principal URL', type: 'text', nullable: true, publicVisible: true },
+          { key: 'cover_image_url', label: 'Imagen principal', type: 'text', nullable: true, publicVisible: true },
           { key: 'visible_in_app', label: 'Visible en app', type: 'boolean', publicVisible: true },
           { key: 'sort_order', label: 'Orden de aparición', type: 'number', nullable: true, publicVisible: true },
         ],
@@ -93,7 +93,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
   experiences: {
     entity: 'experiences',
     title: 'Experiencias',
-    subtitle: 'Experiencias publicables, editables y programables desde el backend.',
+    subtitle: 'Experiencias publicables, editables y programables.',
     eyebrow: 'Contenido editorial',
     primaryLabel: 'title',
     secondaryLabel: 'slug',
@@ -103,14 +103,14 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
     orderBy: 'title',
     publishStatus: 'published',
     microcopy: 'Describe qué vivirá el visitante antes de publicar la experiencia.',
-    publicSummary: 'La app pública usa título, descripciones, duración, precio, capacidad, ubicación e imagen.',
+    publicSummary: 'La app del cliente usa título, descripciones, duración, precio, capacidad, ubicación e imagen.',
     sections: [
       {
         title: 'Información principal',
         description: 'Nombre público y enlace de la experiencia.',
         fields: [
           { key: 'title', label: 'Título', type: 'text', required: true, publishRequired: true, publicVisible: true },
-          { key: 'slug', label: 'Slug', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
+          { key: 'slug', label: 'Enlace corto', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
           { key: 'subtitle', label: 'Subtítulo', type: 'text', nullable: true, publicVisible: true },
         ],
       },
@@ -143,7 +143,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
         title: 'Contenido visible en app',
         description: 'Controla visibilidad, imagen y orden.',
         fields: [
-          { key: 'cover_image_url', label: 'Imagen principal URL', type: 'text', nullable: true, publicVisible: true },
+          { key: 'cover_image_url', label: 'Imagen principal', type: 'text', nullable: true, publicVisible: true },
           { key: 'visible_in_app', label: 'Visible en app', type: 'boolean', publicVisible: true },
           { key: 'sort_order', label: 'Orden de aparición', type: 'number', nullable: true, publicVisible: true },
         ],
@@ -162,7 +162,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
   events: {
     entity: 'events',
     title: 'Eventos',
-    subtitle: 'Eventos reales con publicación, agenda y control de aforo.',
+    subtitle: 'Eventos con publicación, agenda y control de aforo.',
     eyebrow: 'Contenido editorial',
     primaryLabel: 'title',
     secondaryLabel: 'venue',
@@ -172,14 +172,14 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
     orderBy: 'title',
     publishStatus: 'published',
     microcopy: 'Las fechas se muestran en horario local configurado para Hacienda.',
-    publicSummary: 'La app pública usa título, fechas, sede, aforo, venta activa, descripciones e imagen.',
+    publicSummary: 'La app del cliente usa título, fechas, sede, aforo, venta activa, descripciones e imagen.',
     sections: [
       {
         title: 'Información del evento',
         description: 'Nombre público, enlace y textos principales.',
         fields: [
           { key: 'title', label: 'Título', type: 'text', required: true, publishRequired: true, publicVisible: true },
-          { key: 'slug', label: 'Slug', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
+          { key: 'slug', label: 'Enlace corto', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
           { key: 'subtitle', label: 'Subtítulo', type: 'text', nullable: true, publicVisible: true },
           { key: 'short_description', label: 'Descripción corta', type: 'textarea', nullable: true, publicVisible: true },
           { key: 'description', label: 'Descripción larga', type: 'textarea', nullable: true, publishRequired: true, publicVisible: true },
@@ -207,7 +207,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
         title: 'Contenido visible en app',
         description: 'Define visibilidad, imagen y prioridad.',
         fields: [
-          { key: 'cover_image_url', label: 'Imagen principal URL', type: 'text', nullable: true, publicVisible: true },
+          { key: 'cover_image_url', label: 'Imagen principal', type: 'text', nullable: true, publicVisible: true },
           { key: 'featured', label: 'Destacado', type: 'boolean', publicVisible: true },
           { key: 'visible_in_app', label: 'Visible en app', type: 'boolean', publicVisible: true },
           { key: 'sort_order', label: 'Orden de aparición', type: 'number', nullable: true, publicVisible: true },
@@ -227,7 +227,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
   promotions: {
     entity: 'promotions',
     title: 'Promociones',
-    subtitle: 'Ofertas reales para publicar, pausar, programar o archivar.',
+    subtitle: 'Ofertas para publicar, pausar, programar o archivar.',
     eyebrow: 'Contenido editorial',
     primaryLabel: 'name',
     secondaryLabel: 'code',
@@ -237,7 +237,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
     orderBy: 'name',
     publishStatus: 'published',
     microcopy: 'Define con claridad la vigencia y condiciones para evitar confusión en clientes.',
-    publicSummary: 'La app pública usa nombre, descripción, descuento, vigencia, segmento y visibilidad.',
+    publicSummary: 'La app del cliente usa nombre, descripción, descuento, vigencia, segmento y visibilidad.',
     sections: [
       {
         title: 'Información de promoción',
@@ -290,7 +290,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
   'membership-plans': {
     entity: 'membership-plans',
     title: 'Planes de membresía',
-    subtitle: 'Planes reales del club conectados a publicación editorial.',
+    subtitle: 'Planes del club conectados a publicación editorial.',
     eyebrow: 'Contenido editorial',
     primaryLabel: 'name',
     secondaryLabel: 'code',
@@ -300,7 +300,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
     orderBy: 'name',
     publishStatus: 'published',
     microcopy: 'Publica solo planes con beneficios claros para el cliente.',
-    publicSummary: 'La app pública usa nombre, descripción, precio, periodo, beneficios, límites y visibilidad.',
+    publicSummary: 'La app del cliente usa nombre, descripción, precio, periodo, beneficios, límites y visibilidad.',
     sections: [
       {
         title: 'Información del plan',
@@ -322,7 +322,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
       },
       {
         title: 'Beneficios',
-        description: 'Escribe un beneficio por línea. Se guarda como objeto JSON compatible con el backend.',
+        description: 'Escribe un beneficio por línea. El sistema lo estructura automáticamente para la app.',
         fields: [
           { key: 'benefits', label: 'Beneficios', type: 'benefits', publishRequired: true, publicVisible: true },
         ],
@@ -350,7 +350,7 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
   campaigns: {
     entity: 'campaigns',
     title: 'Campañas',
-    subtitle: 'Campañas reales administradas desde el backend común.',
+    subtitle: 'Campañas para comunicación comercial y seguimiento.',
     eyebrow: 'Contenido editorial',
     primaryLabel: 'name',
     secondaryLabel: 'channel',
@@ -359,37 +359,36 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
     createLabel: 'Nueva campaña',
     orderBy: 'name',
     publishStatus: 'active',
-    microcopy: 'La audiencia y el contenido se guardan como JSON guiado, sin pedirle al equipo escribir código.',
-    publicSummary: 'La app pública puede mostrar campañas activas, visibles y dentro de ventana de publicación sin recompilar.',
+    microcopy: 'La audiencia y el contenido se capturan con campos guiados, sin pasos técnicos.',
+    publicSummary: 'Las campañas se operan desde el Centro de Control; no aparecen como contenido navegable en la app del cliente.',
     sections: [
       {
         title: 'Información de campaña',
         description: 'Nombre, canal y fecha de ejecución.',
         fields: [
-          { key: 'name', label: 'Nombre', type: 'text', required: true, publishRequired: true, publicVisible: true },
-          { key: 'channel', label: 'Canal', type: 'text', required: true, publishRequired: true, publicVisible: true },
+          { key: 'name', label: 'Nombre', type: 'text', required: true, publishRequired: true },
+          { key: 'channel', label: 'Canal', type: 'text', required: true, publishRequired: true },
           { key: 'scheduled_at', label: 'Programación', type: 'datetime', nullable: true },
         ],
       },
       {
         title: 'Audiencia',
-        description: 'Define a quién va dirigida sin editar JSON crudo.',
+        description: 'Define a quién va dirigida con criterios operativos claros.',
         fields: [
-          { key: 'audience_definition', label: 'Audiencia objetivo', type: 'campaignAudience', publishRequired: true, publicVisible: true },
+          { key: 'audience_definition', label: 'Audiencia objetivo', type: 'campaignAudience', publishRequired: true },
         ],
       },
       {
         title: 'Contenido',
         description: 'Mensaje principal que recibirá la audiencia.',
         fields: [
-          { key: 'content', label: 'Contenido de campaña', type: 'campaignContent', publishRequired: true, publicVisible: true },
+          { key: 'content', label: 'Contenido de campaña', type: 'campaignContent', publishRequired: true },
         ],
       },
       {
         title: 'Vigencia',
         description: 'Estado y visibilidad operativa de la campaña.',
         fields: [
-          { key: 'visible_in_app', label: 'Visible en app', type: 'boolean', publicVisible: true },
           { key: 'status', label: 'Estado editorial', type: 'select', options: campaignStatuses },
         ],
       },

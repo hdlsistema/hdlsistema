@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CheckCircle2, Download, PackageCheck, Plus, RefreshCw, Search, ShoppingBag, X } from 'lucide-react'
+import { CheckCircle2, Download, ExternalLink, MapPin, PackageCheck, Plus, RefreshCw, Search, Send, ShoppingBag, Truck, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ordersClient, type OrderItemRecord, type OrderRecord } from '../../../services/commerce.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
@@ -13,6 +13,12 @@ type OrderForm = {
   sku: string
   quantity: string
   unitPrice: string
+}
+
+type TrackingForm = {
+  carrier: string
+  trackingNumber: string
+  trackingUrl: string
 }
 
 const emptyForm: OrderForm = {
@@ -50,6 +56,20 @@ function statusLabel(status: string) {
   return labels[status] ?? status
 }
 
+function shippingStatusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    not_required: 'No requiere envío',
+    pending_preparation: 'Por preparar',
+    preparing: 'Preparando',
+    awaiting_tracking: 'Guía pendiente',
+    tracking_assigned: 'Guía asignada',
+    shipped: 'Enviada',
+    delivered: 'Entregada',
+    cancelled: 'Cancelada',
+  }
+  return labels[status || 'not_required'] ?? String(status)
+}
+
 export function OrdersPage() {
   const { session, roles } = useAuth()
   const token = session?.access_token
@@ -59,12 +79,15 @@ export function OrdersPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [shippingStatus, setShippingStatus] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState<OrderForm>(emptyForm)
+  const [trackingOpen, setTrackingOpen] = useState(false)
+  const [trackingForm, setTrackingForm] = useState<TrackingForm>({ carrier: '', trackingNumber: '', trackingUrl: '' })
 
   const selected = useMemo(
     () => orders.find((order) => order.id === selectedId) ?? orders[0] ?? null,
@@ -75,7 +98,12 @@ export function OrdersPage() {
     setLoading(true)
     setError('')
     try {
-      const response = await ordersClient.list(token, { search: search || undefined, status: status || undefined, perPage: 100 })
+      const response = await ordersClient.list(token, {
+        search: search || undefined,
+        status: status || undefined,
+        shippingStatus: shippingStatus || undefined,
+        perPage: 100,
+      })
       setOrders(response.data)
       setSelectedId((current) => current ?? response.data[0]?.id ?? null)
     } catch (err) {
@@ -83,7 +111,7 @@ export function OrdersPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, status, token])
+  }, [search, shippingStatus, status, token])
 
   useEffect(() => {
     void loadOrders()
@@ -101,6 +129,9 @@ export function OrdersPage() {
     paid: orders.filter((order) => order.status === 'paid').length,
     pending: orders.filter((order) => order.status === 'pending_payment').length,
     total: orders.reduce((sum, order) => sum + order.total, 0),
+    preparation: orders.filter((order) => ['pending_preparation', 'preparing'].includes(order.shippingStatus || '')).length,
+    tracking: orders.filter((order) => ['awaiting_tracking', 'tracking_assigned'].includes(order.shippingStatus || '')).length,
+    shipped: orders.filter((order) => order.shippingStatus === 'shipped').length,
   }), [orders])
 
   const submitOrder = async (event: FormEvent<HTMLFormElement>) => {
@@ -125,13 +156,18 @@ export function OrdersPage() {
       setSelectedId(response.data.id)
       setForm(emptyForm)
       setFormOpen(false)
-      setToast('Orden creada en Supabase.')
+      setToast('Orden creada.')
       await loadOrders()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la orden.')
-    } finally {
-      setSaving(false)
-    }
+      } finally {
+        setSaving(false)
+      }
+  }
+
+  const updateSelectedFromResponse = (next: OrderRecord) => {
+    setOrders((current) => current.map((order) => (order.id === next.id ? next : order)))
+    setSelectedId(next.id)
   }
 
   const runAction = async (message: string, action: () => Promise<unknown>, confirmMessage: string) => {
@@ -149,9 +185,32 @@ export function OrdersPage() {
     }
   }
 
+  const submitTracking = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!selected || !writable || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      const response = await ordersClient.assignTracking(token, selected.id, {
+        carrier: trackingForm.carrier,
+        trackingNumber: trackingForm.trackingNumber,
+        trackingUrl: trackingForm.trackingUrl || null,
+      })
+      updateSelectedFromResponse(response.data)
+      setTrackingForm({ carrier: '', trackingNumber: '', trackingUrl: '' })
+      setTrackingOpen(false)
+      setToast('Guía asignada.')
+      await loadOrders()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible asignar la guía.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const exportCsv = async () => {
     try {
-      const response = await ordersClient.exportCsv(token, { search: search || undefined, status: status || undefined })
+      const response = await ordersClient.exportCsv(token, { search: search || undefined, status: status || undefined, shippingStatus: shippingStatus || undefined })
       if (!response.ok) throw new Error('No fue posible exportar órdenes.')
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
@@ -168,7 +227,7 @@ export function OrdersPage() {
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Operación" title="Órdenes" subtitle="Órdenes, partidas, pagos asociados e historial real desde Supabase." />
+        <SectionTitle eyebrow="Operación" title="Órdenes" subtitle="Órdenes, partidas, pagos asociados e historial operativo." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadOrders} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
@@ -176,14 +235,17 @@ export function OrdersPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
         <Metric icon={ShoppingBag} label="Órdenes" value={String(orders.length)} />
         <Metric icon={CheckCircle2} label="Pagadas" value={String(metrics.paid)} />
         <Metric icon={PackageCheck} label="Total" value={money(metrics.total)} />
+        <Metric icon={Truck} label="Por preparar" value={String(metrics.preparation)} />
+        <Metric icon={Send} label="Guía" value={String(metrics.tracking)} />
+        <Metric icon={PackageCheck} label="Enviadas" value={String(metrics.shipped)} />
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
-        <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
           <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4">
             <Search size={16} className="text-[var(--color-muted)]" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar folio u origen..." className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
@@ -197,7 +259,16 @@ export function OrdersPage() {
             <option value="cancelled">Cancelada</option>
             <option value="refunded">Reembolsada</option>
           </CrystalSelect>
-          <button type="button" onClick={() => { setSearch(''); setStatus('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">Limpiar</button>
+          <CrystalSelect value={shippingStatus} onChange={setShippingStatus}>
+            <option value="">Todos los envíos</option>
+            <option value="pending_preparation">Por preparar</option>
+            <option value="preparing">Preparando</option>
+            <option value="awaiting_tracking">Pendientes de guía</option>
+            <option value="tracking_assigned">Con guía</option>
+            <option value="shipped">Enviadas</option>
+            <option value="delivered">Entregadas</option>
+          </CrystalSelect>
+          <button type="button" onClick={() => { setSearch(''); setStatus(''); setShippingStatus('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">Limpiar</button>
         </div>
       </section>
 
@@ -206,10 +277,10 @@ export function OrdersPage() {
       <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.9fr)]">
         <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
-            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Órdenes reales</h3>
+            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Órdenes</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{orders.length} registros</span>
           </div>
-          {loading ? <State text="Cargando órdenes reales..." /> : orders.length === 0 ? <State title="Sin órdenes reales" text="Crea una orden manual vinculada a un cliente real." /> : (
+          {loading ? <State text="Cargando órdenes..." /> : orders.length === 0 ? <State title="Sin órdenes" text="Crea una orden manual vinculada a un cliente registrado." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {orders.map((order) => (
                 <button key={order.id} type="button" onClick={() => setSelectedId(order.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.7fr_0.6fr_auto]" style={{ backgroundColor: selected?.id === order.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
@@ -217,7 +288,7 @@ export function OrdersPage() {
                     <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{order.orderNumber}</p>
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{order.customerName || 'Cliente sin nombre'}</p>
                   </div>
-                  <p className="text-xs text-[var(--color-muted)]">{order.reservationNumber ?? 'Sin reservación'}</p>
+                  <p className="text-xs text-[var(--color-muted)]">{order.requiresShipping ? shippingStatusLabel(order.shippingStatus) : order.reservationNumber ?? 'Sin reservación'}</p>
                   <p className="text-xs font-semibold text-[var(--color-ink)]">{money(order.total, order.currency)}</p>
                   <StatusBadge label={statusLabel(order.status)} />
                 </button>
@@ -234,6 +305,7 @@ export function OrdersPage() {
               <div className="mt-5 grid gap-3">
                 <Detail label="Cliente" value={selected.customerName || 'Sin nombre'} />
                 <Detail label="Estado" value={statusLabel(selected.status)} />
+                <Detail label="Envío" value={shippingStatusLabel(selected.shippingStatus)} />
                 <Detail label="Pagado" value={`${money(selected.paidAmount, selected.currency)} de ${money(selected.total, selected.currency)}`} />
                 <Detail label="Creada" value={dateLabel(selected.createdAt)} />
               </div>
@@ -243,6 +315,51 @@ export function OrdersPage() {
                 <Action disabled={!writable || !['draft', 'pending_payment', 'paid', 'processing'].includes(selected.status)} onClick={() => runAction('Orden cancelada.', () => ordersClient.cancel(token, selected.id, 'Cancelación desde Centro de Control'), '¿Cancelar esta orden?')}>Cancelar</Action>
               </div>
             </article>
+            {selected.requiresShipping ? (
+              <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Entrega</p>
+                    <h4 className="mt-1 text-lg font-semibold text-[var(--color-ink)]">Seguimiento de pedido</h4>
+                  </div>
+                  <StatusBadge label={shippingStatusLabel(selected.shippingStatus)} />
+                </div>
+                {selected.shippingAddress ? (
+                  <div className="mt-4 rounded-xl bg-[var(--color-soft)] p-3 text-sm leading-6 text-[var(--color-muted-strong)]">
+                    <p className="mb-1 flex items-center gap-2 font-semibold text-[var(--color-ink)]"><MapPin size={15} /> Domicilio</p>
+                    {selected.shippingAddress.recipientName}<br />
+                    {selected.shippingAddress.line1}{selected.shippingAddress.line2 ? `, ${selected.shippingAddress.line2}` : ''}<br />
+                    {selected.shippingAddress.neighborhood ? `${selected.shippingAddress.neighborhood}, ` : ''}{selected.shippingAddress.city}, {selected.shippingAddress.state} {selected.shippingAddress.postalCode}<br />
+                    {selected.shippingAddress.phone ? selected.shippingAddress.phone : ''}
+                  </div>
+                ) : (
+                  <p className="mt-4 rounded-xl bg-[var(--color-soft)] p-3 text-sm text-[var(--color-muted)]">Sin domicilio registrado en la orden.</p>
+                )}
+                <div className="mt-4 rounded-xl bg-[var(--color-soft)] p-3 text-sm text-[var(--color-muted-strong)]">
+                  <p className="font-semibold text-[var(--color-ink)]">Guía</p>
+                  <p className="mt-1">{selected.shipment?.carrier || 'Paquetería pendiente'} · {selected.shipment?.trackingNumber || 'Sin guía'}</p>
+                  {selected.shipment?.trackingUrl ? (
+                    <a href={selected.shipment.trackingUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-burgundy)]">
+                      Abrir rastreo <ExternalLink size={13} />
+                    </a>
+                  ) : null}
+                </div>
+                <div className="mt-4 grid gap-2">
+                  <Action disabled={!writable || !['pending_preparation', 'preparing'].includes(selected.shippingStatus || '')} onClick={() => runAction('Pedido en preparación.', () => ordersClient.prepareShipping(token, selected.id), '¿Marcar este pedido como en preparación?')}>Marcar preparando</Action>
+                  <Action disabled={!writable || !['pending_preparation', 'preparing', 'awaiting_tracking', 'tracking_assigned'].includes(selected.shippingStatus || '')} onClick={() => setTrackingOpen((current) => !current)}>Capturar guía</Action>
+                  <Action disabled={!writable || !['tracking_assigned'].includes(selected.shippingStatus || '')} onClick={() => runAction('Pedido marcado como enviado.', () => ordersClient.ship(token, selected.id), '¿Marcar este pedido como enviado?')}>Marcar enviado</Action>
+                  <Action disabled={!writable || selected.shippingStatus !== 'shipped'} onClick={() => runAction('Pedido marcado como entregado.', () => ordersClient.deliver(token, selected.id), '¿Marcar este pedido como entregado?')}>Marcar entregado</Action>
+                </div>
+                {trackingOpen ? (
+                  <form onSubmit={submitTracking} className="mt-4 grid gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-3">
+                    <Input label="Paquetería" value={trackingForm.carrier} onChange={(value) => setTrackingForm((current) => ({ ...current, carrier: value }))} required />
+                    <Input label="Número de guía" value={trackingForm.trackingNumber} onChange={(value) => setTrackingForm((current) => ({ ...current, trackingNumber: value }))} required />
+                    <Input label="Enlace de rastreo" value={trackingForm.trackingUrl} onChange={(value) => setTrackingForm((current) => ({ ...current, trackingUrl: value }))} />
+                    <button type="submit" disabled={saving} className="min-h-10 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-60">Guardar guía</button>
+                  </form>
+                ) : null}
+              </article>
+            ) : null}
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <h4 className="text-sm font-semibold text-[var(--color-ink)]">Partidas</h4>
               <div className="mt-4 space-y-3">
@@ -267,8 +384,8 @@ export function OrdersPage() {
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="ID de cliente" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
-              <Input label="ID de reservación" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
+              <Input label="Cliente relacionado" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
+              <Input label="Reservación relacionada" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
               <Input label="Partida" value={form.itemName} onChange={(value) => setForm({ ...form, itemName: value })} required />
               <Input label="SKU" value={form.sku} onChange={(value) => setForm({ ...form, sku: value })} />
               <Input label="Cantidad" type="number" min="1" value={form.quantity} onChange={(value) => setForm({ ...form, quantity: value })} required />

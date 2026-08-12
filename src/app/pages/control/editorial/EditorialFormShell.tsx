@@ -48,6 +48,12 @@ function updateCompositeValue(
 }
 
 function visibilityCopy(definition: EditorialDefinition, form: EditorialFormValues) {
+  if (definition.entity === 'campaigns') {
+    if (form.status === 'completed') return 'Campaña enviada'
+    if (form.status === 'scheduled') return 'Programada'
+    if (form.status === 'active') return 'Lista para envío'
+    return 'Operación interna'
+  }
   const status = form.status
   if (status === 'archived' || status === 'cancelled') return 'Archivado'
   if (status === 'scheduled') return 'Programado'
@@ -58,7 +64,7 @@ function visibilityCopy(definition: EditorialDefinition, form: EditorialFormValu
 function FieldHelp({ field, error }: { field: EditorialField; error?: string }) {
   if (error) return <p className="text-[13px] font-semibold text-[var(--color-alert)]">{error}</p>
   if (field.helper) return <p className="text-[13px] text-[var(--color-muted)]">{field.helper}</p>
-  if (field.publicVisible) return <p className="text-[13px] text-[var(--color-muted)]">Se usa en la app pública.</p>
+  if (field.publicVisible) return <p className="text-[13px] text-[var(--color-muted)]">Se muestra en la app del cliente.</p>
   return null
 }
 
@@ -192,13 +198,13 @@ function CampaignAudienceField({
         className="w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
       />
       <details className="rounded-xl border border-[var(--color-line)] bg-white p-3">
-        <summary className="cursor-pointer text-[13px] font-semibold text-[var(--color-burgundy)]">Modo avanzado JSON</summary>
+        <summary className="cursor-pointer text-[13px] font-semibold text-[var(--color-burgundy)]">Opciones avanzadas</summary>
         <textarea
           value={parsed.advancedJson ?? ''}
           onChange={(event) => onChange(updateCompositeValue(value, 'advancedJson', event.target.value))}
           rows={4}
-          placeholder='{"segment":"clientes frecuentes"}'
-          className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 font-mono text-[13px] text-[var(--color-ink)] outline-none"
+          placeholder="Segmento, reglas o notas adicionales"
+          className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
         />
       </details>
     </div>
@@ -236,30 +242,30 @@ function CampaignContentField({
         <input
           value={parsed.cta_label ?? ''}
           onChange={(event) => onChange(updateCompositeValue(value, 'cta_label', event.target.value))}
-          placeholder="Texto del CTA"
+          placeholder="Texto del botón"
           className="min-h-11 rounded-xl border border-[var(--color-line)] bg-white px-3 text-[13px] text-[var(--color-ink)] outline-none"
         />
         <input
           value={parsed.cta_url ?? ''}
           onChange={(event) => onChange(updateCompositeValue(value, 'cta_url', event.target.value))}
-          placeholder="URL del CTA"
+          placeholder="Enlace del botón"
           className="min-h-11 rounded-xl border border-[var(--color-line)] bg-white px-3 text-[13px] text-[var(--color-ink)] outline-none"
         />
       </div>
       <input
         value={parsed.image_url ?? ''}
         onChange={(event) => onChange(updateCompositeValue(value, 'image_url', event.target.value))}
-        placeholder="URL de imagen publicada"
+        placeholder="Enlace de imagen publicada"
         className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 text-[13px] text-[var(--color-ink)] outline-none"
       />
       <details className="rounded-xl border border-[var(--color-line)] bg-white p-3">
-        <summary className="cursor-pointer text-[13px] font-semibold text-[var(--color-burgundy)]">Modo avanzado JSON</summary>
+        <summary className="cursor-pointer text-[13px] font-semibold text-[var(--color-burgundy)]">Opciones avanzadas</summary>
         <textarea
           value={parsed.advancedJson ?? ''}
           onChange={(event) => onChange(updateCompositeValue(value, 'advancedJson', event.target.value))}
           rows={4}
-          placeholder='{"subject":"Vendimia","body":"Reserva tu lugar"}'
-          className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 font-mono text-[13px] text-[var(--color-ink)] outline-none"
+          placeholder="Asunto, mensaje o llamado a la acción adicional"
+          className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
         />
       </details>
     </div>
@@ -340,8 +346,8 @@ export function EditorialFormShell({
                 type="button"
                 onClick={onPreview}
                 disabled={isBusy}
-                title="Ver preview"
-                aria-label="Ver preview"
+                title="Ver vista previa"
+                aria-label="Ver vista previa"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white text-[var(--color-muted)] transition hover:text-[var(--color-burgundy)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <Eye size={16} />
@@ -373,7 +379,9 @@ export function EditorialFormShell({
         <div>
           <p className="text-[13px] font-semibold text-[var(--color-ink)]">{definition.microcopy}</p>
           <p className="mt-1 text-[13px] text-[var(--color-muted)]">
-            Guardar borrador no publica el contenido. Publicar lo hace visible cuando cumple los campos mínimos.
+	            {definition.entity === 'campaigns'
+              ? 'Guardar conserva audiencia y contenido. El envío se realiza desde la operación de campaña.'
+              : 'Guardar borrador no publica el contenido. Publicar lo hace visible cuando cumple los campos mínimos.'}
           </p>
         </div>
         <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-soft)] p-3">
@@ -389,7 +397,9 @@ export function EditorialFormShell({
         <div className="flex items-start gap-3">
           <Sparkles size={18} className="mt-0.5 text-[var(--color-gold)]" />
           <div>
-            <p className="text-[13px] font-semibold text-[var(--color-ink)]">Qué se verá en la app pública</p>
+	            <p className="text-[13px] font-semibold text-[var(--color-ink)]">
+                {definition.entity === 'campaigns' ? 'Cómo se opera' : 'Qué verá el cliente'}
+              </p>
             <p className="mt-1 text-[13px] text-[var(--color-muted)]">{definition.publicSummary}</p>
           </div>
         </div>

@@ -46,7 +46,7 @@ describe('confirmaciones editoriales críticas', () => {
     expect(html).toContain('Reserva Especial')
     expect(html).toContain('Ahora')
     expect(html).toContain('Publicado')
-    expect(html).toContain('Visible en app pública')
+    expect(html).toContain('Visible para clientes')
     expect(html).toContain('Sí')
   })
 

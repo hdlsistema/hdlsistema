@@ -9,7 +9,7 @@ export function AppPreviewPage() {
         <SectionTitle
           eyebrow="Vista integrada"
           title="Hacienda de Letras App"
-          subtitle="Experiencia cliente premium dentro del sistema operativo, conectada a la misma identidad editorial."
+          subtitle="Vista de referencia para revisar navegación, contenido y experiencia del cliente."
         />
         <div className="mx-auto max-w-[470px]">
           <PhoneFrame>

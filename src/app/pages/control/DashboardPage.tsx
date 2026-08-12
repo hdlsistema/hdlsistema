@@ -30,6 +30,57 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function statusLabel(status?: string | null) {
+  const labels: Record<string, string> = {
+    pending: 'pendiente',
+    confirmed: 'confirmada',
+    cancelled: 'cancelada',
+    completed: 'completada',
+    no_show: 'no asistió',
+    draft: 'borrador',
+    pending_payment: 'pendiente de pago',
+    processing: 'en proceso',
+    paid: 'pagada',
+    fulfilled: 'completada',
+    refunded: 'reembolsada',
+  }
+  if (!status) return 'sin estado'
+  return labels[status] ?? status.replaceAll('_', ' ')
+}
+
+function activityLabel(eventName: string) {
+  const labels: Record<string, string> = {
+    app_session_started: 'Sesión iniciada',
+    checkout_started: 'Pago iniciado',
+    cart_item_added: 'Producto agregado',
+    reservation_started: 'Reservación iniciada',
+    order_created: 'Orden creada',
+    payment_succeeded: 'Pago confirmado',
+  }
+  return labels[eventName] ?? eventName.replaceAll('_', ' ')
+}
+
+function activityContext(module?: string | null, entityType?: string | null) {
+  const moduleLabels: Record<string, string> = {
+    app: 'App',
+    customer: 'Cliente',
+    commerce: 'Comercio',
+    reservations: 'Reservaciones',
+    cart: 'Carrito',
+      checkout: 'Pago',
+  }
+  const entityLabels: Record<string, string> = {
+    order: 'orden',
+    cart: 'carrito',
+    reservation: 'reservación',
+    customer: 'cliente',
+    session: 'sesión',
+  }
+  const left = module ? moduleLabels[module] ?? module.replaceAll('_', ' ') : 'Actividad'
+  const right = entityType ? entityLabels[entityType] ?? entityType.replaceAll('_', ' ') : 'sin elemento asociado'
+  return `${left} · ${right}`
+}
+
 function Metric({
   label,
   value,
@@ -150,7 +201,7 @@ export function DashboardPage() {
         <Metric
           label="Órdenes por cobrar"
           value={loading ? '—' : String(summary?.metrics.pendingPaymentOrders ?? 0)}
-          detail="Órdenes con estado pending_payment"
+          detail="Órdenes pendientes de pago"
           icon={ShoppingBag}
         />
       </div>
@@ -158,14 +209,14 @@ export function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-3">
 	        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad App en 30 días" icon={Users} />
 	        <Metric label="Carritos activos" value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? 'Cargando...' : `${summary?.metrics.convertedCarts ?? 0} convertidos`} icon={ShoppingBag} />
-	        <Metric label="Checkouts iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Eventos reales registrados por la App" icon={Activity} />
+		        <Metric label="Pagos iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Intentos de pago registrados" icon={Activity} />
 	      </div>
 
 	      <div className="grid gap-4 sm:grid-cols-4">
-	        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones app_session_started en 30 días" icon={Users} />
+		        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones registradas en 30 días" icon={Users} />
 	        <Metric label="Ocupación" value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail="Cupo reservado sobre horarios próximos" icon={CalendarDays} />
 	        <Metric label="Conversión" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Pagos confirmados sobre checkouts iniciados" icon={Activity} />
-	        <Metric label="Mapa" value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail="POIs publicados y visibles en App" icon={MapPin} />
+		        <Metric label="Mapa" value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail="Puntos publicados y visibles" icon={MapPin} />
 	      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
@@ -212,14 +263,14 @@ export function DashboardPage() {
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="Reservaciones recientes" action={<Link to="/control/reservaciones" className="text-sm font-medium text-[var(--color-burgundy)]">Ver todas</Link>}>
           {loading ? <Empty>Cargando reservaciones...</Empty> : null}
-          {!loading && summary?.recentReservations.length === 0 ? <Empty>Aún no hay reservaciones reales registradas.</Empty> : null}
+          {!loading && summary?.recentReservations.length === 0 ? <Empty>Aún no hay reservaciones registradas.</Empty> : null}
           {!loading && summary?.recentReservations.length ? (
             <div className="divide-y divide-[var(--color-line)]">
               {summary.recentReservations.map((item) => (
                 <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-4 text-sm">
                   <div>
                     <p className="font-medium text-[var(--color-ink)]">{item.reservationNumber}</p>
-                    <p className="mt-1 text-[var(--color-muted)]">{item.peopleCount} personas · {item.status}</p>
+	                    <p className="mt-1 text-[var(--color-muted)]">{item.peopleCount} personas · {statusLabel(item.status)}</p>
                   </div>
                   <span className="text-[var(--color-muted)]">{formatDate(item.createdAt)}</span>
                 </div>
@@ -230,14 +281,14 @@ export function DashboardPage() {
 
         <Panel title="Órdenes recientes" action={<Link to="/control/ordenes" className="text-sm font-medium text-[var(--color-burgundy)]">Ver todas</Link>}>
           {loading ? <Empty>Cargando órdenes...</Empty> : null}
-          {!loading && summary?.recentOrders.length === 0 ? <Empty>Aún no hay órdenes reales registradas.</Empty> : null}
+          {!loading && summary?.recentOrders.length === 0 ? <Empty>Aún no hay órdenes registradas.</Empty> : null}
           {!loading && summary?.recentOrders.length ? (
             <div className="divide-y divide-[var(--color-line)]">
               {summary.recentOrders.map((item) => (
                 <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-4 text-sm">
                   <div>
                     <p className="font-medium text-[var(--color-ink)]">{item.orderNumber}</p>
-                    <p className="mt-1 text-[var(--color-muted)]">{item.status} · {formatDate(item.createdAt)}</p>
+	                    <p className="mt-1 text-[var(--color-muted)]">{statusLabel(item.status)} · {formatDate(item.createdAt)}</p>
                   </div>
                   <span className="font-medium text-[var(--color-ink)]">{formatMoney(item.total, item.currency)}</span>
                 </div>
@@ -250,11 +301,11 @@ export function DashboardPage() {
       <Panel title="Actividad reciente de la App" action={<Link to="/control/actividad" className="text-sm font-medium text-[var(--color-burgundy)]">Ver bitácora</Link>}>
         {loading ? <Empty>Cargando actividad...</Empty> : null}
         {!loading && summary?.recentAppActivity.length === 0 ? <Empty>Aún no hay actividad de App registrada.</Empty> : null}
-        {!loading && summary?.recentAppActivity.length ? <div className="divide-y divide-[var(--color-line)]">{summary.recentAppActivity.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"><div><p className="font-medium text-[var(--color-ink)]">{item.customerName ?? 'Sesión sin identificar'} · {item.eventName.replaceAll('_', ' ')}</p><p className="mt-1 text-[var(--color-muted)]">{item.module} · {item.entityType ?? 'sin entidad'}</p></div><span className="text-[var(--color-muted)]">{formatDate(item.occurredAt)}</span></div>)}</div> : null}
+        {!loading && summary?.recentAppActivity.length ? <div className="divide-y divide-[var(--color-line)]">{summary.recentAppActivity.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"><div><p className="font-medium text-[var(--color-ink)]">{item.customerName ?? 'Sesión sin identificar'} · {activityLabel(item.eventName)}</p><p className="mt-1 text-[var(--color-muted)]">{activityContext(item.module, item.entityType)}</p></div><span className="text-[var(--color-muted)]">{formatDate(item.occurredAt)}</span></div>)}</div> : null}
       </Panel>
 
       {!loading && summary ? (
-        <p className="flex items-center gap-2 text-xs text-[var(--color-muted)]"><Clock3 size={14} /> Datos consultados: {formatDate(summary.generatedAt)}. Sin proyecciones ni datos simulados.</p>
+        <p className="flex items-center gap-2 text-xs text-[var(--color-muted)]"><Clock3 size={14} /> Datos actualizados: {formatDate(summary.generatedAt)}.</p>
       ) : null}
     </div>
   )

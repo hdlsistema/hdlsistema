@@ -73,7 +73,7 @@ export function EditorialConfirmDialog({
               <p className="mt-1 text-[13px] text-[var(--color-muted)]">{state.afterStatus}</p>
             </div>
             <div>
-              <p className="text-[13px] font-semibold text-[var(--color-ink)]">Visible en app pública</p>
+              <p className="text-[13px] font-semibold text-[var(--color-ink)]">Visible para clientes</p>
               <p className="mt-1 text-[13px] text-[var(--color-muted)]">{state.visibleAfter ? 'Sí' : 'No'}</p>
             </div>
           </div>

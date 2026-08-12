@@ -27,7 +27,7 @@ export function ControlSidebar({ groups }: ControlSidebarProps) {
             className="h-24 w-auto max-w-[250px] object-contain brightness-[3.35] saturate-0"
           />
           <p className="mt-3 text-[11px] uppercase tracking-[0.24em] text-[rgba(255,241,222,0.72)]">
-            Business & Experience OS
+            Operación y experiencias
           </p>
         </div>
       </div>

@@ -76,6 +76,30 @@ function statusLabel(status: ReservationRecord['status']) {
   return labels[status]
 }
 
+function historyStatusLabel(status?: string | null) {
+  if (!status) return 'Inicio'
+  const labels: Record<string, string> = {
+    cancelled: 'Cancelada',
+    completed: 'Completada',
+    confirmed: 'Confirmada',
+    no_show: 'No asistió',
+    pending: 'Pendiente',
+  }
+  return labels[status] ?? status.replaceAll('_', ' ')
+}
+
+function channelLabel(source?: string | null) {
+  const labels: Record<string, string> = {
+    app: 'App',
+    web: 'Web',
+    admin: 'Centro de Control',
+    control: 'Centro de Control',
+    'Centro de control': 'Centro de Control',
+  }
+  if (!source) return 'Sin canal'
+  return labels[source] ?? source
+}
+
 export function ReservationsPage() {
   const { isEnglish } = useAppPreferences()
   const { session, roles } = useAuth()
@@ -170,7 +194,7 @@ export function ReservationsPage() {
       setForm(emptyForm)
       setFormOpen(false)
       setSelectedId(response.data.id)
-      setToast('Reservación creada en Supabase.')
+      setToast('Reservación creada.')
       await loadReservations()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la reservación.')
@@ -227,7 +251,7 @@ export function ReservationsPage() {
     await runAction(
       'Número de personas actualizado.',
       () => reservationsClient.changePartySize(token, selected.id, Number(partySize)),
-      '¿Actualizar el número de personas? El backend validará el cupo real antes de guardar.',
+      '¿Actualizar el número de personas? Se validará el cupo disponible antes de guardar.',
     )
     setPartySize('')
   }
@@ -253,7 +277,7 @@ export function ReservationsPage() {
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
           title={isEnglish ? 'Reservations' : 'Reservaciones'}
-          subtitle={isEnglish ? 'Real bookings, capacity and status history from Supabase.' : 'Reservaciones, cupo e historial de estados reales desde Supabase.'}
+          subtitle={isEnglish ? 'Bookings, capacity and operational status history.' : 'Reservaciones, cupo e historial de cambios operativos.'}
         />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadReservations} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]">
@@ -312,14 +336,14 @@ export function ReservationsPage() {
       <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.9fr)]">
         <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between gap-4 border-b border-[var(--color-line)] px-5 py-4">
-            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Reservaciones reales</h3>
+            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Reservaciones</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{items.length} registros</span>
           </div>
           {loading ? (
-            <div className="p-8 text-center text-sm text-[var(--color-muted)]">Cargando reservaciones reales...</div>
+            <div className="p-8 text-center text-sm text-[var(--color-muted)]">Cargando reservaciones...</div>
           ) : items.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-lg font-semibold text-[var(--color-ink)]">Sin reservaciones reales</p>
+              <p className="text-lg font-semibold text-[var(--color-ink)]">Sin reservaciones</p>
               <p className="mt-2 text-sm text-[var(--color-muted)]">Crea una reservación manual cuando haya un horario disponible.</p>
             </div>
           ) : (
@@ -343,7 +367,7 @@ export function ReservationsPage() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[var(--color-ink)]">{currency(reservation.total, reservation.currency)}</p>
-                    <p className="mt-1 text-[10px] text-[var(--color-muted)]">{reservation.source}</p>
+	                    <p className="mt-1 text-[10px] text-[var(--color-muted)]">Canal: {channelLabel(reservation.source)}</p>
                   </div>
                   <StatusBadge label={statusLabel(reservation.status)} />
                 </button>
@@ -363,11 +387,11 @@ export function ReservationsPage() {
                 <Detail label="Horario" value={formatDateTime(selected.startAt)} />
                 <Detail label="Personas" value={`${selected.peopleCount} personas`} />
                 <Detail label="Cupo disponible" value={String(selected.available)} />
-                <Detail label="Origen" value={selected.source} />
+	                <Detail label="Canal" value={channelLabel(selected.source)} />
                 <Detail label="Total" value={currency(selected.total, selected.currency)} />
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <ActionButton disabled={!writable || selected.status !== 'pending'} onClick={() => runAction('Reservación confirmada.', () => reservationsClient.confirm(token, selected.id), '¿Confirmar esta reservación? El backend validará cupo antes de guardar.')}>Confirmar</ActionButton>
+                <ActionButton disabled={!writable || selected.status !== 'pending'} onClick={() => runAction('Reservación confirmada.', () => reservationsClient.confirm(token, selected.id), '¿Confirmar esta reservación? Se validará el cupo antes de guardar.')}>Confirmar</ActionButton>
                 <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => runAction('Reservación cancelada.', () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control'), '¿Cancelar esta reservación? Si estaba confirmada, se liberará el cupo.')}>Cancelar</ActionButton>
               </div>
             </article>
@@ -396,7 +420,7 @@ export function ReservationsPage() {
               <div className="mt-4 space-y-3">
                 {history.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin historial registrado.</p> : history.map((item) => (
                   <div key={item.id} className="rounded-xl bg-[var(--color-soft)] p-3">
-                    <p className="text-xs font-semibold text-[var(--color-ink)]">{item.previousStatus ?? 'inicio'} → {item.newStatus}</p>
+                    <p className="text-xs font-semibold text-[var(--color-ink)]">{historyStatusLabel(item.previousStatus)} → {historyStatusLabel(item.newStatus)}</p>
                     <p className="mt-1 text-[10px] text-[var(--color-muted)]">{formatDateTime(item.createdAt)} · {item.notes ?? 'Cambio de estado'}</p>
                   </div>
                 ))}

@@ -94,6 +94,60 @@ function segmentLabel(value: string) {
   return segments.find((item) => item.value === value)?.label ?? value
 }
 
+function operationalStatusLabel(value?: string | null) {
+  if (!value) return 'Sin estado'
+  const labels: Record<string, string> = {
+    active: 'Activo',
+    archived: 'Archivado',
+    cancelled: 'Cancelado',
+    completed: 'Completado',
+    confirmed: 'Confirmado',
+    converted: 'Convertido',
+    delivered: 'Entregado',
+    expired: 'Expirado',
+    failed: 'Fallido',
+    fulfilled: 'Completado',
+    new: 'Nuevo',
+    no_show: 'No asistió',
+    paid: 'Pagado',
+    partially_refunded: 'Reembolso parcial',
+    paused: 'Pausado',
+    pending: 'Pendiente',
+    pending_payment: 'Pendiente de pago',
+    processing: 'En proceso',
+    refunded: 'Reembolsado',
+    shipped: 'Enviado',
+  }
+  return labels[value] ?? value.replaceAll('_', ' ')
+}
+
+function historyActionLabel(value?: string | null) {
+  if (!value) return 'Movimiento registrado'
+  const labels: Record<string, string> = {
+    cart_created: 'Carrito creado',
+    cart_item_added: 'Producto agregado',
+    cart_item_removed: 'Producto retirado',
+    checkout_started: 'Pago iniciado',
+    customer_archived: 'Cliente archivado',
+    customer_created: 'Cliente creado',
+    customer_restored: 'Cliente restaurado',
+    customer_updated: 'Cliente actualizado',
+    membership_cancelled: 'Membresía cancelada',
+    membership_paused: 'Membresía pausada',
+    membership_reactivated: 'Membresía reactivada',
+    note_created: 'Nota agregada',
+    order_created: 'Orden creada',
+    payment_succeeded: 'Pago confirmado',
+    reservation_cancelled: 'Reservación cancelada',
+    reservation_confirmed: 'Reservación confirmada',
+    reservation_created: 'Reservación creada',
+    reservation_rescheduled: 'Reservación reprogramada',
+    tag_assigned: 'Etiqueta asignada',
+    tag_removed: 'Etiqueta retirada',
+  }
+  return labels[value] ?? value.replaceAll('_', ' ')
+}
+
 function formatDate(value: string | null | undefined) {
   if (!value) return 'Sin fecha'
   return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value))
@@ -322,7 +376,7 @@ export function CustomersPage() {
         : await customersClient.create(token, payload)
       setForm(null)
       setSelectedId(response.data.id)
-      setToast(form.id ? 'Cliente actualizado en Supabase.' : 'Cliente creado en Supabase.')
+      setToast(form.id ? 'Cliente actualizado.' : 'Cliente creado.')
       await loadCustomers()
       await loadDetail(response.data.id)
     } catch (err) {
@@ -362,7 +416,7 @@ export function CustomersPage() {
       }
       setNote('')
       setEditingNote(null)
-      setToast('Nota guardada en Supabase.')
+      setToast('Nota guardada.')
       await loadDetail(selected.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible guardar la nota.')
@@ -380,7 +434,7 @@ export function CustomersPage() {
       const response = await customersClient.createTag(token, { name: tagName, color: tagColor })
       setTags((current) => [...current, response.data].sort((a, b) => a.name.localeCompare(b.name, 'es-MX')))
       setTagName('')
-      setToast('Etiqueta creada en Supabase.')
+      setToast('Etiqueta creada.')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear la etiqueta.')
     } finally {
@@ -535,7 +589,7 @@ export function CustomersPage() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--color-ink)]">Directorio</h2>
-                <p className="text-sm text-[var(--color-muted)]">Datos leídos desde Supabase.</p>
+                <p className="text-sm text-[var(--color-muted)]">Información actualizada.</p>
               </div>
               {loading ? <RefreshCw className="animate-spin text-[var(--color-burgundy)]" size={18} /> : null}
             </div>
@@ -773,7 +827,7 @@ export function CustomersPage() {
                 <div>
                   <UserRound className="mx-auto text-[var(--color-muted)]" size={32} />
                   <p className="mt-3 font-semibold text-[var(--color-ink)]">Selecciona un cliente</p>
-                  <p className="mt-1 text-sm text-[var(--color-muted)]">El expediente se mostrará con relaciones reales.</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">El expediente se mostrará con sus relaciones de cliente.</p>
                 </div>
               </div>
             )}
@@ -823,7 +877,7 @@ export function CustomersPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-[var(--color-ink)]">{form.id ? 'Editar cliente' : 'Nuevo cliente'}</h2>
-                <p className="text-sm text-[var(--color-muted)]">Registro administrativo sin crear usuario Auth.</p>
+                <p className="text-sm text-[var(--color-muted)]">Registro administrativo del cliente; el acceso se gestiona por separado.</p>
               </div>
               <button type="button" onClick={() => setForm(null)} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-line)]">
                 <X size={16} />
@@ -867,11 +921,11 @@ export function CustomersPage() {
               </Field>
               <div className="grid gap-3 rounded-lg border border-[var(--color-line)] p-3">
                 <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--color-ink)]">
-                  <input type="checkbox" checked={form.marketingEmailConsent} onChange={(event) => setForm({ ...form, marketingEmailConsent: event.target.checked })} />
+                  <input type="checkbox" checked={form.marketingEmailConsent} onChange={(event) => setForm({ ...form, marketingEmailConsent: event.target.checked })} className="h-5 w-5 rounded-full accent-[var(--color-burgundy)]" />
                   Autoriza correo
                 </label>
                 <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--color-ink)]">
-                  <input type="checkbox" checked={form.marketingPushConsent} onChange={(event) => setForm({ ...form, marketingPushConsent: event.target.checked })} />
+                  <input type="checkbox" checked={form.marketingPushConsent} onChange={(event) => setForm({ ...form, marketingPushConsent: event.target.checked })} className="h-5 w-5 rounded-full accent-[var(--color-burgundy)]" />
                   Autoriza notificaciones
                 </label>
               </div>
@@ -929,7 +983,7 @@ function RelatedPanel({ title, items, empty }: { title: string; items: CustomerR
             </span>
             <span className="text-xs text-[var(--color-muted)]">{item.createdAt ? formatDate(item.createdAt) : item.startsAt ? formatDate(item.startsAt) : 'Sin fecha'}</span>
           </span>
-          <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[var(--color-burgundy)]">{item.status}</span>
+          <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[var(--color-burgundy)]">{operationalStatusLabel(item.status)}</span>
         </div>
       )) : <p className="text-sm text-[var(--color-muted)]">{empty}</p>}
     </div>
@@ -945,7 +999,7 @@ function HistoryPanel({ items }: { items: CustomerHistoryItem[] }) {
       </div>
       {items.length ? items.slice(0, 6).map((item) => (
         <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[var(--color-soft)] px-3 py-2 text-sm">
-          <span className="min-w-0"><span className="block truncate font-medium text-[var(--color-ink)]">{item.action}</span>{historyEntityRoute(item) ? <Link to={historyEntityRoute(item)!} className="mt-1 block text-xs text-[var(--color-burgundy)]">Ver {historyEntityLabel(item)}</Link> : null}</span>
+          <span className="min-w-0"><span className="block truncate font-medium text-[var(--color-ink)]">{historyActionLabel(item.action)}</span>{historyEntityRoute(item) ? <Link to={historyEntityRoute(item)!} className="mt-1 block text-xs text-[var(--color-burgundy)]">Ver {historyEntityLabel(item)}</Link> : null}</span>
           <span className="text-xs text-[var(--color-muted)]">{formatDate(item.createdAt)}</span>
         </div>
       )) : <p className="text-sm text-[var(--color-muted)]">Sin eventos de auditoría todavía.</p>}

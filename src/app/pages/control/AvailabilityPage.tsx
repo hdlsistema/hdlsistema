@@ -198,7 +198,7 @@ export function AvailabilityPage() {
         await availabilityClient.createSlot(token, payload)
       }
       setSlotForm(null)
-      setToast('Disponibilidad guardada en Supabase.')
+      setToast('Disponibilidad guardada.')
       await loadAvailability()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible guardar el horario.')
@@ -245,7 +245,7 @@ export function AvailabilityPage() {
         appliesToAllExperiences: blockoutForm.appliesToAllExperiences,
       })
       setBlockoutForm(null)
-      setToast('Bloqueo guardado en Supabase.')
+      setToast('Bloqueo guardado.')
       await loadAvailability()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible crear el bloqueo.')
@@ -268,7 +268,7 @@ export function AvailabilityPage() {
         targetDates: [duplicateDate],
       })
       setDuplicateDate('')
-      setToast('Horarios duplicados en Supabase.')
+      setToast('Horarios duplicados.')
       await loadAvailability()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible duplicar horarios.')
@@ -283,7 +283,7 @@ export function AvailabilityPage() {
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
           title={isEnglish ? 'Availability' : 'Disponibilidad'}
-          subtitle={isEnglish ? 'Real slots, capacity and blocks persisted in Supabase.' : 'Horarios, cupos y bloqueos reales persistidos en Supabase.'}
+          subtitle={isEnglish ? 'Available schedules, capacity and operational blocks.' : 'Horarios, cupos y bloqueos operativos.'}
         />
         <div className="flex flex-wrap gap-3">
           <button
@@ -368,7 +368,7 @@ export function AvailabilityPage() {
         </div>
       ) : slots.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-8 text-center">
-          <p className="text-lg font-semibold text-[var(--color-ink)]">Sin horarios reales</p>
+          <p className="text-lg font-semibold text-[var(--color-ink)]">Sin horarios</p>
           <p className="mt-2 text-sm text-[var(--color-muted)]">Crea el primer horario para comenzar a recibir reservaciones.</p>
         </div>
       ) : (
@@ -422,7 +422,7 @@ export function AvailabilityPage() {
         <h3 className="text-lg font-semibold text-[var(--color-ink)]">Bloqueos activos</h3>
         <div className="mt-4 space-y-3">
           {blockouts.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">No hay bloqueos reales en el rango consultado.</p>
+            <p className="text-sm text-[var(--color-muted)]">No hay bloqueos en el rango consultado.</p>
           ) : blockouts.map((blockout) => (
             <div key={blockout.id} className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-4">
               <p className="text-sm font-semibold text-[var(--color-ink)]">{blockout.reason ?? 'Bloqueo operativo'}</p>
