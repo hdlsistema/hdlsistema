@@ -294,9 +294,10 @@ function addressInsert(customer: CustomerRow, user: UserContext, payload: Custom
 }
 
 function orderShippingInsert(orderId: string, customer: CustomerRow, user: UserContext, payload: CustomerAddressPayload) {
+  const { is_default: _isDefault, ...address } = addressInsert(customer, user, payload)
   return {
     order_id: orderId,
-    ...addressInsert(customer, user, payload),
+    ...address,
   }
 }
 

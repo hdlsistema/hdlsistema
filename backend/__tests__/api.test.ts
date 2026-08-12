@@ -173,7 +173,7 @@ vi.mock('@supabase/supabase-js', () => ({
         single: vi.fn(async () => {
           if (supabaseMock.throwError) throw supabaseMock.throwError
           if (supabaseMock.error) return { data: null, error: supabaseMock.error }
-          if (state.operation === 'insert') return { data: insertRecord(), error: null }
+          if (state.operation === 'insert' || state.operation === 'upsert') return { data: insertRecord(), error: null }
           if (state.operation === 'update') return { data: updateRecord(), error: null }
           if (state.operation === 'delete') {
             const data = run().data
@@ -2295,6 +2295,42 @@ describe('Fase 8C customer cart and checkout API', () => {
     expect(list.status).toBe(200)
     expect(list.body.data[0].orderNumber).toBe('ORD-FASE8C')
     expect(detail.status).toBe(200)
+  })
+
+  it('crea snapshot de domicilio de envío sin columnas ajenas al modelo de orden', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.get_customer_cart = {
+      ...cartPayload(),
+      checkout: { ...cartPayload().checkout, fulfillmentMode: 'shipping' },
+    }
+    supabaseMock.rpcData.create_customer_order_from_cart = orderId
+    supabaseMock.rpcData.get_customer_order_detail = orderPayload()
+
+    const created = await request(app)
+      .post('/api/customer/orders')
+      .set('Authorization', 'Bearer customer-token')
+      .send({
+        idempotencyKey: 'fase8c-shipping-order',
+        shippingAddress: {
+          label: 'Casa',
+          recipientName: 'Cliente Fase 8C',
+          phone: '4490000000',
+          email: customerUser.email,
+          line1: 'Calle Hacienda 123',
+          city: 'Aguascalientes',
+          state: 'Aguascalientes',
+          postalCode: '20000',
+          country: 'MX',
+          isDefault: true,
+        },
+        saveAddress: true,
+      })
+
+    const snapshot = supabaseMock.tableData.order_shipping_addresses?.[0] as Record<string, unknown>
+    expect(created.status).toBe(201)
+    expect(snapshot.order_id).toBe(orderId)
+    expect(snapshot.recipient_name).toBe('Cliente Fase 8C')
+    expect(snapshot.is_default).toBeUndefined()
   })
 
   it('bloquea customer en órdenes administrativas', async () => {
