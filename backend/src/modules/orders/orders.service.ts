@@ -603,7 +603,7 @@ export async function assignOrderTracking(id: string, payload: OrderTrackingPayl
 async function queueOrderShippedEmail(order: OrderRow, shipment: ShipmentRow) {
   const customer = firstRelation(order.customers)
   if (!customer?.email) return
-  void enqueueAndProcessTransactionalEmail({
+  await enqueueAndProcessTransactionalEmail({
     eventType: 'order.shipped',
     aggregateType: 'orders',
     aggregateId: order.id,

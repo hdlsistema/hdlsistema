@@ -1446,6 +1446,66 @@ describe('Fase 7D orders, payments and check-in API', () => {
     expect(webhook.body.error.message).toBe('Proveedor de pago no configurado')
   })
 
+  it('encola correo transaccional al marcar una orden enviada', async () => {
+    signInAs('operations')
+    seedOrder('paid')
+    supabaseMock.tableData.orders = [{
+      ...(supabaseMock.tableData.orders[0] as Record<string, unknown>),
+      requires_shipping: true,
+      shipping_status: 'tracking_assigned',
+      customers: {
+        display_name: 'Cliente Fase 7D',
+        first_name: 'Cliente',
+        last_name: 'Fase 7D',
+        email: 'cliente.fase7d@alqia.tech',
+      },
+    }]
+    supabaseMock.tableData.order_shipping_addresses = [{
+      id: '33333333-3333-4333-8333-333333333078',
+      order_id: orderId,
+      recipient_name: 'Cliente Fase 7D',
+      phone: '4490000000',
+      email: 'cliente.fase7d@alqia.tech',
+      line1: 'Calle Hacienda 123',
+      city: 'Aguascalientes',
+      state: 'Aguascalientes',
+      postal_code: '20000',
+      country: 'MX',
+      created_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.shipments = [{
+      id: '33333333-3333-4333-8333-333333333079',
+      order_id: orderId,
+      carrier: 'Paquetería',
+      tracking_number: 'TRACK-FASE7D',
+      tracking_url: 'https://tracking.example.invalid/TRACK-FASE7D',
+      shipping_cost: 0,
+      status_text: 'tracking_assigned',
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+
+    const shipped = await request(app)
+      .post(`/api/admin/orders/${orderId}/shipping/ship`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({})
+
+    expect(shipped.status).toBe(200)
+    expect(shipped.body.data.shippingStatus).toBe('shipped')
+    expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
+    expect(supabaseMock.tableData.email_outbox[0]).toMatchObject({
+      template_key: 'order.shipped',
+      recipient_email: 'cliente.fase7d@alqia.tech',
+    })
+    expect(supabaseMock.tableData.communication_events[0]).toMatchObject({
+      event_type: 'order.shipped',
+      aggregate_id: orderId,
+    })
+    expect(supabaseMock.tableData.audit_logs).toEqual(
+      expect.arrayContaining([expect.objectContaining({ action: 'order_shipped', entity_id: orderId })]),
+    )
+  })
+
   it('emite pase QR, valida acceso, registra check-in y bloquea doble uso', async () => {
     signInAs('operations')
     seedPass()
