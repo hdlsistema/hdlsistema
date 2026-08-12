@@ -7,7 +7,21 @@ import { requestId } from './middleware/requestId'
 import { errorHandler, type AppError } from './middleware/errorHandler'
 import { notFound } from './middleware/notFound'
 
-const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+const allowedOrigins = env.ALLOWED_ORIGINS.split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
+const nativeMobileOrigins = new Set([
+  'capacitor://localhost',
+  'https://localhost',
+])
+
+function isAllowedOrigin(origin: string) {
+  if (allowedOrigins.includes(origin)) return true
+  if (nativeMobileOrigins.has(origin)) return true
+  if (env.NODE_ENV !== 'production' && /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) return true
+  return false
+}
 
 export function createApp() {
   const app = express()
@@ -26,7 +40,7 @@ export function createApp() {
     cors({
       origin: (origin, callback) => {
         if (!origin) return callback(null, true)
-        if (allowedOrigins.includes(origin)) return callback(null, true)
+        if (isAllowedOrigin(origin)) return callback(null, true)
         // No registrar el valor del origen para evitar log injection
         console.warn('[cors] Rechazo de origen no autorizado')
         const err = Object.assign(new Error('Origen no autorizado'), {

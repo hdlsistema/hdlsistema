@@ -2202,6 +2202,7 @@ describe('CORS', () => {
       .set('Origin', 'http://localhost:5173')
     expect(res.status).toBe(200)
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173')
+    expect(res.headers['access-control-allow-credentials']).toBe('true')
   })
 
   // ─── 6. CORS acepta dominio productivo ──────────────────────────────────────
@@ -2213,6 +2214,39 @@ describe('CORS', () => {
     expect(res.headers['access-control-allow-origin']).toBe(
       'https://admhaciendadeletras.com',
     )
+    expect(res.headers['access-control-allow-credentials']).toBe('true')
+  })
+
+  it('acepta origen nativo Android de Capacitor', async () => {
+    const res = await request(app)
+      .get('/api/public/status')
+      .set('Origin', 'https://localhost')
+    expect(res.status).toBe(200)
+    expect(res.headers['access-control-allow-origin']).toBe('https://localhost')
+    expect(res.headers['access-control-allow-credentials']).toBe('true')
+  })
+
+  it('acepta origen nativo Capacitor', async () => {
+    const res = await request(app)
+      .get('/api/public/status')
+      .set('Origin', 'capacitor://localhost')
+    expect(res.status).toBe(200)
+    expect(res.headers['access-control-allow-origin']).toBe('capacitor://localhost')
+    expect(res.headers['access-control-allow-credentials']).toBe('true')
+  })
+
+  it('responde preflight para origen nativo Android de Capacitor', async () => {
+    const res = await request(app)
+      .options('/api/public/wines')
+      .set('Origin', 'https://localhost')
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'Content-Type, Authorization')
+
+    expect([200, 204]).toContain(res.status)
+    expect(res.headers['access-control-allow-origin']).toBe('https://localhost')
+    expect(res.headers['access-control-allow-credentials']).toBe('true')
+    expect(res.headers['access-control-allow-methods']).toContain('GET')
+    expect(res.headers['access-control-allow-headers']).toContain('Authorization')
   })
 
   // ─── 7. CORS rechaza dominio no autorizado ───────────────────────────────────
