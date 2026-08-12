@@ -65,13 +65,6 @@ type PublicMembershipPlanRow = {
   benefits?: unknown
 }
 
-type PublicCampaignRow = {
-  name?: string | null
-  channel?: string | null
-  content?: Record<string, unknown> | null
-  scheduled_at?: string | null
-}
-
 type ChatResponse = {
   choices?: Array<{ message?: { content?: string } }>
   usage?: {
@@ -207,7 +200,6 @@ async function getKnowledgeContext() {
     eventsResult,
     promotionsResult,
     membershipPlansResult,
-    campaignsResult,
   ] = await Promise.all([
     supabaseAdminClient
       .from('sommelier_knowledge')
@@ -256,14 +248,6 @@ async function getKnowledgeContext() {
     )
       .order('sort_order', { ascending: true })
       .limit(6),
-    live(
-      supabaseAdminClient
-        .from('campaigns')
-        .select('name,channel,content,scheduled_at'),
-      'active',
-    )
-      .order('sort_order', { ascending: true })
-      .limit(6),
   ])
 
   const knowledge = assertNoError<KnowledgeRow[]>(knowledgeResult).data ?? []
@@ -272,7 +256,6 @@ async function getKnowledgeContext() {
   const events = assertNoError<PublicEventRow[]>(eventsResult).data ?? []
   const promotions = assertNoError<PublicPromotionRow[]>(promotionsResult).data ?? []
   const membershipPlans = assertNoError<PublicMembershipPlanRow[]>(membershipPlansResult).data ?? []
-  const campaigns = assertNoError<PublicCampaignRow[]>(campaignsResult).data ?? []
 
   return [
     ...knowledge.map((item) => `${item.namespace}: ${item.title}\n${item.content}`),
@@ -281,7 +264,6 @@ async function getKnowledgeContext() {
     ...events.map((event) => `Evento publicado: ${event.title ?? 'Sin título'} | Inicio: ${event.start_at ?? 'por confirmar'} | Fin: ${event.end_at ?? 'por confirmar'} | Lugar: ${event.venue ?? 'por confirmar'} | Cupo: ${event.capacity ?? 'por confirmar'} | Vendidos: ${event.sold_count ?? 0}`),
     ...promotions.map((promotion) => `Promoción publicada: ${promotion.name ?? 'Sin nombre'} | Tipo: ${promotion.promotion_type ?? 'N/D'} | Vigencia: ${promotion.starts_at ?? 'sin inicio'} a ${promotion.ends_at ?? 'sin cierre'} | ${promotion.description ?? ''}`),
     ...membershipPlans.map((plan) => `Plan Wine Club publicado: ${plan.name ?? 'Sin nombre'} | Precio: ${plan.price ?? 'por confirmar'} | Periodo: ${plan.billing_period ?? 'por confirmar'} | Beneficios: ${JSON.stringify(plan.benefits ?? [])} | ${plan.description ?? ''}`),
-    ...campaigns.map((campaign) => `Campaña visible en app: ${campaign.name ?? 'Sin nombre'} | Canal: ${campaign.channel ?? 'N/D'} | Programada: ${campaign.scheduled_at ?? 'sin programación'} | Contenido: ${JSON.stringify(campaign.content ?? {})}`),
   ].join('\n\n').slice(0, 9000)
 }
 

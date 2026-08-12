@@ -1,15 +1,19 @@
 /**
- * Servicio de comunicación con el backend en Railway.
+ * Servicio de comunicación con la operación de Hacienda de Letras.
  * Lee VITE_API_BASE_URL del entorno Vite.
  *
  * SEGURIDAD: nunca incluir secretos (service role, OPENAI_API_KEY, etc.) aquí.
- * Solo variables con prefijo VITE_ son expuestas al bundle del frontend.
+ * Solo variables con prefijo VITE_ son expuestas al bundle público.
  */
 
 const RAW_BASE: string = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
+const MOBILE_PRODUCTION_API_BASE = 'https://hdlsistema-production.up.railway.app'
+const MOBILE_API_FALLBACK: string = import.meta.env.VITE_HDL_APP_TARGET === 'mobile'
+  ? MOBILE_PRODUCTION_API_BASE
+  : ''
 
-/** URL base del backend sin slash final. */
-export const API_BASE: string = RAW_BASE.replace(/\/+$/, '')
+/** URL base del servicio sin slash final. */
+export const API_BASE: string = (RAW_BASE || MOBILE_API_FALLBACK).replace(/\/+$/, '')
 
 const DEFAULT_TIMEOUT_MS = 10_000
 
@@ -59,7 +63,7 @@ export async function apiFetch<T = unknown>(
     try {
       body = await response.json()
     } catch {
-      // Respuesta sin JSON válido — ok, body queda null
+      // Respuesta sin cuerpo válido: body queda null.
     }
     const error: ApiFetchError = new Error(
       `HTTP ${response.status}: ${response.statusText}`,
@@ -73,7 +77,7 @@ export async function apiFetch<T = unknown>(
 }
 
 /**
- * Comprueba que el frontend puede comunicarse con el backend en Railway.
+ * Comprueba que la app puede comunicarse con el servicio operativo.
  * Útil para diagnóstico en el panel de control.
  */
 export async function checkBackendStatus(): Promise<{

@@ -22,6 +22,8 @@ import type {
   CancelCustomerReservationPayload,
   AddCustomerCartItemPayload,
   CreateCustomerOrderPayload,
+  CustomerAddressPayload,
+  CustomerAddressUpdatePayload,
   CreateCustomerReservationPayload,
   CustomerAvailabilityQuery,
   CustomerProfilePatch,
@@ -83,6 +85,63 @@ type AuditRow = {
   created_at: string
 }
 type CustomerReservationData = ReturnType<typeof mapReservation>
+
+type CustomerAddressRow = {
+  id: string
+  customer_id: string
+  user_id?: string | null
+  label: string
+  recipient_name: string
+  phone?: string | null
+  email?: string | null
+  line1: string
+  line2?: string | null
+  neighborhood?: string | null
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  references?: string | null
+  is_default: boolean
+  created_at: string
+  updated_at: string
+}
+
+type OrderShippingAddressRow = {
+  id: string
+  order_id: string
+  customer_id: string
+  user_id?: string | null
+  label: string
+  recipient_name: string
+  phone?: string | null
+  email?: string | null
+  line1: string
+  line2?: string | null
+  neighborhood?: string | null
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  references?: string | null
+  created_at: string
+}
+
+type ShipmentRow = {
+  id: string
+  order_id: string
+  shipment_number?: string | null
+  carrier?: string | null
+  tracking_number?: string | null
+  tracking_url?: string | null
+  status_text: string
+  tracking_assigned_at?: string | null
+  handed_to_carrier_at?: string | null
+  shipped_at?: string | null
+  delivered_at?: string | null
+  created_at: string
+  updated_at: string
+}
 
 const reservationSelect = `
   id,reservation_number,customer_id,user_id,experience_id,experience_slot_id,people_count,
@@ -153,6 +212,140 @@ async function withReservationAccessPass(reservation: CustomerReservationData) {
 
 function customerDisplayName(customer: CustomerRow) {
   return [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim() || customer.email || 'Cliente'
+}
+
+function mapCustomerAddress(row: CustomerAddressRow) {
+  return {
+    id: row.id,
+    label: row.label,
+    recipientName: row.recipient_name,
+    phone: row.phone ?? null,
+    email: row.email ?? null,
+    line1: row.line1,
+    line2: row.line2 ?? null,
+    neighborhood: row.neighborhood ?? null,
+    city: row.city,
+    state: row.state,
+    postalCode: row.postal_code,
+    country: row.country,
+    references: row.references ?? null,
+    isDefault: row.is_default,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function mapOrderShippingAddress(row?: OrderShippingAddressRow | null) {
+  if (!row) return null
+  return {
+    id: row.id,
+    label: row.label,
+    recipientName: row.recipient_name,
+    phone: row.phone ?? null,
+    email: row.email ?? null,
+    line1: row.line1,
+    line2: row.line2 ?? null,
+    neighborhood: row.neighborhood ?? null,
+    city: row.city,
+    state: row.state,
+    postalCode: row.postal_code,
+    country: row.country,
+    references: row.references ?? null,
+    createdAt: row.created_at,
+  }
+}
+
+function mapShipment(row?: ShipmentRow | null) {
+  if (!row) return null
+  return {
+    id: row.id,
+    shipmentNumber: row.shipment_number ?? null,
+    carrier: row.carrier ?? null,
+    trackingNumber: row.tracking_number ?? null,
+    trackingUrl: row.tracking_url ?? null,
+    status: row.status_text,
+    trackingAssignedAt: row.tracking_assigned_at ?? null,
+    handedToCarrierAt: row.handed_to_carrier_at ?? null,
+    shippedAt: row.shipped_at ?? null,
+    deliveredAt: row.delivered_at ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function addressInsert(customer: CustomerRow, user: UserContext, payload: CustomerAddressPayload | CustomerAddressUpdatePayload) {
+  return {
+    customer_id: customer.id,
+    user_id: user.userId,
+    label: payload.label ?? 'Casa',
+    recipient_name: payload.recipientName,
+    phone: payload.phone ?? null,
+    email: payload.email ?? customer.email ?? null,
+    line1: payload.line1,
+    line2: payload.line2 ?? null,
+    neighborhood: payload.neighborhood ?? null,
+    city: payload.city,
+    state: payload.state,
+    postal_code: payload.postalCode,
+    country: payload.country ?? 'MX',
+    references: payload.references ?? null,
+    is_default: payload.isDefault ?? false,
+  }
+}
+
+function orderShippingInsert(orderId: string, customer: CustomerRow, user: UserContext, payload: CustomerAddressPayload) {
+  return {
+    order_id: orderId,
+    ...addressInsert(customer, user, payload),
+  }
+}
+
+function cartRequiresShipping(cart: unknown) {
+  const data = cart && typeof cart === 'object' ? cart as Record<string, unknown> : {}
+  const items = Array.isArray(data.items) ? data.items as Array<Record<string, unknown>> : []
+  return items.some((item) => item.itemType === 'wine' || item.item_type === 'wine')
+}
+
+async function loadOrderShipping(orderId: string) {
+  const [addressResult, shipmentResult] = await Promise.all([
+    supabaseAdminClient
+      .from('order_shipping_addresses')
+      .select('id,order_id,customer_id,user_id,label,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references,created_at')
+      .eq('order_id', orderId)
+      .maybeSingle(),
+    supabaseAdminClient
+      .from('shipments')
+      .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
+  return {
+    shippingAddress: mapOrderShippingAddress(assertNoError<OrderShippingAddressRow | null>(addressResult).data),
+    shipment: mapShipment(assertNoError<ShipmentRow | null>(shipmentResult).data),
+  }
+}
+
+async function enrichCustomerOrder(order: unknown) {
+  if (!order || typeof order !== 'object') return order
+  const data = order as Record<string, unknown>
+  const orderId = typeof data.id === 'string' ? data.id : ''
+  if (!orderId) return order
+  const rowResult = await supabaseAdminClient
+    .from('orders')
+    .select('requires_shipping,shipping_status')
+    .eq('id', orderId)
+    .maybeSingle()
+  const row = assertNoError<{ requires_shipping?: boolean | null; shipping_status?: string | null } | null>(rowResult).data
+  const shipping = await loadOrderShipping(orderId)
+  return {
+    ...data,
+    paymentStatus: data.paymentStatus === 'recorded' ? 'paid' : data.paymentStatus,
+    requiresShipping: Boolean(row?.requires_shipping),
+    shippingStatus: row?.requires_shipping ? row?.shipping_status ?? 'pending_preparation' : 'not_required',
+    ...shipping,
+  }
 }
 
 function recordCustomerOperation(
@@ -491,6 +684,98 @@ export async function getCustomerCart(user: UserContext) {
   return { data: result.data }
 }
 
+export async function listCustomerAddresses(user: UserContext) {
+  assertCustomerAccess(user)
+  const customer = await getCustomerForUser(user)
+  const result = await supabaseAdminClient
+    .from('customer_addresses')
+    .select('id,customer_id,user_id,label,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references,is_default,created_at,updated_at')
+    .eq('customer_id', customer.id)
+    .eq('user_id', user.userId)
+    .is('deleted_at', null)
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: false })
+  return { data: (assertNoError<CustomerAddressRow[]>(result).data ?? []).map(mapCustomerAddress) }
+}
+
+export async function createCustomerAddress(payload: CustomerAddressPayload, user: UserContext) {
+  assertCustomerAccess(user)
+  const customer = await getCustomerForUser(user)
+  if (payload.isDefault) {
+    await supabaseAdminClient
+      .from('customer_addresses')
+      .update({ is_default: false, updated_at: new Date().toISOString() })
+      .eq('customer_id', customer.id)
+      .eq('user_id', user.userId)
+      .is('deleted_at', null)
+  }
+  const result = await supabaseAdminClient
+    .from('customer_addresses')
+    .insert(addressInsert(customer, user, payload))
+    .select('id,customer_id,user_id,label,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references,is_default,created_at,updated_at')
+    .single()
+  return { data: mapCustomerAddress(assertNoError<CustomerAddressRow>(result).data) }
+}
+
+export async function updateCustomerAddress(id: string, payload: CustomerAddressUpdatePayload, user: UserContext) {
+  assertCustomerAccess(user)
+  const customer = await getCustomerForUser(user)
+  if (payload.isDefault) {
+    await supabaseAdminClient
+      .from('customer_addresses')
+      .update({ is_default: false, updated_at: new Date().toISOString() })
+      .eq('customer_id', customer.id)
+      .eq('user_id', user.userId)
+      .is('deleted_at', null)
+  }
+  const patch: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+  }
+  if (payload.label !== undefined) patch.label = payload.label
+  if (payload.recipientName !== undefined) patch.recipient_name = payload.recipientName
+  if (payload.phone !== undefined) patch.phone = payload.phone ?? null
+  if (payload.email !== undefined) patch.email = payload.email ?? null
+  if (payload.line1 !== undefined) patch.line1 = payload.line1
+  if (payload.line2 !== undefined) patch.line2 = payload.line2 ?? null
+  if (payload.neighborhood !== undefined) patch.neighborhood = payload.neighborhood ?? null
+  if (payload.city !== undefined) patch.city = payload.city
+  if (payload.state !== undefined) patch.state = payload.state
+  if (payload.postalCode !== undefined) patch.postal_code = payload.postalCode
+  if (payload.country !== undefined) patch.country = payload.country
+  if (payload.references !== undefined) patch.references = payload.references ?? null
+  if (payload.isDefault !== undefined) patch.is_default = payload.isDefault
+
+  const result = await supabaseAdminClient
+    .from('customer_addresses')
+    .update(patch)
+    .eq('id', id)
+    .eq('customer_id', customer.id)
+    .eq('user_id', user.userId)
+    .is('deleted_at', null)
+    .select('id,customer_id,user_id,label,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references,is_default,created_at,updated_at')
+    .maybeSingle()
+  const row = assertNoError<CustomerAddressRow | null>(result).data
+  if (!row) throw httpError(404, 'Dirección no encontrada')
+  return { data: mapCustomerAddress(row) }
+}
+
+export async function deleteCustomerAddress(id: string, user: UserContext) {
+  assertCustomerAccess(user)
+  const customer = await getCustomerForUser(user)
+  const result = await supabaseAdminClient
+    .from('customer_addresses')
+    .update({ deleted_at: new Date().toISOString(), is_default: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('customer_id', customer.id)
+    .eq('user_id', user.userId)
+    .is('deleted_at', null)
+    .select('id')
+    .maybeSingle()
+  const row = assertNoError<{ id: string } | null>(result).data
+  if (!row) throw httpError(404, 'Dirección no encontrada')
+  return { data: row }
+}
+
 export async function addCustomerCartItem(payload: AddCustomerCartItemPayload, user: UserContext) {
   assertCustomerAccess(user)
   const result = await rpcClient(user).rpc('add_customer_cart_item', {
@@ -549,13 +834,45 @@ export async function clearCustomerCart(user: UserContext) {
 
 export async function createCustomerOrder(payload: CreateCustomerOrderPayload, user: UserContext) {
   assertCustomerAccess(user)
+  const customer = await getCustomerForUser(user)
+  const cart = await getCustomerCart(user)
+  const needsShipping = cartRequiresShipping(cart.data)
+  if (needsShipping && !payload.shippingAddress) {
+    throw httpError(422, 'Domicilio de envío requerido')
+  }
   const result = await rpcClient(user).rpc('create_customer_order_from_cart', {
     p_idempotency_key: payload.idempotencyKey,
     p_discount_code: payload.discountCode ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  const response = await getCustomerOrder(String(result.data), user)
-  const customer = await getCustomerForUser(user)
+  const orderId = String(result.data)
+  if (needsShipping && payload.shippingAddress) {
+    if (payload.saveAddress) await createCustomerAddress(payload.shippingAddress, user)
+    assertNoError(await supabaseAdminClient
+      .from('order_shipping_addresses')
+      .upsert(orderShippingInsert(orderId, customer, user, payload.shippingAddress), { onConflict: 'order_id' })
+      .select('id')
+      .single())
+    assertNoError(await supabaseAdminClient
+      .from('orders')
+      .update({
+        requires_shipping: true,
+        shipping_status: 'pending_preparation',
+        metadata: {
+          checkoutMode: 'mobile',
+          paymentAvailable: true,
+          paymentStatus: 'pending_payment',
+          fulfillmentMode: 'shipping',
+          shippingPolicy: 'customer_address',
+          discountCode: payload.discountCode ?? null,
+        },
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+      .select('id')
+      .single())
+  }
+  const response = await getCustomerOrder(orderId, user)
   queueOrderEmails(response.data, customer, user, payload.language)
   recordCustomerOperation(customer, user, 'checkout_started', 'order', String((response.data as Record<string, unknown>).id ?? result.data), `checkout-started-${String((response.data as Record<string, unknown>).id ?? result.data)}`)
   return response
@@ -565,7 +882,8 @@ export async function listCustomerOrders(user: UserContext) {
   assertCustomerAccess(user)
   const result = await rpcClient(user).rpc('get_customer_orders')
   if (result.error) normalizeDatabaseError(result.error)
-  return { data: result.data ?? [] }
+  const rows = Array.isArray(result.data) ? result.data : []
+  return { data: await Promise.all(rows.map(enrichCustomerOrder)) }
 }
 
 export async function getCustomerOrder(id: string, user: UserContext) {
@@ -575,5 +893,5 @@ export async function getCustomerOrder(id: string, user: UserContext) {
   })
   if (result.error) normalizeDatabaseError(result.error)
   if (!result.data || result.data === null) throw httpError(404, 'Orden no encontrada')
-  return { data: result.data }
+  return { data: await enrichCustomerOrder(result.data) }
 }

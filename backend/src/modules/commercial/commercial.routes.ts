@@ -10,6 +10,7 @@ import {
   listPublicCommercial,
   listQuoteRequestsAdmin,
   patchQuoteRequestAdmin,
+  sendQuoteRequestEmailAdmin,
 } from './commercial.controller'
 
 const publicRouter = Router()
@@ -33,6 +34,7 @@ customerRouter.post('/quote-requests', authenticate, authorize(customerRoles), c
 adminRouter.get('/quote-requests', authenticate, authorize(quoteReadRoles), listQuoteRequestsAdmin)
 adminRouter.get('/quote-requests/:id', authenticate, authorize(quoteReadRoles), getQuoteRequestAdmin)
 adminRouter.patch('/quote-requests/:id', authenticate, authorize(quoteWriteRoles), patchQuoteRequestAdmin)
+adminRouter.post('/quote-requests/:id/send-quote', authenticate, authorize(quoteWriteRoles), sendQuoteRequestEmailAdmin)
 
 export {
   adminRouter as adminCommercialRouter,

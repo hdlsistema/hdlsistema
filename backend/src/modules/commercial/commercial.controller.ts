@@ -7,6 +7,7 @@ import {
   patchQuoteRequestSchema,
   publicCommercialQuerySchema,
   quoteRequestListQuerySchema,
+  sendQuoteRequestEmailSchema,
 } from './commercial.schemas'
 import {
   createCabinReservation,
@@ -15,6 +16,7 @@ import {
   getQuoteRequest,
   listPublicCommercialServices,
   listQuoteRequests,
+  sendQuoteRequestEmail,
   updateQuoteRequest,
 } from './commercial.service'
 
@@ -90,6 +92,16 @@ export async function patchQuoteRequestAdmin(req: Request, res: Response): Promi
     const payload = patchQuoteRequestSchema.parse(req.body)
     const { data } = await updateQuoteRequest(req.params.id, payload, userContext(req))
     res.json({ ok: true, data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function sendQuoteRequestEmailAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = sendQuoteRequestEmailSchema.parse(req.body)
+    const { data } = await sendQuoteRequestEmail(req.params.id, payload, userContext(req))
+    res.status(202).json({ ok: true, data })
   } catch (error) {
     sendOperationError(res, error)
   }

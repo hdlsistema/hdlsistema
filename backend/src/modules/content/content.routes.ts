@@ -11,17 +11,19 @@ import {
   getPreview,
   getPublicBySlug,
   listAdmin,
-  listPublic,
-  patchAdmin,
-  previewTokenAdmin,
-  publishAdmin,
-  removeAdmin,
-  restoreAdmin,
-  restoreVersionAdmin,
-  scheduleAdmin,
-  unpublishAdmin,
-  versionsAdmin,
-} from './content.controller'
+	  listPublic,
+	  patchAdmin,
+	  previewTokenAdmin,
+	  previewCampaignAudienceAdmin,
+	  publishAdmin,
+	  removeAdmin,
+	  restoreAdmin,
+	  restoreVersionAdmin,
+	  scheduleAdmin,
+	  sendCampaignAdmin,
+	  unpublishAdmin,
+	  versionsAdmin,
+	} from './content.controller'
 
 const adminRouter = Router()
 const publicRouter = Router()
@@ -29,6 +31,8 @@ const previewRouter = Router()
 const protectedAdmin = [authenticate, authorize(contentAdminRoles)]
 
 adminRouter.use(rateLimit(240, 60_000))
+adminRouter.post('/campaigns/audience-preview', ...protectedAdmin, previewCampaignAudienceAdmin)
+adminRouter.post('/campaigns/:id/send', ...protectedAdmin, sendCampaignAdmin)
 adminRouter.get('/:entity', ...protectedAdmin, listAdmin)
 adminRouter.get('/:entity/:id', ...protectedAdmin, getAdmin)
 adminRouter.post('/:entity', ...protectedAdmin, createAdmin)

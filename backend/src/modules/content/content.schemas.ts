@@ -27,6 +27,28 @@ const eventStatus = z.enum([
   'archived',
 ])
 const campaignStatus = z.enum(['draft', 'scheduled', 'active', 'paused', 'completed', 'cancelled'])
+const campaignAudienceFiltersSchema = z
+  .object({
+    search: z.string().trim().max(120).optional(),
+    segment: z.string().trim().max(80).optional(),
+    source: z.string().trim().max(80).optional(),
+    location: z.string().trim().max(120).optional(),
+    tagId: z.string().uuid().optional(),
+    hasOrders: z.boolean().optional(),
+    hasReservations: z.boolean().optional(),
+    hasMembership: z.boolean().optional(),
+    minAge: z.number().int().min(0).max(120).optional(),
+    maxAge: z.number().int().min(0).max(120).optional(),
+    minTotalSpend: z.number().min(0).optional(),
+    maxTotalSpend: z.number().min(0).optional(),
+    minTotalVisits: z.number().int().min(0).optional(),
+    maxTotalVisits: z.number().int().min(0).optional(),
+    createdFrom: z.string().datetime().optional(),
+    createdTo: z.string().datetime().optional(),
+    locale: z.enum(['es', 'en', 'es-MX', 'en-US']).optional(),
+    limit: z.number().int().min(1).max(500).optional(),
+  })
+  .strict()
 
 const schemas = {
   wines: z
@@ -167,6 +189,19 @@ export const previewTokenSchema = z
   })
   .strict()
 
+export const campaignAudiencePreviewSchema = campaignAudienceFiltersSchema
+
+export const sendCampaignSchema = z
+  .object({
+    audience: campaignAudienceFiltersSchema.optional(),
+    subject: z.string().trim().min(3).max(180).optional(),
+    body: z.string().trim().min(10).max(5000).optional(),
+    ctaLabel: z.string().trim().max(80).optional(),
+    ctaUrl: z.string().url().optional(),
+    limit: z.number().int().min(1).max(500).optional(),
+  })
+  .strict()
+
 export function parseContentPayload(entity: ContentRouteEntity, payload: unknown) {
   return schemas[entity].parse(payload)
 }
@@ -180,3 +215,6 @@ export function assertPublicationAction(action: string): asserts action is Publi
     throw new Error('Acción editorial no permitida')
   }
 }
+
+export type CampaignAudienceFilters = z.infer<typeof campaignAudienceFiltersSchema>
+export type SendCampaignPayload = z.infer<typeof sendCampaignSchema>

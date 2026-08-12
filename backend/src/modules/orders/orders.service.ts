@@ -14,8 +14,12 @@ import {
 import type {
   CreateOrderPayload,
   OrderListQuery,
+  OrderShipPayload,
+  OrderShippingActionPayload,
+  OrderTrackingPayload,
   PatchOrderPayload,
 } from './orders.schemas'
+import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer', 'marketing']
 const writeRoles = ['super_admin', 'admin', 'operations', 'finance']
@@ -38,6 +42,9 @@ type OrderRow = {
   cancelled_at?: string | null
   cancellation_reason?: string | null
   fulfilled_at?: string | null
+  requires_shipping?: boolean | null
+  shipping_status?: string | null
+  metadata?: Record<string, unknown> | null
   created_at: string
   updated_at: string
   customers?: Relation<CustomerRow>
@@ -89,11 +96,45 @@ type AuditRow = {
   created_at: string
 }
 
+type OrderShippingAddressRow = {
+  id: string
+  order_id: string
+  recipient_name: string
+  phone?: string | null
+  email?: string | null
+  line1: string
+  line2?: string | null
+  neighborhood?: string | null
+  city: string
+  state: string
+  postal_code: string
+  country: string
+  references?: string | null
+  created_at: string
+}
+
+type ShipmentRow = {
+  id: string
+  order_id: string
+  shipment_number?: string | null
+  carrier?: string | null
+  tracking_number?: string | null
+  tracking_url?: string | null
+  shipping_cost?: number | string | null
+  status_text: string
+  tracking_assigned_at?: string | null
+  handed_to_carrier_at?: string | null
+  shipped_at?: string | null
+  delivered_at?: string | null
+  created_at: string
+  updated_at: string
+}
+
 type Relation<T> = T | T[] | null
 
 const orderSelect = `
   id,order_number,customer_id,reservation_id,subtotal,discount_total,tax_total,shipping_total,total,currency,
-  status,source,paid_at,cancelled_at,cancellation_reason,fulfilled_at,created_at,updated_at,
+  status,source,paid_at,cancelled_at,cancellation_reason,fulfilled_at,requires_shipping,shipping_status,metadata,created_at,updated_at,
   customers(id,display_name,first_name,last_name,email),
   reservations(id,reservation_number)
 `
@@ -115,7 +156,47 @@ function customerName(row: OrderRow) {
   return customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
 }
 
-function mapOrder(row: OrderRow, payments: PaymentSummaryRow[] = []) {
+function mapShippingAddress(row?: OrderShippingAddressRow | null) {
+  if (!row) return null
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    recipientName: row.recipient_name,
+    phone: row.phone ?? null,
+    email: row.email ?? null,
+    line1: row.line1,
+    line2: row.line2 ?? null,
+    neighborhood: row.neighborhood ?? null,
+    city: row.city,
+    state: row.state,
+    postalCode: row.postal_code,
+    country: row.country,
+    references: row.references ?? null,
+    createdAt: row.created_at,
+  }
+}
+
+function mapShipment(row?: ShipmentRow | null) {
+  if (!row) return null
+  return {
+    id: row.id,
+    orderId: row.order_id,
+    shipmentNumber: row.shipment_number ?? null,
+    carrier: row.carrier ?? null,
+    trackingNumber: row.tracking_number ?? null,
+    trackingUrl: row.tracking_url ?? null,
+    shippingCost: toNumber(row.shipping_cost),
+    status: row.status_text,
+    trackingAssignedAt: row.tracking_assigned_at ?? null,
+    handedToCarrierAt: row.handed_to_carrier_at ?? null,
+    shippedAt: row.shipped_at ?? null,
+    deliveredAt: row.delivered_at ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
+function mapOrder(row: OrderRow, payments: PaymentSummaryRow[] = [], shipping?: { address?: OrderShippingAddressRow | null; shipment?: ShipmentRow | null }) {
   const reservation = firstRelation(row.reservations)
   const paidAmount = payments
     .filter((payment) => ['paid', 'partially_refunded', 'refunded'].includes(payment.status))
@@ -137,6 +218,10 @@ function mapOrder(row: OrderRow, payments: PaymentSummaryRow[] = []) {
     paidAmount,
     currency: row.currency.trim(),
     status: row.status,
+    requiresShipping: Boolean(row.requires_shipping),
+    shippingStatus: row.requires_shipping ? row.shipping_status ?? 'pending_preparation' : 'not_required',
+    shippingAddress: mapShippingAddress(shipping?.address),
+    shipment: mapShipment(shipping?.shipment),
     source: row.source ?? 'Centro de control',
     paidAt: row.paid_at ?? null,
     cancelledAt: row.cancelled_at ?? null,
@@ -179,6 +264,7 @@ function mapPayment(row: PaymentSummaryRow) {
 function applyFilters(request: any, query: OrderListQuery) {
   let next = request
   if (query.status) next = next.eq('status', query.status)
+  if (query.shippingStatus) next = next.eq('shipping_status', query.shippingStatus)
   if (query.customerId) next = next.eq('customer_id', query.customerId)
   if (query.reservationId) next = next.eq('reservation_id', query.reservationId)
   if (query.orderNumber) next = next.eq('order_number', query.orderNumber)
@@ -192,6 +278,30 @@ function applyFilters(request: any, query: OrderListQuery) {
     next = next.or(`order_number.ilike.%${safe}%,source.ilike.%${safe}%`)
   }
   return next
+}
+
+async function shippingForOrders(orderIds: string[]) {
+  const map = new Map<string, { address?: OrderShippingAddressRow | null; shipment?: ShipmentRow | null }>()
+  if (!orderIds.length) return map
+  const [addressesResult, shipmentsResult] = await Promise.all([
+    supabaseAdminClient
+      .from('order_shipping_addresses')
+      .select('id,order_id,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references,created_at')
+      .in('order_id', orderIds),
+    supabaseAdminClient
+      .from('shipments')
+      .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,shipping_cost,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
+      .in('order_id', orderIds)
+      .order('created_at', { ascending: false }),
+  ])
+  for (const row of assertNoError<OrderShippingAddressRow[]>(addressesResult).data ?? []) {
+    map.set(row.order_id, { ...(map.get(row.order_id) ?? {}), address: row })
+  }
+  for (const row of assertNoError<ShipmentRow[]>(shipmentsResult).data ?? []) {
+    const current = map.get(row.order_id) ?? {}
+    if (!current.shipment) map.set(row.order_id, { ...current, shipment: row })
+  }
+  return map
 }
 
 async function paymentsForOrders(orderIds: string[]) {
@@ -223,10 +333,11 @@ export async function listOrders(query: OrderListQuery, user: UserContext) {
   const result = await request
   let rows = assertNoError<OrderRow[]>(result).data ?? []
   const payments = await paymentsForOrders(rows.map((row) => row.id))
+  const shipping = await shippingForOrders(rows.map((row) => row.id))
   if (query.payment === 'with_payment') rows = rows.filter((row) => (payments.get(row.id) ?? []).length > 0)
   if (query.payment === 'without_payment') rows = rows.filter((row) => (payments.get(row.id) ?? []).length === 0)
   return {
-    data: rows.map((row) => mapOrder(row, payments.get(row.id) ?? [])),
+    data: rows.map((row) => mapOrder(row, payments.get(row.id) ?? [], shipping.get(row.id))),
     count: query.payment ? rows.length : result.count ?? rows.length,
   }
 }
@@ -241,7 +352,8 @@ export async function getOrder(id: string, user: UserContext) {
   const row = assertNoError<OrderRow | null>(result).data
   if (!row) throw httpError(404, 'Orden no encontrada')
   const payments = await paymentsForOrders([id])
-  return { data: mapOrder(row, payments.get(id) ?? []) }
+  const shipping = await shippingForOrders([id])
+  return { data: mapOrder(row, payments.get(id) ?? [], shipping.get(id)) }
 }
 
 export async function createOrder(payload: CreateOrderPayload, user: UserContext) {
@@ -332,6 +444,225 @@ export async function listOrderHistory(id: string, user: UserContext) {
   }
 }
 
+async function writeAudit(action: string, entityId: string, actorId?: string, metadata: Record<string, unknown> = {}) {
+  await supabaseAdminClient.from('audit_logs').insert({
+    actor_user_id: actorId ?? null,
+    action,
+    entity_type: 'orders',
+    entity_id: entityId,
+    after_data: metadata,
+  })
+}
+
+async function insertOrderNotification(order: OrderRow, title: string, body: string, status: string) {
+  await supabaseAdminClient.from('notifications').insert({
+    user_id: null,
+    customer_id: order.customer_id,
+    channel: 'in_app',
+    title,
+    body,
+    data: {
+      orderId: order.id,
+      orderNumber: order.order_number,
+      status,
+      targetPath: `/control/ordenes?orderId=${order.id}`,
+    },
+    status: 'pending',
+  })
+}
+
+async function getOrderRowForShipping(id: string) {
+  const result = await supabaseAdminClient
+    .from('orders')
+    .select(orderSelect)
+    .eq('id', id)
+    .maybeSingle()
+  const row = assertNoError<OrderRow | null>(result).data
+  if (!row) throw httpError(404, 'Orden no encontrada')
+  return row
+}
+
+async function getShippingAddress(orderId: string) {
+  const result = await supabaseAdminClient
+    .from('order_shipping_addresses')
+    .select('id,order_id,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references,created_at')
+    .eq('order_id', orderId)
+    .maybeSingle()
+  return assertNoError<OrderShippingAddressRow | null>(result).data
+}
+
+async function getLatestShipment(orderId: string) {
+  const result = await supabaseAdminClient
+    .from('shipments')
+    .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,shipping_cost,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
+    .eq('order_id', orderId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return assertNoError<ShipmentRow | null>(result).data
+}
+
+function addressLine(address: OrderShippingAddressRow | null) {
+  if (!address) return null
+  return [
+    address.line1,
+    address.line2,
+    address.neighborhood,
+    address.city,
+    address.state,
+    address.postal_code,
+    address.country,
+  ].filter(Boolean).join(', ')
+}
+
+async function ensureShipment(order: OrderRow, status = 'pending_preparation', actorId?: string | null) {
+  if (!order.requires_shipping) throw httpError(422, 'Esta orden no requiere envío')
+  const address = await getShippingAddress(order.id)
+  if (!address) throw httpError(422, 'Falta domicilio de envío')
+  const existing = await getLatestShipment(order.id)
+  if (existing) return existing
+  const now = new Date().toISOString()
+  const result = await supabaseAdminClient
+    .from('shipments')
+    .insert({
+      order_id: order.id,
+      carrier: null,
+      tracking_number: null,
+      tracking_url: null,
+      shipping_cost: toNumber(order.shipping_total),
+      status_text: status,
+      destination: addressLine(address),
+      address_snapshot_id: address.id,
+      created_by: actorId ?? null,
+      updated_by: actorId ?? null,
+      metadata: { source: 'order_fulfillment' },
+      updated_at: now,
+    })
+    .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,shipping_cost,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
+    .single()
+  return assertNoError<ShipmentRow>(result).data
+}
+
+export async function ensureOrderShippingAfterPayment(orderId: string) {
+  const order = await getOrderRowForShipping(orderId)
+  if (!order.requires_shipping) return { data: mapOrder(order) }
+  await ensureShipment(order, 'pending_preparation')
+  await supabaseAdminClient
+    .from('orders')
+    .update({ shipping_status: 'pending_preparation', updated_at: new Date().toISOString() })
+    .eq('id', order.id)
+  await insertOrderNotification(
+    order,
+    'Pedido listo para preparar',
+    `La orden ${order.order_number} tiene pago confirmado y requiere preparación.`,
+    'pending_preparation',
+  ).catch(() => undefined)
+  await writeAudit('order_shipping_pending_preparation', order.id, undefined, { orderNumber: order.order_number })
+  const refreshed = await getOrderRowForShipping(order.id)
+  const [payments, shipping] = await Promise.all([
+    paymentsForOrders([order.id]),
+    shippingForOrders([order.id]),
+  ])
+  return { data: mapOrder(refreshed, payments.get(order.id) ?? [], shipping.get(order.id)) }
+}
+
+export async function prepareOrderShipment(id: string, _payload: OrderShippingActionPayload, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const order = await getOrderRowForShipping(id)
+  if (order.status !== 'paid' && order.status !== 'processing') throw httpError(422, 'La orden debe tener pago confirmado')
+  const shipment = await ensureShipment(order, 'pending_preparation', user.userId)
+  const now = new Date().toISOString()
+  await supabaseAdminClient.from('shipments').update({ status_text: 'preparing', updated_by: user.userId, updated_at: now }).eq('id', shipment.id)
+  await supabaseAdminClient.from('orders').update({ shipping_status: 'preparing', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  await insertOrderNotification(order, 'Pedido en preparación', `La orden ${order.order_number} está en preparación.`, 'preparing').catch(() => undefined)
+  await writeAudit('order_shipping_preparing', order.id, user.userId)
+  return getOrder(order.id, user)
+}
+
+export async function assignOrderTracking(id: string, payload: OrderTrackingPayload, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const order = await getOrderRowForShipping(id)
+  if (order.status !== 'paid' && order.status !== 'processing') throw httpError(422, 'La orden debe tener pago confirmado')
+  const shipment = await ensureShipment(order, 'awaiting_tracking', user.userId)
+  const now = new Date().toISOString()
+  await supabaseAdminClient.from('shipments').update({
+    carrier: payload.carrier,
+    tracking_number: payload.trackingNumber,
+    tracking_url: payload.trackingUrl ?? null,
+    status_text: 'tracking_assigned',
+    tracking_assigned_at: now,
+    updated_by: user.userId,
+    updated_at: now,
+  }).eq('id', shipment.id)
+  await supabaseAdminClient.from('orders').update({ shipping_status: 'tracking_assigned', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  await insertOrderNotification(order, 'Guía asignada', `La orden ${order.order_number} ya tiene guía asignada.`, 'tracking_assigned').catch(() => undefined)
+  await writeAudit('order_tracking_assigned', order.id, user.userId, { carrier: payload.carrier })
+  return getOrder(order.id, user)
+}
+
+async function queueOrderShippedEmail(order: OrderRow, shipment: ShipmentRow) {
+  const customer = firstRelation(order.customers)
+  if (!customer?.email) return
+  void enqueueAndProcessTransactionalEmail({
+    eventType: 'order.shipped',
+    aggregateType: 'orders',
+    aggregateId: order.id,
+    customerId: order.customer_id,
+    userId: null,
+    recipientEmail: customer.email,
+    locale: 'es-MX',
+    payload: {
+      customerName: customerName(order),
+      orderNumber: order.order_number,
+      carrier: shipment.carrier ?? 'Paquetería',
+      trackingNumber: shipment.tracking_number ?? '',
+      trackingUrl: shipment.tracking_url ?? '',
+    },
+    idempotencyKey: `order.shipped:${order.id}:${shipment.tracking_number ?? shipment.id}`,
+  }).catch(() => undefined)
+}
+
+export async function shipOrder(id: string, payload: OrderShipPayload, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const order = await getOrderRowForShipping(id)
+  const current = await ensureShipment(order, 'awaiting_tracking', user.userId)
+  if (!payload.confirmWithoutTracking && !current.tracking_number) throw httpError(422, 'Falta número de guía')
+  const now = new Date().toISOString()
+  const result = await supabaseAdminClient.from('shipments').update({
+    status_text: 'shipped',
+    shipped_at: current.shipped_at ?? now,
+    handed_to_carrier_at: now,
+    updated_by: user.userId,
+    updated_at: now,
+  }).eq('id', current.id)
+    .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,shipping_cost,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
+    .single()
+  const shipment = assertNoError<ShipmentRow>(result).data
+  await supabaseAdminClient.from('orders').update({ shipping_status: 'shipped', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  await insertOrderNotification(order, 'Pedido enviado', `La orden ${order.order_number} fue marcada como enviada.`, 'shipped').catch(() => undefined)
+  await queueOrderShippedEmail(order, shipment)
+  await writeAudit('order_shipped', order.id, user.userId)
+  return getOrder(order.id, user)
+}
+
+export async function deliverOrder(id: string, _payload: OrderShippingActionPayload, user: UserContext) {
+  requireOperationRole(user, writeRoles)
+  const order = await getOrderRowForShipping(id)
+  const current = await ensureShipment(order, 'shipped', user.userId)
+  const now = new Date().toISOString()
+  await supabaseAdminClient.from('shipments').update({
+    status_text: 'delivered',
+    delivered_at: now,
+    delivered_by: user.userId,
+    updated_by: user.userId,
+    updated_at: now,
+  }).eq('id', current.id)
+  await supabaseAdminClient.from('orders').update({ shipping_status: 'delivered', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  await insertOrderNotification(order, 'Pedido entregado', `La orden ${order.order_number} fue marcada como entregada.`, 'delivered').catch(() => undefined)
+  await writeAudit('order_delivered', order.id, user.userId)
+  return getOrder(order.id, user)
+}
+
 export async function exportOrders(query: OrderListQuery, user: UserContext) {
   requireOperationRole(user, exportRoles)
   const { data } = await listOrders({ ...query, page: 1, perPage: 100 }, user)
@@ -340,6 +671,8 @@ export async function exportOrders(query: OrderListQuery, user: UserContext) {
     'customer',
     'reservation_number',
     'status',
+    'shipping_status',
+    'tracking_number',
     'subtotal',
     'discount_total',
     'tax_total',
@@ -353,6 +686,8 @@ export async function exportOrders(query: OrderListQuery, user: UserContext) {
     item.customerName,
     item.reservationNumber ?? '',
     item.status,
+    item.shippingStatus,
+    item.shipment?.trackingNumber ?? '',
     String(item.subtotal),
     String(item.discountTotal),
     String(item.taxTotal),

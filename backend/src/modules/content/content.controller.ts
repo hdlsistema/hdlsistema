@@ -13,11 +13,21 @@ import {
   listAdminContent,
   listAdminContentVersions,
   listPublicEntity,
+  previewCampaignAudience,
   restoreAdminContentVersion,
   schedulePublicationAction,
+  sendCampaignEmail,
   updateAdminContent,
 } from './content.service'
-import { listQuerySchema, parseContentPatch, parseContentPayload, previewTokenSchema, scheduleSchema } from './content.schemas'
+import {
+  campaignAudiencePreviewSchema,
+  listQuerySchema,
+  parseContentPatch,
+  parseContentPayload,
+  previewTokenSchema,
+  scheduleSchema,
+  sendCampaignSchema,
+} from './content.schemas'
 import type { ContentRouteEntity, PublicationAction } from './content.types'
 
 function sendError(res: Response, error: unknown) {
@@ -79,6 +89,26 @@ export async function getAdmin(req: Request, res: Response): Promise<void> {
       return
     }
     res.json({ ok: true, data })
+  } catch (error) {
+    sendError(res, error)
+  }
+}
+
+export async function previewCampaignAudienceAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = campaignAudiencePreviewSchema.parse(req.body)
+    const { data } = await previewCampaignAudience(payload, userContext(req))
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendError(res, error)
+  }
+}
+
+export async function sendCampaignAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = sendCampaignSchema.parse(req.body)
+    const { data } = await sendCampaignEmail(req.params.id, payload, userContext(req))
+    res.status(202).json({ ok: true, data })
   } catch (error) {
     sendError(res, error)
   }

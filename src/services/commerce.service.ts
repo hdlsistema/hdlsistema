@@ -39,6 +39,30 @@ export type OrderRecord = {
   paidAt?: string | null
   cancelledAt?: string | null
   fulfilledAt?: string | null
+  requiresShipping?: boolean
+  shippingStatus?: string | null
+  shippingAddress?: {
+    recipientName: string
+    phone?: string | null
+    email?: string | null
+    line1: string
+    line2?: string | null
+    neighborhood?: string | null
+    city: string
+    state: string
+    postalCode: string
+    country: string
+    references?: string | null
+  } | null
+  shipment?: {
+    id: string
+    carrier?: string | null
+    trackingNumber?: string | null
+    trackingUrl?: string | null
+    status?: string | null
+    shippedAt?: string | null
+    deliveredAt?: string | null
+  } | null
   createdAt: string
   updatedAt: string
 }
@@ -164,6 +188,34 @@ export const ordersClient = {
     return apiFetch<{ ok: true; data: OrderRecord }>(`/api/admin/orders/${encodeURIComponent(id)}/fulfill`, {
       method: 'POST',
       headers: adminHeaders(token),
+    })
+  },
+  prepareShipping(token: string | null | undefined, id: string, payload: Record<string, unknown> = {}) {
+    return apiFetch<{ ok: true; data: OrderRecord }>(`/api/admin/orders/${encodeURIComponent(id)}/shipping/prepare`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  assignTracking(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: OrderRecord }>(`/api/admin/orders/${encodeURIComponent(id)}/shipping/tracking`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  ship(token: string | null | undefined, id: string, payload: Record<string, unknown> = {}) {
+    return apiFetch<{ ok: true; data: OrderRecord }>(`/api/admin/orders/${encodeURIComponent(id)}/shipping/ship`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  deliver(token: string | null | undefined, id: string, payload: Record<string, unknown> = {}) {
+    return apiFetch<{ ok: true; data: OrderRecord }>(`/api/admin/orders/${encodeURIComponent(id)}/shipping/deliver`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
     })
   },
   items(token: string | null | undefined, id: string) {

@@ -3,11 +3,16 @@ import { sendOperationError } from '../operations/operationErrors'
 import {
   createOrderSchema,
   orderListQuerySchema,
+  orderShipSchema,
+  orderShippingActionSchema,
   orderStatusActionSchema,
+  orderTrackingSchema,
   patchOrderSchema,
 } from './orders.schemas'
 import {
+  assignOrderTracking,
   createOrder,
+  deliverOrder,
   exportOrders,
   getOrder,
   listOrderHistory,
@@ -15,6 +20,8 @@ import {
   listOrderPayments,
   listOrders,
   patchOrder,
+  prepareOrderShipment,
+  shipOrder,
   updateOrderStatus,
 } from './orders.service'
 
@@ -87,6 +94,46 @@ export async function markOrderProcessingAdmin(req: Request, res: Response): Pro
 export async function fulfillOrderAdmin(req: Request, res: Response): Promise<void> {
   try {
     const { data } = await updateOrderStatus(req.params.id, 'fulfilled', null, userContext(req))
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function prepareOrderShipmentAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = orderShippingActionSchema.parse(req.body ?? {})
+    const { data } = await prepareOrderShipment(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function assignOrderTrackingAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = orderTrackingSchema.parse(req.body)
+    const { data } = await assignOrderTracking(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function shipOrderAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = orderShipSchema.parse(req.body ?? {})
+    const { data } = await shipOrder(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function deliverOrderAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = orderShippingActionSchema.parse(req.body ?? {})
+    const { data } = await deliverOrder(req.params.id, payload, userContext(req))
     res.json({ ok: true, data })
   } catch (error) {
     sendOperationError(res, error)

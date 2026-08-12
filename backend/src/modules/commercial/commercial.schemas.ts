@@ -74,8 +74,18 @@ export const patchQuoteRequestSchema = z.object({
   adminNotes: optionalText(2500),
 }).strict()
 
+export const sendQuoteRequestEmailSchema = z.object({
+  subject: z.string().trim().min(3).max(180),
+  message: z.string().trim().min(10).max(5000),
+  quoteAmount: z.coerce.number().min(0).max(50_000_000).nullable().optional(),
+  currency: z.string().trim().min(3).max(8).default('MXN'),
+  validUntil: z.string().date().nullable().optional(),
+  adminNotes: optionalText(2500),
+}).strict()
+
 export type CreateQuoteRequestPayload = z.infer<typeof createQuoteRequestSchema>
 export type CreateCabinReservationPayload = z.infer<typeof createCabinReservationSchema>
 export type CreateRestaurantReservationPayload = z.infer<typeof createRestaurantReservationSchema>
 export type QuoteRequestListQuery = z.infer<typeof quoteRequestListQuerySchema>
 export type PatchQuoteRequestPayload = z.infer<typeof patchQuoteRequestSchema>
+export type SendQuoteRequestEmailPayload = z.infer<typeof sendQuoteRequestEmailSchema>

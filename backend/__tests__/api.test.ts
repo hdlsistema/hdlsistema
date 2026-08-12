@@ -157,11 +157,13 @@ vi.mock('@supabase/supabase-js', () => ({
         }),
         then: vi.fn((resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
           Promise.resolve(
-            state.operation === 'insert'
-              ? { data: insertRecord(), error: null, count: 1 }
-              : state.operation === 'update'
-                ? { data: updateRecord(), error: null, count: 1 }
-                : run(),
+	            state.operation === 'insert'
+	              ? { data: insertRecord(), error: null, count: 1 }
+	              : state.operation === 'update'
+	                ? { data: updateRecord(), error: null, count: 1 }
+	                : state.operation === 'upsert'
+	                  ? { data: insertRecord(), error: null, count: 1 }
+	                : run(),
           ).then(resolve, reject),
         ),
         maybeSingle: vi.fn(async () => {
@@ -599,6 +601,74 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(detail.status).toBe(200)
     expect(detail.body.data.events[0]).toMatchObject({ eventName: 'checkout_started' })
   })
+
+  it('permite enviar una cotización real por Resend desde Centro de Control', async () => {
+    authenticateAs('marketing')
+    supabaseMock.tableData.quote_requests = [{
+      id: '00000000-0000-0000-0000-000000000270',
+      quote_number: 'HDL-COT-REAL',
+      customer_id: customerId,
+      user_id: customerUser.id,
+      event_category: 'social',
+      event_type: 'Boda',
+      preferred_date: '2026-09-15',
+      alternative_date: null,
+      preferred_start_time: '18:00',
+      preferred_end_time: '23:00',
+      guest_count: 80,
+      venue_space_id: null,
+      venue_space_name: 'Jardín',
+      food_required: 'yes',
+      food_type: 'cena',
+      wine_required: 'yes',
+      wine_option: 'maridaje',
+      requested_services: ['banquete'],
+      contact_first_name: 'Cliente',
+      contact_last_name: 'Cotización',
+      contact_email: 'cliente.cotizacion@example.com',
+      contact_phone: '4490000000',
+      company_name: null,
+      notes: 'Solicita propuesta formal.',
+      status: 'new',
+      source: 'mobile_app',
+      assigned_to: null,
+      admin_notes: null,
+      contacted_at: null,
+      quoted_at: null,
+      closed_at: null,
+      idempotency_key: 'quote-real',
+      metadata: { language: 'es-MX' },
+      created_at: '2026-08-12T00:00:00.000Z',
+      updated_at: '2026-08-12T00:00:00.000Z',
+      customers: { id: customerId, first_name: 'Cliente', last_name: 'Cotización', email: 'cliente.cotizacion@example.com', phone: '4490000000' },
+    }]
+
+    const res = await request(app)
+      .post('/api/admin/quote-requests/00000000-0000-0000-0000-000000000270/send-quote')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({
+        subject: 'Propuesta Hacienda de Letras',
+        message: 'Compartimos la propuesta solicitada para tu evento.',
+        quoteAmount: 75000,
+        currency: 'MXN',
+        validUntil: '2026-09-01',
+      })
+
+    expect(res.status).toBe(202)
+    expect(res.body.data.quote).toMatchObject({ status: 'quoted', quoteNumber: 'HDL-COT-REAL' })
+    expect(res.body.data.email).toMatchObject({
+      status: 'pending_configuration',
+      recipientEmail: 'cliente.cotizacion@example.com',
+      subject: 'Propuesta Hacienda de Letras',
+    })
+    expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
+    expect(supabaseMock.tableData.email_outbox[0]).toMatchObject({
+      template_key: 'quote.sent',
+      recipient_email: 'cliente.cotizacion@example.com',
+      status: 'pending_configuration',
+    })
+    expect(supabaseMock.tableData.audit_logs[0]).toMatchObject({ action: 'quote_email_sent' })
+  })
 })
 
 describe('Fase 4B content API', () => {
@@ -721,6 +791,80 @@ describe('Fase 4B content API', () => {
       lastStatus = res.status
     }
     expect(lastStatus).toBe(429)
+  })
+
+  it('mantiene campañas fuera de la app y opera envío masivo con audiencia consentida', async () => {
+    const adminUser = {
+      id: '00000000-0000-0000-0000-000000000260',
+      email: 'marketing@alqia.tech',
+      created_at: '2026-08-12T00:00:00.000Z',
+      email_confirmed_at: '2026-08-12T00:00:00.000Z',
+    }
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: 'marketing' } }]
+    supabaseMock.tableData.campaigns = [{
+      id: '00000000-0000-0000-0000-000000000261',
+      name: 'Vendimia Privada',
+      channel: 'email',
+      status: 'draft',
+      visible_in_app: false,
+      audience_definition: { segment: 'wine_club' },
+      content: { subject: 'Invitación Hacienda', body: 'Te esperamos en Hacienda de Letras.' },
+      created_at: '2026-08-12T00:00:00.000Z',
+      updated_at: '2026-08-12T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.customers = [
+      {
+        id: '00000000-0000-0000-0000-000000000262',
+        user_id: '00000000-0000-0000-0000-000000000263',
+        customer_number: 'CLI-001',
+        first_name: 'Cliente',
+        last_name: 'Consentido',
+        email: 'cliente.consentido@example.com',
+        segment: 'wine_club',
+        marketing_email_consent: true,
+        total_spend: 1500,
+        total_visits: 2,
+        preferred_language: 'es-MX',
+        metadata: { city: 'Aguascalientes' },
+        status: 'active',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000264',
+        email: 'sin.consentimiento@example.com',
+        segment: 'wine_club',
+        marketing_email_consent: false,
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+
+    const preview = await request(app)
+      .post('/api/admin/campaigns/audience-preview')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ segment: 'wine_club' })
+    const send = await request(app)
+      .post('/api/admin/campaigns/00000000-0000-0000-0000-000000000261/send')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ audience: { segment: 'wine_club' } })
+    const publicCampaigns = await request(app).get('/api/public/campaigns')
+
+    expect(preview.status).toBe(200)
+    expect(preview.body.data).toMatchObject({ total: 1, consentRequired: 'marketing_email_consent' })
+    expect(send.status).toBe(202)
+    expect(send.body.data).toMatchObject({ recipients: 1, pending: 1, sent: 0 })
+    expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
+    expect(supabaseMock.tableData.email_outbox[0]).toMatchObject({
+      template_key: 'campaign.marketing',
+      recipient_email: 'cliente.consentido@example.com',
+      status: 'pending_configuration',
+    })
+    expect(supabaseMock.tableData.campaign_recipients).toHaveLength(1)
+    expect(supabaseMock.tableData.campaigns[0]).toMatchObject({
+      status: 'completed',
+      visible_in_app: false,
+    })
+    expect(publicCampaigns.status).toBe(404)
   })
 })
 

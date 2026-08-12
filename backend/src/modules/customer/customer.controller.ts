@@ -9,8 +9,10 @@ import {
   addCustomerCartItem,
   cancelCustomerReservation,
   clearCustomerCart,
+  createCustomerAddress,
   createCustomerOrder,
   createCustomerReservation,
+  deleteCustomerAddress,
   disableCustomerDevice,
   getCustomerCart,
   getCustomerMe,
@@ -20,6 +22,7 @@ import {
   getCustomerReservation,
   listCustomerAvailability,
   listCustomerAccessPassesForMe,
+  listCustomerAddresses,
   listCustomerMembershipBenefits,
   listCustomerMembershipHistory,
   listCustomerOrders,
@@ -28,11 +31,14 @@ import {
   removeCustomerCartItem,
   rescheduleCustomerReservation,
   updateCustomerCartItem,
+  updateCustomerAddress,
   updateCustomerMe,
 } from './customer.service'
 import {
   addCustomerCartItemSchema,
   cancelCustomerReservationSchema,
+  customerAddressSchema,
+  customerAddressUpdateSchema,
   createCustomerOrderSchema,
   createCustomerReservationSchema,
   customerPaymentActionSchema,
@@ -257,6 +263,44 @@ export async function removeCustomerCartItemController(req: Request, res: Respon
 export async function clearCustomerCartController(req: Request, res: Response): Promise<void> {
   try {
     const result = await clearCustomerCart(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function listCustomerAddressesController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await listCustomerAddresses(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function createCustomerAddressController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = customerAddressSchema.parse(req.body)
+    const result = await createCustomerAddress(payload, userContext(req))
+    res.status(201).json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function updateCustomerAddressController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = customerAddressUpdateSchema.parse(req.body)
+    const result = await updateCustomerAddress(req.params.id, payload, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function deleteCustomerAddressController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await deleteCustomerAddress(req.params.id, userContext(req))
     res.json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)

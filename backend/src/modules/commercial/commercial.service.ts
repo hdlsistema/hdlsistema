@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto'
+import { createHash, randomBytes } from 'crypto'
 import { supabaseAdminClient } from '../../config/supabase'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import { recordBusinessActivity } from '../activity/activity.service'
@@ -14,6 +14,7 @@ import type {
   CreateRestaurantReservationPayload,
   PatchQuoteRequestPayload,
   QuoteRequestListQuery,
+  SendQuoteRequestEmailPayload,
 } from './commercial.schemas'
 
 const customerRoles = ['customer', 'super_admin', 'admin']
@@ -145,6 +146,19 @@ function quoteContactName(row: QuoteRequestRow) {
 
 function quoteNumber() {
   return `HDL-COT-${randomBytes(3).toString('hex').toUpperCase()}`
+}
+
+function hashQuoteSend(payload: SendQuoteRequestEmailPayload) {
+  return createHash('sha256')
+    .update(JSON.stringify({
+      subject: payload.subject,
+      message: payload.message,
+      quoteAmount: payload.quoteAmount ?? null,
+      currency: payload.currency,
+      validUntil: payload.validUntil ?? null,
+    }))
+    .digest('hex')
+    .slice(0, 18)
 }
 
 function publicContent(row: ServiceContentRow) {
@@ -645,4 +659,92 @@ export async function updateQuoteRequest(id: string, payload: PatchQuoteRequestP
     .select(quoteSelect)
     .single()
   return { data: mapQuote(assertNoError<QuoteRequestRow>(result).data) }
+}
+
+export async function sendQuoteRequestEmail(id: string, payload: SendQuoteRequestEmailPayload, user: UserContext) {
+  requireOperationRole(user, quoteWriteRoles)
+  const current = await getQuoteRequest(id, user)
+  const quote = current.data
+  if (!quote.contactEmail) throw httpError(422, 'La cotización no tiene correo de contacto')
+
+  const idempotencyKey = `quote.sent:${quote.id}:${hashQuoteSend(payload)}`
+  const result = await enqueueAndProcessTransactionalEmail({
+    eventType: 'quote.sent',
+    aggregateType: 'quote_requests',
+    aggregateId: quote.id,
+    customerId: quote.customerId,
+    userId: null,
+    recipientEmail: quote.contactEmail,
+    locale: String(quote.metadata?.language ?? 'es'),
+    payload: {
+      subject: payload.subject,
+      title: payload.subject,
+      customerName: quote.customerName,
+      quoteNumber: quote.quoteNumber,
+      eventType: quote.eventType,
+      preferredDate: quote.preferredDate,
+      guestCount: quote.guestCount,
+      message: payload.message,
+      body: payload.message,
+      quoteAmount: payload.quoteAmount ?? null,
+      currency: payload.currency,
+      validUntil: payload.validUntil ?? null,
+    },
+    idempotencyKey,
+  })
+
+  const sentAt = new Date().toISOString()
+  const adminNotes = payload.adminNotes ?? quote.adminNotes ?? null
+  await updateQuoteRequest(id, {
+    status: 'quoted',
+    adminNotes,
+  }, user)
+
+  await supabaseAdminClient
+    .from('quote_requests')
+    .update({
+      quoted_at: sentAt,
+      metadata: {
+        ...quote.metadata,
+        lastQuoteEmail: {
+          subject: payload.subject,
+          quoteAmount: payload.quoteAmount ?? null,
+          currency: payload.currency,
+          validUntil: payload.validUntil ?? null,
+          sentAt,
+          communicationEventId: result.event.id,
+          outboxId: result.outbox.id,
+        },
+      },
+      updated_at: sentAt,
+    })
+    .eq('id', id)
+
+  await supabaseAdminClient.from('audit_logs').insert({
+    actor_user_id: user.userId ?? null,
+    action: 'quote_email_sent',
+    entity_type: 'quote_requests',
+    entity_id: id,
+    before_data: { status: quote.status },
+    after_data: {
+      status: 'quoted',
+      communicationEventId: result.event.id,
+      emailStatus: result.outbox.status,
+    },
+  })
+
+  const finalQuote = await getQuoteRequest(id, user)
+
+  return {
+    data: {
+      quote: finalQuote.data,
+      email: {
+        eventId: result.event.id,
+        outboxId: result.outbox.id,
+        status: result.outbox.status,
+        recipientEmail: quote.contactEmail,
+        subject: payload.subject,
+      },
+    },
+  }
 }

@@ -190,6 +190,51 @@ export type CustomerCart = {
   updatedAt: string
 }
 
+export type CustomerAddress = {
+  id: string
+  label?: string | null
+  recipientName: string
+  phone?: string | null
+  email?: string | null
+  line1: string
+  line2?: string | null
+  neighborhood?: string | null
+  city: string
+  state: string
+  postalCode: string
+  country: string
+  references?: string | null
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type CustomerAddressPayload = {
+  label?: string | null
+  recipientName: string
+  phone?: string | null
+  email?: string | null
+  line1: string
+  line2?: string | null
+  neighborhood?: string | null
+  city: string
+  state: string
+  postalCode: string
+  country?: string
+  references?: string | null
+  isDefault?: boolean
+}
+
+export type CustomerShipment = {
+  id: string
+  status: string
+  carrier?: string | null
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+  shippedAt?: string | null
+  deliveredAt?: string | null
+}
+
 export type CustomerOrder = {
   id: string
   orderNumber: string
@@ -202,6 +247,11 @@ export type CustomerOrder = {
   currency: string
   paymentStatus: string
   paymentAvailable: boolean
+  paidAt?: string | null
+  requiresShipping?: boolean
+  shippingStatus?: string | null
+  shippingAddress?: Omit<CustomerAddress, 'id' | 'isDefault' | 'createdAt' | 'updatedAt'> | null
+  shipment?: CustomerShipment | null
   source: string
   createdAt: string
   updatedAt: string
@@ -418,6 +468,31 @@ export const customerClient = {
   },
   clearCart(token: string | null | undefined) {
     return apiFetch<{ ok: true; data: CustomerCart }>('/api/customer/cart', {
+      method: 'DELETE',
+      headers: customerHeaders(token),
+    })
+  },
+  addresses(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: CustomerAddress[] }>('/api/customer/addresses', {
+      headers: customerHeaders(token),
+    })
+  },
+  createAddress(token: string | null | undefined, payload: CustomerAddressPayload) {
+    return apiFetch<{ ok: true; data: CustomerAddress }>('/api/customer/addresses', {
+      method: 'POST',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  updateAddress(token: string | null | undefined, id: string, payload: Partial<CustomerAddressPayload>) {
+    return apiFetch<{ ok: true; data: CustomerAddress }>(`/api/customer/addresses/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: customerHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  deleteAddress(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: { id: string } }>(`/api/customer/addresses/${encodeURIComponent(id)}`, {
       method: 'DELETE',
       headers: customerHeaders(token),
     })

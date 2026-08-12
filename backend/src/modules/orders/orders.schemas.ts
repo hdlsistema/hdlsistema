@@ -12,11 +12,23 @@ export const orderStatusSchema = z.enum([
   'refunded',
 ])
 
+export const shippingStatusSchema = z.enum([
+  'not_required',
+  'pending_preparation',
+  'preparing',
+  'awaiting_tracking',
+  'tracking_assigned',
+  'shipped',
+  'delivered',
+  'cancelled',
+])
+
 export const orderListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   perPage: z.coerce.number().int().min(1).max(100).default(20),
   search: z.string().max(120).optional(),
   status: orderStatusSchema.optional(),
+  shippingStatus: shippingStatusSchema.optional(),
   customerId: uuid.optional(),
   reservationId: uuid.optional(),
   orderNumber: z.string().max(80).optional(),
@@ -59,6 +71,25 @@ export const orderStatusActionSchema = z.object({
   reason: z.string().max(500).nullable().optional(),
 }).strict()
 
+export const orderShippingActionSchema = z.object({
+  notes: z.string().max(500).nullable().optional(),
+}).strict()
+
+export const orderTrackingSchema = z.object({
+  carrier: z.string().trim().min(1).max(120),
+  trackingNumber: z.string().trim().min(1).max(120),
+  trackingUrl: z.string().trim().url().max(500).nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
+}).strict()
+
+export const orderShipSchema = z.object({
+  confirmWithoutTracking: z.boolean().default(false),
+  notes: z.string().max(500).nullable().optional(),
+}).strict()
+
 export type OrderListQuery = z.infer<typeof orderListQuerySchema>
 export type CreateOrderPayload = z.infer<typeof createOrderSchema>
 export type PatchOrderPayload = z.infer<typeof patchOrderSchema>
+export type OrderShippingActionPayload = z.infer<typeof orderShippingActionSchema>
+export type OrderTrackingPayload = z.infer<typeof orderTrackingSchema>
+export type OrderShipPayload = z.infer<typeof orderShipSchema>

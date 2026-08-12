@@ -21,6 +21,7 @@ import {
   requireOperationRole,
   type UserContext,
 } from '../operations/operationErrors'
+import { ensureOrderShippingAfterPayment } from '../orders/orders.service'
 import type {
   ManualPaymentPayload,
   PaymentListQuery,
@@ -87,6 +88,8 @@ type CustomerOrderRow = {
   currency: string
   status: string
   paid_at?: string | null
+  requires_shipping?: boolean | null
+  shipping_status?: string | null
   metadata?: Record<string, unknown> | null
 }
 
@@ -215,7 +218,7 @@ async function getOwnedOrder(orderId: string, user: UserContext) {
   const customer = await getCustomerForPayment(user)
   const result = await supabaseAdminClient
     .from('orders')
-    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,metadata')
+    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,requires_shipping,shipping_status,metadata')
     .eq('id', orderId)
     .eq('customer_id', customer.id)
     .eq('user_id', user.userId)
@@ -603,6 +606,7 @@ async function queueOrderPaidEmail(order: CustomerOrderRow) {
       status: 'paid',
       total: toNumber(order.total),
       currency: order.currency,
+      shippingStatus: order.requires_shipping ? 'pending_preparation' : 'not_required',
     },
     idempotencyKey: `order.paid:${order.id}`,
   }).catch(() => undefined)
@@ -643,6 +647,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       })
       .eq('id', order.id)
     await ensureEventTicketAccessPassesForPaidOrder(order.id)
+    if (order.requires_shipping) await ensureOrderShippingAfterPayment(order.id)
     await queueOrderPaidEmail(order)
     recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')
     return

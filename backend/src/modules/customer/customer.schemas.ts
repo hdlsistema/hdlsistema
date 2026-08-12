@@ -54,10 +54,30 @@ export const updateCustomerCartItemSchema = z.object({
   idempotencyKey: z.string().min(8).max(120).optional(),
 }).strict()
 
+export const customerAddressSchema = z.object({
+  label: z.string().trim().min(1).max(80).default('Casa'),
+  recipientName: z.string().trim().min(2).max(160),
+  phone: z.string().trim().min(7).max(40).optional(),
+  email: z.string().trim().email().optional(),
+  line1: z.string().trim().min(4).max(220),
+  line2: z.string().trim().max(160).optional(),
+  neighborhood: z.string().trim().max(120).optional(),
+  city: z.string().trim().min(2).max(120),
+  state: z.string().trim().min(2).max(120),
+  postalCode: z.string().trim().min(4).max(12),
+  country: z.string().trim().min(2).max(80).default('MX'),
+  references: z.string().trim().max(500).optional(),
+  isDefault: z.boolean().default(false),
+}).strict()
+
+export const customerAddressUpdateSchema = customerAddressSchema.partial().strict()
+
 export const createCustomerOrderSchema = z.object({
   idempotencyKey: z.string().min(8).max(120),
   discountCode: z.string().trim().min(1).max(80).optional(),
   language: z.enum(['es', 'en']).default('es'),
+  shippingAddress: customerAddressSchema.optional(),
+  saveAddress: z.boolean().default(false),
 }).strict()
 
 export const customerPaymentActionSchema = z.object({
@@ -77,6 +97,8 @@ export type CancelCustomerReservationPayload = z.infer<typeof cancelCustomerRese
 export type RescheduleCustomerReservationPayload = z.infer<typeof rescheduleCustomerReservationSchema>
 export type AddCustomerCartItemPayload = z.infer<typeof addCustomerCartItemSchema>
 export type UpdateCustomerCartItemPayload = z.infer<typeof updateCustomerCartItemSchema>
+export type CustomerAddressPayload = z.infer<typeof customerAddressSchema>
+export type CustomerAddressUpdatePayload = z.infer<typeof customerAddressUpdateSchema>
 export type CreateCustomerOrderPayload = z.infer<typeof createCustomerOrderSchema>
 export type CustomerPaymentActionPayload = z.infer<typeof customerPaymentActionSchema>
 export type RegisterCustomerDevicePayload = z.infer<typeof registerCustomerDeviceSchema>

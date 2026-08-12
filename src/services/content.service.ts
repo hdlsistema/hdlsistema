@@ -83,6 +83,59 @@ export type PreviewResponse = {
   data: ContentRecord
 }
 
+export type CampaignAudienceFilters = {
+  search?: string
+  segment?: string
+  source?: string
+  location?: string
+  tagId?: string
+  hasOrders?: boolean
+  hasReservations?: boolean
+  hasMembership?: boolean
+  minAge?: number
+  maxAge?: number
+  minTotalSpend?: number
+  maxTotalSpend?: number
+  minTotalVisits?: number
+  maxTotalVisits?: number
+  createdFrom?: string
+  createdTo?: string
+  locale?: 'es' | 'en' | 'es-MX' | 'en-US'
+  limit?: number
+}
+
+export type CampaignAudiencePreviewResponse = {
+  ok: true
+  data: {
+    total: number
+    consentRequired: string
+    filters: CampaignAudienceFilters
+    sample: Array<{
+      id: string
+      customerNumber?: string | null
+      name: string
+      email?: string | null
+      segment?: string | null
+      source?: string | null
+      preferredLanguage?: string | null
+      totalSpend: number
+      totalVisits: number
+    }>
+  }
+}
+
+export type CampaignSendResponse = {
+  ok: true
+  data: {
+    campaignId: string
+    sentAt: string
+    recipients: number
+    sent: number
+    pending: number
+    failed: number
+  }
+}
+
 function assertToken(token: string | null | undefined): string {
   if (!token) {
     throw Object.assign(new Error('Sesión requerida'), { status: 401 })
@@ -192,14 +245,30 @@ export const adminContentClient = {
     )
   },
 
-  previewToken(entity: ContentEntity, id: string, token: string | null | undefined) {
-    return apiFetch<PreviewTokenResponse>(`/api/admin/${entity}/${encodeURIComponent(id)}/preview-token`, {
+	  previewToken(entity: ContentEntity, id: string, token: string | null | undefined) {
+	    return apiFetch<PreviewTokenResponse>(`/api/admin/${entity}/${encodeURIComponent(id)}/preview-token`, {
+	      method: 'POST',
+	      headers: adminHeaders(token),
+	      body: JSON.stringify({ expiresInMinutes: 30, locale: 'es-MX' }),
+	    })
+	  },
+
+  previewCampaignAudience(payload: CampaignAudienceFilters, token: string | null | undefined) {
+    return apiFetch<CampaignAudiencePreviewResponse>('/api/admin/campaigns/audience-preview', {
       method: 'POST',
       headers: adminHeaders(token),
-      body: JSON.stringify({ expiresInMinutes: 30, locale: 'es-MX' }),
+      body: JSON.stringify(payload),
     })
   },
-}
+
+  sendCampaign(id: string, payload: Record<string, unknown>, token: string | null | undefined) {
+    return apiFetch<CampaignSendResponse>(`/api/admin/campaigns/${encodeURIComponent(id)}/send`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+	}
 
 export const publicContentClient = {
   list(entity: ContentEntity, query?: Pick<ContentListQuery, 'locale'>) {

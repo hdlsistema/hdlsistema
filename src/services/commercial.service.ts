@@ -58,18 +58,31 @@ export type CommercialServices = {
 
 export type QuoteRequestRecord = {
   id: string
+  customerId?: string | null
   quoteNumber: string
   customerName: string
+  contactFirstName?: string | null
+  contactLastName?: string | null
   eventCategory: string
   eventType: string
   preferredDate?: string | null
   guestCount: number
+  venueSpaceId?: string | null
   venueSpaceName?: string | null
+  foodPreference?: string | null
+  winePreference?: string | null
+  requestedServices?: string[]
+  budgetRange?: string | null
+  notes?: string | null
   status: 'new' | 'contacted' | 'in_progress' | 'quoted' | 'won' | 'lost' | 'cancelled'
   contactEmail: string
   contactPhone: string
   assignedTo?: string | null
   adminNotes?: string | null
+  contactedAt?: string | null
+  quotedAt?: string | null
+  closedAt?: string | null
+  metadata?: Record<string, unknown>
   createdAt: string
   updatedAt: string
 }
@@ -119,11 +132,30 @@ export const quoteRequestsClient = {
       headers: jsonHeaders(token),
     })
   },
-  update(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
-    return apiFetch<{ ok: true; data: QuoteRequestRecord }>(`/api/admin/quote-requests/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
+	  update(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
+	    return apiFetch<{ ok: true; data: QuoteRequestRecord }>(`/api/admin/quote-requests/${encodeURIComponent(id)}`, {
+	      method: 'PATCH',
+	      headers: jsonHeaders(token),
+	      body: JSON.stringify(payload),
+	    })
+	  },
+  sendQuote(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
+    return apiFetch<{
+      ok: true
+      data: {
+        quote: QuoteRequestRecord
+        email: {
+          eventId: string
+          outboxId: string
+          status: string
+          recipientEmail: string
+          subject: string
+        }
+      }
+    }>(`/api/admin/quote-requests/${encodeURIComponent(id)}/send-quote`, {
+      method: 'POST',
       headers: jsonHeaders(token),
       body: JSON.stringify(payload),
     })
   },
-}
+	}

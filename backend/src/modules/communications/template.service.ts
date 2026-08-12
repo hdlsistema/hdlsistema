@@ -53,6 +53,20 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'Gracias por escribirnos. El equipo de Hacienda de Letras revisará tu solicitud y dará seguimiento. Este correo no incluye precios ni confirma disponibilidad.',
       cta: 'Abrir Hacienda de Letras',
     },
+    'quote.sent': {
+      subject: 'Cotización Hacienda de Letras',
+      preheader: 'Tu cotización fue preparada por nuestro equipo.',
+      title: 'Tu cotización está lista',
+      body: 'Compartimos la propuesta preparada por Hacienda de Letras con base en los datos de tu solicitud. Revisa los detalles y responde este correo para confirmar ajustes o siguiente paso.',
+      cta: 'Abrir Hacienda de Letras',
+    },
+    'campaign.marketing': {
+      subject: 'Hacienda de Letras',
+      preheader: 'Mensaje de Hacienda de Letras.',
+      title: 'Hacienda de Letras',
+      body: 'Tenemos información preparada para ti desde Hacienda de Letras.',
+      cta: 'Abrir Hacienda de Letras',
+    },
     'order.created': {
       subject: 'Orden creada',
       preheader: 'Tu orden fue registrada.',
@@ -64,14 +78,21 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       subject: 'Orden pendiente de pago',
       preheader: 'Tu orden está pendiente de pago.',
       title: 'Orden pendiente de pago',
-      body: 'Tu orden quedó pendiente de pago. La pasarela productiva se habilitará cuando Hacienda confirme sus credenciales.',
+      body: 'Tu orden quedó pendiente de pago. Puedes retomarla desde tu cuenta cuando quieras completar la compra.',
       cta: 'Ver orden',
     },
     'order.paid': {
       subject: 'Pago confirmado',
       preheader: 'Tu pago fue confirmado.',
       title: 'Pago confirmado',
-      body: 'El pago de tu orden fue confirmado por el proveedor de pago autorizado.',
+      body: 'Tu compra quedó confirmada. Prepararemos tu pedido y te compartiremos la guía cuando esté lista. Revisa los detalles desde tu cuenta.',
+      cta: 'Ver orden',
+    },
+    'order.shipped': {
+      subject: 'Tu pedido va en camino',
+      preheader: 'La guía de tu pedido ya está disponible.',
+      title: 'Tu pedido va en camino',
+      body: 'Tu pedido fue marcado como enviado. Consulta la paquetería y número de guía desde tu cuenta.',
       cta: 'Ver orden',
     },
     'membership.activated': {
@@ -139,6 +160,20 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'Thank you for contacting us. Hacienda de Letras will review your request and follow up. This email does not include pricing or confirm availability.',
       cta: 'Open Hacienda de Letras',
     },
+    'quote.sent': {
+      subject: 'Hacienda de Letras quote',
+      preheader: 'Your quote was prepared by our team.',
+      title: 'Your quote is ready',
+      body: 'We are sharing the proposal prepared by Hacienda de Letras based on your request. Review the details and reply to this email to confirm adjustments or next steps.',
+      cta: 'Open Hacienda de Letras',
+    },
+    'campaign.marketing': {
+      subject: 'Hacienda de Letras',
+      preheader: 'Message from Hacienda de Letras.',
+      title: 'Hacienda de Letras',
+      body: 'We have information prepared for you from Hacienda de Letras.',
+      cta: 'Open Hacienda de Letras',
+    },
     'order.created': {
       subject: 'Order created',
       preheader: 'Your order was registered.',
@@ -150,14 +185,21 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       subject: 'Order pending payment',
       preheader: 'Your order is pending payment.',
       title: 'Order pending payment',
-      body: 'Your order is pending payment. Production payment gateway will be enabled after Hacienda confirms its credentials.',
+      body: 'Your order is pending payment. You can resume it from your account whenever you want to complete the purchase.',
       cta: 'View order',
     },
     'order.paid': {
       subject: 'Payment confirmed',
       preheader: 'Your payment was confirmed.',
       title: 'Payment confirmed',
-      body: 'Your order payment was confirmed by the authorized payment provider.',
+      body: 'Your purchase is confirmed. We will prepare your order and share tracking details once they are ready. You can review the details from your account.',
+      cta: 'View order',
+    },
+    'order.shipped': {
+      subject: 'Your order is on its way',
+      preheader: 'Your tracking details are now available.',
+      title: 'Your order is on its way',
+      body: 'Your order was marked as shipped. Review the carrier and tracking number from your account.',
       cta: 'View order',
     },
     'membership.activated': {
@@ -248,6 +290,11 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       eventType: 'Tipo de evento',
       preferredDate: 'Fecha solicitada',
       guestCount: 'Personas',
+      message: 'Mensaje',
+      quoteAmount: 'Importe cotizado',
+      validUntil: 'Vigencia',
+      campaignName: 'Campaña',
+      ctaLabel: 'Acción',
       startAt: 'Fecha',
       renewalDate: 'Renovación',
       expiresAt: 'Expira',
@@ -267,6 +314,11 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       eventType: 'Event type',
       preferredDate: 'Requested date',
       guestCount: 'Guests',
+      message: 'Message',
+      quoteAmount: 'Quoted amount',
+      validUntil: 'Valid until',
+      campaignName: 'Campaign',
+      ctaLabel: 'Action',
       startAt: 'Date',
       renewalDate: 'Renewal',
       expiresAt: 'Expires',
@@ -279,13 +331,37 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
     .join('')
 }
 
+function payloadString(payload: CommunicationPayload, key: string) {
+  const value = payload[key]
+  return typeof value === 'string' && value.trim() ? value.trim().slice(0, 2200) : null
+}
+
+function copyForPayload(
+  eventType: CommunicationEventType,
+  copy: TemplateCopy,
+  payload: CommunicationPayload,
+): TemplateCopy {
+  if (!['quote.sent', 'campaign.marketing'].includes(eventType)) return copy
+  const subject = payloadString(payload, 'subject')
+  const title = payloadString(payload, 'title')
+  const body = payloadString(payload, 'body') ?? payloadString(payload, 'message')
+  const cta = payloadString(payload, 'ctaLabel')
+  return {
+    ...copy,
+    subject: subject ?? copy.subject,
+    title: title ?? subject ?? copy.title,
+    body: body ?? copy.body,
+    cta: cta ?? copy.cta,
+  }
+}
+
 export function renderEmailTemplate(
   eventType: CommunicationEventType,
   payload: CommunicationPayload = {},
   localeValue?: string | null,
 ): RenderedEmailTemplate {
   const locale = normalizeLocale(localeValue)
-  const copy = copies[locale][eventType]
+  const copy = copyForPayload(eventType, copies[locale][eventType], payload)
   const rows = detailRows(payload, locale)
   const support = String(payload.supportEmail ?? 'soporte@admhaciendadeletras.com')
   const pendingCopyNotice =

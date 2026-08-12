@@ -6,10 +6,12 @@ import {
   addCustomerCartItemController,
   cancelCustomerReservationController,
   clearCustomerCartController,
+  createCustomerAddressController,
   createCustomerPaymentSessionController,
   createCustomerOrderController,
   createCustomerReservationController,
   disableCustomerDeviceController,
+  deleteCustomerAddressController,
   getCustomerCartController,
   getCustomerAvailabilityController,
   getCustomerExperienceAvailabilityController,
@@ -22,6 +24,7 @@ import {
   getCustomerPaymentStatusController,
   getCustomerReservationController,
   listCustomerAccessPassesController,
+  listCustomerAddressesController,
   listCustomerOrdersController,
   listCustomerReservationsController,
   patchCustomerMeController,
@@ -29,6 +32,7 @@ import {
   removeCustomerCartItemController,
   retryCustomerPaymentController,
   rescheduleCustomerReservationController,
+  updateCustomerAddressController,
   updateCustomerCartItemController,
 } from './customer.controller'
 
@@ -48,6 +52,10 @@ router.post('/cart/items', ...protectedCustomer, addCustomerCartItemController)
 router.patch('/cart/items/:id', ...protectedCustomer, updateCustomerCartItemController)
 router.delete('/cart/items/:id', ...protectedCustomer, removeCustomerCartItemController)
 router.delete('/cart', ...protectedCustomer, clearCustomerCartController)
+router.get('/addresses', ...protectedCustomer, listCustomerAddressesController)
+router.post('/addresses', ...protectedCustomer, createCustomerAddressController)
+router.patch('/addresses/:id', ...protectedCustomer, updateCustomerAddressController)
+router.delete('/addresses/:id', ...protectedCustomer, deleteCustomerAddressController)
 router.post('/orders', ...protectedCustomer, createCustomerOrderController)
 router.get('/orders', ...protectedCustomer, listCustomerOrdersController)
 router.post('/orders/:id/payment-session', ...protectedCustomer, createCustomerPaymentSessionController)
