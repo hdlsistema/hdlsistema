@@ -33,7 +33,9 @@ import {
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { dateOnly, eventLabel, money as formatMoney, statusLabel as safeStatusLabel } from './controlCopy'
 
 type CustomerForm = {
   id?: string
@@ -49,6 +51,15 @@ type CustomerForm = {
   marketingEmailConsent: boolean
   marketingPushConsent: boolean
   notes: string
+}
+
+type PendingCustomerAction = {
+  title: string
+  message: string
+  confirmLabel: string
+  tone?: 'default' | 'danger'
+  action: () => Promise<unknown>
+  success: string
 }
 
 const emptyCustomerForm: CustomerForm = {
@@ -95,70 +106,19 @@ function segmentLabel(value: string) {
 }
 
 function operationalStatusLabel(value?: string | null) {
-  if (!value) return 'Sin estado'
-  const labels: Record<string, string> = {
-    active: 'Activo',
-    archived: 'Archivado',
-    cancelled: 'Cancelado',
-    completed: 'Completado',
-    confirmed: 'Confirmado',
-    converted: 'Convertido',
-    delivered: 'Entregado',
-    expired: 'Expirado',
-    failed: 'Fallido',
-    fulfilled: 'Completado',
-    new: 'Nuevo',
-    no_show: 'No asistió',
-    paid: 'Pagado',
-    partially_refunded: 'Reembolso parcial',
-    paused: 'Pausado',
-    pending: 'Pendiente',
-    pending_payment: 'Pendiente de pago',
-    processing: 'En proceso',
-    refunded: 'Reembolsado',
-    shipped: 'Enviado',
-  }
-  return labels[value] ?? value.replaceAll('_', ' ')
+  return safeStatusLabel(value)
 }
 
 function historyActionLabel(value?: string | null) {
-  if (!value) return 'Movimiento registrado'
-  const labels: Record<string, string> = {
-    cart_created: 'Carrito creado',
-    cart_item_added: 'Producto agregado',
-    cart_item_removed: 'Producto retirado',
-    checkout_started: 'Pago iniciado',
-    customer_archived: 'Cliente archivado',
-    customer_created: 'Cliente creado',
-    customer_restored: 'Cliente restaurado',
-    customer_updated: 'Cliente actualizado',
-    membership_cancelled: 'Membresía cancelada',
-    membership_paused: 'Membresía pausada',
-    membership_reactivated: 'Membresía reactivada',
-    note_created: 'Nota agregada',
-    order_created: 'Orden creada',
-    payment_succeeded: 'Pago confirmado',
-    reservation_cancelled: 'Reservación cancelada',
-    reservation_confirmed: 'Reservación confirmada',
-    reservation_created: 'Reservación creada',
-    reservation_rescheduled: 'Reservación reprogramada',
-    tag_assigned: 'Etiqueta asignada',
-    tag_removed: 'Etiqueta retirada',
-  }
-  return labels[value] ?? value.replaceAll('_', ' ')
+  return eventLabel(value)
 }
 
 function formatDate(value: string | null | undefined) {
-  if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(new Date(value))
+  return dateOnly(value)
 }
 
 function money(value: number) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency: 'MXN',
-    maximumFractionDigits: 0,
-  }).format(value)
+  return formatMoney(value)
 }
 
 function initials(name: string) {
@@ -280,6 +240,9 @@ export function CustomersPage() {
   const [tagName, setTagName] = useState('')
   const [tagColor, setTagColor] = useState('#681126')
   const [assignTagId, setAssignTagId] = useState('')
+  const [pendingAction, setPendingAction] = useState<PendingCustomerAction | null>(null)
+  const [tagEdit, setTagEdit] = useState<CustomerTag | null>(null)
+  const [tagEditName, setTagEditName] = useState('')
 
   const selected = selectedDetail ?? customers.find((item) => item.id === selectedId) ?? customers[0] ?? null
 
@@ -386,18 +349,59 @@ export function CustomersPage() {
     }
   }
 
-  const runAction = async (message: string, action: () => Promise<unknown>, confirmMessage: string) => {
+  const requestAction = (pending: PendingCustomerAction) => {
     if (!writable || saving) return
-    if (!window.confirm(confirmMessage)) return
+    setPendingAction(pending)
+  }
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction || saving) return
     setSaving(true)
     setError('')
     try {
-      await action()
-      setToast(message)
+      await pendingAction.action()
+      setToast(pendingAction.success)
       await loadCustomers()
       if (selectedId) await loadDetail(selectedId)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
+    } finally {
+      setSaving(false)
+      setPendingAction(null)
+    }
+  }
+
+  const deleteNote = async (noteId: string) => {
+    if (!selected || saving) return
+    requestAction({
+      title: 'Eliminar nota interna',
+      message: 'La nota se retirará del expediente del cliente.',
+      confirmLabel: 'Eliminar nota',
+      tone: 'danger',
+      success: 'Nota eliminada.',
+      action: () => customersClient.deleteNote(token, selected.id, noteId),
+    })
+  }
+
+  const openTagEdit = (tag: CustomerTag) => {
+    if (!tagWritable) return
+    setTagEdit(tag)
+    setTagEditName(tag.name)
+  }
+
+  const submitTagEdit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!tagEdit || !tagWritable || !tagEditName.trim() || saving) return
+    setSaving(true)
+    setError('')
+    try {
+      await customersClient.updateTag(token, tagEdit.id, { name: tagEditName.trim() })
+      setTagEdit(null)
+      setTagEditName('')
+      setToast('Etiqueta actualizada.')
+      await loadCustomers()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible actualizar la etiqueta.')
     } finally {
       setSaving(false)
     }
@@ -483,8 +487,8 @@ export function CustomersPage() {
 
   const pageTitle = isEnglish ? 'Customers' : 'Clientes'
   const pageDescription = isEnglish
-    ? 'Operational CRM connected to customer records, relations and audit trail.'
-    : 'CRM operativo conectado a clientes, relaciones e historial real.'
+    ? 'Customer follow-up with profiles, relations and service history.'
+    : 'Seguimiento de clientes con perfiles, relaciones e historial de atención.'
 
   return (
     <div className="min-h-full bg-[var(--color-bg)] px-4 py-6 text-[var(--color-ink)] sm:px-6 lg:px-8">
@@ -706,12 +710,14 @@ export function CustomersPage() {
                   </button>
                   {selected.archivedAt ? (
                     <button
-                      type="button"
-                      onClick={() => void runAction(
-                        'Cliente restaurado.',
-                        () => customersClient.restore(token, selected.id),
-                        '¿Restaurar este cliente al directorio activo?',
-                      )}
+	                      type="button"
+	                      onClick={() => requestAction({
+	                        title: 'Restaurar cliente',
+	                        message: 'El cliente volverá al directorio activo y conservará su historial.',
+	                        confirmLabel: 'Restaurar',
+	                        success: 'Cliente restaurado.',
+	                        action: () => customersClient.restore(token, selected.id),
+	                      })}
                       disabled={!writable || saving}
                       className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
                     >
@@ -720,12 +726,15 @@ export function CustomersPage() {
                     </button>
                   ) : (
                     <button
-                      type="button"
-                      onClick={() => void runAction(
-                        'Cliente archivado.',
-                        () => customersClient.archive(token, selected.id),
-                        '¿Archivar este cliente? Sus relaciones históricas se conservan.',
-                      )}
+	                      type="button"
+	                      onClick={() => requestAction({
+	                        title: 'Archivar cliente',
+	                        message: 'El cliente saldrá del directorio activo, pero sus relaciones históricas se conservan.',
+	                        confirmLabel: 'Archivar',
+	                        tone: 'danger',
+	                        success: 'Cliente archivado.',
+	                        action: () => customersClient.archive(token, selected.id),
+	                      })}
                       disabled={!writable || saving}
                       className="inline-flex h-10 items-center gap-2 rounded-md border border-[#d5b2b2] bg-white px-3 text-sm font-semibold text-[#8c2f2f] disabled:cursor-not-allowed disabled:opacity-45"
                     >
@@ -768,13 +777,7 @@ export function CustomersPage() {
                           <button type="button" onClick={() => { setEditingNote(item); setNote(item.note) }} disabled={!writable} className="font-semibold text-[var(--color-burgundy)] disabled:opacity-45">
                             Editar
                           </button>
-                          <button type="button" onClick={() => {
-                            if (window.confirm('¿Eliminar esta nota interna?')) {
-                              void customersClient.deleteNote(token, selected.id, item.id)
-                                .then(() => loadDetail(selected.id))
-                                .catch((err: unknown) => setError(err instanceof Error ? err.message : 'No fue posible eliminar la nota.'))
-                            }
-                          }} disabled={!writable} className="font-semibold text-[#8c2f2f] disabled:opacity-45">
+	                          <button type="button" onClick={() => void deleteNote(item.id)} disabled={!writable} className="font-semibold text-[#8c2f2f] disabled:opacity-45">
                             Eliminar
                           </button>
                         </div>
@@ -801,13 +804,15 @@ export function CustomersPage() {
                   <div className="flex flex-wrap gap-2">
                     {selected.tags.map((item) => (
                       <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => void runAction(
-                          'Etiqueta retirada.',
-                          () => customersClient.unassignTag(token, selected.id, item.id),
-                          '¿Retirar esta etiqueta del cliente?',
-                        )}
+	                        key={item.id}
+	                        type="button"
+	                        onClick={() => requestAction({
+	                          title: 'Retirar etiqueta',
+	                          message: `La etiqueta ${item.name} dejará de estar asociada a este cliente.`,
+	                          confirmLabel: 'Retirar',
+	                          success: 'Etiqueta retirada.',
+	                          action: () => customersClient.unassignTag(token, selected.id, item.id),
+	                        })}
                         disabled={!writable || saving}
                         className="rounded-md border border-[var(--color-line)] px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45"
                       >
@@ -817,9 +822,9 @@ export function CustomersPage() {
                   </div>
                 </div>
 
-                <RelatedPanel title="Reservaciones" items={reservations} empty="Sin reservaciones asociadas." />
-                <RelatedPanel title="Órdenes" items={orders} empty="Sin órdenes asociadas." />
-                <RelatedPanel title="Membresías" items={memberships} empty="Sin membresías asociadas." />
+                <RelatedPanel title="Reservaciones" items={reservations} kind="reservation" empty="Sin reservaciones asociadas." />
+                <RelatedPanel title="Órdenes" items={orders} kind="order" empty="Sin órdenes asociadas." />
+                <RelatedPanel title="Membresías" items={memberships} kind="membership" empty="Sin membresías asociadas." />
                 <HistoryPanel items={history} />
               </div>
             ) : (
@@ -852,14 +857,7 @@ export function CustomersPage() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    if (!tagWritable) return
-                    const next = window.prompt('Nuevo nombre de etiqueta', item.name)
-                    if (!next?.trim()) return
-                    void customersClient.updateTag(token, item.id, { name: next.trim() })
-                      .then(() => loadCustomers())
-                      .catch((err: unknown) => setError(err instanceof Error ? err.message : 'No fue posible actualizar la etiqueta.'))
-                  }}
+	                  onClick={() => openTagEdit(item)}
                   className="inline-flex items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 py-2 text-xs font-semibold"
                 >
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
@@ -946,6 +944,40 @@ export function CustomersPage() {
           </form>
         </div>
       ) : null}
+      {tagEdit ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+          <form onSubmit={submitTagEdit} className="grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-xl">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold text-[var(--color-ink)]">Editar etiqueta</h2>
+                <p className="text-sm text-[var(--color-muted)]">Actualiza el nombre visible para segmentación comercial.</p>
+              </div>
+              <button type="button" onClick={() => setTagEdit(null)} className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[var(--color-line)]">
+                <X size={16} />
+              </button>
+            </div>
+            <input value={tagEditName} onChange={(event) => setTagEditName(event.target.value)} className={inputClass()} autoFocus />
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setTagEdit(null)} className="inline-flex h-10 items-center justify-center rounded-md border border-[var(--color-line)] px-4 text-sm font-semibold">
+                Cancelar
+              </button>
+              <button type="submit" disabled={saving || !tagEditName.trim()} className="inline-flex h-10 items-center justify-center rounded-md bg-[var(--color-burgundy)] px-4 text-sm font-semibold text-white disabled:opacity-45">
+                Guardar
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+      <ControlConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.title ?? ''}
+        message={pendingAction?.message ?? ''}
+        confirmLabel={pendingAction?.confirmLabel}
+        tone={pendingAction?.tone}
+        busy={saving}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+      />
     </div>
   )
 }
@@ -971,12 +1003,12 @@ function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: strin
   )
 }
 
-function RelatedPanel({ title, items, empty }: { title: string; items: CustomerRelationItem[]; empty: string }) {
+function RelatedPanel({ title, items, empty, kind }: { title: string; items: CustomerRelationItem[]; empty: string; kind: 'reservation' | 'order' | 'membership' }) {
   return (
     <div className="grid gap-2 rounded-lg border border-[var(--color-line)] bg-white p-3">
       <h3 className="font-semibold text-[var(--color-ink)]">{title}</h3>
       {items.length ? items.slice(0, 5).map((item) => (
-        <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-[var(--color-soft)] px-3 py-2 text-sm">
+        <Link key={item.id} to={relatedRoute(kind, item.id)} className="flex items-center justify-between gap-3 rounded-md bg-[var(--color-soft)] px-3 py-2 text-sm transition hover:bg-white">
           <span className="min-w-0">
             <span className="block truncate font-semibold text-[var(--color-ink)]">
               {item.reservationNumber ?? item.orderNumber ?? item.membershipNumber ?? item.plan?.name ?? 'Registro'}
@@ -984,10 +1016,16 @@ function RelatedPanel({ title, items, empty }: { title: string; items: CustomerR
             <span className="text-xs text-[var(--color-muted)]">{item.createdAt ? formatDate(item.createdAt) : item.startsAt ? formatDate(item.startsAt) : 'Sin fecha'}</span>
           </span>
           <span className="shrink-0 rounded-md bg-white px-2 py-1 text-xs font-semibold text-[var(--color-burgundy)]">{operationalStatusLabel(item.status)}</span>
-        </div>
+        </Link>
       )) : <p className="text-sm text-[var(--color-muted)]">{empty}</p>}
     </div>
   )
+}
+
+function relatedRoute(kind: 'reservation' | 'order' | 'membership', id: string) {
+  if (kind === 'reservation') return `/control/reservaciones?reservationId=${encodeURIComponent(id)}`
+  if (kind === 'order') return `/control/ordenes?orderId=${encodeURIComponent(id)}`
+  return '/control/wine-club'
 }
 
 function HistoryPanel({ items }: { items: CustomerHistoryItem[] }) {
@@ -1010,8 +1048,8 @@ function HistoryPanel({ items }: { items: CustomerHistoryItem[] }) {
 function historyEntityRoute(item: CustomerHistoryItem) {
   if (!item.entityId) return null
   if (item.entityType === 'cart') return `/control/carritos?cartId=${encodeURIComponent(item.entityId)}`
-  if (item.entityType === 'order') return '/control/ordenes'
-  if (item.entityType === 'reservation') return '/control/reservaciones'
+  if (item.entityType === 'order') return `/control/ordenes?orderId=${encodeURIComponent(item.entityId)}`
+  if (item.entityType === 'reservation') return `/control/reservaciones?reservationId=${encodeURIComponent(item.entityId)}`
   if (item.entityType === 'membership') return '/control/wine-club'
   return null
 }

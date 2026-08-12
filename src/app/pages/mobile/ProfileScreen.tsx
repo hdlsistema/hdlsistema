@@ -40,7 +40,7 @@ function isPendingPaymentOrder(order: CustomerOrder) {
 
 function translatedStatus(status: string | null | undefined, t: (key: string, fallback?: string) => string) {
   const value = status || 'pending'
-  return t(`common.status.${value}`, value)
+  return t(`common.status.${value}`, t('common.status.unknown'))
 }
 
 const emptyAddress: CustomerAddressPayload = {

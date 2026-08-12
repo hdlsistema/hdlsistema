@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CheckCircle2, Download, ExternalLink, MapPin, PackageCheck, Plus, RefreshCw, Search, Send, ShoppingBag, Truck, X } from 'lucide-react'
+import { CheckCircle2, Download, ExternalLink, FileClock, MapPin, PackageCheck, Plus, RefreshCw, Search, Send, ShoppingBag, Truck, X } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
-import { ordersClient, type OrderItemRecord, type OrderRecord } from '../../../services/commerce.service'
+import { ordersClient, type OrderItemRecord, type OrderRecord, type PaymentRecord } from '../../../services/commerce.service'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { dateTime, eventLabel, money, paymentReferenceLabel, statusLabel as safeStatusLabel } from './controlCopy'
 
 type OrderForm = {
   customerId: string
@@ -30,13 +33,8 @@ const emptyForm: OrderForm = {
   unitPrice: '0',
 }
 
-function money(value: number, currency = 'MXN') {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(value)
-}
-
 function dateLabel(value?: string | null) {
-  if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return dateTime(value)
 }
 
 function canWrite(roles: string[]) {
@@ -44,16 +42,7 @@ function canWrite(roles: string[]) {
 }
 
 function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    draft: 'Borrador',
-    pending_payment: 'Pendiente de pago',
-    paid: 'Pagada',
-    processing: 'En proceso',
-    fulfilled: 'Completada',
-    cancelled: 'Cancelada',
-    refunded: 'Reembolsada',
-  }
-  return labels[status] ?? status
+  return safeStatusLabel(status)
 }
 
 function shippingStatusLabel(status?: string | null) {
@@ -67,15 +56,28 @@ function shippingStatusLabel(status?: string | null) {
     delivered: 'Entregada',
     cancelled: 'Cancelada',
   }
-  return labels[status || 'not_required'] ?? String(status)
+  return labels[status || 'not_required'] ?? safeStatusLabel(status)
+}
+
+type OrderHistoryRecord = { id: string; action: string; entityType: string; createdAt: string }
+type PendingAction = {
+  title: string
+  message: string
+  confirmLabel: string
+  tone?: 'default' | 'danger'
+  action: () => Promise<unknown>
+  success: string
 }
 
 export function OrdersPage() {
   const { session, roles } = useAuth()
+  const [searchParams] = useSearchParams()
   const token = session?.access_token
   const writable = canWrite(roles)
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [items, setItems] = useState<OrderItemRecord[]>([])
+  const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [history, setHistory] = useState<OrderHistoryRecord[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -88,6 +90,7 @@ export function OrdersPage() {
   const [form, setForm] = useState<OrderForm>(emptyForm)
   const [trackingOpen, setTrackingOpen] = useState(false)
   const [trackingForm, setTrackingForm] = useState<TrackingForm>({ carrier: '', trackingNumber: '', trackingUrl: '' })
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
   const selected = useMemo(
     () => orders.find((order) => order.id === selectedId) ?? orders[0] ?? null,
@@ -105,13 +108,17 @@ export function OrdersPage() {
         perPage: 100,
       })
       setOrders(response.data)
-      setSelectedId((current) => current ?? response.data[0]?.id ?? null)
+      const requestedOrderId = searchParams.get('orderId')
+      setSelectedId((current) => {
+        if (requestedOrderId && response.data.some((order) => order.id === requestedOrderId)) return requestedOrderId
+        return current ?? response.data[0]?.id ?? null
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible cargar órdenes.')
     } finally {
       setLoading(false)
     }
-  }, [search, shippingStatus, status, token])
+  }, [search, searchParams, shippingStatus, status, token])
 
   useEffect(() => {
     void loadOrders()
@@ -120,9 +127,15 @@ export function OrdersPage() {
   useEffect(() => {
     if (!selected) {
       setItems([])
+      setPayments([])
+      setHistory([])
       return
     }
-    ordersClient.items(token, selected.id).then((response) => setItems(response.data)).catch(() => setItems([]))
+    Promise.all([
+      ordersClient.items(token, selected.id).then((response) => setItems(response.data)).catch(() => setItems([])),
+      ordersClient.payments(token, selected.id).then((response) => setPayments(response.data)).catch(() => setPayments([])),
+      ordersClient.history(token, selected.id).then((response) => setHistory(response.data)).catch(() => setHistory([])),
+    ]).catch(() => undefined)
   }, [selected, token])
 
   const metrics = useMemo(() => ({
@@ -170,18 +183,23 @@ export function OrdersPage() {
     setSelectedId(next.id)
   }
 
-  const runAction = async (message: string, action: () => Promise<unknown>, confirmMessage: string) => {
+  const requestAction = (pending: PendingAction) => {
     if (!writable || saving) return
-    if (!window.confirm(confirmMessage)) return
+    setPendingAction(pending)
+  }
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction || saving) return
     setSaving(true)
     try {
-      await action()
-      setToast(message)
+      await pendingAction.action()
+      setToast(pendingAction.success)
       await loadOrders()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
     } finally {
       setSaving(false)
+      setPendingAction(null)
     }
   }
 
@@ -227,7 +245,7 @@ export function OrdersPage() {
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Operación" title="Órdenes" subtitle="Órdenes, partidas, pagos asociados e historial operativo." />
+        <SectionTitle eyebrow="Operación" title="Órdenes" subtitle="Seguimiento de venta, pago, entrega e historial de cada pedido." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadOrders} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
@@ -304,15 +322,17 @@ export function OrdersPage() {
               <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.orderNumber}</h3>
               <div className="mt-5 grid gap-3">
                 <Detail label="Cliente" value={selected.customerName || 'Sin nombre'} />
-                <Detail label="Estado" value={statusLabel(selected.status)} />
+                <Detail label="Estado de orden" value={statusLabel(selected.status)} />
                 <Detail label="Envío" value={shippingStatusLabel(selected.shippingStatus)} />
                 <Detail label="Pagado" value={`${money(selected.paidAmount, selected.currency)} de ${money(selected.total, selected.currency)}`} />
                 <Detail label="Creada" value={dateLabel(selected.createdAt)} />
+                <Detail label="Canal" value={selected.source || 'Centro de Control'} />
+                <Detail label="Correo" value={selected.customerEmail || 'Sin correo'} />
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <Action disabled={!writable || selected.status !== 'paid'} onClick={() => runAction('Orden marcada en proceso.', () => ordersClient.markProcessing(token, selected.id), '¿Marcar esta orden como en proceso?')}>En proceso</Action>
-                <Action disabled={!writable || selected.status !== 'processing'} onClick={() => runAction('Orden completada.', () => ordersClient.fulfill(token, selected.id), '¿Completar esta orden?')}>Completar</Action>
-                <Action disabled={!writable || !['draft', 'pending_payment', 'paid', 'processing'].includes(selected.status)} onClick={() => runAction('Orden cancelada.', () => ordersClient.cancel(token, selected.id, 'Cancelación desde Centro de Control'), '¿Cancelar esta orden?')}>Cancelar</Action>
+                <Action disabled={!writable || selected.status !== 'paid'} onClick={() => requestAction({ title: 'Marcar orden en proceso', message: 'La orden pasará a preparación operativa para seguimiento interno.', confirmLabel: 'Marcar en proceso', success: 'Orden marcada en proceso.', action: () => ordersClient.markProcessing(token, selected.id) })}>En proceso</Action>
+                <Action disabled={!writable || selected.status !== 'processing'} onClick={() => requestAction({ title: 'Completar orden', message: 'Confirma que la entrega o servicio asociado ya quedó atendido.', confirmLabel: 'Completar', success: 'Orden completada.', action: () => ordersClient.fulfill(token, selected.id) })}>Completar</Action>
+                <Action disabled={!writable || !['draft', 'pending_payment', 'paid', 'processing'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar orden', message: 'La orden quedará cancelada y el cambio se registrará en historial.', confirmLabel: 'Cancelar orden', tone: 'danger', success: 'Orden cancelada.', action: () => ordersClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</Action>
               </div>
             </article>
             {selected.requiresShipping ? (
@@ -345,10 +365,10 @@ export function OrdersPage() {
                   ) : null}
                 </div>
                 <div className="mt-4 grid gap-2">
-                  <Action disabled={!writable || !['pending_preparation', 'preparing'].includes(selected.shippingStatus || '')} onClick={() => runAction('Pedido en preparación.', () => ordersClient.prepareShipping(token, selected.id), '¿Marcar este pedido como en preparación?')}>Marcar preparando</Action>
+                  <Action disabled={!writable || !['pending_preparation', 'preparing'].includes(selected.shippingStatus || '')} onClick={() => requestAction({ title: 'Preparar pedido', message: 'El pedido quedará marcado para preparación y empaque.', confirmLabel: 'Preparar', success: 'Pedido en preparación.', action: () => ordersClient.prepareShipping(token, selected.id) })}>Marcar preparando</Action>
                   <Action disabled={!writable || !['pending_preparation', 'preparing', 'awaiting_tracking', 'tracking_assigned'].includes(selected.shippingStatus || '')} onClick={() => setTrackingOpen((current) => !current)}>Capturar guía</Action>
-                  <Action disabled={!writable || !['tracking_assigned'].includes(selected.shippingStatus || '')} onClick={() => runAction('Pedido marcado como enviado.', () => ordersClient.ship(token, selected.id), '¿Marcar este pedido como enviado?')}>Marcar enviado</Action>
-                  <Action disabled={!writable || selected.shippingStatus !== 'shipped'} onClick={() => runAction('Pedido marcado como entregado.', () => ordersClient.deliver(token, selected.id), '¿Marcar este pedido como entregado?')}>Marcar entregado</Action>
+                  <Action disabled={!writable || !['tracking_assigned'].includes(selected.shippingStatus || '')} onClick={() => requestAction({ title: 'Marcar como enviado', message: 'El cliente podrá consultar que el pedido ya salió a entrega.', confirmLabel: 'Marcar enviado', success: 'Pedido marcado como enviado.', action: () => ordersClient.ship(token, selected.id) })}>Marcar enviado</Action>
+                  <Action disabled={!writable || selected.shippingStatus !== 'shipped'} onClick={() => requestAction({ title: 'Marcar como entregado', message: 'Confirma que el pedido ya fue entregado al cliente.', confirmLabel: 'Marcar entregado', success: 'Pedido marcado como entregado.', action: () => ordersClient.deliver(token, selected.id) })}>Marcar entregado</Action>
                 </div>
                 {trackingOpen ? (
                   <form onSubmit={submitTracking} className="mt-4 grid gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] p-3">
@@ -367,6 +387,28 @@ export function OrdersPage() {
                   <div key={item.id} className="rounded-xl bg-[var(--color-soft)] p-3">
                     <p className="text-sm font-semibold text-[var(--color-ink)]">{item.nameSnapshot}</p>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">{item.quantity} x {money(item.unitPrice)} = {money(item.subtotal)}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+              <h4 className="text-sm font-semibold text-[var(--color-ink)]">Pagos asociados</h4>
+              <div className="mt-4 space-y-3">
+                {payments.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin pagos asociados.</p> : payments.map((payment) => (
+                  <div key={payment.id} className="rounded-xl bg-[var(--color-soft)] p-3 text-sm">
+                    <p className="font-semibold text-[var(--color-ink)]">{paymentReferenceLabel(payment.paymentReference, payment.orderNumber, payment.id)}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">{statusLabel(payment.status)} · {money(payment.amount, payment.currency)} · {dateLabel(payment.paidAt ?? payment.createdAt)}</p>
+                  </div>
+                ))}
+              </div>
+            </article>
+            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+              <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><FileClock size={16} /> Historial</h4>
+              <div className="mt-4 space-y-3">
+                {history.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin historial registrado.</p> : history.map((item) => (
+                  <div key={item.id} className="rounded-xl bg-[var(--color-soft)] p-3 text-sm">
+                    <p className="font-semibold text-[var(--color-ink)]">{eventLabel(item.action)}</p>
+                    <p className="mt-1 text-xs text-[var(--color-muted)]">{dateLabel(item.createdAt)}</p>
                   </div>
                 ))}
               </div>
@@ -400,6 +442,16 @@ export function OrdersPage() {
       ) : null}
 
       {toast ? <Toast value={toast} onClose={() => setToast('')} /> : null}
+      <ControlConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.title ?? ''}
+        message={pendingAction?.message ?? ''}
+        confirmLabel={pendingAction?.confirmLabel}
+        tone={pendingAction?.tone}
+        busy={saving}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+      />
     </div>
   )
 }

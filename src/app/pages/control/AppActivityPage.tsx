@@ -1,70 +1,36 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Activity, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { appActivityAdminClient, type AppActivityRecord } from '../../../services/appActivityAdmin.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { areaLabel, dateTime, entityLabel, eventLabel, statusLabel } from './controlCopy'
 
-function dateTime(value: string) {
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-}
+const VALUABLE_EVENTS = new Set([
+  'app_session_started',
+  'cart_item_added',
+  'checkout_started',
+  'checkout_payment_attempted',
+  'customer_login',
+  'customer_profile_updated',
+  'order_created',
+  'order.pending_payment',
+  'payment_failed',
+  'payment_succeeded',
+  'quote_requested',
+  'reservation_started',
+  'reservation_submitted',
+])
 
-function eventLabel(value: string) {
-  const labels: Record<string, string> = {
-    app_session_started: 'Sesión iniciada',
-    cart_created: 'Carrito creado',
-    cart_item_added: 'Producto agregado',
-    cart_item_removed: 'Producto retirado',
-    cart_viewed: 'Carrito consultado',
-    checkout_started: 'Pago iniciado',
-    order_created: 'Orden creada',
-    payment_failed: 'Pago fallido',
-    payment_processing: 'Pago en proceso',
-    payment_succeeded: 'Pago confirmado',
-    profile_viewed: 'Perfil consultado',
-    reservation_started: 'Reservación iniciada',
-    reservation_submitted: 'Solicitud enviada',
-    wine_viewed: 'Vino consultado',
-  }
-  return labels[value] ?? value.replaceAll('_', ' ')
-}
-
-function areaLabel(value: string) {
-  const labels: Record<string, string> = {
-    account: 'Cuenta',
-    cart: 'Carrito',
-    checkout: 'Pago',
-    content: 'Contenido',
-    payment: 'Pagos',
-    reservation: 'Reservaciones',
-  }
-  return labels[value] ?? value.replaceAll('_', ' ')
-}
-
-function entityLabel(value?: string | null) {
-  if (!value) return 'Sin registro asociado'
-  const labels: Record<string, string> = {
-    cart: 'Carrito',
-    event: 'Evento',
-    experience: 'Experiencia',
-    order: 'Orden',
-    payment: 'Pago',
-    reservation: 'Reservación',
-    wine: 'Vino',
-  }
-  return labels[value] ?? value.replaceAll('_', ' ')
-}
-
-function resultLabel(value: string) {
-  const labels: Record<string, string> = {
-    cancelled: 'Cancelado',
-    failed: 'Fallido',
-    processing: 'En proceso',
-    started: 'Iniciado',
-    succeeded: 'Correcto',
-  }
-  return labels[value] ?? value.replaceAll('_', ' ')
+function entityHref(record: AppActivityRecord) {
+  if (!record.entityId || !record.entityType) return ''
+  if (record.entityType === 'cart') return `/control/carritos?cartId=${encodeURIComponent(record.entityId)}`
+  if (record.entityType === 'order') return `/control/ordenes?orderId=${encodeURIComponent(record.entityId)}`
+  if (record.entityType === 'reservation') return `/control/reservaciones?reservationId=${encodeURIComponent(record.entityId)}`
+  if (record.entityType === 'customer') return `/control/clientes?customerId=${encodeURIComponent(record.entityId)}`
+  return ''
 }
 
 export function AppActivityPage() {
@@ -91,7 +57,12 @@ export function AppActivityPage() {
     } finally {
       setLoading(false)
     }
-  }, [customer, eventName, from, module, result, session?.access_token, to])
+	  }, [customer, eventName, from, module, result, session?.access_token, to])
+
+  const visibleRecords = useMemo(
+    () => records.filter((record) => eventName || VALUABLE_EVENTS.has(record.eventName)),
+    [eventName, records],
+  )
 
   useEffect(() => {
     void load()
@@ -100,7 +71,7 @@ export function AppActivityPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <SectionTitle eyebrow="App Hacienda de Letras" title="Actividad" subtitle="Bitácora operativa de interacciones relevantes, sin registrar datos sensibles." />
+        <SectionTitle eyebrow="App Hacienda de Letras" title="Actividad" subtitle="Movimientos importantes de clientes para seguimiento comercial y operación." />
         <button type="button" onClick={() => void load()} disabled={loading} className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-medium text-[var(--color-ink)] disabled:opacity-60">
           <RefreshCw size={16} className={loading ? 'animate-spin' : ''} /> Actualizar
         </button>
@@ -115,8 +86,16 @@ export function AppActivityPage() {
 	            <option value="">Todos</option><option value="account">Cuenta</option><option value="content">Contenido</option><option value="reservation">Reservaciones</option><option value="cart">Carrito</option><option value="checkout">Pago</option><option value="payment">Pagos</option>
           </CrystalSelect>
         </label>
-        <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Evento
-            <input value={eventName} onChange={(event) => setEventName(event.target.value)} placeholder="Nombre de acción" className="min-h-10 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)]" />
+        <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Movimiento
+          <CrystalSelect value={eventName} onChange={setEventName}>
+            <option value="">Importantes</option>
+            <option value="checkout_started">Checkout iniciado</option>
+            <option value="cart_item_added">Producto agregado</option>
+            <option value="order_created">Orden creada</option>
+            <option value="payment_succeeded">Pago confirmado</option>
+            <option value="payment_failed">Pago fallido</option>
+            <option value="reservation_submitted">Reservación solicitada</option>
+          </CrystalSelect>
         </label>
         <label className="grid gap-1 text-xs font-medium text-[var(--color-muted)]">Resultado
           <CrystalSelect value={result} onChange={setResult}><option value="">Todos</option><option value="started">Iniciado</option><option value="succeeded">Correcto</option><option value="processing">En proceso</option><option value="failed">Fallido</option><option value="cancelled">Cancelado</option></CrystalSelect>
@@ -132,8 +111,21 @@ export function AppActivityPage() {
             <thead className="border-b border-[var(--color-line)] text-xs font-medium uppercase tracking-[0.1em] text-[var(--color-muted)]"><tr><th className="px-4 py-3">Fecha</th><th className="px-4 py-3">Cliente</th><th className="px-4 py-3">Evento</th><th className="px-4 py-3">Área</th><th className="px-4 py-3">Entidad</th><th className="px-4 py-3">Estado</th></tr></thead>
             <tbody className="divide-y divide-[var(--color-line)]">
               {loading ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--color-muted)]">Cargando bitácora...</td></tr> : null}
-              {!loading && records.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--color-muted)]"><Activity size={20} className="mx-auto mb-2" />Aún no hay actividad de App registrada.</td></tr> : null}
-              {!loading && records.map((record) => <tr key={record.id} className="align-top"><td className="px-4 py-3 text-[var(--color-muted)]">{dateTime(record.occurredAt)}</td><td className="px-4 py-3"><p className="font-medium text-[var(--color-ink)]">{record.customerName ?? 'Sesión sin identificar'}</p>{record.customerEmail ? <p className="mt-1 text-xs text-[var(--color-muted)]">{record.customerEmail}</p> : null}</td><td className="px-4 py-3 text-[var(--color-ink)]">{eventLabel(record.eventName)}</td><td className="px-4 py-3 text-[var(--color-muted)]">{areaLabel(record.module)}</td><td className="px-4 py-3 text-[var(--color-muted)]">{entityLabel(record.entityType)}</td><td className="px-4 py-3"><span className="rounded-full bg-[var(--color-soft)] px-2 py-1 text-xs text-[var(--color-ink)]">{resultLabel(record.status)}</span></td></tr>)}
+              {!loading && visibleRecords.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-[var(--color-muted)]"><Activity size={20} className="mx-auto mb-2" />Aún no hay movimientos importantes para este filtro.</td></tr> : null}
+              {!loading && visibleRecords.map((record) => {
+                const href = entityHref(record)
+                const entity = entityLabel(record.entityType)
+                return (
+                  <tr key={record.id} className="align-top">
+                    <td className="px-4 py-3 text-[var(--color-muted)]">{dateTime(record.occurredAt)}</td>
+                    <td className="px-4 py-3"><p className="font-medium text-[var(--color-ink)]">{record.customerName ?? 'Sesión sin identificar'}</p>{record.customerEmail ? <p className="mt-1 text-xs text-[var(--color-muted)]">{record.customerEmail}</p> : null}</td>
+                    <td className="px-4 py-3 text-[var(--color-ink)]">{eventLabel(record.eventName)}</td>
+                    <td className="px-4 py-3 text-[var(--color-muted)]">{areaLabel(record.module)}</td>
+                    <td className="px-4 py-3 text-[var(--color-muted)]">{href ? <Link to={href} className="font-medium text-[var(--color-burgundy)]">{entity}</Link> : entity}</td>
+                    <td className="px-4 py-3"><span className="rounded-full bg-[var(--color-soft)] px-2 py-1 text-xs text-[var(--color-ink)]">{statusLabel(record.status)}</span></td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

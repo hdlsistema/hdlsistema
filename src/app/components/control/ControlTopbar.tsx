@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Bell,
   ChevronDown,
   CloudSun,
-  Search,
   ShieldAlert,
   Sparkles,
 } from 'lucide-react'
@@ -21,9 +20,11 @@ export function ControlTopbar() {
     isEnglish,
     t,
   } = useAppPreferences()
-  const { session } = useAuth()
+  const { session, signOut } = useAuth()
+  const navigate = useNavigate()
   const [timeLabel, setTimeLabel] = useState('')
   const [showAlerts, setShowAlerts] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [alerts, setAlerts] = useState<AdminNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [alertsLoading, setAlertsLoading] = useState(false)
@@ -123,13 +124,6 @@ export function ControlTopbar() {
 
             <button
               type="button"
-              className="hidden h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] text-[var(--color-muted)] shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl md:inline-flex"
-            >
-              <Search size={16} />
-            </button>
-
-            <button
-              type="button"
               onClick={() => setShowAlerts(true)}
               className="relative inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] text-[var(--color-muted)] shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl"
             >
@@ -143,7 +137,12 @@ export function ControlTopbar() {
 
 
 
-            <div className="hidden items-center gap-3 rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] px-3 py-2 shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl lg:flex">
+            <div className="relative hidden lg:block">
+            <button
+              type="button"
+              onClick={() => setShowProfileMenu((current) => !current)}
+              className="flex items-center gap-3 rounded-full border border-white/45 bg-[rgba(255,255,255,0.34)] px-3 py-2 shadow-[0_12px_28px_rgba(89,45,26,0.08)] backdrop-blur-2xl"
+            >
               <div className="h-10 w-10 rounded-full bg-[linear-gradient(135deg,var(--color-gold-soft),var(--color-burgundy-soft))]" />
               <div>
                 <p className="text-sm font-medium text-[var(--color-ink)]">
@@ -154,6 +153,14 @@ export function ControlTopbar() {
                 </p>
               </div>
               <ChevronDown size={16} className="text-[var(--color-muted)]" />
+            </button>
+            {showProfileMenu ? (
+              <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-56 overflow-hidden rounded-[1rem] border border-white/45 bg-[rgba(255,250,244,0.92)] p-2 shadow-[0_22px_60px_rgba(45,20,16,0.22)] backdrop-blur-2xl">
+                <button type="button" onClick={() => { setShowProfileMenu(false); navigate('/control/configuracion') }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-soft)]">Mi cuenta</button>
+                <button type="button" onClick={() => { setShowProfileMenu(false); navigate('/control/configuracion') }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-soft)]">Configuración</button>
+                <button type="button" onClick={() => { setShowProfileMenu(false); void signOut().then(() => navigate('/login')) }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--color-burgundy)] hover:bg-[var(--color-soft)]">Cerrar sesión</button>
+              </div>
+            ) : null}
             </div>
 
 

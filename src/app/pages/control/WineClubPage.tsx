@@ -5,11 +5,21 @@ import { membershipsClient, type MembershipRecord } from '../../../services/phas
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { ActionButton, Field, Metric, ModalForm, StateBlock } from './phase7e/ControlOperationsUi'
 import { downloadCsv, formatDate, operationKey } from './phase7e/operationsUtils'
 
 const emptyForm = { customerId: '', planId: '', startDate: '' }
 const emptyPoints = { points: '0', reason: '' }
+
+type PendingWineClubAction = {
+  title: string
+  message: string
+  confirmLabel: string
+  tone?: 'default' | 'danger'
+  action: () => Promise<unknown>
+  success: string
+}
 
 function canWrite(roles: string[]) {
   return roles.some((role) => ['super_admin', 'admin', 'finance'].includes(role))
@@ -41,6 +51,7 @@ export function WineClubPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [points, setPoints] = useState(emptyPoints)
+  const [pendingAction, setPendingAction] = useState<PendingWineClubAction | null>(null)
 
   const selected = useMemo(() => memberships.find((item) => item.id === selectedId) ?? memberships[0] ?? null, [memberships, selectedId])
   const activeCount = memberships.filter((item) => item.status === 'active').length
@@ -88,14 +99,26 @@ export function WineClubPage() {
     }
   }
 
-  async function runAction(action: string, label: string, confirmText: string, reason?: string) {
+  function runAction(action: string, label: string, confirmText: string, reason?: string) {
     if (!selected || !writable || saving) return
-    if (!window.confirm(confirmText)) return
+    setPendingAction({
+      title: label.replace('.', ''),
+      message: confirmText,
+      confirmLabel: 'Confirmar',
+      tone: action === 'cancel' ? 'danger' : 'default',
+      success: label,
+      action: () => membershipsClient.action(token, selected.id, action, reason),
+    })
+  }
+
+  async function confirmPendingAction() {
+    if (!pendingAction || saving) return
     setSaving(true)
     setError('')
     try {
-      await membershipsClient.action(token, selected.id, action, reason)
-      setToast(label)
+      await pendingAction.action()
+      setToast(pendingAction.success)
+      setPendingAction(null)
       await load()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
@@ -107,23 +130,22 @@ export function WineClubPage() {
   async function adjustPoints(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!selected || !writable || saving) return
-    if (!window.confirm('¿Registrar este ajuste de puntos con historial?')) return
-    setSaving(true)
-    setError('')
-    try {
-      await membershipsClient.adjustLoyalty(token, selected.id, {
-        points: Number(points.points),
-        reason: points.reason,
-        idempotencyKey: operationKey('LOYALTY'),
-      })
-      setPoints(emptyPoints)
-      setToast('Puntos ajustados con historial.')
-      await load()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No fue posible ajustar puntos.')
-    } finally {
-      setSaving(false)
-    }
+    const pointsValue = Number(points.points)
+    const reasonValue = points.reason
+    setPendingAction({
+      title: 'Registrar ajuste de puntos',
+      message: 'El movimiento quedará guardado en el historial del cliente.',
+      confirmLabel: 'Registrar ajuste',
+      success: 'Puntos ajustados con historial.',
+      action: async () => {
+        await membershipsClient.adjustLoyalty(token, selected.id, {
+          points: pointsValue,
+          reason: reasonValue,
+          idempotencyKey: operationKey('LOYALTY'),
+        })
+        setPoints(emptyPoints)
+      },
+    })
   }
 
   async function exportCsv() {
@@ -229,6 +251,17 @@ export function WineClubPage() {
           <Field label="Fecha de inicio" type="datetime" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} />
         </ModalForm>
       ) : null}
+
+      <ControlConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.title ?? ''}
+        message={pendingAction?.message ?? ''}
+        confirmLabel={pendingAction?.confirmLabel}
+        tone={pendingAction?.tone}
+        busy={saving}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+      />
 
       {toast ? <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{toast}</div> : null}
     </div>

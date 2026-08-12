@@ -1,4 +1,5 @@
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { statusLabel } from '../../pages/control/controlCopy'
 
 type StatusBadgeProps = {
   label: string
@@ -32,7 +33,7 @@ export function StatusBadge({ label }: StatusBadgeProps) {
   const { isEnglish } = useAppPreferences()
   const legacyBrandToken = String.fromCharCode(65, 76, 81, 73, 65)
   const legacyInternalReviewLabel = ['En revisión', legacyBrandToken].join(' ')
-  const sanitizedLabel = label === legacyInternalReviewLabel ? 'En revisión interna' : label
+  const sanitizedLabel = label === legacyInternalReviewLabel ? 'En revisión interna' : statusLabel(label)
 
   const tone = positiveLabels.has(sanitizedLabel)
     ? 'border-[rgba(61,122,77,0.25)] bg-[rgba(61,122,77,0.08)] text-[var(--color-positive)]'

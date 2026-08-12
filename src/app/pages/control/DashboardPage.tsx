@@ -14,50 +14,22 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { dashboardClient, type DashboardSummary } from '../../../services/dashboard.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
+import { areaLabel, dateTime, eventLabel, money, statusLabel as safeStatusLabel } from './controlCopy'
 
 function formatMoney(value: number, currency: string) {
-  return new Intl.NumberFormat('es-MX', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(value)
+  return money(value, currency)
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('es-MX', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+  return dateTime(value)
 }
 
 function statusLabel(status?: string | null) {
-  const labels: Record<string, string> = {
-    pending: 'pendiente',
-    confirmed: 'confirmada',
-    cancelled: 'cancelada',
-    completed: 'completada',
-    no_show: 'no asistió',
-    draft: 'borrador',
-    pending_payment: 'pendiente de pago',
-    processing: 'en proceso',
-    paid: 'pagada',
-    fulfilled: 'completada',
-    refunded: 'reembolsada',
-  }
-  if (!status) return 'sin estado'
-  return labels[status] ?? status.replaceAll('_', ' ')
+  return safeStatusLabel(status)
 }
 
 function activityLabel(eventName: string) {
-  const labels: Record<string, string> = {
-    app_session_started: 'Sesión iniciada',
-    checkout_started: 'Pago iniciado',
-    cart_item_added: 'Producto agregado',
-    reservation_started: 'Reservación iniciada',
-    order_created: 'Orden creada',
-    payment_succeeded: 'Pago confirmado',
-  }
-  return labels[eventName] ?? eventName.replaceAll('_', ' ')
+  return eventLabel(eventName)
 }
 
 function activityContext(module?: string | null, entityType?: string | null) {
@@ -76,7 +48,7 @@ function activityContext(module?: string | null, entityType?: string | null) {
     customer: 'cliente',
     session: 'sesión',
   }
-  const left = module ? moduleLabels[module] ?? module.replaceAll('_', ' ') : 'Actividad'
+  const left = module ? moduleLabels[module] ?? areaLabel(module) : 'Actividad'
   const right = entityType ? entityLabels[entityType] ?? entityType.replaceAll('_', ' ') : 'sin elemento asociado'
   return `${left} · ${right}`
 }
@@ -138,7 +110,7 @@ export function DashboardPage() {
       setSummary(response.data)
     } catch {
       setSummary(null)
-      setError('No fue posible cargar la operación real. Reintenta en unos momentos.')
+      setError('No fue posible cargar la operación. Reintenta en unos momentos.')
     } finally {
       setLoading(false)
     }
@@ -157,9 +129,9 @@ export function DashboardPage() {
     <div className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <SectionTitle
-          eyebrow="Centro de Control"
-          title="Operación"
-          subtitle="Resumen calculado desde los registros operativos de Hacienda de Letras."
+	          eyebrow="Centro de Control"
+	          title="Operación"
+	          subtitle="Pendientes, cobros y seguimiento diario de Hacienda de Letras."
         />
         <button
           type="button"
@@ -207,15 +179,15 @@ export function DashboardPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-	        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad App en 30 días" icon={Users} />
+		        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad reciente" icon={Users} />
 	        <Metric label="Carritos activos" value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? 'Cargando...' : `${summary?.metrics.convertedCarts ?? 0} convertidos`} icon={ShoppingBag} />
 		        <Metric label="Pagos iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Intentos de pago registrados" icon={Activity} />
 	      </div>
 
 	      <div className="grid gap-4 sm:grid-cols-4">
-		        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones registradas en 30 días" icon={Users} />
+			        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones recientes" icon={Users} />
 	        <Metric label="Ocupación" value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail="Cupo reservado sobre horarios próximos" icon={CalendarDays} />
-	        <Metric label="Conversión" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Pagos confirmados sobre checkouts iniciados" icon={Activity} />
+		        <Metric label="Conversión" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Pagos confirmados sobre pagos iniciados" icon={Activity} />
 		        <Metric label="Mapa" value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail="Puntos publicados y visibles" icon={MapPin} />
 	      </div>
 
@@ -235,7 +207,7 @@ export function DashboardPage() {
                   </div>
                   <div className="text-right text-sm">
                     <p className="font-medium text-[var(--color-ink)]">{slot.reserved}/{slot.capacity} personas</p>
-                    <p className="mt-1 text-[var(--color-muted)]">{slot.available} disponibles · {slot.operationalStatus}</p>
+                    <p className="mt-1 text-[var(--color-muted)]">{slot.available} disponibles · {statusLabel(slot.operationalStatus)}</p>
                   </div>
                 </div>
               ))}
@@ -246,10 +218,11 @@ export function DashboardPage() {
         <Panel title="Acciones operativas">
           <div className="divide-y divide-[var(--color-line)] px-5">
             {[
-              ['/control/reservaciones', 'Gestionar reservaciones'],
-              ['/control/ordenes', 'Revisar órdenes'],
-              ['/control/pagos', 'Consultar pagos'],
-              ['/control/clientes', 'Abrir CRM de clientes'],
+	              ['/control/reservaciones', 'Nueva reservación / seguimiento'],
+	              ['/control/cotizaciones', 'Nueva cotización / seguimiento'],
+	              ['/control/ordenes', 'Pedidos y entregas'],
+	              ['/control/pagos', 'Cobros e incidencias'],
+	              ['/control/clientes', 'CRM de clientes'],
             ].map(([to, label]) => (
               <Link key={to} className="flex items-center justify-between py-4 text-sm text-[var(--color-ink)] transition hover:text-[var(--color-burgundy)]" to={to}>
                 <span>{label}</span>
@@ -267,13 +240,17 @@ export function DashboardPage() {
           {!loading && summary?.recentReservations.length ? (
             <div className="divide-y divide-[var(--color-line)]">
               {summary.recentReservations.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-4 text-sm">
-                  <div>
-                    <p className="font-medium text-[var(--color-ink)]">{item.reservationNumber}</p>
-	                    <p className="mt-1 text-[var(--color-muted)]">{item.peopleCount} personas · {statusLabel(item.status)}</p>
+                <Link
+                  to={`/control/reservaciones?reservationId=${encodeURIComponent(item.id)}`}
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 px-5 py-4 text-sm transition hover:bg-[var(--color-soft)]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-[var(--color-ink)]">{item.reservationNumber}</p>
+                    <p className="mt-1 text-[var(--color-muted)]">{item.peopleCount} personas · {statusLabel(item.status)}</p>
                   </div>
-                  <span className="text-[var(--color-muted)]">{formatDate(item.createdAt)}</span>
-                </div>
+                  <span className="shrink-0 text-[var(--color-muted)]">{formatDate(item.createdAt)}</span>
+                </Link>
               ))}
             </div>
           ) : null}
@@ -285,13 +262,17 @@ export function DashboardPage() {
           {!loading && summary?.recentOrders.length ? (
             <div className="divide-y divide-[var(--color-line)]">
               {summary.recentOrders.map((item) => (
-                <div key={item.id} className="flex items-center justify-between gap-3 px-5 py-4 text-sm">
-                  <div>
-                    <p className="font-medium text-[var(--color-ink)]">{item.orderNumber}</p>
-	                    <p className="mt-1 text-[var(--color-muted)]">{statusLabel(item.status)} · {formatDate(item.createdAt)}</p>
+                <Link
+                  to={`/control/ordenes?orderId=${encodeURIComponent(item.id)}`}
+                  key={item.id}
+                  className="flex items-center justify-between gap-3 px-5 py-4 text-sm transition hover:bg-[var(--color-soft)]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-[var(--color-ink)]">{item.orderNumber}</p>
+                    <p className="mt-1 text-[var(--color-muted)]">{statusLabel(item.status)} · {formatDate(item.createdAt)}</p>
                   </div>
-                  <span className="font-medium text-[var(--color-ink)]">{formatMoney(item.total, item.currency)}</span>
-                </div>
+                  <span className="shrink-0 font-medium text-[var(--color-ink)]">{formatMoney(item.total, item.currency)}</span>
+                </Link>
               ))}
             </div>
           ) : null}

@@ -705,7 +705,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
           {loading ? (
             <div className="flex min-h-64 items-center justify-center rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel)] text-sm text-[var(--color-muted)]">
               <Loader2 className="mr-2 animate-spin" size={18} />
-              Cargando contenido real...
+              Cargando contenido...
             </div>
           ) : records.length === 0 ? (
             <div className="rounded-[1rem] border border-dashed border-[var(--color-line)] bg-[var(--color-panel)] p-8 text-center">

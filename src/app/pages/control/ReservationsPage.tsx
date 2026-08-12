@@ -11,6 +11,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { API_BASE } from '../../../services/api'
 import {
@@ -20,10 +21,12 @@ import {
   type ReservationHistoryItem,
   type ReservationRecord,
 } from '../../../services/operations.service'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { dateTime, money, statusLabel as safeStatusLabel } from './controlCopy'
 
 type ReservationForm = {
   customerName: string
@@ -54,38 +57,20 @@ function canWrite(roles: string[]) {
 }
 
 function formatDateTime(value: string | null | undefined) {
-  if (!value) return 'Sin horario'
-  return new Intl.DateTimeFormat('es-MX', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(value))
+  return value ? dateTime(value) : 'Sin horario'
 }
 
 function currency(value: number, code = 'MXN') {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: code }).format(value)
+  return money(value, code)
 }
 
 function statusLabel(status: ReservationRecord['status']) {
-  const labels: Record<ReservationRecord['status'], string> = {
-    pending: 'Pendiente',
-    confirmed: 'Confirmada',
-    cancelled: 'Cancelada',
-    completed: 'Completada',
-    no_show: 'No asistió',
-  }
-  return labels[status]
+  return safeStatusLabel(status)
 }
 
 function historyStatusLabel(status?: string | null) {
   if (!status) return 'Inicio'
-  const labels: Record<string, string> = {
-    cancelled: 'Cancelada',
-    completed: 'Completada',
-    confirmed: 'Confirmada',
-    no_show: 'No asistió',
-    pending: 'Pendiente',
-  }
-  return labels[status] ?? status.replaceAll('_', ' ')
+  return safeStatusLabel(status)
 }
 
 function channelLabel(source?: string | null) {
@@ -97,12 +82,22 @@ function channelLabel(source?: string | null) {
     'Centro de control': 'Centro de Control',
   }
   if (!source) return 'Sin canal'
-  return labels[source] ?? source
+  return labels[source] ?? 'Operación'
+}
+
+type PendingReservationAction = {
+  title: string
+  message: string
+  confirmLabel: string
+  tone?: 'default' | 'danger'
+  action: () => Promise<unknown>
+  success: string
 }
 
 export function ReservationsPage() {
   const { isEnglish } = useAppPreferences()
   const { session, roles } = useAuth()
+  const [searchParams] = useSearchParams()
   const token = session?.access_token
   const writable = canWrite(roles)
   const [items, setItems] = useState<ReservationRecord[]>([])
@@ -120,6 +115,7 @@ export function ReservationsPage() {
   const [rescheduleSlotId, setRescheduleSlotId] = useState('')
   const [partySize, setPartySize] = useState('')
   const [note, setNote] = useState('')
+  const [pendingAction, setPendingAction] = useState<PendingReservationAction | null>(null)
 
   const loadReservations = useCallback(async () => {
     setLoading(true)
@@ -135,13 +131,17 @@ export function ReservationsPage() {
       ])
       setItems(reservationResponse.data)
       setSlots(slotResponse.data)
-      setSelectedId((current) => current ?? reservationResponse.data[0]?.id ?? null)
+      const requestedReservationId = searchParams.get('reservationId')
+      setSelectedId((current) => {
+        if (requestedReservationId && reservationResponse.data.some((item) => item.id === requestedReservationId)) return requestedReservationId
+        return current ?? reservationResponse.data[0]?.id ?? null
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible cargar reservaciones.')
     } finally {
       setLoading(false)
     }
-  }, [search, status, token])
+  }, [search, searchParams, status, token])
 
   useEffect(() => {
     void loadReservations()
@@ -203,19 +203,24 @@ export function ReservationsPage() {
     }
   }
 
-  const runAction = async (label: string, action: () => Promise<unknown>, confirmMessage: string) => {
+  const requestAction = (pending: PendingReservationAction) => {
     if (!writable || saving) return
-    if (!window.confirm(confirmMessage)) return
+    setPendingAction(pending)
+  }
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction || saving) return
     setSaving(true)
     setError('')
     try {
-      await action()
-      setToast(label)
+      await pendingAction.action()
+      setToast(pendingAction.success)
       await loadReservations()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
     } finally {
       setSaving(false)
+      setPendingAction(null)
     }
   }
 
@@ -238,21 +243,25 @@ export function ReservationsPage() {
 
   const submitReschedule = async () => {
     if (!selected || !rescheduleSlotId) return
-    await runAction(
-      'Reservación reprogramada.',
-      () => reservationsClient.reschedule(token, selected.id, rescheduleSlotId),
-      '¿Reprogramar esta reservación? Se liberará el horario anterior y se reservará el nuevo en una sola operación.',
-    )
+    requestAction({
+      title: 'Reprogramar reservación',
+      message: 'Se liberará el horario anterior y se reservará el nuevo horario en una sola operación.',
+      confirmLabel: 'Reprogramar',
+      success: 'Reservación reprogramada.',
+      action: () => reservationsClient.reschedule(token, selected.id, rescheduleSlotId),
+    })
     setRescheduleSlotId('')
   }
 
   const submitPartySize = async () => {
     if (!selected || !partySize) return
-    await runAction(
-      'Número de personas actualizado.',
-      () => reservationsClient.changePartySize(token, selected.id, Number(partySize)),
-      '¿Actualizar el número de personas? Se validará el cupo disponible antes de guardar.',
-    )
+    requestAction({
+      title: 'Cambiar número de personas',
+      message: 'Se validará el cupo disponible antes de guardar el cambio.',
+      confirmLabel: 'Cambiar personas',
+      success: 'Número de personas actualizado.',
+      action: () => reservationsClient.changePartySize(token, selected.id, Number(partySize)),
+    })
     setPartySize('')
   }
 
@@ -391,8 +400,8 @@ export function ReservationsPage() {
                 <Detail label="Total" value={currency(selected.total, selected.currency)} />
               </div>
               <div className="mt-5 flex flex-wrap gap-2">
-                <ActionButton disabled={!writable || selected.status !== 'pending'} onClick={() => runAction('Reservación confirmada.', () => reservationsClient.confirm(token, selected.id), '¿Confirmar esta reservación? Se validará el cupo antes de guardar.')}>Confirmar</ActionButton>
-                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => runAction('Reservación cancelada.', () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control'), '¿Cancelar esta reservación? Si estaba confirmada, se liberará el cupo.')}>Cancelar</ActionButton>
+                <ActionButton disabled={!writable || selected.status !== 'pending'} onClick={() => requestAction({ title: 'Confirmar reservación', message: 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
+                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar reservación', message: 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
               </div>
             </article>
 
@@ -439,7 +448,7 @@ export function ReservationsPage() {
               <FormInput label="Teléfono" value={form.customerPhone} onChange={(value) => setForm({ ...form, customerPhone: value })} />
               <FormInput label="Personas" type="number" min="1" value={form.peopleCount} onChange={(value) => setForm({ ...form, peopleCount: value })} required />
             </div>
-            <FormSelect label="Horario real disponible" value={form.experienceSlotId} onChange={(value) => setForm({ ...form, experienceSlotId: value })}>
+            <FormSelect label="Horario disponible" value={form.experienceSlotId} onChange={(value) => setForm({ ...form, experienceSlotId: value })}>
               {slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
             </FormSelect>
             <FormSelect label="Estado inicial" value={form.status} onChange={(value) => setForm({ ...form, status: value as ReservationForm['status'] })}>
@@ -463,6 +472,16 @@ export function ReservationsPage() {
           <button type="button" onClick={() => setToast('')} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button>
         </div>
       ) : null}
+      <ControlConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.title ?? ''}
+        message={pendingAction?.message ?? ''}
+        confirmLabel={pendingAction?.confirmLabel}
+        tone={pendingAction?.tone}
+        busy={saving}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+      />
     </div>
   )
 }

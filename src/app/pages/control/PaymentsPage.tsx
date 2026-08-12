@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Banknote, Download, FileText, Plus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
+import { Banknote, Download, ExternalLink, FileText, Plus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { paymentsClient, type PaymentRecord } from '../../../services/commerce.service'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { dateTime, money, paymentReferenceLabel, statusLabel as safeStatusLabel } from './controlCopy'
 
 type ManualPaymentForm = {
   orderId: string
@@ -24,13 +26,8 @@ const emptyForm: ManualPaymentForm = {
   notes: '',
 }
 
-function money(value: number, currency = 'MXN') {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(value)
-}
-
 function dateLabel(value?: string | null) {
-  if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return dateTime(value)
 }
 
 function canFinance(roles: string[]) {
@@ -38,16 +35,7 @@ function canFinance(roles: string[]) {
 }
 
 function statusLabel(status: string) {
-  const labels: Record<string, string> = {
-    pending: 'Pendiente',
-    processing: 'Procesando',
-    paid: 'Pagado',
-    failed: 'Fallido',
-    refunded: 'Reembolsado',
-    partially_refunded: 'Reembolso parcial',
-    cancelled: 'Cancelado',
-  }
-  return labels[status] ?? status
+  return safeStatusLabel(status)
 }
 
 function paymentMethodLabel(payment: PaymentRecord) {
@@ -73,6 +61,9 @@ export function PaymentsPage() {
   const [toast, setToast] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState<ManualPaymentForm>(emptyForm)
+  const [refundOpen, setRefundOpen] = useState(false)
+  const [refundAmount, setRefundAmount] = useState('')
+  const [refundReason, setRefundReason] = useState('')
 
   const selected = useMemo(
     () => payments.find((payment) => payment.id === selectedId) ?? payments[0] ?? null,
@@ -131,14 +122,16 @@ export function PaymentsPage() {
 
   const refundSelected = async () => {
     if (!selected || !writable || saving) return
-    const amount = window.prompt('Monto a reembolsar')
-    if (!amount) return
-    const reason = window.prompt('Motivo del reembolso')
-    if (!reason) return
-    if (!window.confirm('¿Registrar este reembolso? Se validará el monto disponible antes de guardar.')) return
+    if (!refundAmount || !refundReason.trim()) {
+      setError('Captura monto y motivo del reembolso.')
+      return
+    }
     setSaving(true)
     try {
-      await paymentsClient.refund(token, selected.id, { amount: Number(amount), reason, idempotencyKey: crypto.randomUUID() })
+      await paymentsClient.refund(token, selected.id, { amount: Number(refundAmount), reason: refundReason.trim(), idempotencyKey: crypto.randomUUID() })
+      setRefundOpen(false)
+      setRefundAmount('')
+      setRefundReason('')
       setToast('Reembolso registrado.')
       await loadPayments()
     } catch (err) {
@@ -177,7 +170,7 @@ export function PaymentsPage() {
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Finanzas" title="Pagos" subtitle="Pagos administrativos, comprobantes privados y reembolsos controlados." />
+        <SectionTitle eyebrow="Finanzas" title="Pagos" subtitle="Cobros, comprobantes y seguimiento financiero por orden." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadPayments} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
@@ -221,7 +214,7 @@ export function PaymentsPage() {
               {payments.map((payment) => (
                 <button key={payment.id} type="button" onClick={() => setSelectedId(payment.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.7fr_0.6fr_auto]" style={{ backgroundColor: selected?.id === payment.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{payment.paymentReference ?? 'Sin referencia'}</p>
+                    <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{paymentReferenceLabel(payment.paymentReference, payment.orderNumber, payment.id)}</p>
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{payment.orderNumber ?? 'Orden sin folio'}</p>
                   </div>
 	                  <p className="text-xs text-[var(--color-muted)]">{paymentMethodLabel(payment)}</p>
@@ -236,17 +229,20 @@ export function PaymentsPage() {
         {selected ? (
           <aside className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle financiero</p>
-            <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.paymentReference ?? 'Pago'}</h3>
+            <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{paymentReferenceLabel(selected.paymentReference, selected.orderNumber, selected.id)}</h3>
             <div className="mt-5 grid gap-3">
+              <Detail label="Cliente" value={selected.customerName ?? 'Cliente no identificado'} />
               <Detail label="Orden" value={selected.orderNumber ?? 'Sin folio'} />
+              <Detail label="Estado" value={statusLabel(selected.status)} />
               <Detail label="Método" value={paymentMethodLabel(selected)} />
               <Detail label="Monto" value={money(selected.amount, selected.currency)} />
               <Detail label="Reembolsado" value={money(selected.refundedAmount, selected.currency)} />
               <Detail label="Fecha de pago" value={dateLabel(selected.paidAt)} />
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
+              {selected.orderId ? <Action onClick={() => { window.location.href = `/control/ordenes?orderId=${encodeURIComponent(selected.orderId)}` }}><ExternalLink size={14} /> Abrir orden</Action> : null}
               <Action disabled={!selected.hasReceipt} onClick={openReceipt}><FileText size={14} /> Comprobante</Action>
-              <Action disabled={!writable || !['paid', 'partially_refunded'].includes(selected.status)} onClick={refundSelected}><RotateCcw size={14} /> Reembolsar</Action>
+              <Action disabled={!writable || !['paid', 'partially_refunded'].includes(selected.status)} onClick={() => { setRefundAmount(''); setRefundReason(''); setRefundOpen(true) }}><RotateCcw size={14} /> Reembolsar</Action>
             </div>
           </aside>
         ) : null}
@@ -277,6 +273,21 @@ export function PaymentsPage() {
       ) : null}
 
       {toast ? <Toast value={toast} onClose={() => setToast('')} /> : null}
+      <ControlConfirmDialog
+        open={refundOpen}
+        title="Registrar reembolso"
+        message="El monto se validará contra el pago disponible antes de guardarse."
+        confirmLabel="Registrar reembolso"
+        tone="danger"
+        busy={saving}
+        onCancel={() => setRefundOpen(false)}
+        onConfirm={refundSelected}
+      >
+        <div className="grid gap-3">
+          <Input label="Monto a reembolsar" type="number" min="0.01" value={refundAmount} onChange={setRefundAmount} required />
+          <Input label="Motivo" value={refundReason} onChange={setRefundReason} required />
+        </div>
+      </ControlConfirmDialog>
     </div>
   )
 }

@@ -11,12 +11,23 @@ import {
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { StatusBadge } from '../../components/shared/StatusBadge'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 
 type PassForm = {
   reservationId: string
   orderId: string
   validFrom: string
   validUntil: string
+}
+
+type PendingCheckinAction = {
+  title: string
+  message: string
+  confirmLabel: string
+  tone?: 'default' | 'danger'
+  requiresReason?: boolean
+  action: (reason: string) => Promise<unknown>
+  success: string
 }
 
 const emptyPassForm: PassForm = {
@@ -68,6 +79,8 @@ export function CheckInPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [form, setForm] = useState<PassForm>(emptyPassForm)
   const [issuedToken, setIssuedToken] = useState('')
+  const [pendingAction, setPendingAction] = useState<PendingCheckinAction | null>(null)
+  const [reasonDraft, setReasonDraft] = useState('')
 
   const selectedPass = useMemo(
     () => passes.find((item) => item.id === selectedPassId) ?? passes[0] ?? null,
@@ -147,20 +160,39 @@ export function CheckInPage() {
 
   const registerValidatedCheckin = async () => {
     if (!validation?.valid || saving) return
-    if (!window.confirm('¿Registrar check-in de este pase? Se evitará registrar un segundo uso.')) return
+    setPendingAction({
+      title: 'Registrar check-in',
+      message: 'Se registrará el acceso y se evitará un segundo uso del mismo pase.',
+      confirmLabel: 'Registrar',
+      success: 'Check-in registrado.',
+      action: async () => {
+        await checkinsClient.register(token, {
+          accessPassId: validation.accessPassId,
+          requestId: crypto.randomUUID(),
+          notes: 'Check-in desde Centro de Control',
+        })
+        setCode('')
+        setValidation(null)
+      },
+    })
+  }
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction || saving) return
+    if (pendingAction.requiresReason && !reasonDraft.trim()) {
+      setError('Captura el motivo para continuar.')
+      return
+    }
     setSaving(true)
+    setError('')
     try {
-      await checkinsClient.register(token, {
-        accessPassId: validation.accessPassId,
-        requestId: crypto.randomUUID(),
-        notes: 'Check-in desde Centro de Control',
-      })
-      setToast('Check-in registrado.')
-      setCode('')
-      setValidation(null)
+      await pendingAction.action(reasonDraft.trim())
+      setToast(pendingAction.success)
+      setPendingAction(null)
+      setReasonDraft('')
       await loadCheckin()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No fue posible registrar check-in.')
+      setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
     } finally {
       setSaving(false)
     }
@@ -168,36 +200,30 @@ export function CheckInPage() {
 
   const revokeSelectedPass = async () => {
     if (!selectedPass || !writable || saving) return
-    const reason = window.prompt('Motivo de revocación')
-    if (!reason) return
-    if (!window.confirm('¿Revocar este pase de acceso?')) return
-    setSaving(true)
-    try {
-      await accessPassClient.revoke(token, selectedPass.id, reason)
-      setToast('Pase revocado.')
-      await loadCheckin()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No fue posible revocar el pase.')
-    } finally {
-      setSaving(false)
-    }
+    setReasonDraft('')
+    setPendingAction({
+      title: 'Revocar pase',
+      message: 'El pase dejará de ser válido para acceso.',
+      confirmLabel: 'Revocar',
+      tone: 'danger',
+      requiresReason: true,
+      success: 'Pase revocado.',
+      action: (reason) => accessPassClient.revoke(token, selectedPass.id, reason),
+    })
   }
 
   const reverseCheckin = async (checkin: CheckinRecord) => {
     if (!writable || saving) return
-    const reason = window.prompt('Motivo de reversión')
-    if (!reason) return
-    if (!window.confirm('¿Revertir este check-in? El pase quedará disponible de nuevo.')) return
-    setSaving(true)
-    try {
-      await checkinsClient.reverse(token, checkin.id, reason)
-      setToast('Check-in revertido.')
-      await loadCheckin()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No fue posible revertir el check-in.')
-    } finally {
-      setSaving(false)
-    }
+    setReasonDraft('')
+    setPendingAction({
+      title: 'Revertir check-in',
+      message: 'El pase quedará disponible nuevamente y el movimiento se registrará en historial.',
+      confirmLabel: 'Revertir',
+      tone: 'danger',
+      requiresReason: true,
+      success: 'Check-in revertido.',
+      action: (reason) => checkinsClient.reverse(token, checkin.id, reason),
+    })
   }
 
   const exportCsv = async () => {
@@ -340,6 +366,30 @@ export function CheckInPage() {
           </form>
         </div>
       ) : null}
+
+      <ControlConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.title ?? ''}
+        message={pendingAction?.message ?? ''}
+        confirmLabel={pendingAction?.confirmLabel}
+        tone={pendingAction?.tone}
+        busy={saving}
+        onCancel={() => { setPendingAction(null); setReasonDraft('') }}
+        onConfirm={confirmPendingAction}
+      >
+        {pendingAction?.requiresReason ? (
+          <label className="block">
+            <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Motivo</span>
+            <textarea
+              rows={4}
+              value={reasonDraft}
+              onChange={(event) => setReasonDraft(event.target.value)}
+              className="w-full rounded-2xl border border-[var(--color-line)] bg-white/65 px-4 py-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-burgundy)]"
+              placeholder="Describe el motivo operativo"
+            />
+          </label>
+        ) : null}
+      </ControlConfirmDialog>
 
       {toast ? <Toast value={toast} onClose={() => setToast('')} /> : null}
     </div>

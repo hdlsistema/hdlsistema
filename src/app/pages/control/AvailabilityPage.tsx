@@ -24,6 +24,7 @@ import {
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { CrystalDateField, CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 type SlotForm = {
@@ -45,6 +46,14 @@ type BlockoutForm = {
   reason: string
   blockType: 'manual' | 'maintenance' | 'private_event' | 'weather' | 'operations' | 'other'
   appliesToAllExperiences: boolean
+}
+
+type PendingAvailabilityAction = {
+  title: string
+  message: string
+  confirmLabel: string
+  action: () => Promise<unknown>
+  success: string
 }
 
 const emptySlotForm: SlotForm = {
@@ -117,6 +126,7 @@ export function AvailabilityPage() {
   const [slotForm, setSlotForm] = useState<SlotForm | null>(null)
   const [blockoutForm, setBlockoutForm] = useState<BlockoutForm | null>(null)
   const [duplicateDate, setDuplicateDate] = useState('')
+  const [pendingAction, setPendingAction] = useState<PendingAvailabilityAction | null>(null)
 
   const token = session?.access_token
 
@@ -209,23 +219,30 @@ export function AvailabilityPage() {
 
   const toggleSlotBlock = async (slot: AvailabilitySlot) => {
     if (!writable || saving) return
-    const confirmed = window.confirm(
-      slot.operationalStatus === 'blocked'
-        ? '¿Desbloquear este horario para nuevas reservaciones?'
-        : '¿Bloquear este horario para nuevas reservaciones?',
-    )
-    if (!confirmed) return
+    const unblock = slot.operationalStatus === 'blocked'
+    setPendingAction({
+      title: unblock ? 'Desbloquear horario' : 'Bloquear horario',
+      message: unblock
+        ? 'El horario volverá a estar disponible para nuevas reservaciones.'
+        : 'El horario dejará de estar disponible para nuevas reservaciones hasta que se desbloquee.',
+      confirmLabel: unblock ? 'Desbloquear' : 'Bloquear',
+      success: 'Estado del horario actualizado.',
+      action: () => unblock
+        ? availabilityClient.unblockSlot(token, slot.id)
+        : availabilityClient.blockSlot(token, slot.id, 'Bloqueo operativo'),
+    })
+  }
+
+  const confirmPendingAction = async () => {
+    if (!pendingAction || saving) return
     setSaving(true)
     try {
-      if (slot.operationalStatus === 'blocked') {
-        await availabilityClient.unblockSlot(token, slot.id)
-      } else {
-        await availabilityClient.blockSlot(token, slot.id, 'Bloqueo operativo')
-      }
-      setToast('Estado del horario actualizado.')
+      await pendingAction.action()
+      setToast(pendingAction.success)
+      setPendingAction(null)
       await loadAvailability()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No fue posible actualizar el horario.')
+      setError(err instanceof Error ? err.message : 'No fue posible completar la acción.')
     } finally {
       setSaving(false)
     }
@@ -258,23 +275,20 @@ export function AvailabilityPage() {
     const firstSlot = slots[0]
     if (!firstSlot || !duplicateDate || saving) return
     const sourceDate = firstSlot.startAt.slice(0, 10)
-    const confirmed = window.confirm(`¿Duplicar los horarios de ${sourceDate} hacia ${duplicateDate}?`)
-    if (!confirmed) return
-    setSaving(true)
-    try {
-      await availabilityClient.duplicateSlots(token, {
-        experienceId: firstSlot.experienceId,
-        sourceDate,
-        targetDates: [duplicateDate],
-      })
-      setDuplicateDate('')
-      setToast('Horarios duplicados.')
-      await loadAvailability()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'No fue posible duplicar horarios.')
-    } finally {
-      setSaving(false)
-    }
+    setPendingAction({
+      title: 'Duplicar horarios',
+      message: `Se copiarán los horarios del ${sourceDate} al ${duplicateDate}.`,
+      confirmLabel: 'Duplicar',
+      success: 'Horarios duplicados.',
+      action: async () => {
+        await availabilityClient.duplicateSlots(token, {
+          experienceId: firstSlot.experienceId,
+          sourceDate,
+          targetDates: [duplicateDate],
+        })
+        setDuplicateDate('')
+      },
+    })
   }
 
   return (
@@ -364,7 +378,7 @@ export function AvailabilityPage() {
 
       {loading ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-8 text-center text-sm text-[var(--color-muted)]">
-          Cargando disponibilidad real...
+          Cargando disponibilidad...
         </div>
       ) : slots.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-8 text-center">
@@ -488,6 +502,16 @@ export function AvailabilityPage() {
           </form>
         </Modal>
       ) : null}
+
+      <ControlConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.title ?? ''}
+        message={pendingAction?.message ?? ''}
+        confirmLabel={pendingAction?.confirmLabel}
+        busy={saving}
+        onCancel={() => setPendingAction(null)}
+        onConfirm={confirmPendingAction}
+      />
 
       {toast ? (
         <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">

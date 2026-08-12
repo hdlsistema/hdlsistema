@@ -48,6 +48,7 @@ const dictionary = {
         shipped: 'Enviado',
         fulfilled: 'Completada',
         refunded: 'Reembolsada',
+        unknown: 'Estado no identificado',
       },
       error: {
         session_required: 'Sesión requerida',
@@ -545,6 +546,7 @@ const dictionary = {
         shipped: 'Shipped',
         fulfilled: 'Completed',
         refunded: 'Refunded',
+        unknown: 'Status unavailable',
       },
       error: {
         session_required: 'Session required',

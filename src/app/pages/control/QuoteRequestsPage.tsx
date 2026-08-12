@@ -13,6 +13,8 @@ import {
 import { useAuth } from '../../../contexts/AuthContext'
 import { quoteRequestsClient, type QuoteRequestRecord } from '../../../services/commercial.service'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { dateOnly, money, statusLabel as safeStatusLabel } from './controlCopy'
 
 const statuses = [
   { value: '', label: 'Todas' },
@@ -35,19 +37,16 @@ const nextActions: Array<{ status: QuoteRequestRecord['status']; label: string }
 ]
 
 function statusLabel(status: string) {
-  return statuses.find((item) => item.value === status)?.label ?? status
+  return statuses.find((item) => item.value === status)?.label ?? safeStatusLabel(status)
 }
 
 function dateLabel(value?: string | null) {
-  if (!value) return 'Sin fecha'
-  const date = value.includes('T') ? new Date(value) : new Date(`${value}T12:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(date)
+  return dateOnly(value)
 }
 
 function currency(value?: number | null, code = 'MXN') {
   if (value === null || value === undefined || Number.isNaN(value)) return ''
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: code }).format(value)
+  return money(value, code)
 }
 
 function metadataValue(metadata: Record<string, unknown> | undefined, key: string) {
@@ -62,14 +61,14 @@ function emailStatusLabel(status?: string | null) {
   const labels: Record<string, string> = {
     queued: 'en cola',
     pending: 'pendiente',
-    pending_configuration: 'pendiente de configuración',
+    pending_configuration: 'requiere configuración operativa',
     processing: 'en proceso',
     sent: 'enviado',
     delivered: 'entregado',
     failed: 'no enviado',
   }
   if (!status) return 'registrado'
-  return labels[status] ?? status.replaceAll('_', ' ')
+  return labels[status] ?? safeStatusLabel(status)
 }
 
 function defaultSubject(quote: QuoteRequestRecord | null) {
@@ -214,11 +213,11 @@ export function QuoteRequestsPage() {
   return (
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-muted)]">Operación comercial</p>
-          <h1 className="mt-2 text-5xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>Cotizaciones</h1>
-          <p className="mt-2 text-[var(--color-muted-strong)]">Solicitudes con seguimiento, propuesta y envío por correo.</p>
-        </div>
+	        <div>
+	          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">Operación comercial</p>
+	          <h1 className="mt-2 text-[34px] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>Cotizaciones</h1>
+	          <p className="mt-2 text-[var(--color-muted-strong)]">Solicitudes con seguimiento, propuesta y envío por correo.</p>
+	        </div>
         <button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(200,171,136,0.55)] bg-white/50 px-5 text-sm font-medium text-[var(--color-burgundy)] backdrop-blur-xl">
           <RefreshCw size={16} /> Actualizar
         </button>
@@ -233,24 +232,17 @@ export function QuoteRequestsPage() {
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(480px,1.05fr)]">
         <div className="rounded-[1.4rem] border border-[rgba(200,171,136,0.45)] bg-white/42 p-4 shadow-[0_24px_58px_rgba(84,43,23,0.08)] backdrop-blur-2xl">
-          <div className="flex flex-wrap gap-2">
-            {statuses.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setStatus(item.value)}
-                className={`rounded-full px-4 py-2 text-sm ${status === item.value ? 'bg-[var(--color-burgundy)] text-white' : 'bg-white/62 text-[var(--color-muted-strong)]'}`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Buscar por folio, cliente, evento o teléfono..."
-            className="mt-4 min-h-12 w-full rounded-full border border-[rgba(200,171,136,0.45)] bg-white/64 px-5 text-sm text-[var(--color-ink)] outline-none"
-          />
+	          <div className="grid gap-3 md:grid-cols-[210px_1fr]">
+	            <CrystalSelect value={status} onChange={setStatus}>
+	              {statuses.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+	            </CrystalSelect>
+	            <input
+	              value={search}
+	              onChange={(event) => setSearch(event.target.value)}
+	              placeholder="Buscar por folio, cliente, evento o teléfono..."
+	              className="min-h-11 w-full rounded-full border border-[rgba(200,171,136,0.45)] bg-white/64 px-5 text-sm text-[var(--color-ink)] outline-none"
+	            />
+	          </div>
           {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
           {success ? <p className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{success}</p> : null}
           <div className="mt-4 overflow-hidden rounded-[1.1rem] border border-[rgba(200,171,136,0.32)] bg-white/48">
@@ -300,7 +292,7 @@ export function QuoteRequestsPage() {
                 <Detail label="Notas del cliente" value={selected.notes || 'Sin notas'} wide />
               </section>
 
-              <section className="rounded-[1.1rem] border border-[rgba(200,171,136,0.42)] bg-white/58 p-4">
+	              <section className="rounded-[1.1rem] border border-[rgba(200,171,136,0.42)] bg-white/58 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold text-[var(--color-ink)]">Seguimiento interno</h3>
                   <button type="button" onClick={() => void saveNotes()} disabled={saving === 'notes'} className="inline-flex h-9 items-center gap-2 rounded-full bg-white/75 px-3 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-55">
@@ -323,7 +315,13 @@ export function QuoteRequestsPage() {
                     </button>
                   ))}
                 </div>
-              </section>
+	              </section>
+	              <section className="grid gap-3 rounded-[1.1rem] border border-[rgba(200,171,136,0.42)] bg-white/58 p-4 md:grid-cols-2">
+	                <Detail label="Responsable" value={selected.assignedTo || 'Sin responsable asignado'} />
+	                <Detail label="Contactada" value={dateLabel(selected.contactedAt)} />
+	                <Detail label="Cotizada" value={dateLabel(selected.quotedAt)} />
+	                <Detail label="Cierre" value={dateLabel(selected.closedAt)} />
+	              </section>
 
               <section className="rounded-[1.1rem] border border-[rgba(138,31,45,0.22)] bg-[rgba(255,255,255,0.62)] p-4">
                 <h3 className="text-sm font-semibold text-[var(--color-ink)]">Enviar cotización por correo</h3>
