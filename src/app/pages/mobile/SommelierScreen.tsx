@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Send, Sparkles, Wine } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -13,6 +13,49 @@ type ChatMessage = {
   id: string
   role: 'user' | 'assistant'
   content: string
+}
+
+function renderInlineMarkdown(value: string) {
+  const parts = value.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={`${part}-${index}`} className="font-semibold text-[var(--color-ink)]">{part.slice(2, -2)}</strong>
+    }
+    return <span key={`${part}-${index}`}>{part}</span>
+  })
+}
+
+function renderSommelierMarkdown(content: string): ReactNode {
+  const blocks = content
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+
+  return blocks.map((block, blockIndex) => {
+    const lines = block.split('\n').map((line) => line.trim()).filter(Boolean)
+    const isList = lines.every((line) => /^[-*]\s+/.test(line))
+
+    if (isList) {
+      return (
+        <ul key={`list-${blockIndex}`} className="my-2 list-disc space-y-1 pl-5">
+          {lines.map((line, lineIndex) => (
+            <li key={`${blockIndex}-${lineIndex}`}>{renderInlineMarkdown(line.replace(/^[-*]\s+/, ''))}</li>
+          ))}
+        </ul>
+      )
+    }
+
+    return (
+      <p key={`paragraph-${blockIndex}`} className="my-2 first:mt-0 last:mb-0">
+        {lines.map((line, lineIndex) => (
+          <span key={`${blockIndex}-${lineIndex}`}>
+            {lineIndex > 0 ? <br /> : null}
+            {renderInlineMarkdown(line)}
+          </span>
+        ))}
+      </p>
+    )
+  })
 }
 
 export function SommelierScreen() {
@@ -76,17 +119,17 @@ export function SommelierScreen() {
           <Sparkles size={18} className="text-[var(--color-gold)]" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.sommelier.realAssistant')}</p>
         </div>
-        <div className="mt-4 max-h-[360px] space-y-3 overflow-y-auto pr-1">
+        <div className="mt-4 max-h-[320px] space-y-3 overflow-y-auto pr-1">
           {messages.length ? messages.map((message) => (
             <div
               key={message.id}
-              className={`rounded-[1.15rem] px-4 py-3 text-[13px] leading-6 ${
+              className={`rounded-[1.15rem] px-4 py-3 text-[15px] leading-7 ${
                 message.role === 'user'
                   ? 'ml-8 bg-[var(--color-burgundy)] text-white'
                   : 'mr-8 border border-[rgba(219,189,148,0.55)] bg-white/76 text-[var(--color-ink)]'
               }`}
             >
-              {message.content}
+              {message.role === 'assistant' ? renderSommelierMarkdown(message.content) : message.content}
             </div>
           )) : (
             <p className="rounded-[1.15rem] border border-[rgba(219,189,148,0.55)] bg-white/70 px-4 py-3 text-[13px] leading-6 text-[var(--color-muted)]">
@@ -141,7 +184,7 @@ export function SommelierScreen() {
                     name: textField(wine, 'name', t('app.nav.store')),
                     kind: textField(wine, 'grape_variety') || textField(wine, 'origin'),
                     price: price > 0 ? formatCurrency(price, locale) : t('app.premium.pricePending'),
-                    image: imageField(wine, '/Logo-HDL-2.svg'),
+                    image: imageField(wine, ''),
                   }}
                   badge={t('app.premium.selection')}
                 />

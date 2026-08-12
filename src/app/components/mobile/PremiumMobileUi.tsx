@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   AlertCircle,
@@ -118,7 +118,7 @@ export function HeroEditorial({
 export function ImageFallback({
   src,
   alt,
-  fallback = '/Logo-HDL-2.svg',
+  fallback,
   className,
   contain = false,
 }: {
@@ -128,14 +128,24 @@ export function ImageFallback({
   className?: string
   contain?: boolean
 }) {
-  const imageSrc = src || fallback
+  const [failed, setFailed] = useState(false)
+  const imageSrc = failed ? fallback : src || fallback
+
+  if (!imageSrc) {
+    return <EditorialImagePlaceholder className={className} />
+  }
+
   return (
     <img
       src={imageSrc}
       alt={alt}
       className={cx(contain ? 'object-contain' : 'object-cover', className)}
       onError={(event) => {
-        event.currentTarget.src = fallback
+        if (fallback && event.currentTarget.src !== fallback) {
+          event.currentTarget.src = fallback
+          return
+        }
+        setFailed(true)
       }}
     />
   )
@@ -184,7 +194,7 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
   onSelect?: (index: number) => void
 }) {
   return (
-    <div className="app-scrollbar-none flex gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch]">
+    <div className="app-scrollbar-none -mx-[var(--app-pad)] flex gap-2 overflow-x-auto px-[var(--app-pad)] pb-2 [-webkit-overflow-scrolling:touch]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
@@ -193,10 +203,10 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
             type="button"
             onClick={() => onSelect?.(index)}
             className={cx(
-              'min-h-8 shrink-0 rounded-full px-3 text-[12px] font-semibold transition-colors',
+              'min-h-10 shrink-0 rounded-full px-5 text-[14px] font-medium tracking-[0.01em] transition-all',
               active
-                ? 'bg-[#690D2B] text-white'
-                : 'bg-[#FFF9F1] text-[#776053] shadow-[inset_0_0_0_1px_rgba(184,138,74,0.18)]',
+                ? 'bg-[linear-gradient(135deg,#8A1238,#61091F)] text-white shadow-[0_14px_26px_rgba(104,13,36,0.24),inset_0_1px_0_rgba(255,255,255,0.22)]'
+                : 'border border-[rgba(184,138,74,0.22)] bg-[rgba(255,249,241,0.66)] text-[#6F584B] shadow-[0_10px_22px_rgba(74,32,28,0.05),inset_0_1px_0_rgba(255,255,255,0.76)] backdrop-blur-xl',
             )}
           >
             {item}

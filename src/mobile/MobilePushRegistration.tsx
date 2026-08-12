@@ -53,7 +53,7 @@ export function MobilePushRegistration() {
         })
         await PushNotifications.register()
       } catch {
-        // Push is optional at runtime; backend and UI remain functional if the OS denies permission.
+        // Push is optional at runtime; the app remains functional if the OS denies permission.
       }
     }
 

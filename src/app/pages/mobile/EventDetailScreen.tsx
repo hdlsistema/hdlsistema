@@ -120,7 +120,7 @@ export function EventDetailScreen() {
         eyebrow={t('app.premium.events.eyebrow')}
         title={title}
         subtitle={summary}
-        image={imageField(event, '/romantic%20dinners%20evento.webp')}
+        image={imageField(event, '')}
         alt={title}
       />
       <section className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-3">

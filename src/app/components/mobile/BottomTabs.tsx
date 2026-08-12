@@ -22,8 +22,8 @@ export function AppBottomNavigation({ cartCount = 0 }: { cartCount?: number }) {
           to={to}
           className={({ isActive }) => `app-bottom-nav__item ${isActive ? 'is-active' : ''}`}
         >
-          <span className="flex min-w-0 flex-col items-center justify-center gap-1">
-            <span className="relative inline-flex h-8 w-8 items-center justify-center">
+          <span className="app-bottom-nav__content">
+            <span className="app-bottom-nav__icon">
               <Icon size={20} strokeWidth={1.65} />
               {count && count > 0 ? (
                 <span className="app-bottom-nav__count">

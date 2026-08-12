@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { resendVerification, resetPassword, signInWithOAuth, signUpCustomer, updatePassword, type AuthServiceError } from '../services/auth.service'
+import { resendVerification, resetPassword, signInWithAppleNative, signInWithOAuth, signUpCustomer, updatePassword, type AuthServiceError } from '../services/auth.service'
 import { useAppPreferences } from '../app/context/AppPreferencesContext'
 import { translateErrorCode, type AppLanguage } from '../app/i18n'
 
@@ -17,6 +17,21 @@ function getErrorMessage(error: unknown, language: AppLanguage) {
 function safeRedirect(path: unknown, fallback: string) {
   if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) return fallback
   return path
+}
+
+async function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
+  let timeoutId: number | undefined
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject({ code: 'auth_timeout', message: 'La conexión tardó demasiado. Intenta de nuevo.' })
+    }, 15000)
+  })
+
+  try {
+    return await Promise.race([promise, timeout])
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId)
+  }
 }
 
 function AuthShell({ eyebrow, title, note, children }: { eyebrow: string; title: string; note: string; children: ReactNode }) {
@@ -55,7 +70,7 @@ export function MobileLoginPage() {
     setLoading(true)
     const form = new FormData(event.currentTarget)
     try {
-      await signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''))
+      await withAuthTimeout(signIn(String(form.get('email') ?? ''), String(form.get('password') ?? '')))
       navigate(destination, { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))
@@ -75,8 +90,8 @@ export function MobileLoginPage() {
           <CheckControl name="remember" label={t('auth.rememberMe')} defaultChecked />
           <Link to="/recuperar" className="native-auth-form__link">{t('auth.forgotPassword')}</Link>
         </div>
-        {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
         <SubmitButton loading={loading}>{t('auth.login')}</SubmitButton>
+        {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
       </form>
       <p className="native-auth-screen__footnote">{t('auth.noAccount')} <Link to="/registro">{t('auth.createAccount')}</Link></p>
     </AuthShell>
@@ -278,8 +293,16 @@ function SocialAuthActions({ onError }: { onError: (message: string) => void }) 
     onError('')
     setProvider(nextProvider)
     try {
-      await signInWithOAuth(nextProvider)
+      if (nextProvider === 'apple') {
+        await signInWithAppleNative()
+      } else {
+        await signInWithOAuth(nextProvider)
+      }
     } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && String((error as AuthServiceError).code) === 'apple_cancelled') {
+        setProvider(null)
+        return
+      }
       onError(getErrorMessage(error, language))
       setProvider(null)
     }

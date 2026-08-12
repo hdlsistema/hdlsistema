@@ -30,9 +30,10 @@ export function usePublicContent(entity: ContentEntity, localeOverride?: 'es-MX'
         if (!active) return
         setRecords(response.data)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!active) return
         setRecords([])
+        void err
         setError(t('app.publishedContentError'))
       })
       .finally(() => {

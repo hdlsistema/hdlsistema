@@ -1,6 +1,9 @@
 import type { Session, User } from '@supabase/supabase-js'
+import { Capacitor } from '@capacitor/core'
+import { Browser } from '@capacitor/browser'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../types/database.types'
+import { requestNativeAppleCredential } from './nativeAppleAuth'
 
 export type UserRole = Database['public']['Enums']['user_role']
 
@@ -26,8 +29,28 @@ const APP_URL = (import.meta.env.VITE_APP_URL || window.location.origin).replace
   /\/+$/,
   '',
 )
+const NATIVE_AUTH_CALLBACK = 'com.haciendadeletras.app://auth/callback'
+
+export function isNativeAuthCallback(url: string) {
+  return url.startsWith(NATIVE_AUTH_CALLBACK)
+}
+
+function getOAuthRedirectUrl() {
+  if (Capacitor.isNativePlatform()) return NATIVE_AUTH_CALLBACK
+  return `${APP_URL}/auth/callback`
+}
 
 function normalizeError(error: unknown): AuthServiceError {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const code = String((error as { code?: unknown }).code)
+    if (code === 'apple_cancelled') {
+      return { code, message: 'Inicio con Apple cancelado.' }
+    }
+    if (code.startsWith('apple_')) {
+      return { code, message: 'No fue posible completar el acceso con Apple.' }
+    }
+  }
+
   const message = error instanceof Error ? error.message : 'No fue posible completar la operación'
   const lower = message.toLowerCase()
 
@@ -42,6 +65,9 @@ function normalizeError(error: unknown): AuthServiceError {
   }
   if (lower.includes('already registered') || lower.includes('already exists')) {
     return { code: 'email_exists', message: 'Revisa tu correo para continuar el acceso.' }
+  }
+  if (lower.includes('unsupported provider') || lower.includes('provider is not enabled')) {
+    return { code: 'provider_not_enabled', message: 'El método de acceso aún no está habilitado.' }
   }
 
   return { code: 'auth_error', message: 'No fue posible completar la operación.' }
@@ -100,14 +126,62 @@ export async function signIn(email: string, password: string) {
 
 export async function signInWithOAuth(provider: 'google' | 'apple') {
   try {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${APP_URL}/auth/callback` },
+      options: {
+        redirectTo: getOAuthRedirectUrl(),
+        skipBrowserRedirect: Capacitor.isNativePlatform(),
+      },
     })
     if (error) throw error
+    if (Capacitor.isNativePlatform() && data.url) {
+      await Browser.open({ url: data.url, windowName: '_self' })
+    }
   } catch (error) {
     throw normalizeError(error)
   }
+}
+
+export async function signInWithAppleNative() {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
+    return signInWithOAuth('apple')
+  }
+
+  try {
+    const credential = await requestNativeAppleCredential()
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: credential.identityToken,
+      nonce: credential.nonce,
+    })
+
+    if (error) throw error
+
+    const userData: Record<string, string> = {}
+    if (credential.givenName) userData.first_name = credential.givenName
+    if (credential.familyName) userData.last_name = credential.familyName
+    if (credential.givenName || credential.familyName) {
+      userData.display_name = [credential.givenName, credential.familyName].filter(Boolean).join(' ')
+    }
+
+    if (Object.keys(userData).length > 0) {
+      const { error: updateError } = await supabase.auth.updateUser({ data: userData })
+      if (updateError) throw updateError
+    }
+
+    return data
+  } catch (error) {
+    throw normalizeError(error)
+  }
+}
+
+export async function completeNativeOAuthCallback(url: string) {
+  const callbackUrl = new URL(url)
+  const code = callbackUrl.searchParams.get('code')
+  if (!code) throw normalizeError(new Error('No fue posible completar el acceso con Google.'))
+  const { error } = await supabase.auth.exchangeCodeForSession(code)
+  await Browser.close().catch(() => undefined)
+  if (error) throw error
 }
 
 export async function signOut() {

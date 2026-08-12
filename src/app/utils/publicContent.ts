@@ -23,7 +23,11 @@ export function contentRouteId(record: ContentRecord) {
 }
 
 export function imageField(record: ContentRecord, fallback: string) {
-  return textField(record, 'cover_image_url') || fallback
+  return textField(record, 'cover_image_url') ||
+    textField(record, 'coverImageUrl') ||
+    textField(record, 'image_url') ||
+    textField(record, 'imageUrl') ||
+    fallback
 }
 
 type GalleryImage = {

@@ -13,6 +13,11 @@ function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
 }
 
+function translatedStatus(status: string | null | undefined, t: (key: string, fallback?: string) => string) {
+  const value = status || 'pending'
+  return t(`common.status.${value}`, value)
+}
+
 function titleFor(mode: PaymentStatusMode, t: (key: string) => string) {
   if (mode === 'success') return t('app.premium.payment.titleSuccess')
   if (mode === 'failed') return t('app.premium.payment.titleFailed')
@@ -96,15 +101,15 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
         ) : status ? (
           <div className="mt-4 space-y-2 rounded-[1rem] bg-[var(--color-surface-warm)] p-4 text-[13px] text-[var(--color-muted)]">
 	            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.order')}</span><strong>{status.orderNumber}</strong></div>
-	            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.orderStatus')}</span><StatusBadge>{status.orderStatus}</StatusBadge></div>
-	            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.paymentStatus')}</span><StatusBadge tone={status.paymentStatus === 'paid' ? 'success' : 'warning'}>{status.paymentStatus}</StatusBadge></div>
+		            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.orderStatus')}</span><StatusBadge>{translatedStatus(status.orderStatus, t)}</StatusBadge></div>
+		            <div className="flex flex-wrap justify-between gap-3"><span>{t('app.premium.payment.paymentStatus')}</span><StatusBadge tone={status.paymentStatus === 'paid' ? 'success' : 'warning'}>{translatedStatus(status.paymentStatus, t)}</StatusBadge></div>
 	            <div className="flex flex-wrap justify-between gap-3"><span>{t('common.total')}</span><strong>{money(status.amount, locale)}</strong></div>
           </div>
         ) : null}
 
         <div className="mt-5 grid gap-3">
           {status?.canRetry ? (
-            <Link to={appPath('/checkout')} className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
+            <Link to={`${appPath('/checkout')}${orderId ? `?orderId=${encodeURIComponent(orderId)}` : ''}`} className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
               <RotateCcw size={16} />
               {t('app.premium.payment.retryPayment')}
             </Link>

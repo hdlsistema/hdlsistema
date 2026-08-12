@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { CalendarDays, Clock3, Minus, Plus, QrCode, RefreshCw, Ticket, Users, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, Clock3, Minus, Plus, QrCode, RefreshCw, Ticket, Users, X } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { AppSelect } from '../../components/mobile/AppSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -39,6 +39,57 @@ function formatDateTime(value: string | null | undefined, locale: string, fallba
 
 function makeIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+type ChoiceOption = {
+  value: string
+  label: string
+}
+
+function MobileChoiceSheet({
+  title,
+  options,
+  selectedValue,
+  onSelect,
+  onClose,
+}: {
+  title: string
+  options: ChoiceOption[]
+  selectedValue: string
+  onSelect: (value: string) => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-[160] flex items-end bg-[rgba(45,24,17,0.34)] p-3 backdrop-blur-md" role="dialog" aria-modal="true">
+      <section className="max-h-[78dvh] w-full overflow-hidden rounded-[2rem] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,249,241,0.94)] shadow-[0_28px_80px_rgba(45,24,17,0.32)] backdrop-blur-2xl">
+        <header className="flex items-center justify-between gap-3 border-b border-[rgba(184,138,74,0.18)] px-5 py-4">
+          <h3 className="text-[13px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{title}</h3>
+          <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/72 text-[var(--color-ink)]" aria-label="Cerrar">
+            <X size={16} />
+          </button>
+        </header>
+        <div className="app-scrollbar-none max-h-[58dvh] overflow-y-auto p-3">
+          {options.map((option) => {
+            const active = option.value === selectedValue
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onSelect(option.value)
+                  onClose()
+                }}
+                className={`mb-2 flex min-h-[56px] w-full items-center justify-between gap-3 rounded-[1.15rem] px-4 text-left text-[15px] transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_16px_34px_rgba(104,13,36,0.22)]' : 'bg-white/66 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(184,138,74,0.16)]'}`}
+              >
+                <span className="min-w-0 break-words">{option.label}</span>
+                {active ? <Check size={18} className="shrink-0" /> : null}
+              </button>
+            )
+          })}
+        </div>
+      </section>
+    </div>
+  )
 }
 
 function AccessQr({ payload, alt }: { payload: string; alt: string }) {
@@ -129,6 +180,7 @@ export function ReservationScreen() {
   const [message, setMessage] = useState('')
   const [operationError, setOperationError] = useState('')
   const [selectedTicket, setSelectedTicket] = useState<CustomerAccessPass | null>(null)
+  const [experienceSheetOpen, setExperienceSheetOpen] = useState(false)
 
   const featuredExperience =
     experiences.find((experience) => contentRouteId(experience) === requestedExperienceId || experience.id === requestedExperienceId) ?? experiences[0]
@@ -252,7 +304,7 @@ export function ReservationScreen() {
         </p>
       </section>
 
-      <section className="overflow-hidden rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
+      <section className="relative rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
         {loading ? (
           <div className="p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingExperiences')}</div>
         ) : error ? (
@@ -263,7 +315,9 @@ export function ReservationScreen() {
         ) : featuredExperience ? (
           <>
             <div className="relative min-h-[170px] overflow-hidden">
-              <img src={imageField(featuredExperience, '/turismo.jpeg')} alt={textField(featuredExperience, 'title', 'Experiencia')} className="h-full w-full object-cover" />
+              {imageField(featuredExperience, '') ? (
+                <img src={imageField(featuredExperience, '')} alt={textField(featuredExperience, 'title', 'Experiencia')} className="h-full w-full object-cover" />
+              ) : null}
               <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(40,14,17,0.78))]" />
               <div className="absolute inset-x-0 bottom-0 p-[var(--app-pad)] text-white">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#f0cf92]">{t('app.premium.reservation.selectedExperience')}</p>
@@ -273,14 +327,14 @@ export function ReservationScreen() {
               </div>
             </div>
             <div className="space-y-3 p-4">
-              <AppSelect
-                value={selectedExperienceId}
-                onChange={setSelectedExperienceId}
-                options={experiences.map((experience) => ({
-                  value: String(experience.id),
-                  label: textField(experience, 'title', 'Experiencia'),
-                }))}
-              />
+              <button
+                type="button"
+                onClick={() => setExperienceSheetOpen(true)}
+                className="flex min-h-[58px] w-full items-center justify-between gap-3 rounded-[1rem] border border-[rgba(184,138,74,0.28)] bg-[rgba(255,249,241,0.72)] px-4 text-left text-[15px] text-[var(--color-ink)] shadow-[0_12px_28px_rgba(74,32,28,0.07),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-xl"
+              >
+                <span className="min-w-0 break-words">{textField(featuredExperience, 'title', 'Experiencia')}</span>
+                <ChevronDown size={18} className="shrink-0 text-[var(--color-burgundy)]" />
+              </button>
               <p className="text-[12px] leading-5 text-[var(--color-muted)]">
                 {textField(featuredExperience, 'short_description') || textField(featuredExperience, 'description')}
               </p>
@@ -421,6 +475,18 @@ export function ReservationScreen() {
       </section>
       {selectedTicket ? (
         <TicketSheet pass={selectedTicket} locale={locale} t={t} onClose={() => setSelectedTicket(null)} />
+      ) : null}
+      {experienceSheetOpen ? (
+        <MobileChoiceSheet
+          title={t('app.premium.reservation.selectedExperience')}
+          options={experiences.map((experience) => ({
+            value: String(experience.id),
+            label: textField(experience, 'title', 'Experiencia'),
+          }))}
+          selectedValue={selectedExperienceId}
+          onSelect={setSelectedExperienceId}
+          onClose={() => setExperienceSheetOpen(false)}
+        />
       ) : null}
     </div>
   )

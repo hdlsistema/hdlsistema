@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { customerCommercialClient, publicCommercialClient, type PublicCommercialItem } from '../../../services/commercial.service'
-import { PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { customerCommercialClient } from '../../../services/commercial.service'
+import { EmptyState, ErrorState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServices'
 import { appPath } from '../../utils/appRoutes'
 import { formatCurrency } from '../../utils/publicContent'
 
@@ -15,37 +16,21 @@ function nextIdempotencyKey(prefix: string) {
 export function CabinsScreen() {
   const { locale } = useAppPreferences()
   const { session, isAuthenticated } = useAuth()
-  const [packages, setPackages] = useState<PublicCommercialItem[]>([])
   const [selected, setSelected] = useState('')
   const [checkIn, setCheckIn] = useState('')
   const [notes, setNotes] = useState('')
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
-
-  useEffect(() => {
-    let active = true
-    publicCommercialClient.services()
-      .then((response) => {
-        if (!active) return
-        setPackages(response.data.cabins)
-        setSelected(response.data.cabins[0]?.id ?? '')
-      })
-      .catch(() => {
-        if (active) setMessage('No fue posible cargar los paquetes.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => { active = false }
-  }, [])
+  const { services, loading, error, retry } = usePublicCommercialServices()
+  const packages = services.cabins
+  const selectedPackage = selected || packages[0]?.id || ''
 
   const submit = async () => {
     if (!isAuthenticated) {
       setMessage('Inicia sesión para solicitar una cabaña.')
       return
     }
-    if (!selected || !checkIn) {
+    if (!selectedPackage || !checkIn) {
       setMessage('Selecciona paquete y fecha de llegada.')
       return
     }
@@ -53,7 +38,7 @@ export function CabinsScreen() {
     setMessage('')
     try {
       await customerCommercialClient.createCabinReservation(session?.access_token, {
-        cabinPackageId: selected,
+        cabinPackageId: selectedPackage,
         checkIn,
         peopleCount: 2,
         customerNotes: notes || null,
@@ -82,6 +67,10 @@ export function CabinsScreen() {
 
       {loading ? (
         <div className="rounded-[18px] border border-[#EBDCC8] bg-[#FFF9F1] p-5 text-[#690D2B]">Cargando...</div>
+      ) : error ? (
+        <ErrorState message={error} retryLabel="Reintentar" onRetry={retry} />
+      ) : packages.length === 0 ? (
+        <EmptyState title="Sin paquetes publicados" description="Hacienda de Letras publicará paquetes de cabaña desde el Centro de Control." />
       ) : (
         <div className="space-y-3">
           {packages.map((item) => (
@@ -89,21 +78,28 @@ export function CabinsScreen() {
               key={item.id}
               type="button"
               onClick={() => setSelected(item.id)}
-              className={`w-full rounded-[18px] border p-4 text-left ${selected === item.id ? 'border-[#8A1238] bg-[#FFF5EA]' : 'border-[#EBDCC8] bg-[#FFFDF8]'}`}
+              className={`w-full overflow-hidden rounded-[18px] border text-left ${selectedPackage === item.id ? 'border-[#8A1238] bg-[#FFF5EA]' : 'border-[#EBDCC8] bg-[#FFFDF8]'}`}
             >
-              <span className="flex items-start justify-between gap-3">
-                <span>
-                  <span className="block text-[20px] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>{item.name}</span>
-                  <span className="mt-2 block text-[12px] leading-5 text-[#776053]">{item.description}</span>
+              {item.coverImageUrl ? (
+                <span className="block h-40 bg-[#2D1811]">
+                  <img src={item.coverImageUrl} alt={item.name} className="h-full w-full object-cover" />
                 </span>
-                <StatusBadge>{formatCurrency(item.price, locale)}</StatusBadge>
-              </span>
-              <span className="mt-3 flex flex-wrap gap-2">
-                {(item.inclusions ?? []).slice(0, 5).map((value) => (
-                  <span key={value} className="inline-flex items-center gap-1 rounded-full bg-[#F4EAE4] px-2.5 py-1 text-[10px] text-[#690D2B]">
-                    <Check size={12} /> {value}
+              ) : null}
+              <span className="block p-4">
+                <span className="flex items-start justify-between gap-3">
+                  <span>
+                    <span className="block text-[20px] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>{item.name}</span>
+                    <span className="mt-2 block text-[12px] leading-5 text-[#776053]">{item.description}</span>
                   </span>
-                ))}
+                  <StatusBadge>{formatCurrency(item.price, locale)}</StatusBadge>
+                </span>
+                <span className="mt-3 flex flex-wrap gap-2">
+                  {(item.inclusions ?? []).slice(0, 5).map((value) => (
+                    <span key={value} className="inline-flex items-center gap-1 rounded-full bg-[#F4EAE4] px-2.5 py-1 text-[10px] text-[#690D2B]">
+                      <Check size={12} /> {value}
+                    </span>
+                  ))}
+                </span>
               </span>
             </button>
           ))}

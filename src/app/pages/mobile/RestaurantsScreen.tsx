@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Loader2, MapPin } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { customerCommercialClient, publicCommercialClient, type PublicCommercialItem } from '../../../services/commercial.service'
-import { StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { customerCommercialClient } from '../../../services/commercial.service'
+import { EmptyState, ErrorState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServices'
 
 function nextIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
@@ -17,7 +18,6 @@ const restaurantTimes = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '
 export function RestaurantsScreen() {
   const { locale } = useAppPreferences()
   const { session, isAuthenticated } = useAuth()
-  const [restaurants, setRestaurants] = useState<PublicCommercialItem[]>([])
   const [selected, setSelected] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -25,27 +25,19 @@ export function RestaurantsScreen() {
   const [notes, setNotes] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    publicCommercialClient.services()
-      .then((response) => {
-        if (!active) return
-        setRestaurants(response.data.restaurants)
-        setSelected(response.data.restaurants[0]?.id ?? '')
-      })
-      .catch(() => {
-        if (active) setMessage('No fue posible cargar restaurantes.')
-      })
-    return () => { active = false }
-  }, [])
+  const { services, loading, error, retry } = usePublicCommercialServices()
+  const restaurants = useMemo(
+    () => services.restaurants.filter((item) => !item.name.toLocaleLowerCase('es-MX').includes('centro')),
+    [services.restaurants],
+  )
+  const selectedRestaurant = selected || restaurants[0]?.id || ''
 
   const submit = async () => {
     if (!isAuthenticated) {
       setMessage('Inicia sesión para solicitar una reservación.')
       return
     }
-    if (!selected || !date || !time) {
+    if (!selectedRestaurant || !date || !time) {
       setMessage('Selecciona restaurante, fecha y horario.')
       return
     }
@@ -53,7 +45,7 @@ export function RestaurantsScreen() {
     setMessage('')
     try {
       await customerCommercialClient.createRestaurantReservation(session?.access_token, {
-        restaurantLocationId: selected,
+        restaurantLocationId: selectedRestaurant,
         reservationDate: date,
         reservationTime: time,
         peopleCount: people,
@@ -80,9 +72,20 @@ export function RestaurantsScreen() {
       </header>
 
       <div className="space-y-3">
-        {restaurants.map((item) => (
-          <button key={item.id} type="button" onClick={() => setSelected(item.id)} className={`w-full rounded-[18px] border p-4 text-left ${selected === item.id ? 'border-[#8A1238] bg-[#FFF5EA]' : 'border-[#EBDCC8] bg-[#FFFDF8]'}`}>
-            <span className="flex items-start justify-between gap-3">
+        {loading ? (
+          <div className="rounded-[18px] border border-[#EBDCC8] bg-[#FFF9F1] p-5 text-[#690D2B]">Cargando...</div>
+        ) : error ? (
+          <ErrorState message={error} retryLabel="Reintentar" onRetry={retry} />
+        ) : restaurants.length === 0 ? (
+          <EmptyState title="Sin restaurantes publicados" description="Hacienda de Letras publicará restaurantes desde el Centro de Control." />
+        ) : restaurants.map((item) => (
+          <button key={item.id} type="button" onClick={() => setSelected(item.id)} className={`w-full overflow-hidden rounded-[18px] border text-left ${selectedRestaurant === item.id ? 'border-[#8A1238] bg-[#FFF5EA]' : 'border-[#EBDCC8] bg-[#FFFDF8]'}`}>
+            {item.coverImageUrl ? (
+              <span className="block h-40 bg-[#2D1811]">
+                <img src={item.coverImageUrl} alt={item.name} className="h-full w-full object-cover" />
+              </span>
+            ) : null}
+            <span className="flex items-start justify-between gap-3 p-4">
               <span>
                 <span className="block text-[20px] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>{item.name}</span>
                 <span className="mt-2 flex items-start gap-2 text-[12px] leading-5 text-[#776053]"><MapPin size={14} className="mt-0.5" />{item.address || 'Datos pendientes de confirmación'}</span>

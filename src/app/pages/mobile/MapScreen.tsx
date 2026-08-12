@@ -110,7 +110,6 @@ export function MapScreen() {
         eyebrow={t('app.premium.home.mapTitle')}
         title={t('app.nav.map')}
         subtitle={t('app.premium.home.mapCopy')}
-        image="/Slide-1.webp"
         alt={t('app.nav.map')}
       />
 

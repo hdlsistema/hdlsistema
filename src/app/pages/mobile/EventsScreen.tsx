@@ -64,6 +64,7 @@ export function EventsScreen() {
       return true
     })
   }, [activeCategory, categories, events])
+  const heroImage = imageField(events[0] ?? { id: 'events-hero' }, '')
 
   return (
     <div className="app-page space-y-6">
@@ -71,7 +72,7 @@ export function EventsScreen() {
         eyebrow={t('app.premium.events.eyebrow')}
         title={t('app.premium.events.title')}
         subtitle={t('app.premium.events.subtitle')}
-        image="/romantic%20dinners%20evento.webp"
+        image={heroImage}
         alt={t('app.nav.events')}
       />
 
@@ -111,7 +112,7 @@ export function EventsScreen() {
               <EditorialCard
                 key={event.id}
                 to={appPath(`/eventos/${contentRouteId(event)}`)}
-                image={imageField(event, '/romantic%20dinners%20evento.webp')}
+                image={imageField(event, '')}
                 eyebrow={formatPublicDate(
                   event.start_at,
                   locale,

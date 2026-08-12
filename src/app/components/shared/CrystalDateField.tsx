@@ -140,20 +140,20 @@ export function CrystalDateField({
       </button>
 
       {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.45rem)] z-[180] overflow-hidden rounded-[1.15rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.98),rgba(247,239,229,0.98))] p-3 shadow-[0_24px_48px_rgba(58,23,18,0.18)] backdrop-blur-2xl">
+        <div className="crystal-date-popover absolute left-0 right-0 top-[calc(100%+0.45rem)] z-[180] overflow-hidden rounded-[1.15rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.98),rgba(247,239,229,0.98))] p-3 shadow-[0_24px_48px_rgba(58,23,18,0.18)] backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => moveMonth(-1)} className="rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label="Mes anterior">
+            <button type="button" onClick={() => moveMonth(-1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label="Mes anterior">
               <ChevronLeft size={18} />
             </button>
-            <p className="text-center text-sm font-semibold capitalize text-[var(--color-ink)]">{monthFormatter.format(visibleMonth)}</p>
-            <button type="button" onClick={() => moveMonth(1)} className="rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label="Mes siguiente">
+            <p className="crystal-date-popover__month text-center text-sm font-semibold capitalize text-[var(--color-ink)]">{monthFormatter.format(visibleMonth)}</p>
+            <button type="button" onClick={() => moveMonth(1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label="Mes siguiente">
               <ChevronRight size={18} />
             </button>
           </div>
-          <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-[var(--color-gold)]">
+          <div className="crystal-date-popover__weekdays mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-[var(--color-gold)]">
             {weekdays.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
           </div>
-          <div className="mt-1 grid grid-cols-7 gap-1">
+          <div className="crystal-date-popover__grid mt-1 grid grid-cols-7 gap-1">
             {days.map((day) => {
               const selected = day.value === value
               return (
@@ -162,7 +162,7 @@ export function CrystalDateField({
                   type="button"
                   onClick={() => selectDate(day.value)}
                   className={joinClasses(
-                    'aspect-square rounded-full text-xs transition focus:outline-none',
+                    'crystal-date-popover__day aspect-square rounded-full text-xs transition focus:outline-none',
                     selected
                       ? 'bg-[var(--color-burgundy)] font-semibold text-white shadow-[0_8px_18px_rgba(104,17,38,0.24)]'
                       : day.inMonth

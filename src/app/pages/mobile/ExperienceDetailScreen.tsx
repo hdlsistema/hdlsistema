@@ -109,7 +109,7 @@ export function ExperienceDetailScreen() {
         eyebrow={t('app.publishedExperience')}
         title={title}
         subtitle={description}
-        image={imageField(experience, '/turismo.jpeg')}
+        image={imageField(experience, '')}
         alt={title}
       />
 

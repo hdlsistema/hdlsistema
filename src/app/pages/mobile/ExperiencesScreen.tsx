@@ -42,11 +42,12 @@ export function ExperiencesScreen() {
       return true
     })
   }, [activeCategory, categories, experiences])
+  const heroImage = imageField(experiences[0] ?? { id: 'experiences-hero' }, '')
 
   return (
     <div className="space-y-6 px-[var(--app-pad)] pb-2 pt-3">
       <section className="relative min-h-[clamp(220px,52vh,320px)] overflow-hidden rounded-[20px] bg-[#2D1811] text-white">
-        <img src="/turismo.jpeg" alt={t('app.nav.experiences')} className="absolute inset-0 h-full w-full object-cover" />
+        {heroImage ? <img src={heroImage} alt={t('app.nav.experiences')} className="absolute inset-0 h-full w-full object-cover" /> : null}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,20,15,0.08),rgba(35,20,15,0.78))]" />
         <div className="relative flex min-h-[clamp(220px,52vh,320px)] flex-col justify-end px-[var(--app-pad)] pb-5 pt-8">
           <p className="text-[10px] font-semibold uppercase text-[#D7B67A]">{t('app.premium.experiences.eyebrow')}</p>

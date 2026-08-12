@@ -2,7 +2,7 @@ import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
-const MINIMUM_SPLASH_MS = 850
+const MINIMUM_SPLASH_MS = 1650
 const ONBOARDING_KEY = 'hdl-mobile-onboarding-v3'
 
 const slides = [

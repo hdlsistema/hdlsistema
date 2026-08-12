@@ -1,8 +1,5 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, ConciergeBell, FileText, Grape, MapPin, Sparkles, Utensils } from 'lucide-react'
-import type { ContentRecord } from '../../../services/content.service'
-import { publicCommercialClient, type CommercialServices } from '../../../services/commercial.service'
+import { ChevronRight, ConciergeBell, FileText, Grape, Languages, MapPin, Sparkles, Utensils } from 'lucide-react'
 import {
   EditorialCard,
   EmptyState,
@@ -12,6 +9,7 @@ import {
   StatusBadge,
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServices'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
 import {
@@ -22,72 +20,38 @@ import {
   textField,
 } from '../../utils/publicContent'
 
-function campaignContent(record: ContentRecord) {
-  const content = record.content
-  return content && typeof content === 'object' && !Array.isArray(content)
-    ? content as Record<string, unknown>
-    : {}
-}
-
-function campaignText(record: ContentRecord, key: string) {
-  const value = campaignContent(record)[key]
-  return typeof value === 'string' ? value.trim() : ''
-}
-
-function campaignImage(record: ContentRecord) {
-  return campaignText(record, 'image_url') ||
-    campaignText(record, 'cover_image_url') ||
-    textField(record, 'cover_image_url')
-}
-
-function campaignRoute(record: ContentRecord) {
-  const route = campaignContent(record).cta_path
-  const normalized = typeof route === 'string'
-    ? route.replace(/^\/app/, '').replace('/tienda', '/vinos')
-    : '/vinos'
-  return appPath(normalized)
-}
-
 export function HomeScreen() {
-  const { t, isEnglish, locale } = useAppPreferences()
+  const { t, locale, language, setLanguage } = useAppPreferences()
+  const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
-  const { records: promotions } = usePublicContent('promotions')
   const { records: plans } = usePublicContent('membership-plans')
-  const { records: campaigns, loading: loadingCampaigns, error: campaignsError, retry: retryCampaigns } = usePublicContent('campaigns')
-  const [commercial, setCommercial] = useState<CommercialServices | null>(null)
+  const {
+    services: commercial,
+    error: commercialError,
+    retry: retryCommercial,
+  } = usePublicCommercialServices()
 
-  useEffect(() => {
-    let active = true
-    publicCommercialClient.services()
-      .then((response) => {
-        if (active) setCommercial(response.data)
-      })
-      .catch(() => undefined)
-    return () => { active = false }
-  }, [])
-
-  const featuredPromotion = promotions[0]
   const modules = [
     {
       to: appPath('/experiencias'),
       icon: Sparkles,
       eyebrow: 'Vive la Hacienda',
       title: t('app.nav.experiences'),
-      copy: commercial?.experiences[0]?.shortDescription || 'Catas, recorridos y momentos únicos en Hacienda de Letras.',
+      copy: commercial.experiences[0]?.shortDescription || 'Catas, recorridos y momentos únicos en Hacienda de Letras.',
     },
     {
       to: appPath('/cabanas'),
       icon: ConciergeBell,
       eyebrow: 'Hospedaje',
       title: 'Cabañas',
-      copy: commercial?.cabins[0]?.description || 'Paquetes de hospedaje con solicitud y confirmación operativa.',
+      copy: commercial.cabins[0]?.description || 'Paquetes de hospedaje con solicitud y confirmación operativa.',
     },
     {
       to: appPath('/restaurantes'),
       icon: Utensils,
       eyebrow: 'Gastronomía',
       title: 'Restaurantes',
-      copy: commercial?.restaurants[0]?.description || 'Reserva mesa en Hacienda de Letras.',
+      copy: commercial.restaurants[0]?.description || 'Reserva mesa en Hacienda de Letras.',
     },
     {
       to: appPath('/celebra'),
@@ -130,6 +94,17 @@ export function HomeScreen() {
           className="absolute inset-0 h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,20,15,0.05)_25%,rgba(35,20,15,0.75)_100%)]" />
+        <div className="absolute right-[var(--app-pad)] top-4 z-10">
+          <button
+            type="button"
+            onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/28 bg-white/18 px-3 text-[11px] font-semibold text-white shadow-[0_12px_28px_rgba(45,24,17,0.22)] backdrop-blur-xl"
+            aria-label={t('common.language')}
+          >
+            <Languages size={14} />
+            <span>{language === 'es' ? 'ES' : 'EN'}</span>
+          </button>
+        </div>
         <div className="relative flex min-h-[clamp(360px,72vh,480px)] flex-col justify-end px-[var(--app-pad)] pb-6 text-white">
           <p className="text-[10px] font-semibold uppercase text-[#E2C58E]">
             {t('app.premium.home.eyebrow')}
@@ -167,6 +142,77 @@ export function HomeScreen() {
           </span>
           <ChevronRight size={18} className="shrink-0 text-[#690D2B]" />
         </Link>
+
+        <section className="space-y-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">
+                {t('app.nav.store')}
+              </p>
+              <h2
+                className="mt-1 text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {t('app.premium.home.wines')}
+              </h2>
+            </div>
+            <Link to={appPath('/vinos')} className="text-[12px] font-semibold text-[#690D2B]">
+              {t('app.premium.viewAll')}
+            </Link>
+          </div>
+
+          {loadingWines ? (
+            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+              <Skeleton className="h-[210px] w-[156px] shrink-0" />
+              <Skeleton className="h-[210px] w-[156px] shrink-0" />
+            </div>
+          ) : winesError ? (
+            <ErrorState
+              message={t('app.premium.contentUnavailable')}
+              retryLabel={t('app.premium.retry')}
+              onRetry={retryWines}
+            />
+          ) : wines.length === 0 ? (
+            <EmptyState
+              title={t('app.premium.contentPreparing')}
+              description={t('app.premium.informationSoon')}
+            />
+          ) : (
+            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+              {wines.slice(0, 4).map((wine) => (
+                <Link
+                  key={wine.id}
+                  to={appPath(`/vinos/${contentRouteId(wine)}`)}
+                  className="w-[156px] shrink-0 overflow-hidden rounded-[18px] border border-[rgba(184,138,74,0.18)] bg-[#FFF9F1] shadow-[0_14px_26px_rgba(58,32,18,0.08)]"
+                >
+                  <span className="block h-[132px] bg-[#2D1811]">
+                    {imageField(wine, '') ? (
+                      <img
+                        src={imageField(wine, '')}
+                        alt={textField(wine, 'name', 'Vino Hacienda de Letras')}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : null}
+                  </span>
+                  <span className="block min-h-[86px] p-3">
+                    <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
+                      {textField(wine, 'category') || textField(wine, 'grape_variety') || 'Cava'}
+                    </span>
+                    <span
+                      className="mt-1 line-clamp-2 block text-[18px] leading-none text-[#2D1811]"
+                      style={{ fontFamily: 'var(--font-display)' }}
+                    >
+                      {textField(wine, 'name', 'Hacienda de Letras')}
+                    </span>
+                    <span className="mt-2 block text-[11px] font-semibold text-[#690D2B]">
+                      {formatCurrency(numberField(wine, 'price'), locale)}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
 
         <section className="space-y-4">
           <div>
@@ -222,53 +268,12 @@ export function HomeScreen() {
           )}
         </section>
 
-        <section className="space-y-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">{t('app.premium.home.campaignsEyebrow')}</p>
-            <h2 className="mt-1 text-[clamp(26px,7vw,32px)] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
-              {t('app.premium.home.liveCampaigns')}
-            </h2>
-          </div>
-
-          {loadingCampaigns ? (
-            <Skeleton className="h-[132px] w-full" />
-          ) : campaignsError ? (
-            <ErrorState message={t('app.premium.contentUnavailable')} retryLabel={t('app.premium.retry')} onRetry={retryCampaigns} />
-          ) : campaigns.length === 0 ? null : (
-            <div className="grid gap-3">
-              {campaigns.slice(0, 3).map((campaign) => (
-                <EditorialCard
-                  key={campaign.id}
-                  to={campaignRoute(campaign)}
-                  image={campaignImage(campaign) || '/Slide-1.webp'}
-                  eyebrow={textField(campaign, 'channel', t('app.premium.home.campaignsEyebrow'))}
-                  title={
-                    campaignText(campaign, 'title') ||
-                    textField(campaign, 'name', t('app.premium.home.campaignsEyebrow'))
-                  }
-                  description={campaignText(campaign, 'body') || textField(campaign, 'description')}
-                  actionLabel={campaignText(campaign, 'cta_label') || t('app.premium.open')}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-
-        {featuredPromotion ? (
-          <Link
-            to={appPath('/vinos')}
-            className="block rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1] p-4"
-          >
-            <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
-              {isEnglish ? 'Published promotion' : 'Promoción publicada'}
-            </span>
-            <span
-              className="mt-1 block text-[clamp(22px,6vw,28px)] leading-none text-[#2D1811]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {textField(featuredPromotion, 'title') || textField(featuredPromotion, 'name', 'Promoción')}
-            </span>
-          </Link>
+        {commercialError ? (
+          <ErrorState
+            message={commercialError}
+            retryLabel={t('app.premium.retry')}
+            onRetry={retryCommercial}
+          />
         ) : null}
 
         <section className="space-y-3">
