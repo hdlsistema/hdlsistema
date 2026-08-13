@@ -1,11 +1,12 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
 import { rateLimit } from '../../middleware/rateLimit'
-import { changeInitialPassword, getMe, getProfile, getRoles } from './auth.controller'
+import { changeInitialPassword, getMe, getProfile, getRoles, registerCustomer } from './auth.controller'
 
 const router = Router()
 
 router.use(rateLimit(60, 60_000))
+router.post('/register', rateLimit(8, 15 * 60_000), registerCustomer)
 router.get('/me', authenticate, getMe)
 router.get('/roles', authenticate, getRoles)
 router.get('/profile', authenticate, getProfile)

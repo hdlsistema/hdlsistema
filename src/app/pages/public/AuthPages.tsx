@@ -3,7 +3,6 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
-  resendVerification,
   resetPassword,
   signUpCustomer,
   updatePassword,
@@ -11,7 +10,6 @@ import {
 } from '../../../services/auth.service'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { translateErrorCode, type AppLanguage } from '../../i18n'
-import { LanguageSelector } from '../../components/shared/LanguageSelector'
 
 function getErrorMessage(error: unknown, language: AppLanguage) {
   if (error && typeof error === 'object' && 'code' in error) {
@@ -45,11 +43,6 @@ function AuthShell({
 
   return (
     <div className={appMode ? 'overflow-x-hidden bg-[#FBF7F0] px-[var(--app-pad)] pb-6 pt-3 text-[var(--color-burgundy)]' : 'min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fffaf5_0%,#f0dcc7_100%)] px-5 py-10 text-[var(--color-burgundy)]'}>
-      {!appMode ? (
-        <div className="fixed right-5 top-5 z-10">
-          <LanguageSelector />
-        </div>
-      ) : null}
       <div className={appMode ? 'mx-auto flex w-full min-w-0 flex-col justify-start' : 'mx-auto flex min-h-[calc(100vh-5rem)] max-w-[520px] flex-col justify-center'}>
         {!appMode ? (
           <Link to="/" className="mx-auto mb-8 block rounded-full bg-white/72 px-6 py-3 shadow-[var(--shadow-soft)]">
@@ -111,9 +104,9 @@ export function LoginPage() {
     return (
       <main className="relative isolate min-h-screen overflow-hidden bg-[#1a090d] text-white">
         <img
-          src="/fondo-login.webp"
+          src="/fondo-login-hd.png"
           alt="Copa de Hacienda de Letras entre las vides"
-          className="absolute inset-0 -z-30 h-full w-full -scale-x-100 object-cover object-[58%_center] sm:object-center"
+          className="absolute inset-0 -z-30 h-full w-full object-cover object-center"
         />
         <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(17,4,7,0.60)_0%,rgba(35,7,14,0.46)_42%,rgba(19,4,9,0.76)_100%)]" />
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_20%,rgba(206,151,77,0.18),transparent_38%),linear-gradient(180deg,rgba(12,3,6,0.18),rgba(12,3,6,0.58))]" />
@@ -123,7 +116,6 @@ export function LoginPage() {
             <ArrowLeft size={16} strokeWidth={1.6} />
             <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">Volver a la Hacienda</span>
           </Link>
-          <LanguageSelector variant="dark" compact />
         </header>
 
         <div className="mx-auto grid min-h-[calc(100vh-86px)] w-full max-w-[1480px] items-center px-5 pb-8 sm:px-8 lg:grid-cols-[1fr_520px] lg:px-12">
@@ -210,7 +202,7 @@ function ControlField({
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/64">{label}</span>
       <span className="flex min-h-[54px] items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24">
         <span className="text-[#dfbd8e]">{icon}</span>
-        <input required name={name} type={type} autoComplete={autoComplete} className="min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-white/30" />
+        <input required name={name} type={type} autoComplete={autoComplete} className="control-login-input min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-white/30" />
       </span>
     </label>
   )
@@ -223,7 +215,7 @@ function ControlPasswordField({ show, setShow }: { show: boolean; setShow: (valu
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/64">{t('auth.password')}</span>
       <span className="flex min-h-[54px] items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24">
         <LockKeyhole size={17} className="text-[#dfbd8e]" />
-        <input required name="password" type={show ? 'text' : 'password'} autoComplete="current-password" className="min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none" />
+        <input required name="password" type={show ? 'text' : 'password'} autoComplete="current-password" className="control-login-input min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none" />
         <button type="button" onClick={() => setShow(!show)} className="text-white/62 transition hover:text-white" aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}>
           {show ? <EyeOff size={17} /> : <Eye size={17} />}
         </button>
@@ -233,14 +225,11 @@ function ControlPasswordField({ show, setShow }: { show: boolean; setShow: (valu
 }
 
 export function RegisterPage() {
-  const location = useLocation()
+  const navigate = useNavigate()
   const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
-  const [successEmail, setSuccessEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const appMode = location.pathname.startsWith('/app/')
-  const loginPath = appMode ? '/app/login' : '/login'
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -266,7 +255,7 @@ export function RegisterPage() {
 
     setLoading(true)
     try {
-      await signUpCustomer({
+      const result = await signUpCustomer({
         email,
         password,
         firstName: String(form.get('firstName') ?? ''),
@@ -274,36 +263,13 @@ export function RegisterPage() {
         phone: String(form.get('phone') ?? ''),
         preferredLanguage: language,
       })
-      setSuccessEmail(email)
+      if (!result.session) throw { code: 'auth_error', message: language === 'en' ? 'We could not open your session.' : 'No fue posible abrir tu sesión.' }
+      navigate('/app/home', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))
     } finally {
       setLoading(false)
     }
-  }
-
-  if (successEmail) {
-    return (
-      <AuthShell
-        eyebrow={t('auth.verifyEmail')}
-        title={t('auth.accountCreated')}
-        note={t('auth.verifyNote')}
-      >
-        <button
-          type="button"
-          onClick={() => resendVerification(successEmail)}
-          className="mt-7 inline-flex min-h-[50px] w-full items-center justify-center rounded-full border border-[#681126] px-6 text-[13px] font-bold text-[#681126]"
-        >
-          {t('auth.resendVerification')}
-        </button>
-        <Link
-          to={loginPath}
-          className="mt-3 inline-flex min-h-[50px] w-full items-center justify-center rounded-full bg-[#681126] px-6 text-[13px] font-bold text-white"
-        >
-          {t('auth.goToLogin')}
-        </Link>
-      </AuthShell>
-    )
   }
 
   return (

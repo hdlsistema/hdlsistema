@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
+import { AppPreferencesProvider } from '../app/context/AppPreferencesContext'
 import { CampaignEditorialForm } from '../app/pages/control/editorial/forms/CampaignEditorialForm'
 import { EventEditorialForm } from '../app/pages/control/editorial/forms/EventEditorialForm'
 import { ExperienceEditorialForm } from '../app/pages/control/editorial/forms/ExperienceEditorialForm'
@@ -48,7 +49,11 @@ function propsFor(entity: keyof typeof editorialDefinitions): EditorialFormProps
 
 describe('formularios editoriales especializados', () => {
   it.each(forms)('renderiza formulario especializado para %s', (entity, Component, sectionLabel) => {
-    const html = renderToStaticMarkup(<Component {...propsFor(entity)} />)
+    const html = renderToStaticMarkup(
+      <AppPreferencesProvider>
+        <Component {...propsFor(entity)} />
+      </AppPreferencesProvider>,
+    )
 
     expect(html).toContain('Formulario especializado')
     expect(html).toContain(sectionLabel)

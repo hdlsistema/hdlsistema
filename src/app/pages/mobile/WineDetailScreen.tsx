@@ -18,7 +18,7 @@ import { formatCurrency, galleryImages, imageField, numberField, textField } fro
 
 export function WineDetailScreen() {
   const { wineId } = useParams()
-  const { t, locale } = useAppPreferences()
+  const { t, locale, isEnglish } = useAppPreferences()
   const { session } = useAuth()
   const navigate = useNavigate()
   const [wine, setWine] = useState<ContentRecord | null>(null)
@@ -157,7 +157,7 @@ export function WineDetailScreen() {
 
         {gallery.length > 1 ? (
           <section className="space-y-3">
-            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">Galería</p>
+            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">{isEnglish ? 'Gallery' : 'Galería'}</p>
             <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
               {gallery.map((image) => (
                 <img

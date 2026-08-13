@@ -23,6 +23,7 @@ import { StoreScreen } from '../app/pages/mobile/StoreScreen'
 import { WineDetailScreen } from '../app/pages/mobile/WineDetailScreen'
 import { PrivacyAccountScreen } from '../app/pages/mobile/PrivacyAccountScreen'
 import { DeleteAccountScreen } from '../app/pages/mobile/DeleteAccountScreen'
+import { MobileLegalScreen } from '../app/pages/mobile/MobileLegalScreen'
 import {
   MobileAuthCallbackPage,
   MobileLoginPage,
@@ -82,6 +83,8 @@ export function MobileRouter() {
         <Route path="pago/fallido" element={protectedScreen(<PaymentStatusScreen mode="failed" />)} />
         <Route path="perfil" element={protectedScreen(<ProfileScreen />)} />
         <Route path="privacidad-cuenta" element={protectedScreen(<PrivacyAccountScreen />)} />
+        <Route path="politica-de-privacidad" element={protectedScreen(<MobileLegalScreen kind="privacy" />)} />
+        <Route path="terminos-y-condiciones" element={protectedScreen(<MobileLegalScreen kind="terms" />)} />
         <Route path="eliminar-cuenta" element={protectedScreen(<DeleteAccountScreen />)} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

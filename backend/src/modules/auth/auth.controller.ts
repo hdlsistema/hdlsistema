@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { supabaseAdminClient } from '../../config/supabase'
-import { sendOperationError } from '../operations/operationErrors'
-import { initialPasswordSchema } from './auth.schemas'
+import { httpError, sendOperationError } from '../operations/operationErrors'
+import { customerRegistrationSchema, initialPasswordSchema } from './auth.schemas'
 
 function extractRoleCode(value: unknown): string | null {
   if (Array.isArray(value)) {
@@ -102,6 +102,57 @@ export async function changeInitialPassword(req: Request, res: Response): Promis
     })
 
     res.json({ ok: true, data: { changedAt, mustChangePassword: false } })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function registerCustomer(req: Request, res: Response): Promise<void> {
+  try {
+    const input = customerRegistrationSchema.parse(req.body)
+    const displayName = `${input.firstName} ${input.lastName}`.trim()
+    const { data, error } = await supabaseAdminClient.auth.admin.createUser({
+      email: input.email,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: {
+        first_name: input.firstName,
+        last_name: input.lastName,
+        display_name: displayName,
+        phone: input.phone || undefined,
+        preferred_language: input.preferredLanguage,
+      },
+    })
+
+    if (error) {
+      const raw = `${error.code ?? ''} ${error.message ?? ''}`.toLowerCase()
+      if (error.status === 422 || raw.includes('already') || raw.includes('registered') || raw.includes('exists')) {
+        throw httpError(409, 'La cuenta ya existe. Inicia sesión o recupera tu contraseña.')
+      }
+      throw error
+    }
+    if (!data.user) throw new Error('No se recibió el usuario registrado')
+
+    await supabaseAdminClient.from('audit_logs').insert({
+      actor_user_id: data.user.id,
+      action: 'customer_self_registered',
+      entity_type: 'profiles',
+      entity_id: data.user.id,
+      after_data: {
+        source: 'customer_app',
+        preferredLanguage: input.preferredLanguage,
+        emailConfirmedAtRegistration: true,
+      },
+    })
+
+    res.status(201).json({
+      ok: true,
+      data: {
+        userId: data.user.id,
+        email: data.user.email ?? input.email,
+        emailConfirmed: true,
+      },
+    })
   } catch (error) {
     sendOperationError(res, error)
   }

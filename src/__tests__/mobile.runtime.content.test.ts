@@ -167,7 +167,7 @@ describe('mobile runtime server-driven content', () => {
     const publicHook = readFileSync(resolve(__dirname, '../app/hooks/usePublicContent.ts'), 'utf8')
     const commercialHook = readFileSync(resolve(__dirname, '../app/hooks/usePublicCommercialServices.ts'), 'utf8')
     expect(publicHook).toContain("setError(t('app.publishedContentError'))")
-    expect(commercialHook).toContain("setError('No fue posible cargar el contenido comercial.')")
+    expect(commercialHook).toContain("setError(t('app.publishedContentError'))")
     expect(publicHook).not.toContain('Failed to fetch')
     expect(commercialHook).not.toContain('commercial-services')
   })

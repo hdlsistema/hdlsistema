@@ -72,8 +72,23 @@ function orderTimeline(order: CustomerOrder, t: (key: string, fallback?: string)
   ]
 }
 
+function PreferenceControl({ name, label, detail, defaultChecked }: { name: string; label: string; detail: string; defaultChecked: boolean }) {
+  return (
+    <label className="group flex cursor-pointer items-center gap-3 rounded-[0.95rem] border border-[#dccab5] bg-white px-4 py-3 text-[var(--color-ink)] shadow-[0_6px_16px_rgba(74,32,28,0.035)]">
+      <input name={name} type="checkbox" defaultChecked={defaultChecked} className="peer sr-only" />
+      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[8px] border border-[rgba(104,13,43,0.32)] bg-[#fffaf3] text-transparent transition peer-checked:border-[#690d2b] peer-checked:bg-[#690d2b] peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-[#d9bd8a] peer-focus-visible:ring-offset-2">
+        <CheckCircle2 size={15} strokeWidth={2.2} />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[12px] font-semibold">{label}</span>
+        <span className="mt-0.5 block text-[10px] leading-4 text-[var(--color-muted)]">{detail}</span>
+      </span>
+    </label>
+  )
+}
+
 export function ProfileScreen() {
-  const { t, locale } = useAppPreferences()
+  const { t, locale, language: appLanguage, setLanguage: setAppLanguage } = useAppPreferences()
   const { user, session, profile, refreshProfile, signOut } = useAuth()
   const [customerMe, setCustomerMe] = useState<CustomerMe | null>(null)
   const [reservations, setReservations] = useState<CustomerReservation[]>([])
@@ -89,7 +104,7 @@ export function ProfileScreen() {
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [loadingCustomer, setLoadingCustomer] = useState(true)
-  const [language, setLanguage] = useState<'es' | 'en'>('es')
+  const [language, setLanguage] = useState<'es' | 'en'>(appLanguage)
   const pendingOrdersCount = orders.filter(isPendingPaymentOrder).length
 
   const handleSignOut = async () => {
@@ -215,6 +230,7 @@ export function ProfileScreen() {
         transactionalPush: form.get('transactionalPush') === 'on',
       })
       setCustomerMe(response.data)
+      setAppLanguage(language)
       await refreshProfile()
       setMessage(t('app.premium.profile.updated'))
     } catch {
@@ -426,18 +442,31 @@ export function ProfileScreen() {
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
-            <input name="marketingEmail" type="checkbox" defaultChecked={preferences?.marketingEmail ?? true} />
-            {t('app.premium.profile.marketingEmail')}
-          </label>
-          <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
-            <input name="marketingPush" type="checkbox" defaultChecked={preferences?.marketingPush ?? true} />
-            {t('app.premium.profile.marketingPush')}
-          </label>
-          <label className="flex items-center gap-3 rounded-[0.9rem] border border-[#dccab5] bg-white px-4 py-3 text-[12px] text-[var(--color-ink)]">
-            <input name="transactionalPush" type="checkbox" defaultChecked={preferences?.transactionalPush ?? true} />
-            {t('app.premium.profile.transactionalNotifications')}
-          </label>
+          <div className="mt-1">
+            <p className="text-[11px] font-semibold text-[var(--color-ink)]">{language === 'en' ? 'Communication preferences' : 'Preferencias de comunicación'}</p>
+            <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">{language === 'en' ? 'Choose how Hacienda may keep in touch with you.' : 'Elige por qué medios puede mantenerse en contacto Hacienda contigo.'}</p>
+          </div>
+          <PreferenceControl
+            key={`marketing-email-${String(preferences?.marketingEmail)}`}
+            name="marketingEmail"
+            label={t('app.premium.profile.marketingEmail')}
+            detail={language === 'en' ? 'News, benefits and special invitations by email.' : 'Novedades, beneficios e invitaciones especiales por correo.'}
+            defaultChecked={preferences?.marketingEmail ?? true}
+          />
+          <PreferenceControl
+            key={`marketing-push-${String(preferences?.marketingPush)}`}
+            name="marketingPush"
+            label={t('app.premium.profile.marketingPush')}
+            detail={language === 'en' ? 'Occasional offers and recommendations in the app.' : 'Ofertas ocasionales y recomendaciones dentro de la app.'}
+            defaultChecked={preferences?.marketingPush ?? true}
+          />
+          <PreferenceControl
+            key={`transactional-push-${String(preferences?.transactionalPush)}`}
+            name="transactionalPush"
+            label={t('app.premium.profile.transactionalNotifications')}
+            detail={language === 'en' ? 'Booking, payment, order and shipment updates.' : 'Actualizaciones de reservas, pagos, pedidos y envíos.'}
+            defaultChecked={preferences?.transactionalPush ?? true}
+          />
           <button disabled={isSaving} type="submit" className="rounded-[1rem] bg-[var(--color-burgundy)] px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
             {isSaving ? t('app.premium.profile.saving') : t('app.premium.profile.save')}
           </button>
@@ -503,8 +532,16 @@ export function ProfileScreen() {
       ))}
 
       <section className="space-y-3" id="addresses">
-        <SectionHeading title={t('app.premium.profile.addresses')} />
+        <SectionHeading
+          title={language === 'en' ? 'Shipping addresses' : 'Domicilios de envío'}
+          subtitle={language === 'en' ? 'These addresses are used only to deliver your physical purchases.' : 'Estos domicilios se usan para entregar las compras físicas que realices.'}
+        />
         <div className="space-y-3">
+          {addresses.length === 0 ? (
+            <p className="rounded-[1rem] border border-[rgba(220,202,181,0.72)] bg-white/78 p-4 text-[11px] leading-5 text-[var(--color-muted)]">
+              {language === 'en' ? 'You have not saved a shipping address yet.' : 'Aún no tienes un domicilio de envío guardado.'}
+            </p>
+          ) : null}
           {addresses.map((address) => (
             <article key={address.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
               <div className="flex items-start gap-3">
@@ -543,7 +580,7 @@ export function ProfileScreen() {
 
         <form onSubmit={saveAddress} className="grid gap-3 rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white/90 p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
           <p className="text-[13px] font-semibold text-[var(--color-ink)]">
-            {editingAddressId ? t('app.premium.profile.editAddress') : t('app.premium.profile.newAddress')}
+            {editingAddressId ? t('app.premium.profile.editAddress') : (language === 'en' ? 'New shipping address' : 'Nuevo domicilio de envío')}
           </p>
           {[
             ['label', t('app.premium.profile.addressLabel')],

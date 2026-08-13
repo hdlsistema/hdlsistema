@@ -44,6 +44,7 @@ export function AppEdgePanel() {
   const pointerStart = useRef<{ x: number; offset: number } | null>(null)
   const [open, setOpen] = useState(false)
   const [dragOffset, setDragOffset] = useState<number | null>(null)
+  const isEnglish = language === 'en'
 
   const sections = useMemo(() => [
     {
@@ -59,9 +60,9 @@ export function AppEdgePanel() {
       label: t('app.premium.edge.estate', 'Vive la Hacienda'),
       items: [
         { to: appPath('/reservacion'), label: t('app.premium.edge.reserve', 'Reservar'), icon: CalendarDays },
-        { to: appPath('/cabanas'), label: 'Cabañas', icon: BedDouble },
-        { to: appPath('/restaurantes'), label: 'Restaurantes', icon: UtensilsCrossed },
-        { to: appPath('/celebra'), label: 'Celebra en Hacienda', icon: PartyPopper },
+        { to: appPath('/cabanas'), label: isEnglish ? 'Cabins' : 'Cabañas', icon: BedDouble },
+        { to: appPath('/restaurantes'), label: isEnglish ? 'Restaurants' : 'Restaurantes', icon: UtensilsCrossed },
+        { to: appPath('/celebra'), label: isEnglish ? 'Celebrate at Hacienda' : 'Celebra en Hacienda', icon: PartyPopper },
         { to: appPath('/mapa'), label: t('app.nav.map'), icon: MapPinned },
         { to: appPath('/membresias'), label: t('app.nav.club'), icon: Grape },
         { to: appPath('/sommelier'), label: t('app.nav.sommelier'), icon: MessagesSquare },
@@ -76,10 +77,10 @@ export function AppEdgePanel() {
         { to: appPath('/perfil'), label: t('app.premium.profile.settings', 'Configuración'), icon: Settings2 },
       ],
     },
-  ], [t])
+  ], [isEnglish, t])
 
-  const displayName = profile?.display_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || user?.email || 'Mi cuenta'
-  const roleLabel = roles.includes('customer') || roles.length === 0 ? 'Mi experiencia' : roles[0]
+  const displayName = profile?.display_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(' ') || user?.email || (isEnglish ? 'My account' : 'Mi cuenta')
+  const roleLabel = roles.includes('customer') || roles.length === 0 ? (isEnglish ? 'My experience' : 'Mi experiencia') : roles[0]
   const layerPosition = isNativeMobileBuild ? 'fixed' : 'absolute'
   const panelTransform = dragOffset === null ? (open ? 'translateX(0)' : 'translateX(100%)') : `translateX(${dragOffset}px)`
   const handleRight = dragOffset === null
@@ -148,11 +149,11 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className={`${layerPosition} top-[40%] z-[100] flex h-[92px] w-[34px] -translate-y-1/2 flex-col items-center justify-center gap-1.5 rounded-l-[18px] border-y border-l border-white/72 bg-[linear-gradient(145deg,rgba(255,255,255,.76),rgba(246,230,215,.58))] text-[#641027] shadow-[-12px_8px_32px_rgba(63,8,24,.18),inset_0_1px_0_rgba(255,255,255,.95)] backdrop-blur-2xl touch-none`}
+        className={`${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/58 bg-[linear-gradient(155deg,rgba(91,9,34,.95),rgba(61,5,22,.88))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(46,4,17,.28),inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-2xl touch-none`}
         style={{ right: handleRight, transition: dragOffset === null ? 'right 260ms cubic-bezier(.2,.8,.2,1)' : 'none' }}
       >
-        <PanelRightOpen size={15} strokeWidth={1.45} aria-hidden="true" />
-        <span className="text-[8px] font-bold uppercase tracking-[.16em] [writing-mode:vertical-rl]">Menú</span>
+        <PanelRightOpen size={17} strokeWidth={1.4} aria-hidden="true" />
+        <span className="text-[8px] font-bold uppercase tracking-[.18em] [writing-mode:vertical-rl]">{isEnglish ? 'Menu' : 'Menú'}</span>
       </button>
 
       {open ? (
@@ -229,12 +230,12 @@ export function AppEdgePanel() {
             <EdgeLanguageSwitcher language={language} setLanguage={setLanguage} />
             <Link to={appPath('/perfil')} onClick={() => closePanel(false)} className="mt-3 flex min-h-11 items-center gap-3 px-1 text-[13px] text-[#30221D]">
               <HelpCircle size={18} strokeWidth={1.5} className="text-[#786B63]" />
-              Ayuda / contacto
+              {isEnglish ? 'Help / contact' : 'Ayuda / contacto'}
             </Link>
             {isAuthenticated ? (
               <button type="button" onClick={() => { void signOut(); closePanel(false) }} className="mt-2 flex min-h-11 w-full items-center gap-3 px-1 text-left text-[13px] text-[#821B3B]">
                 <LogOut size={18} strokeWidth={1.5} />
-                Cerrar sesión
+                {isEnglish ? 'Sign out' : 'Cerrar sesión'}
               </button>
             ) : null}
           </div>

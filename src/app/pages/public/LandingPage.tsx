@@ -29,7 +29,7 @@ export function LandingPage() {
     <main className="min-h-screen bg-[#14090c] text-white">
       <section className="relative isolate min-h-[92vh] overflow-hidden">
         <img
-          src="/hacienda-portada-landing.webp"
+          src="/hacienda-portada-landing-hd.png"
           alt="Pasillo histórico de Hacienda de Letras"
           className="absolute inset-0 -z-30 h-full w-full object-cover object-center"
         />
@@ -68,7 +68,8 @@ export function LandingPage() {
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link
                 to="/login"
-                className="inline-flex min-h-13 items-center gap-3 rounded-full bg-[#f5e7d5] px-6 text-[13px] font-semibold text-[#4c0b1d] shadow-[0_18px_46px_rgba(19,3,8,0.32)] transition hover:bg-white"
+                className="inline-flex min-h-13 items-center gap-3 rounded-full border border-[#e8c996] bg-[#f5e7d5] px-6 text-[13px] font-bold !text-[#4c0b1d] shadow-[0_18px_46px_rgba(19,3,8,0.32)] transition hover:bg-white"
+                style={{ color: '#4c0b1d' }}
               >
                 Entrar al Centro de Control
                 <ArrowUpRight size={17} strokeWidth={1.8} />

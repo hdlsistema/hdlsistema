@@ -91,8 +91,8 @@ export type QuoteRequestRecord = {
 }
 
 export const publicCommercialClient = {
-  services() {
-    return apiFetch<{ ok: true; data: CommercialServices }>('/api/public/commercial/services')
+  services(locale: 'es-MX' | 'en-US' = 'es-MX') {
+    return apiFetch<{ ok: true; data: CommercialServices }>(`/api/public/commercial/services?locale=${encodeURIComponent(locale)}`)
   },
 }
 

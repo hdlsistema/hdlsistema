@@ -14,7 +14,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { dashboardClient, type DashboardSummary } from '../../../services/dashboard.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
-import { areaLabel, dateTime, eventLabel, money, statusLabel as safeStatusLabel } from './controlCopy'
+import { dateTime, money, statusLabel as safeStatusLabel } from './controlCopy'
 
 function formatMoney(value: number, currency: string) {
   return money(value, currency)
@@ -26,31 +26,6 @@ function formatDate(value: string) {
 
 function statusLabel(status?: string | null) {
   return safeStatusLabel(status)
-}
-
-function activityLabel(eventName: string) {
-  return eventLabel(eventName)
-}
-
-function activityContext(module?: string | null, entityType?: string | null) {
-  const moduleLabels: Record<string, string> = {
-    app: 'App',
-    customer: 'Cliente',
-    commerce: 'Comercio',
-    reservations: 'Reservaciones',
-    cart: 'Carrito',
-      checkout: 'Pago',
-  }
-  const entityLabels: Record<string, string> = {
-    order: 'orden',
-    cart: 'carrito',
-    reservation: 'reservación',
-    customer: 'cliente',
-    session: 'sesión',
-  }
-  const left = module ? moduleLabels[module] ?? areaLabel(module) : 'Actividad'
-  const right = entityType ? entityLabels[entityType] ?? entityType.replaceAll('_', ' ') : 'sin elemento asociado'
-  return `${left} · ${right}`
 }
 
 function Metric({
@@ -276,12 +251,6 @@ export function DashboardPage() {
           ) : null}
         </Panel>
       </div>
-
-      <Panel title="Actividad reciente de la App" action={<Link to="/control/actividad" className="text-sm font-medium text-[var(--color-burgundy)]">Ver bitácora</Link>}>
-        {loading ? <Empty>Cargando actividad...</Empty> : null}
-        {!loading && summary?.recentAppActivity.length === 0 ? <Empty>Aún no hay actividad de App registrada.</Empty> : null}
-        {!loading && summary?.recentAppActivity.length ? <div className="divide-y divide-[var(--color-line)]">{summary.recentAppActivity.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm"><div><p className="font-medium text-[var(--color-ink)]">{item.customerName ?? 'Sesión sin identificar'} · {activityLabel(item.eventName)}</p><p className="mt-1 text-[var(--color-muted)]">{activityContext(item.module, item.entityType)}</p></div><span className="text-[var(--color-muted)]">{formatDate(item.occurredAt)}</span></div>)}</div> : null}
-      </Panel>
 
       {!loading && summary ? (
         <p className="flex items-center gap-2 text-xs text-[var(--color-muted)]"><Clock3 size={14} /> Datos actualizados: {formatDate(summary.generatedAt)}.</p>

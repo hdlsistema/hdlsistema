@@ -5,6 +5,7 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 type MarkerItem = {
   coordinates: [number, number]
   label?: string
+  variant?: 'default' | 'estate'
 }
 
 type RouteLine = {
@@ -143,11 +144,18 @@ export function MapboxScene({
 
       markers.forEach((marker, index) => {
         const markerNode = document.createElement('div')
-        markerNode.className =
-          'h-4 w-4 rounded-full border-2 border-white bg-[#7d1328] shadow-[0_0_0_4px_rgba(125,19,40,0.18)]'
+        if (marker.variant === 'estate') {
+          markerNode.className = 'grid h-11 w-11 -translate-y-1 rotate-[-45deg] place-items-center rounded-[50%_50%_50%_8px] border-2 border-[#f7e4c0] bg-[linear-gradient(145deg,#8b2742,#510719)] text-[#f7e4c0] shadow-[0_12px_28px_rgba(55,6,19,0.38),0_0_0_5px_rgba(111,15,40,0.16)]'
+          markerNode.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><path d="M8 3h8l-1 5.2a4 4 0 0 1-3.9 3.2h-.2A4 4 0 0 1 7 8.2L8 3Z"/><path d="M12 11.5V19M9 21h6"/><path d="M7.6 6.5h8.8"/></svg>'
+        } else {
+          markerNode.className =
+            'h-4 w-4 rounded-full border-2 border-white bg-[#7d1328] shadow-[0_0_0_4px_rgba(125,19,40,0.18)]'
+        }
         markerNode.setAttribute('aria-label', marker.label ?? `marker-${index}`)
 
-        const mapMarker = new mapboxgl.Marker(markerNode).setLngLat(marker.coordinates).addTo(currentMap)
+        const mapMarker = new mapboxgl.Marker({ element: markerNode, anchor: marker.variant === 'estate' ? 'bottom' : 'center' })
+          .setLngLat(marker.coordinates)
+          .addTo(currentMap)
         markerRefs.current.push(mapMarker)
       })
 

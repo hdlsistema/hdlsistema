@@ -4,7 +4,7 @@ import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 
 export function AppBottomNavigation({ cartCount = 0 }: { cartCount?: number }) {
-  const { t } = useAppPreferences()
+  const { t, isEnglish } = useAppPreferences()
 
   const tabs = [
     { to: appPath('/home'), label: t('app.nav.home'), icon: House },
@@ -15,7 +15,7 @@ export function AppBottomNavigation({ cartCount = 0 }: { cartCount?: number }) {
   ]
 
   return (
-    <nav aria-label="Navegación principal" className="app-bottom-nav z-[90] grid grid-cols-5">
+    <nav aria-label={isEnglish ? 'Main navigation' : 'Navegación principal'} className="app-bottom-nav z-[90] grid grid-cols-5">
       {tabs.map(({ to, label, icon: Icon, count }) => (
         <NavLink
           key={to}

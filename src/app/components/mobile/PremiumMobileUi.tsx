@@ -194,7 +194,7 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
   onSelect?: (index: number) => void
 }) {
   return (
-    <div className="app-scrollbar-none -mx-[var(--app-pad)] flex gap-2 overflow-x-auto px-[var(--app-pad)] pb-2 [-webkit-overflow-scrolling:touch]">
+    <div className="app-scrollbar-none -mx-[var(--app-pad)] flex gap-1.5 overflow-x-auto px-[var(--app-pad)] pb-1.5 [-webkit-overflow-scrolling:touch]">
       {items.map((item, index) => {
         const active = index === activeIndex
         return (
@@ -203,10 +203,10 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
             type="button"
             onClick={() => onSelect?.(index)}
             className={cx(
-              'min-h-9 shrink-0 rounded-full px-4 text-[12px] font-medium tracking-[0.01em] transition-all',
+              'min-h-8 shrink-0 rounded-[11px] px-3 text-[10px] font-semibold tracking-[0.015em] transition-all',
               active
-                ? 'bg-[linear-gradient(135deg,#8A1238,#61091F)] text-white shadow-[0_14px_26px_rgba(104,13,36,0.24),inset_0_1px_0_rgba(255,255,255,0.22)]'
-                : 'border border-[rgba(184,138,74,0.22)] bg-[rgba(255,249,241,0.66)] text-[#6F584B] shadow-[0_10px_22px_rgba(74,32,28,0.05),inset_0_1px_0_rgba(255,255,255,0.76)] backdrop-blur-xl',
+                ? 'border border-[#8c2947] bg-[linear-gradient(135deg,#7d1435,#57071d)] text-[#fffaf1] shadow-[0_9px_18px_rgba(104,13,36,0.18),inset_0_1px_0_rgba(255,255,255,0.16)]'
+                : 'border border-[rgba(184,138,74,0.25)] bg-[rgba(255,249,241,0.72)] text-[#6F584B] shadow-[0_6px_14px_rgba(74,32,28,0.04),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl',
             )}
           >
             {item}

@@ -105,7 +105,7 @@ describe('premium customer app experience', () => {
     expect(shell).toContain('{showAppChrome ? <AppBottomNavigation cartCount={cartCount} /> : null}')
     expect(shell).toContain('{showAppChrome ? <AppEdgePanel /> : null}')
     expect(shell).toContain('overflow-x-hidden')
-    expect(tabs).toContain('aria-label="Navegación principal"')
+    expect(tabs).toContain("isEnglish ? 'Main navigation' : 'Navegación principal'")
     expect(tabs).toContain('z-[90]')
     expect(tabs).toContain('app-bottom-nav__item')
     expect(tabs).toContain('app-bottom-nav__content')
@@ -232,8 +232,8 @@ describe('premium customer app experience', () => {
     expect(restaurants).toContain('item.coverImageUrl')
     expect(quote).toContain('usePublicCommercialServices()')
     expect(quote).toContain('venueSpaces')
-    expect(commercialHook).toMatch(/publicCommercialClient\s*\.services\(\)/)
-    expect(commercialHook).toContain("setError('No fue posible cargar el contenido comercial.')")
+    expect(commercialHook).toMatch(/publicCommercialClient\s*\.services\(locale\)/)
+    expect(commercialHook).toContain("setError(t('app.publishedContentError'))")
     expect(commercialHook).not.toContain('commercial-services')
   })
 
@@ -260,7 +260,7 @@ describe('premium customer app experience', () => {
 
     expect(ui).toContain('-mx-[var(--app-pad)]')
     expect(ui).toContain('backdrop-blur-xl')
-    expect(ui).toContain('bg-[linear-gradient(135deg,#8A1238,#61091F)]')
+    expect(ui).toContain('bg-[linear-gradient(135deg,#7d1435,#57071d)]')
     expect(reservation).toContain('MobileChoiceSheet')
     expect(reservation).toContain('setExperienceSheetOpen(true)')
     expect(reservation).toContain('fixed inset-0 z-[160]')
@@ -310,5 +310,17 @@ describe('premium customer app experience', () => {
 
     expect(mobileFiles).not.toMatch(/public\/qa|qa\/wines|qa\/hacienda-media/)
     expect(mobileFiles).not.toMatch(/romantic%20dinners|turismo\.jpeg|Slide-1\.webp|Logo-HDL-2\.svg/)
+  })
+
+  it('publica el domicilio oficial con marcador Hacienda y accesos a Maps y Waze', () => {
+    const map = readFileSync(resolve(__dirname, '../app/pages/mobile/MapScreen.tsx'), 'utf8')
+    const scene = readFileSync(resolve(__dirname, '../app/components/shared/MapboxScene.tsx'), 'utf8')
+
+    expect(map).toContain('Teodoro Olivares S/N, 20668 San Luis de Letras, Ags.')
+    expect(map).toContain('https://www.google.com/maps/dir/')
+    expect(map).toContain('https://www.waze.com/ul?')
+    expect(map).toContain("variant: poi.id === OFFICIAL_HACIENDA_POI.id ? 'estate'")
+    expect(scene).toContain("marker.variant === 'estate'")
+    expect(scene).toContain('<svg aria-hidden="true"')
   })
 })

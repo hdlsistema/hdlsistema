@@ -21,7 +21,7 @@ import {
 } from '../../utils/publicContent'
 
 export function HomeScreen() {
-  const { t, locale, language, setLanguage } = useAppPreferences()
+  const { t, locale, language, isEnglish, setLanguage } = useAppPreferences()
   const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
   const { records: plans } = usePublicContent('membership-plans')
@@ -35,30 +35,30 @@ export function HomeScreen() {
     {
       to: appPath('/experiencias'),
       icon: Compass,
-      eyebrow: 'Vive la Hacienda',
+      eyebrow: isEnglish ? 'Live the Hacienda' : 'Vive la Hacienda',
       title: t('app.nav.experiences'),
-      copy: commercial.experiences[0]?.shortDescription || 'Catas, recorridos y momentos únicos en Hacienda de Letras.',
+      copy: commercial.experiences[0]?.shortDescription || (isEnglish ? 'Tastings, tours and unique moments at Hacienda de Letras.' : 'Catas, recorridos y momentos únicos en Hacienda de Letras.'),
     },
     {
       to: appPath('/cabanas'),
       icon: BedDouble,
-      eyebrow: 'Hospedaje',
-      title: 'Cabañas',
-      copy: commercial.cabins[0]?.description || 'Paquetes de hospedaje con solicitud y confirmación operativa.',
+      eyebrow: isEnglish ? 'Lodging' : 'Hospedaje',
+      title: isEnglish ? 'Cabins' : 'Cabañas',
+      copy: commercial.cabins[0]?.description || (isEnglish ? 'Lodging packages with confirmed availability.' : 'Paquetes de hospedaje con solicitud y confirmación operativa.'),
     },
     {
       to: appPath('/restaurantes'),
       icon: UtensilsCrossed,
-      eyebrow: 'Gastronomía',
-      title: 'Restaurantes',
-      copy: commercial.restaurants[0]?.description || 'Reserva mesa en Hacienda de Letras.',
+      eyebrow: isEnglish ? 'Dining' : 'Gastronomía',
+      title: isEnglish ? 'Restaurants' : 'Restaurantes',
+      copy: commercial.restaurants[0]?.description || (isEnglish ? 'Request a table at Hacienda de Letras.' : 'Reserva mesa en Hacienda de Letras.'),
     },
     {
       to: appPath('/celebra'),
       icon: FileText,
-      eyebrow: 'Celebra aquí',
-      title: 'Solicitar cotización',
-      copy: 'Haz de Hacienda de Letras el escenario de tu próxima historia.',
+      eyebrow: isEnglish ? 'Celebrate here' : 'Celebra aquí',
+      title: isEnglish ? 'Request a quote' : 'Solicitar cotización',
+      copy: isEnglish ? 'Make Hacienda de Letras the setting for your next story.' : 'Haz de Hacienda de Letras el escenario de tu próxima historia.',
     },
     {
       to: appPath('/membresias'),

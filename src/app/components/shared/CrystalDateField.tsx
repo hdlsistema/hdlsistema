@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react'
 import { CrystalSelect } from './CrystalSelect'
+import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 type CrystalDateFieldProps = {
   value: string
@@ -16,10 +17,6 @@ type CrystalDateTimeFieldProps = Omit<CrystalDateFieldProps, 'onChange'> & {
   value: string
   onChange: (value: string) => void
 }
-
-const monthFormatter = new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' })
-const dateFormatter = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
-const weekdays = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
 function joinClasses(...values: Array<string | false | null | undefined>) {
   return values.filter(Boolean).join(' ')
@@ -38,9 +35,9 @@ function toDateValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-function displayDate(value: string, placeholder: string) {
+function displayDate(value: string, placeholder: string, formatter: Intl.DateTimeFormat) {
   const date = toDate(value)
-  return date ? dateFormatter.format(date) : placeholder
+  return date ? formatter.format(date) : placeholder
 }
 
 function monthDays(base: Date) {
@@ -85,6 +82,7 @@ export function CrystalDateField({
   buttonClassName,
   disabled,
 }: CrystalDateFieldProps) {
+  const { locale, isEnglish } = useAppPreferences()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [visibleMonth, setVisibleMonth] = useState(() => toDate(value) ?? new Date())
@@ -112,6 +110,9 @@ export function CrystalDateField({
   }, [])
 
   const days = useMemo(() => monthDays(visibleMonth), [visibleMonth])
+  const monthFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }), [locale])
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'short', year: 'numeric' }), [locale])
+  const weekdays = isEnglish ? ['M', 'T', 'W', 'T', 'F', 'S', 'S'] : ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
   function moveMonth(delta: number) {
     setVisibleMonth(new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + delta, 1))
@@ -135,18 +136,18 @@ export function CrystalDateField({
           buttonClassName,
         )}
       >
-        <span className={value ? '' : 'text-[var(--color-muted)]'}>{displayDate(value, placeholder)}</span>
+        <span className={value ? '' : 'text-[var(--color-muted)]'}>{displayDate(value, placeholder, dateFormatter)}</span>
         <CalendarDays size={17} className="shrink-0 text-[var(--color-burgundy)]" />
       </button>
 
       {open ? (
         <div className="crystal-date-popover absolute left-0 right-0 top-[calc(100%+0.45rem)] z-[180] overflow-hidden rounded-[1.15rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.98),rgba(247,239,229,0.98))] p-3 shadow-[0_24px_48px_rgba(58,23,18,0.18)] backdrop-blur-2xl">
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => moveMonth(-1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label="Mes anterior">
+            <button type="button" onClick={() => moveMonth(-1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label={isEnglish ? 'Previous month' : 'Mes anterior'}>
               <ChevronLeft size={18} />
             </button>
             <p className="crystal-date-popover__month text-center text-sm font-semibold capitalize text-[var(--color-ink)]">{monthFormatter.format(visibleMonth)}</p>
-            <button type="button" onClick={() => moveMonth(1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label="Mes siguiente">
+            <button type="button" onClick={() => moveMonth(1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label={isEnglish ? 'Next month' : 'Mes siguiente'}>
               <ChevronRight size={18} />
             </button>
           </div>

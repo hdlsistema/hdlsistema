@@ -2,7 +2,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { resendVerification, resetPassword, signInWithAppleNative, signInWithOAuth, signUpCustomer, updatePassword, type AuthServiceError } from '../services/auth.service'
+import { resetPassword, signInWithAppleNative, signInWithOAuth, signUpCustomer, updatePassword, type AuthServiceError } from '../services/auth.service'
 import { useAppPreferences } from '../app/context/AppPreferencesContext'
 import { translateErrorCode, type AppLanguage } from '../app/i18n'
 
@@ -80,7 +80,7 @@ export function MobileLoginPage() {
   }
 
   return (
-    <AuthShell eyebrow="Acceso seguro" title="Bienvenido" note="Inicia sesión para continuar tu experiencia en Hacienda de Letras.">
+    <AuthShell eyebrow={language === 'en' ? 'Secure access' : 'Acceso seguro'} title={language === 'en' ? 'Welcome' : 'Bienvenido'} note={language === 'en' ? 'Sign in to continue your Hacienda de Letras experience.' : 'Inicia sesión para continuar tu experiencia en Hacienda de Letras.'}>
       <form className="native-auth-form" onSubmit={submit}>
         <SocialAuthActions onError={setError} />
         <div className="native-auth-divider"><span>{t('auth.orEmail')}</span></div>
@@ -99,9 +99,9 @@ export function MobileLoginPage() {
 }
 
 export function MobileRegisterPage() {
+  const navigate = useNavigate()
   const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
-  const [successEmail, setSuccessEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
@@ -118,14 +118,15 @@ export function MobileRegisterPage() {
     if (form.get('terms') !== 'on') return setError(t('auth.termsRequired'))
     setLoading(true)
     try {
-      await signUpCustomer({
+      const result = await signUpCustomer({
         email,
         password,
         firstName: String(form.get('firstName') ?? ''),
         lastName: String(form.get('lastName') ?? ''),
         preferredLanguage: language,
       })
-      setSuccessEmail(email)
+      if (!result.session) throw { code: 'auth_error', message: language === 'en' ? 'We could not open your session.' : 'No fue posible abrir tu sesión.' }
+      navigate('/home', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))
     } finally {
@@ -133,21 +134,12 @@ export function MobileRegisterPage() {
     }
   }
 
-  if (successEmail) {
-    return (
-      <AuthShell eyebrow="Cuenta creada" title="Revisa tu correo" note="Te enviamos un enlace para confirmar tu cuenta y continuar.">
-        <div className="native-auth-success">
-          <span><Check size={23} strokeWidth={1.6} /></span>
-          <p>Tu cuenta está lista para confirmar.</p>
-        </div>
-        <button type="button" onClick={() => void resendVerification(successEmail)} className="native-auth-secondary">{t('auth.resendVerification')}</button>
-        <Link to="/login" className="native-auth-primary native-auth-primary--link">{t('auth.goToLogin')} <ArrowRight size={18} /></Link>
-      </AuthShell>
-    )
-  }
-
   return (
-    <AuthShell eyebrow="Tu cuenta" title="Crear cuenta" note="Guarda tus visitas, reservas y preferencias en un solo lugar.">
+    <AuthShell
+      eyebrow={language === 'en' ? 'Your account' : 'Tu cuenta'}
+      title={t('auth.createAccount')}
+      note={language === 'en' ? 'Keep your visits, bookings and preferences in one place.' : 'Guarda tus visitas, reservas y preferencias en un solo lugar.'}
+    >
       <form className="native-auth-form" onSubmit={submit}>
         <SocialAuthActions onError={setError} />
         <div className="native-auth-divider"><span>{t('auth.orEmail')}</span></div>
@@ -160,7 +152,7 @@ export function MobileRegisterPage() {
         {error ? <p className="native-auth-form__error" role="alert">{error}</p> : null}
         <SubmitButton loading={loading}>{t('auth.createAccount')}</SubmitButton>
       </form>
-      <p className="native-auth-screen__footnote">¿Ya tienes cuenta? <Link to="/login">{t('auth.login')}</Link></p>
+      <p className="native-auth-screen__footnote">{language === 'en' ? 'Already have an account?' : '¿Ya tienes cuenta?'} <Link to="/login">{t('auth.login')}</Link></p>
     </AuthShell>
   )
 }
@@ -183,12 +175,12 @@ export function MobileRecoverPage() {
   }
 
   return (
-    <AuthShell eyebrow="Recuperar acceso" title="Restablece tu contraseña" note="Escribe tu correo y te enviaremos un enlace seguro para continuar.">
+    <AuthShell eyebrow={language === 'en' ? 'Recover access' : 'Recuperar acceso'} title={language === 'en' ? 'Reset your password' : 'Restablece tu contraseña'} note={language === 'en' ? 'Enter your email and we will send you a secure link.' : 'Escribe tu correo y te enviaremos un enlace seguro para continuar.'}>
       {sent ? (
         <div className="native-auth-success">
           <span><Check size={23} strokeWidth={1.6} /></span>
           <p>{t('auth.recoverySent')}</p>
-          <Link to="/login" className="native-auth-secondary">Volver a iniciar sesión</Link>
+          <Link to="/login" className="native-auth-secondary">{language === 'en' ? 'Back to sign in' : 'Volver a iniciar sesión'}</Link>
         </div>
       ) : (
         <form className="native-auth-form" onSubmit={submit}>
@@ -224,7 +216,7 @@ export function MobileResetPasswordPage() {
   }
 
   return (
-    <AuthShell eyebrow="Nueva contraseña" title="Define tu acceso" note="Elige una contraseña segura para continuar.">
+    <AuthShell eyebrow={language === 'en' ? 'New password' : 'Nueva contraseña'} title={language === 'en' ? 'Secure your access' : 'Define tu acceso'} note={language === 'en' ? 'Choose a secure password to continue.' : 'Elige una contraseña segura para continuar.'}>
       <form className="native-auth-form" onSubmit={submit}>
         <PasswordField show={showPassword} setShow={setShowPassword} autoComplete="new-password" />
         <Field icon={<LockKeyhole size={18} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password" />

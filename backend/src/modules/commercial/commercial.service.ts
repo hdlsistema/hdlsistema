@@ -166,15 +166,25 @@ function hashQuoteSend(payload: SendQuoteRequestEmailPayload) {
     .slice(0, 18)
 }
 
-function publicContent(row: ServiceContentRow) {
+function publicContent(row: ServiceContentRow, locale = 'es-MX') {
+  const translationKey = locale === 'en' || locale === 'en-US' ? 'en' : 'es'
+  const translations = row.metadata?.translations
+  const translation = translations && typeof translations === 'object'
+    ? ((translations as Record<string, unknown>)[locale] ?? (translations as Record<string, unknown>)[translationKey])
+    : null
+  const localized = translation && typeof translation === 'object'
+    ? translation as Record<string, unknown>
+    : {}
+  const localizedText = (key: string, fallback: unknown) => typeof localized[key] === 'string' ? String(localized[key]) : fallback
+  const localizedList = (key: string, fallback: unknown) => Array.isArray(localized[key]) ? localized[key] as unknown[] : fallback
   return {
     id: row.id,
     slug: row.slug,
-    name: row.name ?? row.title ?? '',
-    title: row.title ?? row.name ?? '',
-    subtitle: row.subtitle ?? null,
-    description: row.description ?? null,
-    shortDescription: row.short_description ?? null,
+    name: localizedText('name', row.name ?? row.title ?? ''),
+    title: localizedText('title', row.title ?? row.name ?? ''),
+    subtitle: localizedText('subtitle', row.subtitle ?? null),
+    description: localizedText('description', row.description ?? null),
+    shortDescription: localizedText('shortDescription', localizedText('short_description', row.short_description ?? null)),
     category: row.category ?? String(row.metadata?.category ?? ''),
     durationMinutes: row.duration_minutes ?? null,
     price: numberValue(row.price ?? row.base_price),
@@ -192,7 +202,7 @@ function publicContent(row: ServiceContentRow) {
     alias: row.alias ?? null,
     hours: row.hours ?? {},
     reservationEnabled: row.reservation_enabled ?? true,
-    inclusions: Array.isArray(row.inclusions) ? row.inclusions : [],
+    inclusions: localizedList('inclusions', Array.isArray(row.inclusions) ? row.inclusions : []),
     coverImageUrl: row.cover_image_url ?? null,
     status: row.status,
     visibleInApp: row.visible_in_app ?? true,
@@ -315,7 +325,7 @@ const quoteSelect = `
   venue_spaces(id,name,capacity,dimensions)
 `
 
-export async function listPublicCommercialServices() {
+export async function listPublicCommercialServices(locale = 'es-MX') {
   const [experiencesResult, cabinsResult, restaurantsResult, spacesResult] = await Promise.all([
     supabaseAdminClient
       .from('experiences')
@@ -349,10 +359,10 @@ export async function listPublicCommercialServices() {
 
   return {
     data: {
-      experiences: (assertNoError<ServiceContentRow[]>(experiencesResult).data ?? []).map(publicContent),
-      cabins: (assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []).map(publicContent),
-      restaurants: (assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? []).map(publicContent),
-      venueSpaces: (assertNoError<ServiceContentRow[]>(spacesResult).data ?? []).map(publicContent),
+      experiences: (assertNoError<ServiceContentRow[]>(experiencesResult).data ?? []).map((row) => publicContent(row, locale)),
+      cabins: (assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []).map((row) => publicContent(row, locale)),
+      restaurants: (assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? []).map((row) => publicContent(row, locale)),
+      venueSpaces: (assertNoError<ServiceContentRow[]>(spacesResult).data ?? []).map((row) => publicContent(row, locale)),
     },
   }
 }
@@ -364,7 +374,13 @@ export async function listAdminCommercialCatalog(user: UserContext) {
     supabaseAdminClient.from('restaurant_locations').select('id,slug,name,alias,description,full_address,city,state,phone,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
     supabaseAdminClient.from('venue_spaces').select('id,slug,name,capacity,dimensions,description,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
   ])
-  return { data: { cabins: (assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []).map(publicContent), restaurants: (assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? []).map(publicContent), venueSpaces: (assertNoError<ServiceContentRow[]>(spacesResult).data ?? []).map(publicContent) } }
+  return {
+    data: {
+      cabins: (assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []).map((row) => publicContent(row)),
+      restaurants: (assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? []).map((row) => publicContent(row)),
+      venueSpaces: (assertNoError<ServiceContentRow[]>(spacesResult).data ?? []).map((row) => publicContent(row)),
+    },
+  }
 }
 
 function catalogCommonPayload(payload: CabinCatalogPayload | RestaurantCatalogPayload | VenueCatalogPayload) {

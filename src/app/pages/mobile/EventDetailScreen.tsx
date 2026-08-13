@@ -153,7 +153,7 @@ export function EventDetailScreen() {
 
       {gallery.length > 1 ? (
         <section className="space-y-3">
-          <AppSectionHeader eyebrow={t('app.publishedDetails')} title="Galería" />
+          <AppSectionHeader eyebrow={t('app.publishedDetails')} title={t('app.gallery')} />
           <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
             {gallery.map((image) => (
               <img

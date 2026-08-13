@@ -38,8 +38,8 @@ function userContext(req: Request) {
 
 export async function listPublicCommercial(req: Request, res: Response): Promise<void> {
   try {
-    publicCommercialQuerySchema.parse(req.query)
-    const { data } = await listPublicCommercialServices()
+    const query = publicCommercialQuerySchema.parse(req.query)
+    const { data } = await listPublicCommercialServices(query.locale ?? 'es-MX')
     res.json({ ok: true, data })
   } catch (error) {
     sendOperationError(res, error)

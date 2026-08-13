@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { publicCommercialClient, type CommercialServices } from '../../services/commercial.service'
+import { useAppPreferences } from '../context/AppPreferencesContext'
 
 const emptyServices: CommercialServices = {
   experiences: [],
@@ -16,6 +17,7 @@ export type PublicCommercialServicesState = {
 }
 
 export function usePublicCommercialServices(): PublicCommercialServicesState {
+  const { locale, t } = useAppPreferences()
   const [services, setServices] = useState<CommercialServices>(emptyServices)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +31,7 @@ export function usePublicCommercialServices(): PublicCommercialServicesState {
     setError(null)
 
     publicCommercialClient
-      .services()
+      .services(locale)
       .then((response) => {
         if (!active) return
         setServices(response.data)
@@ -38,7 +40,7 @@ export function usePublicCommercialServices(): PublicCommercialServicesState {
         if (!active) return
         setServices(emptyServices)
         void err
-        setError('No fue posible cargar el contenido comercial.')
+        setError(t('app.publishedContentError'))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -47,7 +49,7 @@ export function usePublicCommercialServices(): PublicCommercialServicesState {
     return () => {
       active = false
     }
-  }, [reloadKey])
+  }, [locale, reloadKey, t])
 
   return { services, loading, error, retry }
 }

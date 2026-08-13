@@ -22,6 +22,8 @@ const supabaseMock = vi.hoisted(() => ({
   rpcError: null as unknown,
   rpcData: {} as Record<string, unknown>,
   authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null; app_metadata?: Record<string, unknown> } | null,
+  createdAuthUser: null as { id: string; email: string } | null,
+  createUserPayload: null as Record<string, unknown> | null,
   tableData: {} as Record<string, unknown[]>,
   selectQueries: [] as string[],
 }))
@@ -45,7 +47,12 @@ vi.mock('@supabase/supabase-js', () => ({
       admin: {
         listUsers: vi.fn(async () => ({ data: { users: [] }, error: null })),
         getUserById: vi.fn(async () => ({ data: { user: null }, error: new Error('not found') })),
-        createUser: vi.fn(async () => ({ data: { user: null }, error: new Error('blocked') })),
+        createUser: vi.fn(async (payload: Record<string, unknown>) => {
+          supabaseMock.createUserPayload = payload
+          return supabaseMock.createdAuthUser
+            ? { data: { user: supabaseMock.createdAuthUser }, error: null }
+            : { data: { user: null }, error: new Error('blocked') }
+        }),
         updateUserById: vi.fn(async () => ({ data: { user: null }, error: null })),
       },
     },
@@ -222,6 +229,8 @@ beforeEach(() => {
   supabaseMock.rpcError = null
   supabaseMock.rpcData = {}
   supabaseMock.authUser = null
+  supabaseMock.createdAuthUser = null
+  supabaseMock.createUserPayload = null
   supabaseMock.tableData = {}
   supabaseMock.selectQueries = []
   stripeMock.paymentIntentsCreate.mockReset()
@@ -335,6 +344,50 @@ describe('checkSupabaseReachable', () => {
 })
 
 describe('Fase 3 auth API', () => {
+  it('/api/auth/register crea una cuenta customer confirmada sin aceptar privilegios', async () => {
+    supabaseMock.createdAuthUser = {
+      id: '00000000-0000-0000-0000-000000000088',
+      email: 'nuevo.cliente@example.com',
+    }
+
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'NUEVO.CLIENTE@example.com',
+        password: 'Password123!',
+        firstName: 'Nuevo',
+        lastName: 'Cliente',
+        preferredLanguage: 'en',
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data).toMatchObject({ email: 'nuevo.cliente@example.com', emailConfirmed: true })
+    expect(supabaseMock.createUserPayload).toMatchObject({
+      email: 'nuevo.cliente@example.com',
+      email_confirm: true,
+      user_metadata: expect.objectContaining({ preferred_language: 'en' }),
+    })
+    expect(supabaseMock.createUserPayload).not.toHaveProperty('app_metadata')
+    expect(supabaseMock.tableData.audit_logs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'customer_self_registered', entity_id: supabaseMock.createdAuthUser.id }),
+    ]))
+  })
+
+  it('/api/auth/register rechaza atributos administrativos', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'ataque@example.com',
+        password: 'Password123!',
+        firstName: 'Ataque',
+        lastName: 'Prueba',
+        role: 'admin',
+      })
+
+    expect(res.status).toBe(422)
+    expect(supabaseMock.createUserPayload).toBeNull()
+  })
+
   it('/api/auth/me rechaza solicitudes sin bearer token', async () => {
     const res = await request(app).get('/api/auth/me')
     expect(res.status).toBe(401)

@@ -1,23 +1,25 @@
 import { Link } from 'react-router-dom'
 import { UserRound } from 'lucide-react'
 import { appPath } from '../../utils/appRoutes'
+import { useAppPreferences } from '../../context/AppPreferencesContext'
 
 export function AppHeader() {
+  const { isEnglish } = useAppPreferences()
   return (
-    <header className="native-app-header sticky top-0 z-50 border-b border-white/72 bg-[linear-gradient(135deg,rgba(255,253,249,.88),rgba(247,235,223,.72))] px-[var(--app-pad)] pt-[var(--safe-top)] shadow-[0_8px_30px_rgba(72,31,28,.055)] backdrop-blur-[24px]">
-      <div className="grid min-h-[54px] grid-cols-[42px_1fr_42px] items-center gap-2">
+    <header className="native-app-header sticky top-0 z-50 border-b border-[#d6af71]/48 bg-[linear-gradient(135deg,rgba(59,6,21,.97),rgba(105,13,43,.93)_58%,rgba(74,8,27,.97))] px-[var(--app-pad)] pt-[var(--safe-top)] text-white shadow-[0_14px_34px_rgba(42,4,16,.24),inset_0_-1px_0_rgba(236,198,137,.18)] backdrop-blur-[24px]">
+      <div className="grid min-h-[62px] grid-cols-[44px_1fr_44px] items-center gap-2">
         <span aria-hidden="true" />
         <Link to={appPath('/home')} className="flex min-w-0 flex-1 items-center justify-center">
           <img
-            src="/hacienda de letras logo 2.png"
+            src="/Logo-HDL-2.svg"
             alt="Hacienda de Letras"
-            className="h-auto w-[92px] object-contain"
+            className="h-[48px] w-[78px] object-contain brightness-0 invert"
           />
         </Link>
         <Link
           to={appPath('/perfil')}
-          className="inline-flex h-10 w-10 items-center justify-center justify-self-end rounded-full border border-white/78 bg-white/58 text-[#690D2B] shadow-[0_8px_20px_rgba(81,25,37,.07)] backdrop-blur-xl"
-          aria-label="Perfil"
+          className="inline-flex h-10 w-10 items-center justify-center justify-self-end rounded-full border border-[#e7c68f]/52 bg-white/10 text-[#fff7e9] shadow-[0_10px_24px_rgba(14,1,5,.28),inset_0_1px_0_rgba(255,255,255,.18)] backdrop-blur-xl"
+          aria-label={isEnglish ? 'Profile' : 'Perfil'}
         >
           <UserRound size={18} strokeWidth={1.45} />
         </Link>

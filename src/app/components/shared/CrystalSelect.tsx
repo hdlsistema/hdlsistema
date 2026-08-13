@@ -152,7 +152,7 @@ export function CrystalSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? 'Seleccionar opción'}
         className={joinClasses(
           'control-select flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[rgba(220,202,181,0.9)] bg-[rgba(255,252,247,0.74)] px-4 text-left text-sm text-[var(--color-muted-strong)] shadow-[0_12px_28px_rgba(90,49,28,0.08)] backdrop-blur-xl transition hover:border-[rgba(180,138,85,0.55)] hover:bg-[rgba(255,252,247,0.86)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-55',
           open &&
@@ -178,7 +178,7 @@ export function CrystalSelect({
             menuClassName,
           )}
         >
-          <div id={listboxId} role="listbox" aria-label={selected?.label ?? 'Opciones'} className="max-h-72 overflow-y-auto pr-1">
+          <div id={listboxId} role="listbox" aria-label={ariaLabel ?? selected?.label ?? 'Opciones'} className="max-h-72 overflow-y-auto pr-1">
             {options.map((option, index) => {
               const active = option.value === value
 

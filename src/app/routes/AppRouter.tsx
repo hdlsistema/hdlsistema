@@ -56,6 +56,7 @@ import { QuoteRequestsPage } from '../pages/control/QuoteRequestsPage'
 import { AccountDeletionRequestsPage } from '../pages/control/AccountDeletionRequestsPage'
 import { PrivacyAccountScreen } from '../pages/mobile/PrivacyAccountScreen'
 import { DeleteAccountScreen } from '../pages/mobile/DeleteAccountScreen'
+import { MobileLegalScreen } from '../pages/mobile/MobileLegalScreen'
 
 function TrackedMobileShell() {
   return <><AppActivityTracker /><MobileShell /></>
@@ -188,6 +189,8 @@ export function AppRouter() {
           }
         />
         <Route path="privacidad-cuenta" element={<ProtectedRoute><PrivacyAccountScreen /></ProtectedRoute>} />
+        <Route path="politica-de-privacidad" element={<ProtectedRoute><MobileLegalScreen kind="privacy" /></ProtectedRoute>} />
+        <Route path="terminos-y-condiciones" element={<ProtectedRoute><MobileLegalScreen kind="terms" /></ProtectedRoute>} />
         <Route path="eliminar-cuenta" element={<ProtectedRoute><DeleteAccountScreen /></ProtectedRoute>} />
       </Route>
 

@@ -4,7 +4,7 @@ import { Browser } from '@capacitor/browser'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../types/database.types'
 import { requestNativeAppleCredential } from './nativeAppleAuth'
-import { apiFetch } from './api'
+import { apiFetch, type ApiFetchError } from './api'
 
 export type UserRole = Database['public']['Enums']['user_role']
 
@@ -42,6 +42,14 @@ function getOAuthRedirectUrl() {
 }
 
 function normalizeError(error: unknown): AuthServiceError {
+  if (error && typeof error === 'object' && 'body' in error) {
+    const body = (error as ApiFetchError).body as { error?: { code?: unknown; message?: unknown } } | undefined
+    const status = (error as ApiFetchError).status
+    const apiMessage = typeof body?.error?.message === 'string' ? body.error.message : ''
+    if (status === 409) return { code: 'email_exists', message: apiMessage || 'La cuenta ya existe.' }
+    if (status === 422) return { code: 'invalid_registration', message: 'Revisa los datos de registro.' }
+  }
+
   if (error && typeof error === 'object' && 'code' in error) {
     const code = String((error as { code?: unknown }).code)
     if (code === 'apple_cancelled') {
@@ -59,13 +67,13 @@ function normalizeError(error: unknown): AuthServiceError {
     return { code: 'invalid_credentials', message: 'Correo o contraseña incorrectos.' }
   }
   if (lower.includes('email not confirmed')) {
-    return { code: 'email_not_verified', message: 'Confirma tu correo antes de iniciar sesión.' }
+    return { code: 'email_not_verified', message: 'No fue posible activar el acceso. Recupera tu contraseña o solicita ayuda.' }
   }
   if (lower.includes('rate limit') || lower.includes('too many')) {
     return { code: 'rate_limited', message: 'Demasiados intentos. Intenta más tarde.' }
   }
   if (lower.includes('already registered') || lower.includes('already exists')) {
-    return { code: 'email_exists', message: 'Revisa tu correo para continuar el acceso.' }
+    return { code: 'email_exists', message: 'La cuenta ya existe. Inicia sesión o recupera tu contraseña.' }
   }
   if (lower.includes('unsupported provider') || lower.includes('provider is not enabled')) {
     return { code: 'provider_not_enabled', message: 'El método de acceso aún no está habilitado.' }
@@ -90,21 +98,20 @@ export async function signUpCustomer(input: SignUpCustomerInput): Promise<{
     assertNoPrivilegedPayload(input as unknown as Record<string, unknown>)
     const email = input.email.trim().toLowerCase()
 
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: input.password,
-      options: {
-        emailRedirectTo: `${APP_URL}/app/home`,
-        data: {
-          first_name: input.firstName.trim(),
-          last_name: input.lastName.trim(),
-          display_name: `${input.firstName.trim()} ${input.lastName.trim()}`.trim(),
-          phone: input.phone?.trim() || undefined,
-          preferred_language: input.preferredLanguage ?? 'es',
-        },
-      },
+    await apiFetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        password: input.password,
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        phone: input.phone?.trim() || undefined,
+        preferredLanguage: input.preferredLanguage ?? 'es',
+      }),
     })
 
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: input.password })
     if (error) throw error
     return { user: data.user, session: data.session }
   } catch (error) {
@@ -224,19 +231,6 @@ export async function completeInitialPasswordChange(token: string, password: str
       },
       body: JSON.stringify({ password }),
     })
-  } catch (error) {
-    throw normalizeError(error)
-  }
-}
-
-export async function resendVerification(email: string) {
-  try {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${APP_URL}/app/home` },
-    })
-    if (error) throw error
   } catch (error) {
     throw normalizeError(error)
   }

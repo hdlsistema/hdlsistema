@@ -6,8 +6,8 @@ const auth = readFileSync(new URL('../app/pages/public/AuthPages.tsx', import.me
 const router = readFileSync(new URL('../app/routes/AppRouter.tsx', import.meta.url), 'utf8')
 
 describe('entrada pública al Centro de Control', () => {
-  it('usa la portada original y presenta una bienvenida operativa compacta', () => {
-    expect(landing).toContain('/hacienda-portada-landing.webp')
+  it('usa la portada restaurada en alta resolución y presenta una bienvenida operativa compacta', () => {
+    expect(landing).toContain('/hacienda-portada-landing-hd.png')
     expect(landing).toContain('Acceso al Centro de Control')
     expect(landing).toContain('Política de Privacidad')
     expect(landing).toContain('Eliminar cuenta')
@@ -15,8 +15,8 @@ describe('entrada pública al Centro de Control', () => {
   })
 
   it('presenta acceso administrativo sobre cristal sin alta pública', () => {
-    expect(auth).toContain('/fondo-login.webp')
-    expect(auth).toContain('-scale-x-100')
+    expect(auth).toContain('/fondo-login-hd.png')
+    expect(auth).not.toContain('<LanguageSelector')
     expect(auth).toContain('Ingresar al Centro de Control')
     expect(router).toContain('<Route path="/registro" element={<Navigate to="/login" replace />} />')
   })
