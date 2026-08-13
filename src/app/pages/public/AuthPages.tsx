@@ -1,6 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   resendVerification,
@@ -79,7 +79,6 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   const appMode = location.pathname.startsWith('/app/')
-  const registerPath = appMode ? '/app/registro' : '/registro'
   const recoverPath = appMode ? '/app/recuperar' : '/recuperar'
 
   const destination = useMemo(() => {
@@ -108,6 +107,69 @@ export function LoginPage() {
     }
   }
 
+  if (!appMode) {
+    return (
+      <main className="relative isolate min-h-screen overflow-hidden bg-[#1a090d] text-white">
+        <img
+          src="/fondo-login.webp"
+          alt="Copa de Hacienda de Letras entre las vides"
+          className="absolute inset-0 -z-30 h-full w-full -scale-x-100 object-cover object-[58%_center] sm:object-center"
+        />
+        <div className="absolute inset-0 -z-20 bg-[linear-gradient(90deg,rgba(17,4,7,0.60)_0%,rgba(35,7,14,0.46)_42%,rgba(19,4,9,0.76)_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_25%_20%,rgba(206,151,77,0.18),transparent_38%),linear-gradient(180deg,rgba(12,3,6,0.18),rgba(12,3,6,0.58))]" />
+
+        <header className="flex items-center justify-between gap-4 px-5 py-5 sm:px-8 lg:px-12">
+          <Link to="/" className="inline-flex items-center gap-3 text-white/88">
+            <ArrowLeft size={16} strokeWidth={1.6} />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em]">Volver a la Hacienda</span>
+          </Link>
+          <LanguageSelector variant="dark" compact />
+        </header>
+
+        <div className="mx-auto grid min-h-[calc(100vh-86px)] w-full max-w-[1480px] items-center px-5 pb-8 sm:px-8 lg:grid-cols-[1fr_520px] lg:px-12">
+          <div className="hidden max-w-[500px] self-end pb-14 lg:block">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-[#edc98e]">Hacienda de Letras · 1854</p>
+            <p className="mt-4 text-[42px] font-normal leading-[0.96] text-white/92" style={{ fontFamily: 'var(--font-display)' }}>La operación también se cuida en los detalles.</p>
+          </div>
+
+          <section className="relative overflow-hidden rounded-[28px] border border-white/24 bg-[rgba(47,13,21,0.52)] p-6 shadow-[0_38px_100px_rgba(8,1,3,0.48)] backdrop-blur-2xl sm:p-9">
+            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#e9c48c]/75 to-transparent" />
+            <div className="flex items-start justify-between gap-5">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#e5bd82]">Acceso privado</p>
+                <h1 className="mt-3 text-[clamp(38px,5vw,54px)] font-normal leading-[0.9] tracking-[-0.025em] text-[#fff8ed]" style={{ fontFamily: 'var(--font-display)' }}>Centro de Control</h1>
+              </div>
+              <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/18 bg-white/8 text-[#f0d4a8]">
+                <ShieldCheck size={20} strokeWidth={1.45} />
+              </span>
+            </div>
+            <p className="mt-5 max-w-[410px] text-[13px] leading-6 text-white/65">Ingresa con tu perfil autorizado para coordinar la operación de Hacienda de Letras.</p>
+
+            <form className="mt-7 space-y-4" onSubmit={submit}>
+              <ControlField icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" autoComplete="email" />
+              <ControlPasswordField show={showPassword} setShow={setShowPassword} />
+              <div className="flex justify-end">
+                <Link to={recoverPath} className="text-[11px] font-semibold text-[#f0d1a0] transition hover:text-white">
+                  {t('auth.forgotPassword')}
+                </Link>
+              </div>
+              {error ? <p className="rounded-xl border border-[#ffccd6]/20 bg-[#9f1239]/22 px-3 py-2 text-[12px] text-[#ffe3e8]">{error}</p> : null}
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex min-h-[54px] w-full items-center justify-center gap-3 rounded-full bg-[#f4e4cf] px-5 text-[13px] font-bold text-[#571024] shadow-[0_18px_40px_rgba(13,2,5,0.25)] transition hover:bg-white disabled:opacity-60"
+              >
+                {loading ? t('auth.processing') : 'Ingresar al Centro de Control'}
+                <ArrowRight size={16} />
+              </button>
+            </form>
+            <p className="mt-6 border-t border-white/12 pt-5 text-center text-[10px] leading-5 text-white/48">Acceso exclusivo para personal autorizado. Cada ingreso queda protegido por los permisos del perfil.</p>
+          </section>
+        </div>
+      </main>
+    )
+  }
+
   return (
       <AuthShell
       eyebrow={t('auth.secureAccess')}
@@ -124,9 +186,49 @@ export function LoginPage() {
         <SubmitButton loading={loading}>{t('auth.login')}</SubmitButton>
       </form>
       <p className="mt-6 text-center text-[12px] text-[#7f6a59]">
-        {t('auth.noAccount')} <Link className="font-bold text-[#681126]" to={registerPath}>{t('auth.createAccount')}</Link>
+        {t('auth.noAccount')} <Link className="font-bold text-[#681126]" to="/app/registro">{t('auth.createAccount')}</Link>
       </p>
     </AuthShell>
+  )
+}
+
+function ControlField({
+  icon,
+  label,
+  name,
+  type,
+  autoComplete,
+}: {
+  icon: ReactNode
+  label: string
+  name: string
+  type: string
+  autoComplete: string
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/64">{label}</span>
+      <span className="flex min-h-[54px] items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24">
+        <span className="text-[#dfbd8e]">{icon}</span>
+        <input required name={name} type={type} autoComplete={autoComplete} className="min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-white/30" />
+      </span>
+    </label>
+  )
+}
+
+function ControlPasswordField({ show, setShow }: { show: boolean; setShow: (value: boolean) => void }) {
+  const { t } = useAppPreferences()
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/64">{t('auth.password')}</span>
+      <span className="flex min-h-[54px] items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24">
+        <LockKeyhole size={17} className="text-[#dfbd8e]" />
+        <input required name="password" type={show ? 'text' : 'password'} autoComplete="current-password" className="min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none" />
+        <button type="button" onClick={() => setShow(!show)} className="text-white/62 transition hover:text-white" aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}>
+          {show ? <EyeOff size={17} /> : <Eye size={17} />}
+        </button>
+      </span>
+    </label>
   )
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Loader2 } from 'lucide-react'
+import { Check, Loader2, MoonStar, Users } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
 import { EmptyState, ErrorState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
@@ -87,14 +87,23 @@ export function CabinsScreen() {
               ) : null}
               <span className="block p-4">
                 <span className="flex items-start justify-between gap-3">
-                  <span>
+                  <span className="min-w-0">
                     <span className="block text-[20px] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>{item.name}</span>
-                    <span className="mt-2 block text-[12px] leading-5 text-[#776053]">{item.description}</span>
+                    {item.subtitle ? <span className="mt-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9A6A42]">{item.subtitle}</span> : null}
                   </span>
-                  <StatusBadge>{formatCurrency(item.price, locale)}</StatusBadge>
+                  <span className="shrink-0 text-right">
+                    <StatusBadge>{formatCurrency(item.price, locale)}</StatusBadge>
+                    <span className="mt-1.5 block text-[9px] uppercase tracking-[0.08em] text-[#8C7365]">por pareja</span>
+                  </span>
+                </span>
+                <span className="mt-3 block text-[12px] leading-5 text-[#776053]">{item.description}</span>
+                <span className="mt-3 flex items-center gap-4 border-y border-[#E8D7C2] py-2.5 text-[10px] font-semibold text-[#6B4A3B]">
+                  <span className="inline-flex items-center gap-1.5"><MoonStar size={13} />{item.nights ?? 1} noche</span>
+                  <span className="inline-flex items-center gap-1.5"><Users size={13} />2 personas</span>
+                  <span>Desayuno incluido</span>
                 </span>
                 <span className="mt-3 flex flex-wrap gap-2">
-                  {(item.inclusions ?? []).slice(0, 5).map((value) => (
+                  {(item.inclusions ?? []).map((value) => (
                     <span key={value} className="inline-flex items-center gap-1 rounded-full bg-[#F4EAE4] px-2.5 py-1 text-[10px] text-[#690D2B]">
                       <Check size={12} /> {value}
                     </span>

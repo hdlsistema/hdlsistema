@@ -82,7 +82,7 @@ export function AppRouter() {
       <Route path="/eliminar-cuenta" element={<AccountDeletionPage />} />
       <Route path="/vista-previa/:token" element={<ContentPreviewPage />} />
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/registro" element={<RegisterPage />} />
+      <Route path="/registro" element={<Navigate to="/login" replace />} />
       <Route path="/recuperar" element={<RecoverPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
