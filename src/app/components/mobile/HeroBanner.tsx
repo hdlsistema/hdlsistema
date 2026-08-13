@@ -12,11 +12,11 @@ export function HeroBanner({ title, subtitle, image }: HeroBannerProps) {
       <div className="absolute inset-x-0 bottom-0 h-[58%] bg-[linear-gradient(180deg,rgba(20,10,6,0)_0%,rgba(20,10,6,0.22)_30%,rgba(20,10,6,0.78)_100%)]" />
       <div className="absolute inset-x-0 bottom-0 p-6 text-white">
         <div className="max-w-[238px]">
-          <h3 className="text-[2rem] font-semibold leading-[0.98] text-white">{title}</h3>
-          <p className="mt-4 text-[14px] leading-6 text-[rgba(255,243,229,0.94)]">{subtitle}</p>
+          <h3 className="text-[1.7rem] font-medium leading-[1] text-white">{title}</h3>
+          <p className="mt-3 text-[12px] leading-5 text-[rgba(255,243,229,0.94)]">{subtitle}</p>
           <button
             type="button"
-            className="mt-5 rounded-[0.95rem] bg-[var(--color-burgundy-soft)] px-5 py-3 text-[14px] font-medium text-white shadow-[0_10px_20px_rgba(79,15,31,0.24)]"
+            className="mt-5 rounded-full border border-white/20 bg-[rgba(105,13,43,.82)] px-5 py-3 text-[12px] font-semibold text-white shadow-[0_10px_20px_rgba(79,15,31,0.2)] backdrop-blur-xl"
           >
             Descubre la experiencia
           </button>

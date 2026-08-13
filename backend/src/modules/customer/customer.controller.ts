@@ -1,6 +1,10 @@
 import type { Request, Response } from 'express'
 import { sendOperationError } from '../operations/operationErrors'
 import {
+  listCustomerNotifications,
+  markCustomerNotificationRead,
+} from '../notifications/notifications.service'
+import {
   createCustomerStripePaymentSession,
   getCustomerStripePaymentStatus,
   retryCustomerStripePayment,
@@ -91,6 +95,25 @@ export async function disableCustomerDeviceController(req: Request, res: Respons
   try {
     const payload = registerCustomerDeviceSchema.pick({ firebaseToken: true }).parse(req.body)
     const result = await disableCustomerDevice(payload.firebaseToken, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function listCustomerNotificationsController(req: Request, res: Response): Promise<void> {
+  try {
+    const limit = Math.min(Math.max(Number(req.query.limit ?? 40) || 40, 1), 100)
+    const result = await listCustomerNotifications(userContext(req), limit)
+    res.json({ ok: true, data: result.data, unreadCount: result.unreadCount })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function markCustomerNotificationReadController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await markCustomerNotificationRead(req.params.id, userContext(req))
     res.json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)

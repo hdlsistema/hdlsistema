@@ -41,13 +41,13 @@ export function AppSectionHeader({
           </p>
         ) : null}
         <h2
-          className="mt-1 text-[clamp(28px,7vw,34px)] leading-[0.98] text-[var(--color-ink)]"
+          className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-[1.02] text-[var(--color-ink)]"
           style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
         >
           {title}
         </h2>
         {subtitle ? (
-          <p className="mt-2 max-w-[31rem] text-[14px] leading-5 text-[var(--color-muted)]">
+          <p className="mt-2 max-w-[31rem] text-[12px] leading-5 text-[var(--color-muted)]">
             {subtitle}
           </p>
         ) : null}
@@ -82,7 +82,7 @@ export function HeroEditorial({
     <section
       className={cx(
         'relative isolate min-w-0 overflow-hidden rounded-[1.25rem] bg-[var(--color-burgundy-deep)] text-white shadow-[var(--shadow-float)]',
-        compact ? 'min-h-[220px]' : 'min-h-[clamp(360px,72vh,480px)]',
+        compact ? 'min-h-[205px]' : 'min-h-[clamp(320px,62vh,430px)]',
       )}
     >
       {image ? (
@@ -98,13 +98,13 @@ export function HeroEditorial({
           </p>
         ) : null}
         <h1
-          className="mt-2 max-w-[19rem] text-[clamp(32px,9vw,42px)] leading-[0.95] text-white"
+          className="mt-2 max-w-[19rem] text-[clamp(27px,7.4vw,36px)] font-medium leading-[0.98] text-white"
           style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
         >
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-3 max-w-[20rem] text-[14px] leading-5 text-white/84">
+          <p className="mt-3 max-w-[20rem] text-[12px] leading-5 text-white/84">
             {subtitle}
           </p>
         ) : null}
@@ -203,7 +203,7 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
             type="button"
             onClick={() => onSelect?.(index)}
             className={cx(
-              'min-h-10 shrink-0 rounded-full px-5 text-[14px] font-medium tracking-[0.01em] transition-all',
+              'min-h-9 shrink-0 rounded-full px-4 text-[12px] font-medium tracking-[0.01em] transition-all',
               active
                 ? 'bg-[linear-gradient(135deg,#8A1238,#61091F)] text-white shadow-[0_14px_26px_rgba(104,13,36,0.24),inset_0_1px_0_rgba(255,255,255,0.22)]'
                 : 'border border-[rgba(184,138,74,0.22)] bg-[rgba(255,249,241,0.66)] text-[#6F584B] shadow-[0_10px_22px_rgba(74,32,28,0.05),inset_0_1px_0_rgba(255,255,255,0.76)] backdrop-blur-xl',
@@ -260,7 +260,7 @@ export function PrimaryButton({
   const classes = cx(
     'app-primary-button',
     `app-primary-button--${tone}`,
-    'inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] px-4 py-3 text-center text-[14px] font-semibold leading-5 transition-transform',
+    'inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-2 rounded-[1rem] px-4 py-3 text-center text-[13px] font-semibold leading-5 transition-transform',
     tone === 'primary' && 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_24px_rgba(84,17,36,0.16)]',
     tone === 'secondary' && 'bg-[var(--color-surface-warm)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]',
     tone === 'ghost' && 'bg-transparent text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(84,17,36,0.16)]',
@@ -573,7 +573,7 @@ export function EditorialCard({
     <Link to={to} className="app-editorial-card grid min-h-[148px] min-w-0 overflow-hidden rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1]">
       <div className="min-w-0 p-4">
         {eyebrow ? <p className="line-clamp-1 text-[9px] font-semibold uppercase text-[#B88A4A]">{eyebrow}</p> : null}
-        <h3 className="mt-1 line-clamp-2 text-[clamp(18px,5vw,21px)] leading-[1.05] text-[#2D1811]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+        <h3 className="mt-1 line-clamp-2 text-[clamp(17px,4.6vw,19px)] font-medium leading-[1.08] text-[#2D1811]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
           {title}
         </h3>
         {description ? <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-[#776053]">{description}</p> : null}

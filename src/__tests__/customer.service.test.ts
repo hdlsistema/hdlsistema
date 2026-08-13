@@ -177,4 +177,19 @@ describe('customer.service client', () => {
     expect(cart.data.items[0].quantity).toBe(3)
     expect(fetchSpy.mock.calls[1]?.[0]).toBe('http://localhost:3001/api/customer/cart/items/item-1')
   })
+
+  it('consulta el buzón customer y marca avisos de seguimiento como leídos', async () => {
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, data: [{ id: 'notice-1', title: 'Guía asignada' }], unreadCount: 1 }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, data: { id: 'notice-1', readAt: '2026-08-12T18:00:00.000Z' } }))
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const inbox = await customerClient.notifications('jwt-customer')
+    await customerClient.readNotification('jwt-customer', 'notice-1')
+
+    expect(inbox.unreadCount).toBe(1)
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe('http://localhost:3001/api/customer/notifications?limit=40')
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe('http://localhost:3001/api/customer/notifications/notice-1/read')
+    expect(fetchSpy.mock.calls[1]?.[1]).toMatchObject({ method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer jwt-customer' }) })
+  })
 })

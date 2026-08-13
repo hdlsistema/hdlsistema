@@ -147,7 +147,7 @@ export function StoreScreen() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1
-              className="text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]"
+              className="text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]"
               style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
             >
               {t('app.premium.wines.title')}

@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import {
   getCurrentProfile,
   getCurrentRoles,
+  completeInitialPasswordChange as completeInitialPasswordChangeService,
   signIn as signInService,
   signOut as signOutService,
   type AuthProfile,
@@ -37,10 +38,12 @@ type AuthContextValue = {
   isAuthenticated: boolean
   isLoading: boolean
   isAdmin: boolean
+  mustChangePassword: boolean
   hasRole: (role: UserRole | UserRole[]) => boolean
   signIn: (email: string, password: string) => Promise<UserRole[]>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  completeInitialPasswordChange: (password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -51,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [roles, setRoles] = useState<UserRole[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [passwordChangeCompletedFor, setPasswordChangeCompletedFor] = useState<string | null>(null)
   const mounted = useRef(true)
 
   const loadIdentity = useCallback(async (nextSession: Session | null): Promise<UserRole[]> => {
@@ -60,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextSession?.user) {
       setProfile(null)
       setRoles([])
+      setPasswordChangeCompletedFor(null)
       return []
     }
 
@@ -143,6 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await loadIdentity(session)
   }, [loadIdentity, session])
 
+  const completeInitialPasswordChange = useCallback(async (password: string) => {
+    if (!session?.access_token || !user?.id) throw new Error('Sesión requerida')
+    await completeInitialPasswordChangeService(session.access_token, password)
+    setPasswordChangeCompletedFor(user.id)
+    const { data } = await supabase.auth.refreshSession()
+    if (data.session) await loadIdentity(data.session)
+  }, [loadIdentity, session?.access_token, user?.id])
+
   const hasRole = useCallback(
     (role: UserRole | UserRole[]) => {
       const required = Array.isArray(role) ? role : [role]
@@ -160,12 +173,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(session),
       isLoading,
       isAdmin: ADMIN_ROLES.some((role) => roles.includes(role)),
+      mustChangePassword: Boolean(user?.app_metadata?.must_change_password) && passwordChangeCompletedFor !== user?.id,
       hasRole,
       signIn,
       signOut,
       refreshProfile,
+      completeInitialPasswordChange,
     }),
-    [hasRole, isLoading, profile, roles, session, signIn, signOut, user, refreshProfile],
+    [completeInitialPasswordChange, hasRole, isLoading, passwordChangeCompletedFor, profile, roles, session, signIn, signOut, user, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

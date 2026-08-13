@@ -77,6 +77,7 @@ export type ShipmentRecord = {
   customerName?: string | null
   carrierName?: string | null
   trackingNumber?: string | null
+  trackingUrl?: string | null
   destination?: string | null
   status: string
   shippingCost: number

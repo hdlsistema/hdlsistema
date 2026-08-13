@@ -235,6 +235,19 @@ export type CustomerShipment = {
   deliveredAt?: string | null
 }
 
+export type CustomerNotification = {
+  id: string
+  channel: string
+  title: string
+  body: string
+  status: string
+  data: Record<string, unknown>
+  deepLink?: string | null
+  sentAt?: string | null
+  readAt?: string | null
+  createdAt: string
+}
+
 export type CustomerOrder = {
   id: string
   orderNumber: string
@@ -506,6 +519,17 @@ export const customerClient = {
   },
   orders(token: string | null | undefined) {
     return apiFetch<{ ok: true; data: CustomerOrder[] }>('/api/customer/orders', {
+      headers: customerHeaders(token),
+    })
+  },
+  notifications(token: string | null | undefined, limit = 40) {
+    return apiFetch<{ ok: true; data: CustomerNotification[]; unreadCount: number }>(`/api/customer/notifications?limit=${limit}`, {
+      headers: customerHeaders(token),
+    })
+  },
+  readNotification(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: CustomerNotification }>(`/api/customer/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
       headers: customerHeaders(token),
     })
   },

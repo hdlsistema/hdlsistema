@@ -147,7 +147,7 @@ export function QuoteRequestScreen() {
     <div className="space-y-5 px-[var(--app-pad)] pb-8 pt-5">
       <header>
         <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">Celebra en Hacienda</p>
-        <h1 className="mt-1 text-[clamp(34px,9vw,44px)] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
+        <h1 className="mt-1 text-[clamp(26px,7vw,34px)] font-medium leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
           Haz de Hacienda de Letras el escenario de tu próxima historia.
         </h1>
       </header>

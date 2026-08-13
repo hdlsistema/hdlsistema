@@ -4,6 +4,7 @@ import { Browser } from '@capacitor/browser'
 import { supabase } from '../lib/supabase'
 import type { Database } from '../types/database.types'
 import { requestNativeAppleCredential } from './nativeAppleAuth'
+import { apiFetch } from './api'
 
 export type UserRole = Database['public']['Enums']['user_role']
 
@@ -205,6 +206,24 @@ export async function updatePassword(password: string) {
   try {
     const { error } = await supabase.auth.updateUser({ password })
     if (error) throw error
+  } catch (error) {
+    throw normalizeError(error)
+  }
+}
+
+export async function completeInitialPasswordChange(token: string, password: string) {
+  try {
+    return await apiFetch<{
+      ok: true
+      data: { changedAt: string; mustChangePassword: false }
+    }>('/api/auth/initial-password', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password }),
+    })
   } catch (error) {
     throw normalizeError(error)
   }

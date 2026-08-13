@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Crown, Gift, Grape, Star } from 'lucide-react'
+import { BadgeCheck, Crown, Gift, Grape } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   customerClient,
@@ -78,7 +78,7 @@ export function ClubScreen() {
                 : membership?.plan?.name ?? t('app.premium.club.noMembership')}
             </h2>
           </div>
-          {membership ? <StatusBadge tone="success"><Star size={12} /> {membership.status}</StatusBadge> : null}
+          {membership ? <StatusBadge tone="success"><BadgeCheck size={12} /> {membership.status}</StatusBadge> : null}
         </div>
 
         {membershipError ? (

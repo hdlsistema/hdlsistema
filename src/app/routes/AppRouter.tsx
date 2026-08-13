@@ -26,6 +26,7 @@ import { WineClubPage } from '../pages/control/WineClubPage'
 import { LandingPage } from '../pages/public/LandingPage'
 import { LegalPage } from '../pages/public/LegalPage'
 import { AccountDeletionPage } from '../pages/public/AccountDeletionPage'
+import { ContentPreviewPage } from '../pages/public/ContentPreviewPage'
 import {
   AppAuthCallbackPage,
   LoginPage,
@@ -79,6 +80,7 @@ export function AppRouter() {
       <Route path="/terminos" element={<LegalPage type="terms" />} />
       <Route path="/terminos-y-condiciones" element={<LegalPage type="terms" />} />
       <Route path="/eliminar-cuenta" element={<AccountDeletionPage />} />
+      <Route path="/vista-previa/:token" element={<ContentPreviewPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/recuperar" element={<RecoverPage />} />

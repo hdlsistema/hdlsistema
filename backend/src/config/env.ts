@@ -58,6 +58,12 @@ export const env = {
   RESEND_REPLY_TO_EMAIL: optionalEnv('RESEND_REPLY_TO_EMAIL', ''),
   RESEND_WEBHOOK_SECRET: optionalEnv('RESEND_WEBHOOK_SECRET', ''),
 
+  // Firebase Cloud Messaging — entrega push nativa mediante HTTP v1.
+  // Las credenciales permanecen exclusivamente en Railway/backend.
+  FIREBASE_PROJECT_ID: optionalEnv('FIREBASE_PROJECT_ID', ''),
+  FIREBASE_CLIENT_EMAIL: optionalEnv('FIREBASE_CLIENT_EMAIL', ''),
+  FIREBASE_PRIVATE_KEY: optionalEnv('FIREBASE_PRIVATE_KEY', ''),
+
   // Stripe — pagos customer con PaymentIntent; solo lado servidor
   STRIPE_SECRET_KEY: optionalEnv('STRIPE_SECRET_KEY', ''),
   STRIPE_WEBHOOK_SECRET: optionalEnv('STRIPE_WEBHOOK_SECRET', ''),

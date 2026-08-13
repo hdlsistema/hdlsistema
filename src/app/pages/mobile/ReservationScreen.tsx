@@ -141,7 +141,7 @@ function TicketSheet({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.ticket.eyebrow', 'Mi boleto')}</p>
-            <h3 className="mt-1 text-[30px] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
+            <h3 className="mt-1 text-[25px] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
           </div>
           <button type="button" onClick={onClose} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(45,24,17,0.2)] bg-white/70 text-[var(--color-ink)]" aria-label={t('common.close', 'Cerrar')}>
             <X size={18} />
@@ -321,7 +321,7 @@ export function ReservationScreen() {
               <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_35%,rgba(40,14,17,0.78))]" />
               <div className="absolute inset-x-0 bottom-0 p-[var(--app-pad)] text-white">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#f0cf92]">{t('app.premium.reservation.selectedExperience')}</p>
-                <h2 className="mt-1 text-[clamp(24px,7vw,31px)] leading-none" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+                <h2 className="mt-1 text-[clamp(22px,6vw,27px)] font-medium leading-none" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
                   {textField(featuredExperience, 'title', 'Experiencia')}
                 </h2>
               </div>

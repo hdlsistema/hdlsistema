@@ -121,7 +121,7 @@ export function WineDetailScreen() {
         </button>
         <div className="relative">
           <p className="text-[10px] font-semibold uppercase text-[#D7B67A]">{wineSubtitle}</p>
-	          <h1 className="mt-2 max-w-[18rem] text-[clamp(32px,9vw,42px)] leading-[0.95] text-white" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+	          <h1 className="mt-2 max-w-[18rem] text-[clamp(27px,7.4vw,36px)] font-medium leading-[0.98] text-white" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
             {wineName}
           </h1>
           {wineVintage ? <p className="mt-2 text-[13px] text-white/82">{wineVintage}</p> : null}

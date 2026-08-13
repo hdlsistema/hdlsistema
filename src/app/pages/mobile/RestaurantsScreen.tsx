@@ -65,7 +65,7 @@ export function RestaurantsScreen() {
     <div className="space-y-5 px-[var(--app-pad)] pb-8 pt-5">
       <header>
         <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">Gastronomía</p>
-        <h1 className="mt-1 text-[clamp(34px,9vw,44px)] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
+        <h1 className="mt-1 text-[clamp(26px,7vw,34px)] font-medium leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
           Restaurantes
         </h1>
         <p className="mt-3 text-[13px] leading-5 text-[#776053]">Reservaciones sujetas a confirmación operativa.</p>

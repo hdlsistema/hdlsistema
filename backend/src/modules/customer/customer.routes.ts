@@ -26,8 +26,10 @@ import {
   listCustomerAccessPassesController,
   listCustomerAddressesController,
   listCustomerOrdersController,
+  listCustomerNotificationsController,
   listCustomerReservationsController,
   patchCustomerMeController,
+  markCustomerNotificationReadController,
   registerCustomerDeviceController,
   removeCustomerCartItemController,
   retryCustomerPaymentController,
@@ -45,6 +47,8 @@ router.get('/me', ...protectedCustomer, getCustomerMeController)
 router.patch('/me', ...protectedCustomer, patchCustomerMeController)
 router.post('/devices', ...protectedCustomer, registerCustomerDeviceController)
 router.post('/devices/disable', ...protectedCustomer, disableCustomerDeviceController)
+router.get('/notifications', ...protectedCustomer, listCustomerNotificationsController)
+router.post('/notifications/:id/read', ...protectedCustomer, markCustomerNotificationReadController)
 router.get('/availability', ...protectedCustomer, getCustomerAvailabilityController)
 router.get('/availability/:experienceId', ...protectedCustomer, getCustomerExperienceAvailabilityController)
 router.get('/cart', ...protectedCustomer, getCustomerCartController)

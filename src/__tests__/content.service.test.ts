@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   adminContentClient,
+  getPreviewUrl,
   previewContentClient,
   publicContentClient,
 } from '../services/content.service'
@@ -66,6 +67,11 @@ describe('content.service admin client', () => {
 })
 
 describe('content.service public and preview clients', () => {
+  it('abre la vista previa visual del frontend y no el JSON técnico del backend', () => {
+    expect(getPreviewUrl('preview token')).toBe('https://admhaciendadeletras.com/vista-previa/preview%20token')
+    expect(getPreviewUrl('preview token')).not.toContain('/api/preview/')
+  })
+
   it('consume endpoints públicos sin Authorization', async () => {
     const fetchSpy = vi.fn().mockResolvedValue(
       jsonResponse({

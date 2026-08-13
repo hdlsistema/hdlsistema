@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Send, Sparkles, Wine } from 'lucide-react'
+import { MessageCircleMore, Send, Wine } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
 import { AppSectionHeader, EmptyState, ErrorState, HeroEditorial, LoadingState, WineCard } from '../../components/mobile/PremiumMobileUi'
@@ -116,14 +116,14 @@ export function SommelierScreen() {
 
       <section className="rounded-[1.45rem] border border-[rgba(219,189,148,0.55)] bg-[rgba(255,250,242,0.82)] p-4 shadow-[var(--shadow-card)] backdrop-blur-xl">
         <div className="flex items-center gap-2">
-          <Sparkles size={18} className="text-[var(--color-gold)]" />
+          <MessageCircleMore size={18} strokeWidth={1.45} className="text-[var(--color-gold)]" />
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.sommelier.realAssistant')}</p>
         </div>
         <div className="mt-4 max-h-[320px] space-y-3 overflow-y-auto pr-1">
           {messages.length ? messages.map((message) => (
             <div
               key={message.id}
-              className={`rounded-[1.15rem] px-4 py-3 text-[15px] leading-7 ${
+              className={`rounded-[1.15rem] px-4 py-3 text-[13px] leading-6 ${
                 message.role === 'user'
                   ? 'ml-8 bg-[var(--color-burgundy)] text-white'
                   : 'mr-8 border border-[rgba(219,189,148,0.55)] bg-white/76 text-[var(--color-ink)]'

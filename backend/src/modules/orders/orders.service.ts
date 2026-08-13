@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import {
   createSupabaseUserRequestClient,
   supabaseAdminClient,
@@ -20,6 +20,7 @@ import type {
   PatchOrderPayload,
 } from './orders.schemas'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
+import { createCustomerNotification } from '../notifications/notifications.service'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer', 'marketing']
 const writeRoles = ['super_admin', 'admin', 'operations', 'finance']
@@ -53,6 +54,7 @@ type OrderRow = {
 
 type CustomerRow = {
   id: string
+  user_id?: string | null
   display_name?: string | null
   first_name: string
   last_name: string
@@ -135,7 +137,7 @@ type Relation<T> = T | T[] | null
 const orderSelect = `
   id,order_number,customer_id,reservation_id,subtotal,discount_total,tax_total,shipping_total,total,currency,
   status,source,paid_at,cancelled_at,cancellation_reason,fulfilled_at,requires_shipping,shipping_status,metadata,created_at,updated_at,
-  customers(id,display_name,first_name,last_name,email),
+  customers(id,user_id,display_name,first_name,last_name,email),
   reservations(id,reservation_number)
 `
 
@@ -455,19 +457,18 @@ async function writeAudit(action: string, entityId: string, actorId?: string, me
 }
 
 async function insertOrderNotification(order: OrderRow, title: string, body: string, status: string) {
-  await supabaseAdminClient.from('notifications').insert({
-    user_id: null,
-    customer_id: order.customer_id,
-    channel: 'in_app',
+  const customer = firstRelation(order.customers)
+  return createCustomerNotification({
+    customerId: order.customer_id,
+    userId: customer?.user_id ?? null,
     title,
     body,
+    deepLink: `/app/perfil?orderId=${encodeURIComponent(order.id)}#orders`,
     data: {
       orderId: order.id,
       orderNumber: order.order_number,
       status,
-      targetPath: `/control/ordenes?orderId=${order.id}`,
     },
-    status: 'pending',
   })
 }
 
@@ -584,6 +585,9 @@ export async function assignOrderTracking(id: string, payload: OrderTrackingPayl
   const order = await getOrderRowForShipping(id)
   if (order.status !== 'paid' && order.status !== 'processing') throw httpError(422, 'La orden debe tener pago confirmado')
   const shipment = await ensureShipment(order, 'awaiting_tracking', user.userId)
+  const trackingChanged = shipment.carrier !== payload.carrier
+    || shipment.tracking_number !== payload.trackingNumber
+    || (shipment.tracking_url ?? null) !== (payload.trackingUrl ?? null)
   const now = new Date().toISOString()
   await supabaseAdminClient.from('shipments').update({
     carrier: payload.carrier,
@@ -595,9 +599,46 @@ export async function assignOrderTracking(id: string, payload: OrderTrackingPayl
     updated_at: now,
   }).eq('id', shipment.id)
   await supabaseAdminClient.from('orders').update({ shipping_status: 'tracking_assigned', updated_by: user.userId, updated_at: now }).eq('id', order.id)
-  await insertOrderNotification(order, 'Guía asignada', `La orden ${order.order_number} ya tiene guía asignada.`, 'tracking_assigned').catch(() => undefined)
+  if (trackingChanged) {
+    await insertOrderNotification(order, 'Guía asignada', `La orden ${order.order_number} ya tiene guía asignada.`, 'tracking_assigned').catch(() => undefined)
+    await queueOrderTrackingEmail(order, {
+      ...shipment,
+      carrier: payload.carrier,
+      tracking_number: payload.trackingNumber,
+      tracking_url: payload.trackingUrl ?? null,
+      status_text: 'tracking_assigned',
+      tracking_assigned_at: now,
+    }).catch(() => undefined)
+  }
   await writeAudit('order_tracking_assigned', order.id, user.userId, { carrier: payload.carrier })
   return getOrder(order.id, user)
+}
+
+async function queueOrderTrackingEmail(order: OrderRow, shipment: ShipmentRow) {
+  const customer = firstRelation(order.customers)
+  if (!customer?.email || !shipment.tracking_number) return
+  const trackingFingerprint = createHash('sha256')
+    .update([shipment.carrier, shipment.tracking_number, shipment.tracking_url].map((value) => value ?? '').join('|'))
+    .digest('hex')
+    .slice(0, 16)
+  await enqueueAndProcessTransactionalEmail({
+    eventType: 'order.tracking_assigned',
+    aggregateType: 'orders',
+    aggregateId: order.id,
+    customerId: order.customer_id,
+    userId: customer.user_id ?? null,
+    recipientEmail: customer.email,
+    locale: 'es-MX',
+    payload: {
+      customerName: customerName(order),
+      orderNumber: order.order_number,
+      carrier: shipment.carrier ?? 'Paquetería',
+      trackingNumber: shipment.tracking_number,
+      trackingUrl: shipment.tracking_url ?? '',
+      shippingStatus: 'tracking_assigned',
+    },
+    idempotencyKey: `order.tracking_assigned:${order.id}:${trackingFingerprint}`,
+  })
 }
 
 async function queueOrderShippedEmail(order: OrderRow, shipment: ShipmentRow) {
@@ -608,7 +649,7 @@ async function queueOrderShippedEmail(order: OrderRow, shipment: ShipmentRow) {
     aggregateType: 'orders',
     aggregateId: order.id,
     customerId: order.customer_id,
-    userId: null,
+    userId: customer.user_id ?? null,
     recipientEmail: customer.email,
     locale: 'es-MX',
     payload: {
@@ -617,6 +658,7 @@ async function queueOrderShippedEmail(order: OrderRow, shipment: ShipmentRow) {
       carrier: shipment.carrier ?? 'Paquetería',
       trackingNumber: shipment.tracking_number ?? '',
       trackingUrl: shipment.tracking_url ?? '',
+      shippingStatus: 'shipped',
     },
     idempotencyKey: `order.shipped:${order.id}:${shipment.tracking_number ?? shipment.id}`,
   }).catch(() => undefined)
@@ -661,6 +703,86 @@ export async function deliverOrder(id: string, _payload: OrderShippingActionPayl
   await insertOrderNotification(order, 'Pedido entregado', `La orden ${order.order_number} fue marcada como entregada.`, 'delivered').catch(() => undefined)
   await writeAudit('order_delivered', order.id, user.userId)
   return getOrder(order.id, user)
+}
+
+/**
+ * Mantiene el módulo de Logística y el detalle de Órdenes sobre el mismo estado.
+ * Es idempotente: correos y avisos usan claves estables y no se duplican al
+ * actualizar el mismo envío desde dos pantallas administrativas.
+ */
+export async function synchronizeOrderFromShipment(
+  shipmentId: string,
+  user: UserContext,
+) {
+  requireOperationRole(user, writeRoles)
+  const shipmentResult = await supabaseAdminClient
+    .from('shipments')
+    .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,shipping_cost,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
+    .eq('id', shipmentId)
+    .maybeSingle()
+  const shipment = assertNoError<ShipmentRow | null>(shipmentResult).data
+  if (!shipment) throw httpError(404, 'Envío no encontrado')
+
+  const order = await getOrderRowForShipping(shipment.order_id)
+  if (!['paid', 'processing', 'fulfilled'].includes(order.status)) return
+
+  const statusMap: Record<string, string | null> = {
+    pending: 'pending_preparation',
+    pending_preparation: 'pending_preparation',
+    preparing: 'preparing',
+    ready: 'awaiting_tracking',
+    awaiting_tracking: 'awaiting_tracking',
+    tracking_assigned: 'tracking_assigned',
+    shipped: 'shipped',
+    in_transit: 'shipped',
+    delivered: 'delivered',
+    returned: 'cancelled',
+    cancelled: 'cancelled',
+    failed: null,
+  }
+  let nextStatus = statusMap[shipment.status_text] ?? null
+  if (shipment.tracking_number && !['shipped', 'in_transit', 'delivered'].includes(shipment.status_text)) {
+    nextStatus = 'tracking_assigned'
+  }
+  if (!nextStatus) return
+
+  const now = new Date().toISOString()
+  const previousStatus = order.shipping_status ?? 'not_required'
+  await supabaseAdminClient
+    .from('orders')
+    .update({ requires_shipping: true, shipping_status: nextStatus, updated_by: user.userId, updated_at: now })
+    .eq('id', order.id)
+
+  if (shipment.tracking_number && !['tracking_assigned', 'shipped', 'delivered'].includes(previousStatus)) {
+    await queueOrderTrackingEmail(order, shipment).catch(() => undefined)
+    await insertOrderNotification(
+      order,
+      'Guía asignada',
+      `La orden ${order.order_number} ya tiene guía asignada.`,
+      'tracking_assigned',
+    ).catch(() => undefined)
+  }
+  if (nextStatus === 'shipped' && previousStatus !== 'shipped') {
+    await queueOrderShippedEmail(order, shipment).catch(() => undefined)
+    await insertOrderNotification(
+      order,
+      'Pedido enviado',
+      `La orden ${order.order_number} fue marcada como enviada.`,
+      'shipped',
+    ).catch(() => undefined)
+  }
+  if (nextStatus === 'delivered' && previousStatus !== 'delivered') {
+    await insertOrderNotification(
+      order,
+      'Pedido entregado',
+      `La orden ${order.order_number} fue marcada como entregada.`,
+      'delivered',
+    ).catch(() => undefined)
+  }
+  await writeAudit('order_shipping_synced_from_logistics', order.id, user.userId, {
+    shipmentId,
+    shippingStatus: nextStatus,
+  })
 }
 
 export async function exportOrders(query: OrderListQuery, user: UserContext) {

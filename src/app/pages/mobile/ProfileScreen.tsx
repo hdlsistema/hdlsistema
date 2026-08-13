@@ -26,6 +26,7 @@ import {
   type CustomerAddressPayload,
   type CustomerMe,
   type CustomerMembership,
+  type CustomerNotification,
   type CustomerReservation,
   type CustomerLoyaltySummary,
   type CustomerOrder,
@@ -77,6 +78,8 @@ export function ProfileScreen() {
   const [customerMe, setCustomerMe] = useState<CustomerMe | null>(null)
   const [reservations, setReservations] = useState<CustomerReservation[]>([])
   const [orders, setOrders] = useState<CustomerOrder[]>([])
+  const [notifications, setNotifications] = useState<CustomerNotification[]>([])
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [addressForm, setAddressForm] = useState<CustomerAddressPayload>(emptyAddress)
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
@@ -110,19 +113,24 @@ export function ProfileScreen() {
       customerClient.me(token),
       customerClient.reservations(token, { perPage: 10 }),
 	      customerClient.orders(token),
+	      customerClient.notifications(token),
 	      customerClient.addresses(token),
 	      customerClient.membership(token),
 	      customerClient.membershipLoyalty(token),
 	    ])
-	      .then(([meResponse, reservationResponse, orderResponse, addressResponse, membershipResponse, loyaltyResponse]) => {
+	      .then(([meResponse, reservationResponse, orderResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse]) => {
 	        if (!active) return
 	        if (meResponse.status === 'fulfilled') setCustomerMe(meResponse.value.data)
 	        if (reservationResponse.status === 'fulfilled') setReservations(reservationResponse.value.data)
 	        if (orderResponse.status === 'fulfilled') setOrders(orderResponse.value.data)
+	        if (notificationResponse.status === 'fulfilled') {
+	          setNotifications(notificationResponse.value.data)
+	          setUnreadNotifications(notificationResponse.value.unreadCount)
+	        }
 	        if (addressResponse.status === 'fulfilled') setAddresses(addressResponse.value.data)
 	        if (membershipResponse.status === 'fulfilled') setMembership(membershipResponse.value.data)
 	        if (loyaltyResponse.status === 'fulfilled') setLoyalty(loyaltyResponse.value.data)
-	        if ([meResponse, reservationResponse, orderResponse, addressResponse, membershipResponse, loyaltyResponse].some((result) => result.status === 'rejected')) {
+	        if ([meResponse, reservationResponse, orderResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse].some((result) => result.status === 'rejected')) {
 	          setMessage(t('app.premium.profile.loadError'))
 	        }
       })
@@ -133,6 +141,38 @@ export function ProfileScreen() {
       active = false
     }
   }, [session?.access_token, t])
+
+  useEffect(() => {
+    const token = session?.access_token
+    if (!token) return
+    let active = true
+    const refreshCommerce = () => {
+      if (document.visibilityState === 'hidden') return
+      void Promise.allSettled([
+        customerClient.orders(token),
+        customerClient.notifications(token),
+      ]).then(([orderResponse, notificationResponse]) => {
+        if (!active) return
+        if (orderResponse.status === 'fulfilled') setOrders(orderResponse.value.data)
+        if (notificationResponse.status === 'fulfilled') {
+          setNotifications(notificationResponse.value.data)
+          setUnreadNotifications(notificationResponse.value.unreadCount)
+        }
+      })
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshCommerce() }
+    window.addEventListener('focus', refreshCommerce)
+    window.addEventListener('hdl:push-received', refreshCommerce)
+    document.addEventListener('visibilitychange', onVisible)
+    const interval = window.setInterval(refreshCommerce, 45_000)
+    return () => {
+      active = false
+      window.removeEventListener('focus', refreshCommerce)
+      window.removeEventListener('hdl:push-received', refreshCommerce)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.clearInterval(interval)
+    }
+  }, [session?.access_token])
 
   useEffect(() => {
     let active = true
@@ -310,6 +350,19 @@ export function ProfileScreen() {
     }
   }
 
+  const openNotification = async (notification: CustomerNotification) => {
+    if (session?.access_token && !notification.readAt) {
+      try {
+        const response = await customerClient.readNotification(session.access_token, notification.id)
+        setNotifications((current) => current.map((item) => item.id === notification.id ? response.data : item))
+        setUnreadNotifications((current) => Math.max(0, current - 1))
+      } catch {
+        // Reading the destination remains available if the read receipt fails.
+      }
+    }
+    if (notification.deepLink?.startsWith('/app/')) window.location.assign(notification.deepLink)
+  }
+
   const menuGroups = [
     {
       title: t('app.premium.profile.myActivity'),
@@ -323,8 +376,8 @@ export function ProfileScreen() {
       title: t('app.premium.profile.myAccount'),
       items: [
         { label: t('app.premium.profile.personalData'), detail: customer?.customerNumber ?? t('app.premium.profile.customerProfile'), icon: UserRound, to: '#profile-form' },
-        { label: t('app.premium.profile.notifications'), detail: preferences?.transactionalPush ? t('app.premium.profile.transactionalEnabled') : t('app.premium.profile.pendingSetup'), icon: Bell, to: '#profile-form' },
-        { label: 'Privacidad y cuenta', detail: 'Privacidad, datos y eliminación de cuenta', icon: Settings2, to: appPath('/privacidad-cuenta') },
+        { label: t('app.premium.profile.notifications'), detail: unreadNotifications ? `${unreadNotifications} ${t('app.premium.profile.unread')}` : preferences?.transactionalPush ? t('app.premium.profile.transactionalEnabled') : t('app.premium.profile.pendingSetup'), icon: Bell, to: '#notifications' },
+        { label: t('app.premium.profile.privacyAndAccount'), detail: t('app.premium.profile.privacyAndAccountDetail'), icon: Settings2, to: appPath('/privacidad-cuenta') },
       ],
     },
   ]
@@ -341,7 +394,7 @@ export function ProfileScreen() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.profile.myAccount')}</p>
-            <h1 className="mt-1 break-words text-[clamp(28px,7vw,34px)] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 className="mt-1 break-words text-[clamp(23px,6vw,29px)] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
               {displayName}
             </h1>
             <p className="mt-2 text-[12px] text-[var(--color-muted)]">
@@ -535,7 +588,40 @@ export function ProfileScreen() {
         </form>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-3 scroll-mt-24" id="notifications">
+        <div className="flex items-end justify-between gap-3">
+          <SectionHeading title={t('app.premium.profile.notifications')} />
+          {unreadNotifications ? <span className="rounded-full bg-[var(--color-burgundy)] px-2.5 py-1 text-[10px] font-semibold text-white">{unreadNotifications} {t('app.premium.profile.unread')}</span> : null}
+        </div>
+        {notifications.length === 0 ? (
+          <div className="rounded-[1.25rem] border border-[rgba(220,202,181,0.72)] bg-white/88 p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.05)]">
+            {t('app.premium.profile.notificationsEmpty')}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-[1.25rem] border border-[rgba(220,202,181,0.72)] bg-white/90 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+            {notifications.slice(0, 8).map((notification, index) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void openNotification(notification)}
+                className={`flex w-full items-start gap-3 px-4 py-4 text-left ${index ? 'border-t border-[rgba(220,202,181,0.48)]' : ''} ${notification.readAt ? 'bg-white/55' : 'bg-[#fff8f1]'}`}
+              >
+                <span className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${notification.readAt ? 'bg-[#f5eee8] text-[var(--color-muted)]' : 'bg-[var(--color-burgundy)] text-white'}`}>
+                  {String(notification.data?.status ?? '').includes('deliver') ? <PackageCheck size={16} /> : <Truck size={16} />}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-semibold text-[var(--color-ink)]">{notification.title}</span>
+                  <span className="mt-1 block text-[11px] leading-5 text-[var(--color-muted)]">{notification.body}</span>
+                  <span className="mt-1.5 block text-[10px] text-[var(--color-gold)]">{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(notification.createdAt))}</span>
+                </span>
+                {notification.deepLink ? <ChevronRight size={15} className="mt-2 shrink-0 text-[var(--color-muted)]" /> : null}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3 scroll-mt-24" id="orders">
         <SectionHeading title={t('app.premium.profile.orders')} />
         {orders.length === 0 ? (
           <div className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">

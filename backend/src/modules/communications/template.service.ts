@@ -14,6 +14,8 @@ type TemplateCopy = {
 }
 
 const brandName = 'Hacienda de Letras'
+const brandLogoUrl = 'https://admhaciendadeletras.com/hacienda%20de%20letras%20logo1.png'
+const customerAppUrl = 'https://admhaciendadeletras.com/app/perfil'
 const supportedLocales: CommunicationLocale[] = ['es-MX', 'en-US']
 
 const copies: Record<CommunicationLocale, Record<CommunicationEventType, TemplateCopy>> = {
@@ -87,6 +89,13 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       title: 'Pago confirmado',
       body: 'Tu compra quedó confirmada. Prepararemos tu pedido y te compartiremos la guía cuando esté lista. Revisa los detalles desde tu cuenta.',
       cta: 'Ver orden',
+    },
+    'order.tracking_assigned': {
+      subject: 'La guía de tu pedido está lista',
+      preheader: 'Ya puedes consultar y rastrear tu envío.',
+      title: 'Tu guía está lista',
+      body: 'Preparamos los datos de seguimiento de tu pedido. Consulta la paquetería, el número de guía y abre el rastreo desde el botón inferior.',
+      cta: 'Rastrear mi pedido',
     },
     'order.shipped': {
       subject: 'Tu pedido va en camino',
@@ -195,6 +204,13 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'Your purchase is confirmed. We will prepare your order and share tracking details once they are ready. You can review the details from your account.',
       cta: 'View order',
     },
+    'order.tracking_assigned': {
+      subject: 'Your tracking details are ready',
+      preheader: 'You can now review and track your shipment.',
+      title: 'Your tracking details are ready',
+      body: 'Your order now has shipping details. Review the carrier and tracking number, then open live tracking from the button below.',
+      cta: 'Track my order',
+    },
     'order.shipped': {
       subject: 'Your order is on its way',
       preheader: 'Your tracking details are now available.',
@@ -255,14 +271,30 @@ function isSensitiveKey(key: string) {
 function formatPayloadValue(key: string, value: unknown, locale: CommunicationLocale) {
   if (typeof value !== 'string' && typeof value !== 'number') return value
 
-  if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate'].includes(key)) {
+  if (key === 'status' || key === 'shippingStatus') {
+    const statusLabels: Record<CommunicationLocale, Record<string, string>> = {
+      'es-MX': {
+        pending: 'Pendiente', pending_payment: 'Pendiente de pago', paid: 'Pago confirmado',
+        preparing: 'En preparación', tracking_assigned: 'Guía asignada', shipped: 'Enviado',
+        delivered: 'Entregado', confirmed: 'Confirmada', cancelled: 'Cancelada', active: 'Activa',
+      },
+      'en-US': {
+        pending: 'Pending', pending_payment: 'Pending payment', paid: 'Payment confirmed',
+        preparing: 'Preparing', tracking_assigned: 'Tracking assigned', shipped: 'Shipped',
+        delivered: 'Delivered', confirmed: 'Confirmed', cancelled: 'Cancelled', active: 'Active',
+      },
+    }
+    return statusLabels[locale][String(value)] ?? String(value).replace(/_/g, ' ')
+  }
+
+  if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate', 'estimatedDeliveryAt'].includes(key)) {
     const date = new Date(value)
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined }).format(date)
     }
   }
 
-  if (key === 'total') {
+  if (key === 'total' || key === 'quoteAmount') {
     const amount = typeof value === 'number' ? value : Number(value)
     if (Number.isFinite(amount)) {
       const formatted = new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)
@@ -298,6 +330,10 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       startAt: 'Fecha',
       renewalDate: 'Renovación',
       expiresAt: 'Expira',
+      carrier: 'Paquetería',
+      trackingNumber: 'Número de guía',
+      shippingStatus: 'Estado del envío',
+      estimatedDeliveryAt: 'Entrega estimada',
     },
     'en-US': {
       customerName: 'Customer',
@@ -322,18 +358,44 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       startAt: 'Date',
       renewalDate: 'Renewal',
       expiresAt: 'Expires',
+      carrier: 'Carrier',
+      trackingNumber: 'Tracking number',
+      shippingStatus: 'Shipping status',
+      estimatedDeliveryAt: 'Estimated delivery',
     },
   }
 
   return Object.entries(labels[locale])
-    .filter(([key]) => !isSensitiveKey(key) && payload[key] !== null && payload[key] !== undefined && payload[key] !== '')
-    .map(([key, label]) => `<tr><td style="padding:8px 12px;color:#6f625d;">${label}</td><td style="padding:8px 12px;font-weight:700;color:#2f2522;">${escapeHtml(formatPayloadValue(key, payload[key], locale))}</td></tr>`)
+    .filter(([key]) => key !== 'customerName' && !isSensitiveKey(key) && payload[key] !== null && payload[key] !== undefined && payload[key] !== '')
+    .map(([key, label], index) => `<tr><td style="padding:11px 14px;color:#786963;font-size:13px;${index ? 'border-top:1px solid #eee3d9;' : ''}">${label}</td><td style="padding:11px 14px;text-align:right;font-weight:700;color:#332421;font-size:13px;${index ? 'border-top:1px solid #eee3d9;' : ''}">${escapeHtml(formatPayloadValue(key, payload[key], locale))}</td></tr>`)
     .join('')
 }
 
 function payloadString(payload: CommunicationPayload, key: string) {
   const value = payload[key]
   return typeof value === 'string' && value.trim() ? value.trim().slice(0, 2200) : null
+}
+
+function safeHttpUrl(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return null
+  try {
+    const parsed = new URL(value.trim())
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
+function ctaUrl(eventType: CommunicationEventType, payload: CommunicationPayload) {
+  if (eventType === 'order.tracking_assigned' || eventType === 'order.shipped') {
+    return safeHttpUrl(payload.trackingUrl) ?? `${customerAppUrl}#orders`
+  }
+  const explicit = safeHttpUrl(payload.ctaUrl)
+  if (explicit) return explicit
+  if (eventType.startsWith('reservation.')) return 'https://admhaciendadeletras.com/app/perfil#reservations'
+  if (eventType.startsWith('order.')) return `${customerAppUrl}#orders`
+  if (eventType.startsWith('membership.')) return 'https://admhaciendadeletras.com/app/membresias'
+  return 'https://admhaciendadeletras.com/app/home'
 }
 
 function copyForPayload(
@@ -364,27 +426,47 @@ export function renderEmailTemplate(
   const copy = copyForPayload(eventType, copies[locale][eventType], payload)
   const rows = detailRows(payload, locale)
   const support = String(payload.supportEmail ?? 'soporte@admhaciendadeletras.com')
-  const pendingCopyNotice =
-    locale === 'en-US'
-      ? `Final transactional copy is pending approval by Hacienda de Letras. For support, write to ${escapeHtml(support)}.`
-      : `Copy transaccional pendiente de aprobación final de Hacienda de Letras. Para soporte escribe a ${escapeHtml(support)}.`
+  const customerName = payloadString(payload, 'customerName')
+  const greeting = customerName
+    ? locale === 'en-US' ? `Hello, ${customerName}` : `Hola, ${customerName}`
+    : locale === 'en-US' ? 'Hello' : 'Hola'
+  const actionUrl = ctaUrl(eventType, payload)
+  const helpCopy = locale === 'en-US'
+    ? `Questions? Reply to this email or write to ${support}.`
+    : `¿Necesitas ayuda? Responde este correo o escríbenos a ${support}.`
+  const automaticCopy = locale === 'en-US'
+    ? 'This is a transactional message related to your activity with Hacienda de Letras.'
+    : 'Este es un mensaje transaccional relacionado con tu actividad en Hacienda de Letras.'
 
   const html = `<!doctype html>
 <html lang="${locale === 'es-MX' ? 'es' : 'en'}">
-<body style="margin:0;background:#f7f3ef;color:#2f2522;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;background:#f4eee7;color:#2f2522;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;">
   <div style="display:none;max-height:0;overflow:hidden;">${escapeHtml(copy.preheader)}</div>
-  <main style="max-width:640px;margin:0 auto;padding:32px 18px;">
-    <section style="background:#ffffff;border:1px solid #e3d8ce;border-radius:8px;padding:28px;">
-      <p style="margin:0 0 18px;color:#8a1f2d;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;">${brandName}</p>
-      <h1 style="margin:0 0 14px;font-size:24px;line-height:1.2;color:#2f2522;">${escapeHtml(copy.title)}</h1>
-      <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#4d403b;">${escapeHtml(copy.body)}</p>
-      ${rows ? `<table role="presentation" style="width:100%;border-collapse:collapse;background:#faf7f4;border:1px solid #eadfd7;border-radius:8px;margin:0 0 22px;">${rows}</table>` : ''}
-      <p style="margin:0 0 24px;">
-        <a href="https://admhaciendadeletras.com/app/home" style="display:inline-block;background:#8a1f2d;color:#ffffff;text-decoration:none;border-radius:6px;padding:12px 16px;font-size:14px;font-weight:700;">${escapeHtml(copy.cta)}</a>
-      </p>
-      <p style="margin:0;color:#7b6d66;font-size:12px;line-height:1.5;">${pendingCopyNotice}</p>
-    </section>
-  </main>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f4eee7;">
+    <tr><td align="center" style="padding:28px 14px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;border-collapse:separate;background:#fffdfa;border:1px solid #decfbe;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(68,25,28,.10);">
+        <tr><td style="height:6px;background:linear-gradient(90deg,#5d0d24,#8b253c,#c49a52);"></td></tr>
+        <tr><td align="center" style="padding:25px 28px 21px;border-bottom:1px solid #eadfd4;">
+          <img src="${brandLogoUrl}" width="112" alt="${brandName}" style="display:block;width:112px;max-width:112px;height:auto;border:0;" />
+          <p style="margin:12px 0 0;color:#8a6a50;font-size:10px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;">El vino de Aguascalientes</p>
+        </td></tr>
+        <tr><td style="padding:34px 34px 30px;">
+          <p style="margin:0 0 10px;color:#9a7540;font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;">${escapeHtml(greeting)}</p>
+          <h1 style="margin:0 0 15px;font-family:Georgia,'Times New Roman',serif;font-size:31px;line-height:1.15;font-weight:500;color:#5d0d24;">${escapeHtml(copy.title)}</h1>
+          <p style="margin:0 0 24px;font-size:15px;line-height:1.72;color:#594944;">${escapeHtml(copy.body)}</p>
+          ${rows ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:separate;background:#faf5ef;border:1px solid #eadfd4;border-radius:12px;margin:0 0 24px;overflow:hidden;">${rows}</table>` : ''}
+          <table role="presentation" cellspacing="0" cellpadding="0"><tr><td style="border-radius:999px;background:#650f29;">
+            <a href="${escapeHtml(actionUrl)}" style="display:inline-block;color:#ffffff;text-decoration:none;border-radius:999px;padding:14px 22px;font-size:14px;font-weight:700;letter-spacing:.01em;">${escapeHtml(copy.cta)} &nbsp;→</a>
+          </td></tr></table>
+          <p style="margin:25px 0 0;color:#786963;font-size:12px;line-height:1.65;">${escapeHtml(helpCopy)}</p>
+        </td></tr>
+        <tr><td style="padding:20px 34px;background:#5b1025;color:#f7e9dc;">
+          <p style="margin:0 0 5px;font-family:Georgia,'Times New Roman',serif;font-size:16px;">Hacienda de Letras</p>
+          <p style="margin:0;color:#dfc8bb;font-size:10px;line-height:1.6;">${escapeHtml(automaticCopy)}<br />Aguascalientes, México · admhaciendadeletras.com</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
 </body>
 </html>`
 
@@ -396,9 +478,7 @@ export function renderEmailTemplate(
       .filter(([key, value]) => key !== 'supportEmail' && !isSensitiveKey(key) && value !== null && value !== undefined && value !== '')
       .map(([key, value]) => `${key}: ${value}`),
     `${locale === 'en-US' ? 'Support' : 'Soporte'}: ${support}`,
-    locale === 'en-US'
-      ? 'Final transactional copy is pending approval by Hacienda de Letras.'
-      : 'Copy transaccional pendiente de aprobación final de Hacienda de Letras.',
+    automaticCopy,
   ]
 
   return {

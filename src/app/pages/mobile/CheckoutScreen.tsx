@@ -325,7 +325,7 @@ export function CheckoutScreen() {
           <div className="flex items-start gap-3">
             <CheckCircle2 size={26} className="mt-0.5 shrink-0 text-[var(--color-vineyard)]" />
             <div className="min-w-0">
-              <h1 className="break-words text-[2rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
+              <h1 className="break-words text-[1.65rem] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
                 {order.orderNumber}
               </h1>
               <p className="mt-2 text-[13px] leading-5 text-[var(--color-muted)]">

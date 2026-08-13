@@ -1,18 +1,22 @@
 import {
   CalendarDays,
   ChevronRight,
-  ConciergeBell,
+  BedDouble,
   Globe2,
   Grape,
   HelpCircle,
   Home,
   LogOut,
   MapPinned,
+  MessagesSquare,
+  PackageCheck,
+  PanelRightOpen,
+  PartyPopper,
   Settings2,
-  ShoppingBag,
-  Sparkles,
+  ShoppingBasket,
   Ticket,
   UserRound,
+  UtensilsCrossed,
   Wine,
   X,
 } from 'lucide-react'
@@ -28,7 +32,7 @@ type NavItem = {
   icon: ComponentType<{ size?: number; strokeWidth?: number; className?: string }>
 }
 
-const PANEL_WIDTH = 'min(82vw, 330px)'
+const PANEL_WIDTH = 'min(88vw, 356px)'
 const isNativeMobileBuild = import.meta.env.VITE_HDL_APP_TARGET === 'mobile'
 
 export function AppEdgePanel() {
@@ -46,7 +50,7 @@ export function AppEdgePanel() {
       label: t('app.premium.edge.explore', 'Explora'),
       items: [
         { to: appPath('/home'), label: t('app.nav.home'), icon: Home },
-        { to: appPath('/vinos'), label: t('app.nav.store'), icon: ShoppingBag },
+        { to: appPath('/vinos'), label: t('app.nav.store'), icon: ShoppingBasket },
         { to: appPath('/experiencias'), label: t('app.nav.experiences'), icon: Wine },
         { to: appPath('/eventos'), label: t('app.nav.events'), icon: Ticket },
       ],
@@ -55,18 +59,18 @@ export function AppEdgePanel() {
       label: t('app.premium.edge.estate', 'Vive la Hacienda'),
       items: [
         { to: appPath('/reservacion'), label: t('app.premium.edge.reserve', 'Reservar'), icon: CalendarDays },
-        { to: appPath('/cabanas'), label: 'Cabañas', icon: ConciergeBell },
-        { to: appPath('/restaurantes'), label: 'Restaurantes', icon: ShoppingBag },
-        { to: appPath('/celebra'), label: 'Celebra en Hacienda', icon: Sparkles },
+        { to: appPath('/cabanas'), label: 'Cabañas', icon: BedDouble },
+        { to: appPath('/restaurantes'), label: 'Restaurantes', icon: UtensilsCrossed },
+        { to: appPath('/celebra'), label: 'Celebra en Hacienda', icon: PartyPopper },
         { to: appPath('/mapa'), label: t('app.nav.map'), icon: MapPinned },
         { to: appPath('/membresias'), label: t('app.nav.club'), icon: Grape },
-        { to: appPath('/sommelier'), label: t('app.nav.sommelier'), icon: Sparkles },
+        { to: appPath('/sommelier'), label: t('app.nav.sommelier'), icon: MessagesSquare },
       ],
     },
     {
       label: t('app.premium.edge.account', 'Mi cuenta'),
       items: [
-        { to: appPath('/perfil'), label: t('app.premium.profile.orders', 'Mis pedidos'), icon: ShoppingBag },
+        { to: appPath('/perfil#orders'), label: t('app.premium.profile.orders', 'Mis pedidos'), icon: PackageCheck },
         { to: appPath('/reservacion'), label: t('app.nav.reservations'), icon: CalendarDays },
         { to: appPath('/perfil'), label: t('app.nav.profile'), icon: UserRound },
         { to: appPath('/perfil'), label: t('app.premium.profile.settings', 'Configuración'), icon: Settings2 },
@@ -94,7 +98,7 @@ export function AppEdgePanel() {
     window.requestAnimationFrame(() => panelRef.current?.focus())
   }
 
-  const panelWidth = () => panelRef.current?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.82, 330)
+  const panelWidth = () => panelRef.current?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.88, 356)
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
     const initialOffset = open ? 0 : panelWidth()
@@ -144,11 +148,11 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className={`${layerPosition} top-[42%] z-[100] flex h-[62px] w-[18px] -translate-y-1/2 items-center justify-center rounded-l-[10px] border-y border-l border-[rgba(217,189,138,.76)] bg-[rgba(63,8,24,.78)] text-[#FFFDF8] shadow-[-8px_0_20px_rgba(48,34,29,.18)] backdrop-blur-md touch-none`}
+        className={`${layerPosition} top-[40%] z-[100] flex h-[92px] w-[34px] -translate-y-1/2 flex-col items-center justify-center gap-1.5 rounded-l-[18px] border-y border-l border-white/72 bg-[linear-gradient(145deg,rgba(255,255,255,.76),rgba(246,230,215,.58))] text-[#641027] shadow-[-12px_8px_32px_rgba(63,8,24,.18),inset_0_1px_0_rgba(255,255,255,.95)] backdrop-blur-2xl touch-none`}
         style={{ right: handleRight, transition: dragOffset === null ? 'right 260ms cubic-bezier(.2,.8,.2,1)' : 'none' }}
       >
-        <span className="absolute left-[5px] top-[8px] h-[46px] w-px bg-[#D9BD8A]" aria-hidden="true" />
-        <span className="mt-0.5 text-[8px] font-bold tracking-[.12em] [writing-mode:vertical-rl]">MENÚ</span>
+        <PanelRightOpen size={15} strokeWidth={1.45} aria-hidden="true" />
+        <span className="text-[8px] font-bold uppercase tracking-[.16em] [writing-mode:vertical-rl]">Menú</span>
       </button>
 
       {open ? (
@@ -156,7 +160,7 @@ export function AppEdgePanel() {
           type="button"
           aria-label={t('app.premium.edge.closeNavigation', 'Cerrar menú')}
           onClick={() => closePanel()}
-          className={`${layerPosition} inset-0 z-[80] cursor-default bg-[rgba(48,34,29,.38)] backdrop-blur-[2px]`}
+          className={`${layerPosition} inset-0 z-[80] cursor-default bg-[rgba(39,16,19,.34)] backdrop-blur-[5px]`}
         />
       ) : null}
 
@@ -169,7 +173,7 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className={`${layerPosition} bottom-0 right-0 top-0 z-[90] min-h-0 overflow-y-auto border-l border-[rgba(217,189,138,.46)] bg-[rgba(255,253,248,.98)] shadow-[-20px_0_48px_rgba(48,34,29,.2)] outline-none backdrop-blur-xl`}
+        className={`${layerPosition} bottom-0 right-0 top-0 z-[90] min-h-0 overflow-y-auto border-l border-white/68 bg-[linear-gradient(155deg,rgba(255,253,249,.92),rgba(246,232,219,.84))] shadow-[-28px_0_70px_rgba(48,18,25,.22),inset_1px_0_0_rgba(255,255,255,.82)] outline-none backdrop-blur-[28px]`}
         style={{
           width: PANEL_WIDTH,
           transform: panelTransform,
@@ -179,18 +183,18 @@ export function AppEdgePanel() {
           touchAction: 'pan-y',
         }}
       >
-        <div className="min-h-full px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-[calc(env(safe-area-inset-top)+20px)]">
+        <div className="min-h-full px-5 pb-[calc(env(safe-area-inset-bottom)+24px)] pt-[calc(env(safe-area-inset-top)+18px)]">
           <div className="relative border-b border-[#E8DDCE] pb-5 text-center">
             <button
               type="button"
               onClick={() => closePanel()}
               aria-label={t('app.premium.edge.closeNavigation', 'Cerrar menú')}
-              className="absolute right-0 top-0 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#D9BD8A] text-[#3F0818]"
+              className="absolute right-0 top-0 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/80 bg-white/58 text-[#3F0818] shadow-[0_8px_22px_rgba(63,8,24,.08)] backdrop-blur-xl"
             >
               <X size={18} strokeWidth={1.45} />
             </button>
             <img src="/hacienda de letras logo 2.png" alt="Hacienda de Letras" className="mx-auto h-auto w-[126px] object-contain" />
-            <p className="mt-3 font-[var(--font-display)] text-[21px] leading-none text-[#30221D]">Hacienda de Letras</p>
+            <p className="mt-3 font-[var(--font-display)] text-[19px] leading-none text-[#30221D]">Hacienda de Letras</p>
             <p className="mt-2 text-[11px] text-[#786B63]">{roleLabel}</p>
           </div>
 
@@ -244,7 +248,7 @@ function EdgeSection({ label, children }: { label: string; children: ReactNode }
   return (
     <section>
       <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#B78A4C]">{label}</p>
-      <div className="mt-2 space-y-0.5">{children}</div>
+      <div className="mt-2 space-y-1">{children}</div>
     </section>
   )
 }
@@ -252,8 +256,8 @@ function EdgeSection({ label, children }: { label: string; children: ReactNode }
 function EdgeNavItem({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate: () => void }) {
   const Icon = item.icon
   return (
-    <Link to={item.to} onClick={onNavigate} className={`flex min-h-[44px] items-center gap-3 rounded-lg px-2 text-[14px] ${active ? 'bg-[#F4EAE4] text-[#690D2B]' : 'text-[#30221D]'}`}>
-      <Icon size={19} strokeWidth={1.45} className={active ? 'text-[#B78A4C]' : 'text-[#786B63]'} />
+    <Link to={item.to} onClick={onNavigate} className={`flex min-h-[46px] items-center gap-3 rounded-[14px] px-2.5 text-[13px] transition ${active ? 'border border-white/80 bg-white/68 text-[#690D2B] shadow-[0_9px_24px_rgba(72,31,28,.07)]' : 'text-[#30221D]'}`}>
+      <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${active ? 'border-[#d8b986] bg-[#6a102a] text-white' : 'border-white/80 bg-white/55 text-[#80644d]'}`}><Icon size={16} strokeWidth={1.45} /></span>
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       <ChevronRight size={15} strokeWidth={1.45} className="text-[#B78A4C]" />
     </Link>

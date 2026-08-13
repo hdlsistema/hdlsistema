@@ -28,9 +28,12 @@ import { Outlet } from 'react-router-dom'
 import { ControlSidebar } from '../components/control/ControlSidebar'
 import { ControlTopbar } from '../components/control/ControlTopbar'
 import { useAppPreferences } from '../context/AppPreferencesContext'
+import { useAuth } from '../../contexts/AuthContext'
+import { InitialPasswordChangeModal } from '../components/control/InitialPasswordChangeModal'
 
 export function ControlLayout() {
   const { t } = useAppPreferences()
+  const { mustChangePassword } = useAuth()
 
   const sidebarGroups = [
     {
@@ -189,6 +192,7 @@ export function ControlLayout() {
           <Outlet />
         </main>
       </div>
+      {mustChangePassword ? <InitialPasswordChangeModal /> : null}
     </div>
   )
 }

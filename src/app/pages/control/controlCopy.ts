@@ -73,6 +73,7 @@ const STATUS_LABELS: Record<string, string> = {
   new: 'Nueva',
   no_show: 'No asistió',
   not_required: 'No requiere envío',
+  open: 'Abierto',
   paid: 'Pago confirmado',
   'pago confirmado': 'Pago confirmado',
   pagada: 'Pago confirmado',

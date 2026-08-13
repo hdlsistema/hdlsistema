@@ -51,7 +51,7 @@ export function ExperiencesScreen() {
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,20,15,0.08),rgba(35,20,15,0.78))]" />
         <div className="relative flex min-h-[clamp(220px,52vh,320px)] flex-col justify-end px-[var(--app-pad)] pb-5 pt-8">
           <p className="text-[10px] font-semibold uppercase text-[#D7B67A]">{t('app.premium.experiences.eyebrow')}</p>
-          <h1 className="mt-2 max-w-[18rem] text-[clamp(28px,7vw,34px)] leading-none text-white" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+          <h1 className="mt-2 max-w-[18rem] text-[clamp(25px,6.8vw,32px)] font-medium leading-none text-white" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
             {t('app.premium.experiences.title')}
           </h1>
           <p className="mt-3 max-w-[18rem] text-[14px] leading-5 text-white/84">{t('app.premium.experiences.subtitle')}</p>
@@ -61,7 +61,7 @@ export function ExperiencesScreen() {
       <section className="space-y-3">
         <div>
           <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">{t('app.premium.experiences.choose')}</p>
-          <h2 className="mt-1 text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
+          <h2 className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
             {t('app.nav.experiences')}
           </h2>
         </div>

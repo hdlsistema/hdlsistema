@@ -109,21 +109,39 @@ describe('premium customer app experience', () => {
     expect(tabs).toContain('z-[90]')
     expect(tabs).toContain('app-bottom-nav__item')
     expect(tabs).toContain('app-bottom-nav__content')
-    expect(styles).toContain('height: calc(72px + env(safe-area-inset-bottom))')
+    expect(styles).toContain('height: calc(70px + env(safe-area-inset-bottom))')
     expect(styles).toContain('width: 100%')
     expect(styles).toContain('grid-template-columns: repeat(5, minmax(0, 1fr))')
-    expect(styles).toContain('font-size: clamp(8.5px, 2.35vw, 10px)')
+    expect(styles).toContain('font-size: clamp(8px, 2.2vw, 9.5px)')
   })
 
   it('mantiene el panel lateral dentro de la app, desplazable y cerrable', () => {
     const edgePanel = readFileSync(resolve(__dirname, '../app/components/mobile/AppEdgePanel.tsx'), 'utf8')
 
-    expect(edgePanel).toContain("const PANEL_WIDTH = 'min(82vw, 330px)'")
+    expect(edgePanel).toContain("const PANEL_WIDTH = 'min(88vw, 356px)'")
     expect(edgePanel).toContain('overflow-y-auto')
+    expect(edgePanel).toContain('backdrop-blur-[28px]')
+    expect(edgePanel).toContain('PanelRightOpen')
     expect(edgePanel).toContain('onClick={() => closePanel()}')
     expect(edgePanel).toContain('onPointerMove={onPointerMove}')
     expect(edgePanel).toContain('/hacienda de letras logo 2.png')
     expect(edgePanel).not.toContain("|| 'HL'")
+    expect(edgePanel).not.toContain('Sparkles')
+  })
+
+  it('refina la app nativa con tipografía editorial contenida e iconografía contextual', () => {
+    const ui = readFileSync(resolve(__dirname, '../app/components/mobile/PremiumMobileUi.tsx'), 'utf8')
+    const home = readFileSync(resolve(__dirname, '../app/pages/mobile/HomeScreen.tsx'), 'utf8')
+    const sommelier = readFileSync(resolve(__dirname, '../app/pages/mobile/SommelierScreen.tsx'), 'utf8')
+    const profile = readFileSync(resolve(__dirname, '../app/pages/mobile/ProfileScreen.tsx'), 'utf8')
+
+    expect(ui).toContain('text-[clamp(23px,6vw,29px)]')
+    expect(home).toContain('BedDouble')
+    expect(home).toContain('UtensilsCrossed')
+    expect(sommelier).toContain('MessageCircleMore')
+    expect(`${ui}${home}${sommelier}${profile}`).not.toContain('Sparkles')
+    expect(profile).toContain("id=\"notifications\"")
+    expect(profile).toContain("id=\"orders\"")
   })
 
   it('ofrece acceso social real y controles de sesion circulares en el acceso movil', () => {

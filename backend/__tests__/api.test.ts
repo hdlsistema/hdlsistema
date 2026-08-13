@@ -21,7 +21,7 @@ const supabaseMock = vi.hoisted(() => ({
   throwError: null as unknown,
   rpcError: null as unknown,
   rpcData: {} as Record<string, unknown>,
-  authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null } | null,
+  authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null; app_metadata?: Record<string, unknown> } | null,
   tableData: {} as Record<string, unknown[]>,
   selectQueries: [] as string[],
 }))
@@ -236,6 +236,9 @@ beforeEach(() => {
   ;(env as Record<string, string>).RESEND_FROM_EMAIL = ''
   ;(env as Record<string, string>).RESEND_REPLY_TO_EMAIL = ''
   ;(env as Record<string, string>).RESEND_WEBHOOK_SECRET = ''
+  ;(env as Record<string, string>).FIREBASE_PROJECT_ID = ''
+  ;(env as Record<string, string>).FIREBASE_CLIENT_EMAIL = ''
+  ;(env as Record<string, string>).FIREBASE_PRIVATE_KEY = ''
   ;(env as Record<string, string>).STRIPE_SECRET_KEY = originalStripeSecretKey
   ;(env as Record<string, string>).STRIPE_WEBHOOK_SECRET = originalStripeWebhookSecret
   ;(env as Record<string, string>).STRIPE_ENVIRONMENT = originalStripeEnvironment
@@ -365,6 +368,32 @@ describe('Fase 3 auth API', () => {
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('UNAUTHORIZED')
   })
+
+  it('obliga una contraseña robusta y registra el cambio de primer acceso', async () => {
+    supabaseMock.authUser = {
+      id: '00000000-0000-0000-0000-000000000001',
+      email: 'direccion@haciendadeletras.com',
+      created_at: '2026-08-12T00:00:00.000Z',
+      email_confirmed_at: '2026-08-12T00:00:00.000Z',
+      app_metadata: { must_change_password: true },
+    }
+
+    const weak = await request(app)
+      .post('/api/auth/initial-password')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ password: 'corta' })
+    const changed = await request(app)
+      .post('/api/auth/initial-password')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ password: 'Hacienda2026!Segura' })
+
+    expect(weak.status).toBe(422)
+    expect(changed.status).toBe(200)
+    expect(changed.body.data.mustChangePassword).toBe(false)
+    expect(supabaseMock.tableData.audit_logs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'initial_password_changed', entity_id: supabaseMock.authUser.id }),
+    ]))
+  })
 })
 
 describe('Dashboard operativo real', () => {
@@ -423,7 +452,21 @@ describe('Dashboard operativo real', () => {
         capacity: 12, reserved_count: 3, status: 'published', is_bookable: true,
         operational_status: 'open', experiences: { title: 'Cata real' },
       },
+      {
+        id: 'slot-blocked', start_at: '2026-12-11T18:00:00.000Z', end_at: '2026-12-11T19:30:00.000Z',
+        capacity: 100, reserved_count: 100, status: 'inactive', is_bookable: false,
+        operational_status: 'blocked', experiences: { title: 'Horario bloqueado' },
+      },
     ]
+    supabaseMock.tableData.carts = [
+      { id: 'cart-active', cart_status: 'active' },
+      { id: 'cart-converted', cart_status: 'converted' },
+    ]
+    supabaseMock.tableData.customer_app_events = [
+      { id: 'event-checkout', customer_id: 'customer-1', session_id: 'session-1', event_name: 'checkout_started', occurred_at: '2026-08-12T00:00:00.000Z' },
+      { id: 'event-session', customer_id: 'customer-1', session_id: 'session-1', event_name: 'app_session_started', occurred_at: '2026-08-12T00:00:00.000Z' },
+    ]
+    supabaseMock.tableData.map_pois = [{ id: 'poi-1', status: 'published', visible_in_app: true, deleted_at: null, archived_at: null }]
 
     const res = await request(app)
       .get('/api/admin/dashboard')
@@ -438,6 +481,13 @@ describe('Dashboard operativo real', () => {
       pendingPaymentOrders: 1,
       confirmedPayments: 1,
       collected: [{ currency: 'MXN', amount: 1500 }],
+      activeCarts: 1,
+      convertedCarts: 1,
+      checkoutStarted: 1,
+      visitorsRecent: 1,
+      occupancyRate: 25,
+      conversionRate: 50,
+      publishedMapPois: 1,
     })
     expect(res.body.data.upcomingSlots).toMatchObject([{ experienceTitle: 'Cata real', available: 9 }])
     expect(JSON.stringify(res.body)).not.toContain('simulad')
@@ -1504,6 +1554,53 @@ describe('Fase 7D orders, payments and check-in API', () => {
     expect(supabaseMock.tableData.audit_logs).toEqual(
       expect.arrayContaining([expect.objectContaining({ action: 'order_shipped', entity_id: orderId })]),
     )
+  })
+
+  it('asigna guía y la publica al cliente mediante correo, buzón y enlace de rastreo', async () => {
+    signInAs('operations')
+    seedOrder('paid')
+    supabaseMock.tableData.orders = [{
+      ...(supabaseMock.tableData.orders[0] as Record<string, unknown>),
+      requires_shipping: true,
+      shipping_status: 'preparing',
+      customers: {
+        user_id: '33333333-3333-4333-8333-333333333090',
+        display_name: 'Cliente Fase 7D',
+        first_name: 'Cliente',
+        last_name: 'Fase 7D',
+        email: 'cliente.fase7d@alqia.tech',
+      },
+    }]
+    supabaseMock.tableData.user_preferences = [{
+      user_id: '33333333-3333-4333-8333-333333333090',
+      transactional_push: true,
+    }]
+    supabaseMock.tableData.order_shipping_addresses = [{
+      id: '33333333-3333-4333-8333-333333333078', order_id: orderId,
+      recipient_name: 'Cliente Fase 7D', line1: 'Calle Hacienda 123', city: 'Aguascalientes',
+      state: 'Aguascalientes', postal_code: '20000', country: 'MX', created_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.shipments = [{
+      id: '33333333-3333-4333-8333-333333333079', order_id: orderId,
+      shipping_cost: 0, status_text: 'preparing', created_at: '2026-08-03T00:00:00.000Z', updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+
+    const response = await request(app)
+      .post(`/api/admin/orders/${orderId}/shipping/tracking`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ carrier: 'DHL', trackingNumber: 'HDL-TRACK-001', trackingUrl: 'https://tracking.example.com/HDL-TRACK-001' })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data).toMatchObject({
+      shippingStatus: 'tracking_assigned',
+      shipment: { carrier: 'DHL', trackingNumber: 'HDL-TRACK-001', trackingUrl: 'https://tracking.example.com/HDL-TRACK-001' },
+    })
+    expect(supabaseMock.tableData.email_outbox).toEqual(expect.arrayContaining([
+      expect.objectContaining({ template_key: 'order.tracking_assigned', recipient_email: 'cliente.fase7d@alqia.tech' }),
+    ]))
+    expect(supabaseMock.tableData.notifications).toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: 'Guía asignada', data: expect.objectContaining({ orderId, status: 'tracking_assigned' }) }),
+    ]))
   })
 
   it('emite pase QR, valida acceso, registra check-in y bloquea doble uso', async () => {
@@ -2646,11 +2743,31 @@ describe('Fase 8E communications API', () => {
 
     expect(template.locale).toBe('en-US')
     expect(template.subject).toBe('Order created')
-    expect(template.html).toContain('Customer')
+    expect(template.html).toContain('Hello, QA Phase 8F')
     expect(template.html).toContain('Order')
     expect(template.html).toContain('MX$1,250.00')
     expect(template.html).not.toContain('Reservación')
-    expect(template.text).toContain('Final transactional copy is pending approval')
+    expect(template.text).toContain('This is a transactional message related to your activity with Hacienda de Letras.')
+    expect(template.html).toContain('Hacienda de Letras')
+    expect(template.html).toContain('admhaciendadeletras.com')
+  })
+
+  it('renderiza correo elegante de guía con paquetería, rastreo y CTA externo seguro', () => {
+    const template = renderEmailTemplate('order.tracking_assigned', {
+      customerName: 'Cliente Hacienda',
+      orderNumber: 'ORD-TRACKING-QA',
+      carrier: 'DHL',
+      trackingNumber: 'HDL-123456',
+      trackingUrl: 'https://tracking.example.com/HDL-123456',
+      shippingStatus: 'tracking_assigned',
+    }, 'es-MX')
+
+    expect(template.subject).toBe('La guía de tu pedido está lista')
+    expect(template.html).toContain('Número de guía')
+    expect(template.html).toContain('HDL-123456')
+    expect(template.html).toContain('https://tracking.example.com/HDL-123456')
+    expect(template.html).toContain('Rastrear mi pedido')
+    expect(template.html).not.toContain('pendiente de aprobación')
   })
 
   it('rechaza webhook sin firma o con firma inválida', async () => {

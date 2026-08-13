@@ -41,7 +41,9 @@ export function MobilePushRegistration() {
           }).catch(() => undefined)
         })
         await PushNotifications.addListener('registrationError', () => undefined)
-        await PushNotifications.addListener('pushNotificationReceived', () => undefined)
+        await PushNotifications.addListener('pushNotificationReceived', () => {
+          window.dispatchEvent(new CustomEvent('hdl:push-received'))
+        })
         await PushNotifications.addListener('pushNotificationActionPerformed', (event) => {
           const data = event.notification.data as Record<string, unknown> | undefined
           const deepLink = typeof data?.deepLink === 'string'

@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express'
 import { supabaseAdminClient } from '../../config/supabase'
+import { sendOperationError } from '../operations/operationErrors'
+import { initialPasswordSchema } from './auth.schemas'
 
 function extractRoleCode(value: unknown): string | null {
   if (Array.isArray(value)) {
@@ -69,4 +71,38 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
   }
 
   res.json({ profile: data })
+}
+
+export async function changeInitialPassword(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.authUser
+    if (!user) {
+      res.status(401).json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Sesión requerida' } })
+      return
+    }
+
+    const { password } = initialPasswordSchema.parse(req.body)
+    const changedAt = new Date().toISOString()
+    const { error } = await supabaseAdminClient.auth.admin.updateUserById(user.id, {
+      password,
+      app_metadata: {
+        ...(user.app_metadata ?? {}),
+        must_change_password: false,
+        password_changed_at: changedAt,
+      },
+    })
+    if (error) throw error
+
+    await supabaseAdminClient.from('audit_logs').insert({
+      actor_user_id: user.id,
+      action: 'initial_password_changed',
+      entity_type: 'profiles',
+      entity_id: user.id,
+      after_data: { changedAt, source: 'required_first_login' },
+    })
+
+    res.json({ ok: true, data: { changedAt, mustChangePassword: false } })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
 }

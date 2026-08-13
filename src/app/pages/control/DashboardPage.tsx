@@ -180,13 +180,13 @@ export function DashboardPage() {
 
 
       <div className="control-metrics-secondary grid gap-4">
-		        <Metric label="Clientes activos recientes" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes con actividad reciente" icon={Users} />
+		        <Metric label="Clientes activos · 30 días" value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail="Clientes identificados con actividad registrada" icon={Users} />
 	        <Metric label="Carritos activos" value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? 'Cargando...' : `${summary?.metrics.convertedCarts ?? 0} convertidos`} icon={ShoppingBag} />
-		        <Metric label="Pagos iniciados" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Intentos de pago registrados" icon={Activity} />
-			        <Metric label="Visitantes App" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones recientes" icon={Users} />
-	        <Metric label="Ocupación" value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail="Cupo reservado sobre horarios próximos" icon={CalendarDays} />
-		        <Metric label="Conversión" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Pagos confirmados sobre pagos iniciados" icon={Activity} />
-		        <Metric label="Mapa" value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail="Puntos publicados y visibles" icon={MapPin} />
+		        <Metric label="Checkouts · 30 días" value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail="Inicios de pago registrados por la app" icon={Activity} />
+			        <Metric label="Sesiones App · 30 días" value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail="Sesiones únicas registradas" icon={Users} />
+	        <Metric label="Ocupación de experiencias" value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail="Cupo confirmado en horarios futuros vendibles" icon={CalendarDays} />
+		        <Metric label="Conversión de carritos" value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail="Carritos convertidos sobre carritos registrados" icon={Activity} />
+		        <Metric label="Puntos del mapa" value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail="Ubicaciones publicadas y visibles en la app" icon={MapPin} />
 	      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">

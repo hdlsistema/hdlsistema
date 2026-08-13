@@ -14,6 +14,7 @@ import type {
   PatchShipmentPayload,
   ShipmentListQuery,
 } from './shipments.schemas'
+import { synchronizeOrderFromShipment } from '../orders/orders.service'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer']
 const writeRoles = ['super_admin', 'admin', 'operations']
@@ -28,6 +29,8 @@ type ShipmentRow = {
   carrier?: string | null
   service_level?: string | null
   tracking_number?: string | null
+  tracking_url?: string | null
+  tracking_assigned_at?: string | null
   status_text: string
   origin?: string | null
   destination?: string | null
@@ -66,7 +69,7 @@ type ShipmentEventRow = {
 }
 
 const shipmentSelect = `
-  id,shipment_number,order_id,carrier_id,carrier,service_level,tracking_number,status_text,origin,destination,
+  id,shipment_number,order_id,carrier_id,carrier,service_level,tracking_number,tracking_url,tracking_assigned_at,status_text,origin,destination,
   shipping_cost,estimated_delivery_at,shipped_at,delivered_at,cancelled_at,cancellation_reason,incident_count,created_at,updated_at,
   orders(order_number,customers(display_name,first_name,last_name,email)),
   carriers(name,carrier_type)
@@ -103,6 +106,7 @@ function mapShipment(row: ShipmentRow) {
     carrierType: carrier?.carrier_type ?? null,
     serviceLevel: row.service_level ?? null,
     trackingNumber: row.tracking_number ?? null,
+    trackingUrl: row.tracking_url ?? null,
     status: row.status_text,
     origin: row.origin ?? null,
     destination: row.destination ?? null,
@@ -187,7 +191,24 @@ export async function createShipment(payload: CreateShipmentPayload, user: UserC
     p_metadata: payload.metadata ?? {},
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getShipment(String(result.data), user)
+  const shipmentId = String(result.data)
+  if (payload.trackingNumber || payload.trackingUrl) {
+    const now = new Date().toISOString()
+    assertNoError(await supabaseAdminClient
+      .from('shipments')
+      .update({
+        tracking_url: payload.trackingUrl ?? null,
+        tracking_assigned_at: payload.trackingNumber ? now : null,
+        status_text: payload.trackingNumber ? 'tracking_assigned' : 'awaiting_tracking',
+        updated_by: user.userId,
+        updated_at: now,
+      })
+      .eq('id', shipmentId)
+      .select('id')
+      .single())
+  }
+  await synchronizeOrderFromShipment(shipmentId, user)
+  return getShipment(shipmentId, user)
 }
 
 export async function patchShipment(id: string, payload: PatchShipmentPayload, user: UserContext) {
@@ -197,12 +218,18 @@ export async function patchShipment(id: string, payload: PatchShipmentPayload, u
   if (payload.carrier !== undefined) patch.carrier = payload.carrier
   if (payload.serviceLevel !== undefined) patch.service_level = payload.serviceLevel
   if (payload.trackingNumber !== undefined) patch.tracking_number = payload.trackingNumber
+  if (payload.trackingUrl !== undefined) patch.tracking_url = payload.trackingUrl
+  if (payload.trackingNumber) {
+    patch.tracking_assigned_at = new Date().toISOString()
+    patch.status_text = 'tracking_assigned'
+  }
   if (payload.origin !== undefined) patch.origin = payload.origin
   if (payload.destination !== undefined) patch.destination = payload.destination
   if (payload.estimatedDeliveryAt !== undefined) patch.estimated_delivery_at = payload.estimatedDeliveryAt
   if (payload.shippingCost !== undefined) patch.shipping_cost = payload.shippingCost
   if (payload.metadata !== undefined) patch.metadata = payload.metadata
   assertNoError(await supabaseAdminClient.from('shipments').update(patch).eq('id', id).select('id').single())
+  await synchronizeOrderFromShipment(id, user)
   await writeAudit(user, 'shipment_updated', 'shipments', id, { fields: Object.keys(patch) })
   return getShipment(id, user)
 }
@@ -215,7 +242,9 @@ export async function updateShipmentStatus(id: string, status: string, notes: st
     p_notes: notes ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getShipment(String(result.data), user)
+  const shipmentId = String(result.data)
+  await synchronizeOrderFromShipment(shipmentId, user)
+  return getShipment(shipmentId, user)
 }
 
 export async function registerShipmentIncident(id: string, notes: string, evidenceStoragePath: string | null | undefined, user: UserContext) {
@@ -237,7 +266,9 @@ export async function deliverShipment(id: string, notes: string | null | undefin
     p_notes: notes ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getShipment(String(result.data), user)
+  const shipmentId = String(result.data)
+  await synchronizeOrderFromShipment(shipmentId, user)
+  return getShipment(shipmentId, user)
 }
 
 export async function listShipmentHistory(id: string, user: UserContext) {

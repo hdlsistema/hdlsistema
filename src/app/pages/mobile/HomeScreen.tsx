@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ChevronRight, ConciergeBell, FileText, Grape, Languages, MapPin, Sparkles, Utensils } from 'lucide-react'
+import { BedDouble, ChevronRight, Compass, FileText, Grape, Languages, MapPin, MessagesSquare, UtensilsCrossed } from 'lucide-react'
 import {
   EditorialCard,
   EmptyState,
@@ -34,21 +34,21 @@ export function HomeScreen() {
   const modules = [
     {
       to: appPath('/experiencias'),
-      icon: Sparkles,
+      icon: Compass,
       eyebrow: 'Vive la Hacienda',
       title: t('app.nav.experiences'),
       copy: commercial.experiences[0]?.shortDescription || 'Catas, recorridos y momentos únicos en Hacienda de Letras.',
     },
     {
       to: appPath('/cabanas'),
-      icon: ConciergeBell,
+      icon: BedDouble,
       eyebrow: 'Hospedaje',
       title: 'Cabañas',
       copy: commercial.cabins[0]?.description || 'Paquetes de hospedaje con solicitud y confirmación operativa.',
     },
     {
       to: appPath('/restaurantes'),
-      icon: Utensils,
+      icon: UtensilsCrossed,
       eyebrow: 'Gastronomía',
       title: 'Restaurantes',
       copy: commercial.restaurants[0]?.description || 'Reserva mesa en Hacienda de Letras.',
@@ -78,7 +78,7 @@ export function HomeScreen() {
     },
     {
       to: appPath('/sommelier'),
-      icon: Sparkles,
+      icon: MessagesSquare,
       eyebrow: t('app.premium.home.sommelierTitle'),
       title: t('app.premium.contentPreparing'),
       copy: t('app.premium.home.sommelierCopy'),
@@ -87,7 +87,7 @@ export function HomeScreen() {
 
   return (
     <div className="pb-2">
-      <section className="relative -mt-px min-h-[clamp(360px,72vh,480px)] overflow-hidden bg-[#2D1811]">
+      <section className="relative -mt-px min-h-[clamp(330px,64vh,430px)] overflow-hidden bg-[#2D1811]">
         <img
           src="/Hacienda-de-Letras hacienda.jpg"
           alt="Hacienda de Letras"
@@ -105,17 +105,17 @@ export function HomeScreen() {
             <span>{language === 'es' ? 'ES' : 'EN'}</span>
           </button>
         </div>
-        <div className="relative flex min-h-[clamp(360px,72vh,480px)] flex-col justify-end px-[var(--app-pad)] pb-6 text-white">
+        <div className="relative flex min-h-[clamp(330px,64vh,430px)] flex-col justify-end px-[var(--app-pad)] pb-6 text-white">
           <p className="text-[10px] font-semibold uppercase text-[#E2C58E]">
             {t('app.premium.home.eyebrow')}
           </p>
           <h1
-            className="mt-2 max-w-[18rem] text-[clamp(32px,9vw,42px)] leading-[0.95] text-white"
+            className="mt-2 max-w-[18rem] text-[clamp(27px,7.4vw,36px)] font-medium leading-[0.98] text-white"
             style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
           >
             {t('app.premium.home.title')}
           </h1>
-          <p className="mt-3 max-w-[18rem] text-[14px] leading-5 text-white/86">
+          <p className="mt-3 max-w-[18rem] text-[12px] leading-5 text-white/86">
             {t('app.premium.home.subtitle')}
           </p>
           <PrimaryButton to={appPath('/reservacion')} className="mt-5 rounded-[12px]">
@@ -127,7 +127,7 @@ export function HomeScreen() {
       <div className="space-y-7 px-[var(--app-pad)]">
         <Link
           to={appPath('/vinos')}
-          className="relative z-10 -mt-7 flex min-h-[88px] items-center justify-between gap-4 rounded-[16px] bg-[#FFF9F1] p-4 shadow-[0_16px_34px_rgba(58,32,18,0.13)]"
+          className="relative z-10 -mt-7 flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-white/80 bg-white/72 p-4 shadow-[0_18px_42px_rgba(58,32,18,0.11),inset_0_1px_0_rgba(255,255,255,.9)] backdrop-blur-xl"
         >
           <span className="min-w-0">
             <span
@@ -150,7 +150,7 @@ export function HomeScreen() {
                 {t('app.nav.store')}
               </p>
               <h2
-                className="mt-1 text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]"
+                className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 {t('app.premium.home.wines')}
@@ -220,7 +220,7 @@ export function HomeScreen() {
               {t('app.premium.experiences.eyebrow')}
             </p>
             <h2
-              className="mt-1 text-[clamp(28px,7vw,34px)] leading-none text-[#2D1811]"
+              className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               {t('app.premium.home.experiences')}
@@ -283,17 +283,17 @@ export function HomeScreen() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="grid min-h-[112px] grid-cols-[36px_1fr_auto] items-center gap-3 rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1] p-4"
+                className="grid min-h-[104px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-[20px] border border-white/78 bg-white/64 p-4 shadow-[0_14px_34px_rgba(64,31,24,.055),inset_0_1px_0_rgba(255,255,255,.9)] backdrop-blur-xl"
               >
-                <span className="inline-flex h-11 w-11 items-center justify-center text-[#B88A4A]">
-                  <Icon size={24} strokeWidth={1.45} />
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#ead8c2] bg-white/74 text-[#7a1731] shadow-[0_8px_18px_rgba(90,30,42,.06)]">
+                  <Icon size={18} strokeWidth={1.45} />
                 </span>
                 <span className="min-w-0">
                   <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
                     {item.eyebrow}
                   </span>
                   <span
-                    className="mt-1 block text-[clamp(18px,5vw,21px)] leading-none text-[#2D1811]"
+                    className="mt-1 block text-[clamp(17px,4.6vw,19px)] font-medium leading-none text-[#2D1811]"
                     style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
                   >
                     {item.title}

@@ -1,4 +1,4 @@
-import { apiFetch, API_BASE } from './api'
+import { apiFetch } from './api'
 
 export const contentEntities = [
   'wines',
@@ -79,7 +79,7 @@ export type PreviewTokenResponse = {
 
 export type PreviewResponse = {
   ok: true
-  entity: ContentEntity
+  entity: ContentEntity | 'wine' | 'experience' | 'event' | 'promotion' | 'membership_plan' | 'campaign'
   data: ContentRecord
 }
 
@@ -290,5 +290,8 @@ export const previewContentClient = {
 }
 
 export function getPreviewUrl(token: string) {
-  return `${API_BASE}/api/preview/${encodeURIComponent(token)}`
+  const origin = typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'https://admhaciendadeletras.com'
+  return `${origin}/vista-previa/${encodeURIComponent(token)}`
 }
