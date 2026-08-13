@@ -13,12 +13,13 @@ type ControlSidebarProps = {
     label: string
     items: ControlNavItem[]
   }>
+  onNavigate?: () => void
 }
 
-export function ControlSidebar({ groups }: ControlSidebarProps) {
+export function ControlSidebar({ groups, onNavigate }: ControlSidebarProps) {
   const { t } = useAppPreferences()
   return (
-    <aside className="control-sidebar sticky flex flex-col overflow-hidden border border-[rgba(216,182,128,0.18)] bg-[linear-gradient(180deg,#320812,#4f0f1f_48%,#681126)] text-white shadow-[var(--shadow-soft)]">
+    <aside id="control-navigation" className="control-sidebar sticky flex flex-col overflow-hidden border border-[rgba(216,182,128,0.18)] bg-[linear-gradient(180deg,#320812,#4f0f1f_48%,#681126)] text-white shadow-[var(--shadow-soft)]">
       <div className="control-sidebar__brand border-b border-white/10">
         <div className="flex items-center gap-3">
           <img
@@ -44,6 +45,7 @@ export function ControlSidebar({ groups }: ControlSidebarProps) {
                 <NavLink
                   key={`${group.label}-${to}-${label}`}
                   to={to}
+                  onClick={onNavigate}
                   className={({ isActive }) =>
                     `control-sidebar__item flex items-center text-sm outline-none ring-0 shadow-none transition focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:shadow-none focus-visible:shadow-none ${
                       isActive

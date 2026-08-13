@@ -254,17 +254,39 @@ describe('premium customer app experience', () => {
     expect(styles).toContain('grid-template-columns: repeat(7, minmax(0, 1fr))')
   })
 
-  it('mantiene experiencias con chips premium y reservacion con sheet cristal sin dropdown recortado', () => {
-    const ui = readFileSync(resolve(__dirname, '../app/components/mobile/PremiumMobileUi.tsx'), 'utf8')
+  it('usa listados cristal en experiencias y vinos, y reservacion con sheet sin dropdown recortado', () => {
+    const experiences = readFileSync(resolve(__dirname, '../app/pages/mobile/ExperiencesScreen.tsx'), 'utf8')
+    const store = readFileSync(resolve(__dirname, '../app/pages/mobile/StoreScreen.tsx'), 'utf8')
     const reservation = readFileSync(resolve(__dirname, '../app/pages/mobile/ReservationScreen.tsx'), 'utf8')
 
-    expect(ui).toContain('-mx-[var(--app-pad)]')
-    expect(ui).toContain('backdrop-blur-xl')
-    expect(ui).toContain('bg-[linear-gradient(135deg,#7d1435,#57071d)]')
+    expect(experiences).toContain('<CrystalSelect')
+    expect(experiences).not.toContain('<PillRow')
+    expect(store).toContain('<CrystalSelect')
+    expect(store).not.toContain('<PillRow')
+    expect(`${experiences}${store}`).toContain('backdrop-blur-2xl')
     expect(reservation).toContain('MobileChoiceSheet')
     expect(reservation).toContain('setExperienceSheetOpen(true)')
     expect(reservation).toContain('fixed inset-0 z-[160]')
     expect(reservation).not.toContain('<section className="overflow-hidden rounded-[1.35rem]')
+  })
+
+  it('sincroniza la foto de perfil con el avatar del header sin recargar la app', () => {
+    const header = readFileSync(resolve(__dirname, '../app/components/mobile/AppHeader.tsx'), 'utf8')
+    const profile = readFileSync(resolve(__dirname, '../app/pages/mobile/ProfileScreen.tsx'), 'utf8')
+    const avatarHook = readFileSync(resolve(__dirname, '../app/hooks/useProfileAvatar.ts'), 'utf8')
+
+    expect(header).toContain('useProfileAvatar()')
+    expect(header).toContain("alt={isEnglish ? 'Profile photo' : 'Foto de perfil'}")
+    expect(profile).toContain('notifyProfileAvatarUpdated()')
+    expect(avatarHook).toContain("'hdl:profile-avatar-updated'")
+    expect(avatarHook).toContain(".from('avatars')")
+  })
+
+  it('permite al Sommelier respetar una solicitud explicita de idioma', () => {
+    const service = readFileSync(resolve(__dirname, '../../backend/src/modules/sommelier/sommelier.service.ts'), 'utf8')
+
+    expect(service).toContain('Si la persona pide explícitamente inglés')
+    expect(service).toContain('Nunca mezcles idiomas')
   })
 
   it('muestra ordenes recuperables en carrito y permite reabrir checkout sin mostrar pagadas', () => {
@@ -322,5 +344,21 @@ describe('premium customer app experience', () => {
     expect(map).toContain("variant: poi.id === OFFICIAL_HACIENDA_POI.id ? 'estate'")
     expect(scene).toContain("marker.variant === 'estate'")
     expect(scene).toContain('<svg aria-hidden="true"')
+  })
+
+  it('mantiene el Centro de Control usable en movil y tablet con sidebar cristal colapsable', () => {
+    const layout = readFileSync(resolve(__dirname, '../app/layout/ControlLayout.tsx'), 'utf8')
+    const sidebar = readFileSync(resolve(__dirname, '../app/components/control/ControlSidebar.tsx'), 'utf8')
+    const styles = readFileSync(resolve(__dirname, '../app/styles/globals.css'), 'utf8')
+
+    expect(layout).toContain('PanelLeftOpen')
+    expect(layout).toContain('PanelLeftClose')
+    expect(layout).toContain("window.matchMedia('(min-width: 1024px)')")
+    expect(layout).toContain('control-sidebar__tab')
+    expect(layout).toContain('control-sidebar__backdrop')
+    expect(sidebar).toContain('id="control-navigation"')
+    expect(styles).toContain('@media (max-width: 1023px)')
+    expect(styles).toContain('backdrop-filter: blur(18px)')
+    expect(styles).toContain('width: min(86vw, 19rem)')
   })
 })

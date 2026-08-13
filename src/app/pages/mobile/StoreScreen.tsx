@@ -9,7 +9,6 @@ import {
   AppToast,
   EmptyState,
   ErrorState,
-  PillRow,
   SearchField,
   Skeleton,
   WineCard,
@@ -174,7 +173,14 @@ export function StoreScreen() {
           value={search}
           onChange={setSearch}
         />
-        <PillRow items={filters} activeIndex={activeFilter} onSelect={selectFilter} />
+        <CrystalSelect
+          value={String(activeFilter)}
+          onChange={(value) => selectFilter(Number(value))}
+          options={filters.map((label, index) => ({ value: String(index), label }))}
+          ariaLabel={isEnglish ? 'Filter wines by style' : 'Filtrar vinos por estilo'}
+          buttonClassName="min-h-12 rounded-[1.15rem] border-white/60 bg-white/62 px-4 text-[13px] font-semibold text-[#513d34] shadow-[0_16px_34px_rgba(76,34,25,0.1)] backdrop-blur-2xl"
+          menuClassName="rounded-[1.2rem] border-white/70 bg-[linear-gradient(180deg,rgba(255,252,247,0.97),rgba(245,235,225,0.95))]"
+        />
         <AppToast
           message={message}
           tone={message === t('app.premium.addCartError') ? 'danger' : 'success'}

@@ -903,15 +903,68 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 .control-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--control-sidebar-width) minmax(0, 1fr);
   align-items: start;
   gap: var(--control-space-md);
   padding: var(--control-space-md) var(--control-space-lg) var(--control-space-lg);
+  transition: grid-template-columns 220ms ease, gap 220ms ease;
+}
+
+.control-layout.is-sidebar-collapsed {
+  grid-template-columns: 0 minmax(0, 1fr);
+  gap: 0;
 }
 
 .control-sidebar {
   top: calc(var(--control-topbar-height) + var(--control-space-md));
   height: calc(100dvh - var(--control-topbar-height) - (var(--control-space-md) * 2));
   border-radius: var(--control-radius-lg);
+  transition: opacity 180ms ease, transform 220ms ease;
+}
+
+.control-layout.is-sidebar-collapsed .control-sidebar {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(calc(-100% - var(--control-space-lg)));
+}
+
+.control-sidebar__tab {
+  position: fixed;
+  top: calc(var(--control-topbar-height) + 0.8rem);
+  left: max(0.35rem, calc((100vw - 1600px) / 2 + var(--control-sidebar-width) + 0.35rem));
+  z-index: 48;
+  display: inline-flex;
+  min-height: 2.35rem;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.68rem;
+  border: 1px solid rgba(255, 247, 233, 0.5);
+  border-radius: 0 0.9rem 0.9rem 0;
+  background: linear-gradient(135deg, rgba(77, 10, 29, 0.9), rgba(104, 17, 38, 0.82));
+  color: #fff8ed;
+  box-shadow: 0 14px 34px rgba(52, 8, 20, 0.2), inset 0 1px 0 rgba(255,255,255,.15);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: left 220ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.control-sidebar__tab:hover {
+  transform: translateX(2px);
+  background: linear-gradient(135deg, rgba(92, 13, 35, 0.96), rgba(116, 24, 48, 0.9));
+}
+
+.control-layout.is-sidebar-collapsed .control-sidebar__tab {
+  left: 0;
+}
+
+.control-sidebar__backdrop {
+  display: none;
 }
 
 .control-sidebar__brand {
@@ -1379,13 +1432,137 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 @media (max-width: 767px) {
-  .control-layout {
+  .control-topbar__inner {
+    padding-right: 0.65rem;
+    padding-left: 3.5rem;
+  }
+
+  .control-topbar__inner > div:first-child p:first-child {
+    font-size: 0.56rem;
+    letter-spacing: 0.11em;
+  }
+
+  .control-topbar__inner > div:first-child p:last-child {
+    display: none;
+  }
+
+  .control-main {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1023px) {
+  .control-layout,
+  .control-layout.is-sidebar-collapsed,
+  .control-layout.is-sidebar-open {
     display: block;
+    padding: 0.75rem;
   }
 
   .control-sidebar {
-    position: static;
+    position: fixed;
+    top: calc(var(--control-topbar-height) + 0.45rem);
+    bottom: 0.65rem;
+    left: 0.55rem;
+    z-index: 49;
+    width: min(86vw, 19rem);
     height: auto;
-    margin-bottom: var(--control-space-md);
+    border-radius: 1.2rem;
+    box-shadow: 0 28px 70px rgba(35, 5, 14, 0.34);
+  }
+
+  .control-layout.is-sidebar-collapsed .control-sidebar {
+    transform: translateX(calc(-100% - 1rem));
+  }
+
+  .control-sidebar__tab,
+  .control-layout.is-sidebar-collapsed .control-sidebar__tab {
+    top: calc(var(--control-topbar-height) + 0.65rem);
+    left: 0;
+    z-index: 51;
+  }
+
+  .control-layout.is-sidebar-open .control-sidebar__tab {
+    left: calc(min(86vw, 19rem) + 0.15rem);
+  }
+
+  .control-sidebar__backdrop {
+    position: fixed;
+    inset: var(--control-topbar-height) 0 0;
+    z-index: 47;
+    display: block;
+    width: 100%;
+    border: 0;
+    background: rgba(38, 15, 17, 0.26);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .control-main [class*="grid-cols-["] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .control-main table {
+    min-width: 680px;
+  }
+
+  .control-main table:only-child {
+    display: table;
+  }
+
+  .control-main :is(section, article, aside, div) {
+    min-width: 0;
+  }
+
+  .control-main > :first-child > :is(header, div):first-child,
+  .control-main header {
+    flex-wrap: wrap;
+  }
+
+  .control-main :is(form, [role='dialog']) {
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  .control-sidebar__item {
+    min-height: 2.65rem;
+    font-size: 0.8rem;
+  }
+
+  .control-sidebar__icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-basis: 1.75rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .control-topbar__inner {
+    justify-content: flex-end;
+    gap: 0.45rem;
+    padding-right: 0.55rem;
+    padding-left: 3rem;
+  }
+
+  .control-topbar__identity {
+    display: none;
+  }
+
+  .control-topbar__inner > div:last-child {
+    gap: 0.4rem;
+  }
+
+  .control-layout,
+  .control-layout.is-sidebar-collapsed,
+  .control-layout.is-sidebar-open {
+    padding: 0.6rem;
+  }
+
+  .control-main .fixed.inset-0 {
+    padding: 0.65rem;
+  }
+
+  .control-main .fixed.inset-0 :is(form, section, article) {
+    max-height: calc(100dvh - 1.3rem);
+    padding: 1rem;
   }
 }

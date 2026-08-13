@@ -87,7 +87,7 @@ export function ControlTopbar() {
     <>
       <header className="control-topbar sticky top-0 z-40 border-b border-[rgba(200,171,136,0.45)] bg-[rgba(252,247,240,0.86)] backdrop-blur-2xl">
         <div className="control-topbar__inner mx-auto flex max-w-[1600px] items-center justify-between">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="control-topbar__identity flex min-w-0 items-center gap-3">
             <div className="control-topbar__logo hidden lg:block">
               <img
                 src="/hacienda de letras logo 2.png"

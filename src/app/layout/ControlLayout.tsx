@@ -23,7 +23,10 @@ import {
   Wine,
   WalletCards,
   UserRoundX,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { ControlSidebar } from '../components/control/ControlSidebar'
 import { ControlTopbar } from '../components/control/ControlTopbar'
@@ -32,8 +35,40 @@ import { useAuth } from '../../contexts/AuthContext'
 import { InitialPasswordChangeModal } from '../components/control/InitialPasswordChangeModal'
 
 export function ControlLayout() {
-  const { t } = useAppPreferences()
+  const { t, isEnglish } = useAppPreferences()
   const { mustChangePassword } = useAuth()
+  const [sidebarOpen, setSidebarOpen] = useState(() => (
+    typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1024px)').matches
+  ))
+
+  useEffect(() => {
+    const closeWithEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSidebarOpen(false)
+    }
+    window.addEventListener('keydown', closeWithEscape)
+    return () => window.removeEventListener('keydown', closeWithEscape)
+  }, [])
+
+  useEffect(() => {
+    const compactViewport = window.matchMedia('(max-width: 1023px)')
+    const syncViewport = (event: MediaQueryListEvent) => setSidebarOpen(!event.matches)
+
+    compactViewport.addEventListener('change', syncViewport)
+    return () => compactViewport.removeEventListener('change', syncViewport)
+  }, [])
+
+  useEffect(() => {
+    if (!sidebarOpen || !window.matchMedia('(max-width: 1023px)').matches) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [sidebarOpen])
+
+  const closeSidebarOnCompactView = () => {
+    if (window.matchMedia('(max-width: 1023px)').matches) setSidebarOpen(false)
+  }
 
   const sidebarGroups = [
     {
@@ -186,8 +221,32 @@ export function ControlLayout() {
   return (
     <div className="control-shell min-h-screen bg-[var(--color-page)] text-[var(--color-ink)]">
       <ControlTopbar />
-      <div className="control-layout mx-auto grid max-w-[1600px] md:grid-cols-[var(--control-sidebar-width)_minmax(0,1fr)]">
-        <ControlSidebar groups={sidebarGroups} />
+      <div className={`control-layout mx-auto max-w-[1600px] ${sidebarOpen ? 'is-sidebar-open' : 'is-sidebar-collapsed'}`}>
+        {sidebarOpen ? (
+          <button
+            type="button"
+            className="control-sidebar__backdrop"
+            aria-label={isEnglish ? 'Close navigation' : 'Cerrar navegación'}
+            onClick={() => setSidebarOpen(false)}
+          />
+        ) : null}
+        <button
+          type="button"
+          className="control-sidebar__tab"
+          onClick={() => setSidebarOpen((current) => !current)}
+          aria-expanded={sidebarOpen}
+          aria-controls="control-navigation"
+          aria-label={sidebarOpen
+            ? (isEnglish ? 'Collapse navigation' : 'Ocultar navegación')
+            : (isEnglish ? 'Open navigation' : 'Abrir navegación')}
+          title={sidebarOpen
+            ? (isEnglish ? 'Collapse navigation' : 'Ocultar navegación')
+            : (isEnglish ? 'Open navigation' : 'Abrir navegación')}
+        >
+          {sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
+          <span>{isEnglish ? 'Menu' : 'Menú'}</span>
+        </button>
+        <ControlSidebar groups={sidebarGroups} onNavigate={closeSidebarOnCompactView} />
         <main className="control-main min-w-0">
           <Outlet />
         </main>

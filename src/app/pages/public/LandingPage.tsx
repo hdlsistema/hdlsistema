@@ -22,7 +22,7 @@ const operationalPillars = [
 
 export function LandingPage() {
   useEffect(() => {
-    document.title = 'Hacienda de Letras · Centro de Control'
+    document.title = 'Hacienda de Letras'
   }, [])
 
   return (
@@ -41,7 +41,7 @@ export function LandingPage() {
             <img src="/Logo-HDL-2.svg" alt="" className="h-12 w-16 object-contain brightness-0 invert sm:h-14 sm:w-20" />
             <span className="hidden border-l border-white/25 pl-4 sm:block">
               <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/92">Hacienda de Letras</span>
-              <span className="mt-1 block text-[10px] tracking-[0.12em] text-white/58">Centro de Control</span>
+              <span className="mt-1 block text-[10px] tracking-[0.12em] text-white/58">Fundada en 1854</span>
             </span>
           </Link>
           <Link

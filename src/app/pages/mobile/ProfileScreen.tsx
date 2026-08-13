@@ -33,6 +33,7 @@ import {
 } from '../../../services/customer.service'
 import { AppToast, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { notifyProfileAvatarUpdated, useProfileAvatar } from '../../hooks/useProfileAvatar'
 import { appPath } from '../../utils/appRoutes'
 
 function isPendingPaymentOrder(order: CustomerOrder) {
@@ -100,7 +101,7 @@ export function ProfileScreen() {
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
   const [membership, setMembership] = useState<CustomerMembership>(null)
   const [loyalty, setLoyalty] = useState<CustomerLoyaltySummary | null>(null)
-  const [avatarUrl, setAvatarUrl] = useState('')
+  const avatarUrl = useProfileAvatar()
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [loadingCustomer, setLoadingCustomer] = useState(true)
@@ -190,24 +191,6 @@ export function ProfileScreen() {
   }, [session?.access_token])
 
   useEffect(() => {
-    let active = true
-    async function loadAvatar() {
-      if (!profile?.avatar_url) {
-        setAvatarUrl('')
-        return
-      }
-      const { data } = await supabase.storage
-        .from('avatars')
-        .createSignedUrl(profile.avatar_url, 60 * 15)
-      if (active) setAvatarUrl(data?.signedUrl ?? '')
-    }
-    loadAvatar()
-    return () => {
-      active = false
-    }
-  }, [profile?.avatar_url])
-
-  useEffect(() => {
     const nextLanguage = preferences?.language ?? profile?.preferred_language ?? 'es'
     setLanguage(nextLanguage === 'en' ? 'en' : 'es')
   }, [preferences?.language, profile?.preferred_language])
@@ -267,6 +250,7 @@ export function ProfileScreen() {
       return
     }
     await refreshProfile()
+    notifyProfileAvatarUpdated()
     setMessage(t('app.premium.profile.avatarUpdated'))
   }
 

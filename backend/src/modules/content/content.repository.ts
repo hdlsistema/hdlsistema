@@ -67,6 +67,28 @@ function applyTranslation(row: ContentRow, translation?: TranslationRow) {
     if ('name' in translated) translated.name = translation.title
   }
 
+  const metadata = translation.metadata && typeof translation.metadata === 'object'
+    ? translation.metadata as Record<string, unknown>
+    : {}
+  const overrides = metadata.overrides && typeof metadata.overrides === 'object'
+    ? metadata.overrides as Record<string, unknown>
+    : {}
+  const allowedOverrides = [
+    'category',
+    'grape_variety',
+    'location',
+    'origin',
+    'pairing_notes',
+    'serving_temperature',
+    'tasting_notes',
+    'venue',
+  ]
+
+  for (const key of allowedOverrides) {
+    const value = overrides[key]
+    if (typeof value === 'string' && value.trim()) translated[key] = value
+  }
+
   return translated
 }
 
