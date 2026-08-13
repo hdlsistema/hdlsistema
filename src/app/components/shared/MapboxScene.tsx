@@ -5,7 +5,8 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 type MarkerItem = {
   coordinates: [number, number]
   label?: string
-  variant?: 'default' | 'estate'
+  variant?: 'default' | 'estate' | 'lodging' | 'restaurant'
+  onSelect?: () => void
 }
 
 type RouteLine = {
@@ -124,6 +125,12 @@ export function MapboxScene({
       map.remove()
       mapRef.current = null
     }
+  }, [sceneId])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    map.easeTo({ center, zoom, pitch, bearing, duration: 650 })
   }, [bearing, center, pitch, zoom])
 
   useEffect(() => {
@@ -144,16 +151,29 @@ export function MapboxScene({
 
       markers.forEach((marker, index) => {
         const markerNode = document.createElement('div')
-        if (marker.variant === 'estate') {
+        if (marker.variant === 'estate' || marker.variant === 'lodging' || marker.variant === 'restaurant') {
           markerNode.className = 'grid h-11 w-11 -translate-y-1 rotate-[-45deg] place-items-center rounded-[50%_50%_50%_8px] border-2 border-[#f7e4c0] bg-[linear-gradient(145deg,#8b2742,#510719)] text-[#f7e4c0] shadow-[0_12px_28px_rgba(55,6,19,0.38),0_0_0_5px_rgba(111,15,40,0.16)]'
-          markerNode.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><path d="M8 3h8l-1 5.2a4 4 0 0 1-3.9 3.2h-.2A4 4 0 0 1 7 8.2L8 3Z"/><path d="M12 11.5V19M9 21h6"/><path d="M7.6 6.5h8.8"/></svg>'
+          markerNode.innerHTML = marker.variant === 'lodging'
+            ? '<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><path d="M3 12v7M21 12v7M3 16h18M6 16v-5h6a4 4 0 0 1 4 4v1M6 11V8h4a2 2 0 0 1 2 2v1"/></svg>'
+            : marker.variant === 'restaurant'
+              ? '<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><path d="M7 3v8M4.5 3v5A2.5 2.5 0 0 0 7 10.5 2.5 2.5 0 0 0 9.5 8V3M7 10.5V21M15 3v18M15 3c3 1 4.5 4 4 8h-4"/></svg>'
+              : '<svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><path d="M8 3h8l-1 5.2a4 4 0 0 1-3.9 3.2h-.2A4 4 0 0 1 7 8.2L8 3Z"/><path d="M12 11.5V19M9 21h6"/><path d="M7.6 6.5h8.8"/></svg>'
         } else {
           markerNode.className =
             'h-4 w-4 rounded-full border-2 border-white bg-[#7d1328] shadow-[0_0_0_4px_rgba(125,19,40,0.18)]'
         }
         markerNode.setAttribute('aria-label', marker.label ?? `marker-${index}`)
+        if (marker.onSelect) {
+          markerNode.setAttribute('role', 'button')
+          markerNode.setAttribute('tabindex', '0')
+          markerNode.style.cursor = 'pointer'
+          markerNode.addEventListener('click', marker.onSelect)
+          markerNode.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') marker.onSelect?.()
+          })
+        }
 
-        const mapMarker = new mapboxgl.Marker({ element: markerNode, anchor: marker.variant === 'estate' ? 'bottom' : 'center' })
+        const mapMarker = new mapboxgl.Marker({ element: markerNode, anchor: marker.variant && marker.variant !== 'default' ? 'bottom' : 'center' })
           .setLngLat(marker.coordinates)
           .addTo(currentMap)
         markerRefs.current.push(mapMarker)
@@ -205,7 +225,7 @@ export function MapboxScene({
       <div
         className={`flex items-center justify-center rounded-[inherit] bg-[linear-gradient(180deg,#efe3d0,#f8f1e7)] p-6 text-center text-sm text-[var(--color-muted)] ${className}`.trim()}
       >
-        Agrega tu token en `.env.local` como `VITE_MAPBOX_TOKEN` para activar el mapa 3D.
+        El mapa interactivo no está disponible en este momento. Puedes abrir la ruta desde la ficha de cada sede.
       </div>
     )
   }

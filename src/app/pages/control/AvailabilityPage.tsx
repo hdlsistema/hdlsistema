@@ -591,7 +591,7 @@ function AvailabilityModeSwitch({ mode, onChange }: { mode: 'experiencias' | 'ho
         <CalendarDays size={19} /><span><strong className="block text-sm">Experiencias y eventos</strong><small className={`block text-[10px] ${mode === 'experiencias' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Horarios, cupos y bloqueos</small></span>
       </button>
       <button type="button" onClick={() => onChange('hospedaje')} className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-left transition ${mode === 'hospedaje' ? 'bg-[var(--color-burgundy)] text-white shadow-md' : 'text-[var(--color-ink)] hover:bg-[var(--color-soft)]'}`}>
-        <BedDouble size={19} /><span><strong className="block text-sm">Hotel / Cabañas</strong><small className={`block text-[10px] ${mode === 'hospedaje' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Noches, unidades, ocupación y recepción</small></span>
+        <BedDouble size={19} /><span><strong className="block text-sm">Cabañas</strong><small className={`block text-[10px] ${mode === 'hospedaje' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Noches, unidades, ocupación y recepción</small></span>
       </button>
     </section>
   )

@@ -72,7 +72,7 @@ export function ControlLayout() {
 
   const sidebarGroups = [
     {
-      label: 'Operación',
+      label: isEnglish ? 'Operations' : 'Operación',
       items: [
         {
           to: '/control/dashboard',
@@ -86,7 +86,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/cotizaciones',
-          label: 'Cotizaciones',
+          label: isEnglish ? 'Quotes' : 'Cotizaciones',
           icon: FileText,
         },
         {
@@ -96,17 +96,17 @@ export function ControlLayout() {
         },
         {
           to: '/control/disponibilidad',
-          label: `${t('control.availability')} / Hotel`,
+          label: `${t('control.availability')} / ${isEnglish ? 'Cabins' : 'Cabañas'}`,
           icon: CalendarRange,
         },
         {
           to: '/control/inventario',
-          label: 'Inventario',
+          label: isEnglish ? 'Inventory' : 'Inventario',
           icon: Boxes,
         },
         {
           to: '/control/logistica',
-          label: 'Logística',
+          label: isEnglish ? 'Logistics' : 'Logística',
           icon: Truck,
         },
         {
@@ -117,7 +117,7 @@ export function ControlLayout() {
       ],
     },
     {
-      label: 'Comercial',
+      label: isEnglish ? 'Commercial' : 'Comercial',
       items: [
         {
           to: '/control/clientes',
@@ -131,7 +131,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/carritos',
-          label: 'Carritos',
+          label: isEnglish ? 'Carts' : 'Carritos',
           icon: ShoppingCart,
         },
         {
@@ -141,13 +141,13 @@ export function ControlLayout() {
         },
         {
           to: '/control/distribuidores',
-          label: 'Distribuidores',
+          label: isEnglish ? 'Distributors' : 'Distribuidores',
           icon: Building2,
         },
       ],
     },
     {
-      label: 'Contenido',
+      label: isEnglish ? 'Content' : 'Contenido',
       items: [
         {
           to: '/control/vinos',
@@ -166,7 +166,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/servicios',
-          label: 'Servicios y sedes',
+          label: isEnglish ? 'Services and venues' : 'Servicios y sedes',
           icon: MapPinned,
         },
         {
@@ -187,16 +187,16 @@ export function ControlLayout() {
       ],
     },
     {
-      label: 'Administración',
+      label: isEnglish ? 'Administration' : 'Administración',
       items: [
         {
           to: '/control/reportes',
-          label: 'Reportes',
+          label: isEnglish ? 'Reports' : 'Reportes',
           icon: BarChart3,
         },
         {
           to: '/control/actividad',
-          label: 'Actividad App',
+          label: isEnglish ? 'App activity' : 'Actividad App',
           icon: Activity,
         },
         {
@@ -206,7 +206,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/eliminacion-cuentas',
-          label: 'Eliminación de cuentas',
+          label: isEnglish ? 'Account deletion' : 'Eliminación de cuentas',
           icon: UserRoundX,
         },
         {
@@ -244,7 +244,6 @@ export function ControlLayout() {
             : (isEnglish ? 'Open navigation' : 'Abrir navegación')}
         >
           {sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
-          <span>{isEnglish ? 'Menu' : 'Menú'}</span>
         </button>
         <ControlSidebar groups={sidebarGroups} onNavigate={closeSidebarOnCompactView} />
         <main className="control-main min-w-0">

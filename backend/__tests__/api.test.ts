@@ -583,10 +583,10 @@ describe('Notificaciones administrativas reales', () => {
     supabaseMock.tableData.notifications = [
       {
         id: '00000000-0000-0000-0000-000000000046',
-        channel: 'email',
-        title: 'Confirmación de reservación',
-        body: 'La reservación fue recibida.',
-        status: 'sent',
+        channel: 'control',
+        title: 'Nueva solicitud de cotización',
+        body: 'Cliente Real solicita información para una boda con 80 personas.',
+        status: 'pending',
         sent_at: '2026-08-10T10:00:00.000Z',
         read_at: null,
         created_at: '2026-08-10T10:00:00.000Z',
@@ -601,10 +601,10 @@ describe('Notificaciones administrativas reales', () => {
     expect(res.body.data).toMatchObject([
       {
         id: '00000000-0000-0000-0000-000000000046',
-        channel: 'email',
-        title: 'Confirmación de reservación',
-        body: 'La reservación fue recibida.',
-        status: 'sent',
+        channel: 'control',
+        title: 'Nueva solicitud de cotización',
+        body: 'Cliente Real solicita información para una boda con 80 personas.',
+        status: 'pending',
       },
     ])
     expect(res.body.unreadCount).toBe(1)

@@ -6,17 +6,17 @@ import { lodgingClient } from '../services/lodging.service'
 afterEach(() => vi.restoreAllMocks())
 
 describe('centro unificado de disponibilidad y reservaciones', () => {
-  it('expone Hotel / Cabañas dentro de Disponibilidad con calendario, colores y gráficas', () => {
+  it('expone Cabañas dentro de Disponibilidad con calendario, colores y gráficas', () => {
     const availability = readFileSync(resolve(__dirname, '../app/pages/control/AvailabilityPage.tsx'), 'utf8')
     const lodging = readFileSync(resolve(__dirname, '../app/pages/control/LodgingPage.tsx'), 'utf8')
     const router = readFileSync(resolve(__dirname, '../app/routes/AppRouter.tsx'), 'utf8')
 
-    expect(availability).toContain('Hotel / Cabañas')
+    expect(availability).toContain('Cabañas')
     expect(availability).toContain('<LodgingPage embedded />')
     expect(availability).toContain('Ocupación consolidada')
     expect(lodging).toContain('Calendario por cabaña')
     expect(lodging).toContain('Disponibilidad diaria por color')
-    expect(lodging).toContain('Inventario hotelero')
+    expect(lodging).toContain('Inventario de cabañas')
     expect(lodging).toContain('Reservada')
     expect(lodging).toContain('Hold pendiente')
     expect(lodging).toContain('Bloqueada / fuera de servicio')
@@ -27,7 +27,7 @@ describe('centro unificado de disponibilidad y reservaciones', () => {
     const reservations = readFileSync(resolve(__dirname, '../app/pages/control/ReservationsPage.tsx'), 'utf8')
 
     expect(reservations).toContain("selected.reservationType === 'cabin'")
-    expect(reservations).toContain('Paquete hotelero')
+    expect(reservations).toContain('Paquete de cabaña')
     expect(reservations).toContain('Cabaña asignada')
     expect(reservations).toContain('Reprogramar estancia')
     expect(reservations).toContain('Housekeeping')

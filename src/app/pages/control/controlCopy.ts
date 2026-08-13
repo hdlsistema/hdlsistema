@@ -1,14 +1,21 @@
-export function money(value: number | null | undefined, currency = 'MXN') {
-  return new Intl.NumberFormat('es-MX', {
+function currentLocale(locale?: string) {
+  if (locale) return locale
+  if (typeof document !== 'undefined' && document.documentElement.lang.toLowerCase().startsWith('en')) return 'en-US'
+  return 'es-MX'
+}
+
+export function money(value: number | null | undefined, currency = 'MXN', locale?: string) {
+  return new Intl.NumberFormat(currentLocale(locale), {
     style: 'currency',
     currency,
     maximumFractionDigits: 2,
   }).format(Number(value ?? 0))
 }
 
-export function dateTime(value?: string | null) {
-  if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', {
+export function dateTime(value?: string | null, locale?: string) {
+  const resolvedLocale = currentLocale(locale)
+  if (!value) return resolvedLocale.startsWith('en') ? 'No date' : 'Sin fecha'
+  return new Intl.DateTimeFormat(resolvedLocale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -18,9 +25,10 @@ export function dateTime(value?: string | null) {
   }).format(new Date(value)).replace(',', ' ·').replaceAll(' ', '\u00a0')
 }
 
-export function dateOnly(value?: string | null) {
-  if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', {
+export function dateOnly(value?: string | null, locale?: string) {
+  const resolvedLocale = currentLocale(locale)
+  if (!value) return resolvedLocale.startsWith('en') ? 'No date' : 'Sin fecha'
+  return new Intl.DateTimeFormat(resolvedLocale, {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -108,15 +116,28 @@ const STATUS_LABELS: Record<string, string> = {
   won: 'Ganada',
 }
 
-export function statusLabel(value?: string | null) {
-  if (!value) return 'Sin estado'
+const STATUS_LABELS_EN: Record<string, string> = {
+  active: 'Active', archived: 'Archived', awaiting_tracking: 'Tracking pending', blocked: 'Blocked',
+  cancelled: 'Cancelled', closed: 'Closed', completed: 'Completed', confirmed: 'Confirmed', contacted: 'Contacted',
+  converted: 'Converted', delivered: 'Delivered', draft: 'Draft', failed: 'Failed', fulfilled: 'Completed',
+  in_progress: 'In progress', inactive: 'Inactive', lost: 'Lost', new: 'New', no_show: 'No show',
+  not_required: 'Shipping not required', open: 'Open', paid: 'Payment confirmed', partially_refunded: 'Partially refunded',
+  paused: 'Paused', pending: 'Pending', pending_payment: 'Payment pending', pending_preparation: 'Preparing',
+  preparing: 'Preparing', processing: 'In progress', prospect: 'Prospect', published: 'Published', quoted: 'Quoted',
+  refunded: 'Refunded', revoked: 'Revoked', sent: 'Sent', shipped: 'Shipped', started: 'Started',
+  succeeded: 'Successful', tracking_assigned: 'Tracking assigned', used: 'Used', won: 'Won',
+}
+
+export function statusLabel(value?: string | null, locale?: string) {
+  const resolvedLocale = currentLocale(locale)
+  if (!value) return resolvedLocale.startsWith('en') ? 'No status' : 'Sin estado'
   const normalized = value.toLowerCase()
-  const label = STATUS_LABELS[normalized]
+  const label = resolvedLocale.startsWith('en') ? STATUS_LABELS_EN[normalized] : STATUS_LABELS[normalized]
   if (label) return label
   if (import.meta.env.DEV) {
     console.warn('Estado no mapeado en Centro de Control', value)
   }
-  return 'Estado no identificado'
+  return resolvedLocale.startsWith('en') ? 'Unrecognized status' : 'Estado no identificado'
 }
 
 const EVENT_LABELS: Record<string, string> = {

@@ -228,6 +228,7 @@ export async function listAdminNotifications(query: NotificationListQuery, user:
   let request = supabaseAdminClient
     .from('notifications')
     .select('id,channel,title,body,status,data,sent_at,read_at,created_at', { count: 'exact' })
+    .eq('channel', 'control')
     .order('created_at', { ascending: false })
     .limit(query.limit)
 

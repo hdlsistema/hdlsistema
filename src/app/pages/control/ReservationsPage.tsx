@@ -105,7 +105,7 @@ function reservationTypeLabel(type: ReservationRecord['reservationType']) {
   const labels: Record<ReservationRecord['reservationType'], string> = {
     experience: 'Experiencia',
     event: 'Evento',
-    cabin: 'Hotel / Cabaña',
+    cabin: 'Cabaña',
     restaurant: 'Restaurante',
   }
   return labels[type]
@@ -133,7 +133,7 @@ function housekeepingCopy(value: string) {
 }
 
 function lodgingStayStatusCopy(value: string) {
-  const labels: Record<string, string> = { held: 'Hold temporal', reserved: 'Reservada', checked_in: 'Huésped alojado', checked_out: 'Salida realizada', cancelled: 'Cancelada', no_show: 'No se presentó', expired: 'Hold vencido' }
+  const labels: Record<string, string> = { held: 'Solicitud pendiente', reserved: 'Reservada', checked_in: 'Huésped alojado', checked_out: 'Salida realizada', cancelled: 'Cancelada', no_show: 'No se presentó', expired: 'Solicitud vencida' }
   return labels[value] ?? value
 }
 
@@ -352,7 +352,7 @@ export function ReservationsPage() {
   const submitCabinReschedule = () => {
     if (!selected || selected.reservationType !== 'cabin' || !cabinCheckIn || !cabinCheckOut) return
     requestAction({
-      title: 'Reprogramar estancia hotelera',
+      title: 'Reprogramar estancia en cabaña',
       message: `Se validará inventario y se bloqueará ${cabinUnitId ? 'la cabaña seleccionada' : 'la primera cabaña compatible'} del ${dateOnly(cabinCheckIn)} al ${dateOnly(cabinCheckOut)} en una sola operación.`,
       confirmLabel: 'Reprogramar estancia',
       success: 'Estancia reprogramada y calendario actualizado.',
@@ -424,7 +424,7 @@ export function ReservationsPage() {
         <Metric icon={Clock3} label="Pendientes" value={String(metrics.pending)} />
         <Metric icon={X} label="Canceladas" value={String(metrics.cancelled)} />
         <Metric icon={Users} label="Personas" value={String(metrics.people)} />
-        <Metric icon={BedDouble} label="Hotel / Cabañas" value={String(metrics.cabins)} />
+        <Metric icon={BedDouble} label="Cabañas" value={String(metrics.cabins)} />
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
@@ -445,7 +445,7 @@ export function ReservationsPage() {
             <option value="">Todos los servicios</option>
             <option value="experience">Experiencias</option>
             <option value="event">Eventos</option>
-            <option value="cabin">Hotel / Cabañas</option>
+            <option value="cabin">Cabañas</option>
             <option value="restaurant">Restaurantes</option>
           </CrystalSelect>
           <button type="button" onClick={() => { setSearch(''); setStatus(''); setReservationType('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">
@@ -511,7 +511,7 @@ export function ReservationsPage() {
               <div className="mt-3 flex items-center gap-2"><span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-burgundy)]">{reservationTypeLabel(selected.reservationType)}</span><StatusBadge label={statusLabel(selected.status)} /></div>
               {selected.reservationType === 'cabin' ? (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <Detail label="Paquete hotelero" value={selected.cabinPackage?.name ?? selected.experienceTitle} />
+                  <Detail label="Paquete de cabaña" value={selected.cabinPackage?.name ?? selected.experienceTitle} />
                   <Detail label="Cabaña asignada" value={selectedStay ? `${selectedStay.unitCode} · ${selectedStay.unitName}` : 'Unidad pendiente'} />
                   <Detail label="Entrada" value={selected.checkIn ? dateOnly(selected.checkIn) : 'Pendiente'} />
                   <Detail label="Salida" value={selected.checkOut ? dateOnly(selected.checkOut) : 'Pendiente'} />
@@ -541,8 +541,8 @@ export function ReservationsPage() {
                 </div>
               )}
               <div className="mt-5 flex flex-wrap gap-2">
-                <ActionButton disabled={!writable || selected.status !== 'pending' || (selected.reservationType === 'cabin' && selectedStay?.status === 'expired')} onClick={() => requestAction({ title: 'Confirmar reservación', message: selected.reservationType === 'cabin' ? 'El hold temporal se convertirá en reserva firme y las noches permanecerán bloqueadas para esta estancia.' : 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
-                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar reservación', message: selected.reservationType === 'cabin' ? 'Se cancelará la estancia y se liberarán sus noches en el calendario hotelero.' : 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
+                <ActionButton disabled={!writable || selected.status !== 'pending' || (selected.reservationType === 'cabin' && selectedStay?.status === 'expired')} onClick={() => requestAction({ title: 'Confirmar reservación', message: selected.reservationType === 'cabin' ? 'La solicitud pendiente se convertirá en reserva firme; las noches ya están bloqueadas para impedir cruces.' : 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
+                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar reservación', message: selected.reservationType === 'cabin' ? 'Se cancelará la estancia y se liberarán sus noches en el calendario de cabañas.' : 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
               </div>
             </article>
 
@@ -552,7 +552,7 @@ export function ReservationsPage() {
                 <p className="mt-1 text-xs text-[var(--color-muted)]">Valida cruces, capacidad y unidad física antes de mover las noches.</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2"><CrystalDateField label="Nueva entrada" value={cabinCheckIn} onChange={(value) => { setCabinCheckIn(value); if (cabinCheckOut <= value) setCabinCheckOut(addReservationDays(value, Math.max(lodgingNights(selected.checkIn, selected.checkOut), 1))) }} /><CrystalDateField label="Nueva salida" value={cabinCheckOut} onChange={setCabinCheckOut} /></div>
                 <CrystalSelect value={cabinUnitId} onChange={setCabinUnitId} className="mt-3"><option value="">Asignación automática</option>{compatibleLodgingUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.code} · {unit.name} · {unit.capacity} huéspedes</option>)}</CrystalSelect>
-                <div className="flex flex-wrap gap-2"><ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || !selectedStay || !['held', 'reserved'].includes(selectedStay.status) || !cabinCheckIn || !cabinCheckOut || cabinCheckOut <= cabinCheckIn} onClick={submitCabinReschedule}>Validar y reprogramar</ActionButton><Link to="/control/disponibilidad?view=hospedaje" className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]">Ver calendario hotelero</Link></div>
+                <div className="flex flex-wrap gap-2"><ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || !selectedStay || !['held', 'reserved'].includes(selectedStay.status) || !cabinCheckIn || !cabinCheckOut || cabinCheckOut <= cabinCheckIn} onClick={submitCabinReschedule}>Validar y reprogramar</ActionButton><Link to="/control/disponibilidad?view=hospedaje" className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]">Ver calendario de cabañas</Link></div>
               </article>
             ) : selected.reservationType !== 'restaurant' ? (
               <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">

@@ -27,7 +27,7 @@ export function ControlSidebar({ groups, onNavigate }: ControlSidebarProps) {
             alt="Hacienda de Letras"
             className="control-sidebar__logo w-auto object-contain brightness-[3.35] saturate-0"
           />
-          <div className="min-w-0">
+          <div className="control-sidebar__brand-copy min-w-0">
             <p className="truncate text-[12px] font-semibold text-[#fff6ea]">Hacienda de Letras</p>
             <p className="mt-0.5 truncate text-[9px] uppercase tracking-[0.14em] text-[rgba(255,241,222,0.62)]">Centro de Control</p>
           </div>
@@ -45,6 +45,7 @@ export function ControlSidebar({ groups, onNavigate }: ControlSidebarProps) {
                 <NavLink
                   key={`${group.label}-${to}-${label}`}
                   to={to}
+                  title={label}
                   onClick={onNavigate}
                   className={({ isActive }) =>
                     `control-sidebar__item flex items-center text-sm outline-none ring-0 shadow-none transition focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:shadow-none focus-visible:shadow-none ${

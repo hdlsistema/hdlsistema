@@ -45,12 +45,15 @@ export const createAdminQuoteRequestSchema = createQuoteRequestSchema.extend({
 export const createCabinReservationSchema = z.object({
   cabinPackageId: uuid,
   checkIn: z.string().date(),
-  checkOut: z.string().date().nullable().optional(),
+  checkOut: z.string().date(),
   peopleCount: z.coerce.number().int().min(1).max(8).default(2),
   customerNotes: optionalText(1000),
   language: z.enum(['es', 'en']).default('es'),
   idempotencyKey: z.string().trim().min(8).max(160),
-}).strict()
+}).strict().refine((value) => value.checkOut > value.checkIn, {
+  path: ['checkOut'],
+  message: 'La salida debe ser posterior a la llegada',
+})
 
 export const createRestaurantReservationSchema = z.object({
   restaurantLocationId: uuid,

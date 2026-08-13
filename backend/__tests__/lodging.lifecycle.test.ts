@@ -31,4 +31,15 @@ describe('ciclo operativo hotelero', () => {
     expect(lifecycle).toContain('Estancia reprogramada')
     expect(routes).toContain("'/lodging/stays/:reservationId/reschedule'")
   })
+
+  it('bloquea solicitudes hasta resolución y recalcula noches y total desde el rango real', () => {
+    const production = readFileSync(resolve(__dirname, '../migrations/046_lodging_inventory_and_official_locations.sql'), 'utf8')
+
+    expect(production).toContain('v_requested_nights := p_check_out - p_check_in')
+    expect(production).toContain('v_total := coalesce(v_package.price, 0) * v_package_units')
+    expect(production).toContain("daterange(entry.start_date, entry.end_date, '[)') && daterange(p_check_in, p_check_out, '[)')")
+    expect(production).toContain("expires_at = null")
+    expect(production).toContain("'bookingMode', 'CONFIRMATION_HOLD'")
+    expect(production).toContain("comment on constraint lodging_calendar_no_overlap")
+  })
 })

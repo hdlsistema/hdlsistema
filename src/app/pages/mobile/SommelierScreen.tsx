@@ -194,7 +194,7 @@ export function SommelierScreen() {
         )}
       </section>
 
-      <Link to={appPath('/vinos')} className="flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[14px] font-semibold text-white">
+      <Link to={appPath('/vinos')} className="app-burgundy-cta flex min-h-12 w-full min-w-0 items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[14px] font-semibold text-white">
         <Wine size={16} />
         {t('app.nav.store')}
       </Link>

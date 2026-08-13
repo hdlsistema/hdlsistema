@@ -446,19 +446,20 @@ export async function createCabinReservation(payload: CreateCabinReservationPayl
     throw httpError(400, 'Número de personas fuera del paquete')
   }
 
-  const defaultCheckOut = new Date(`${payload.checkIn}T12:00:00.000Z`)
-  defaultCheckOut.setUTCDate(defaultCheckOut.getUTCDate() + Math.max(cabinPackage.nights, 1))
-  const checkOut = payload.checkOut ?? defaultCheckOut.toISOString().slice(0, 10)
-
   const createResult = await supabaseAdminClient.rpc('create_lodging_reservation_customer', {
     p_user_id: user.userId,
     p_cabin_package_id: cabinPackage.id,
     p_check_in: payload.checkIn,
-    p_check_out: checkOut,
+    p_check_out: payload.checkOut,
     p_people_count: payload.peopleCount,
     p_customer_notes: payload.customerNotes ?? null,
     p_idempotency_key: payload.idempotencyKey,
-    p_metadata: { language: payload.language, bookingMode: 'TIMED_HOLD' },
+    p_metadata: {
+      language: payload.language,
+      bookingMode: 'CONFIRMATION_HOLD',
+      requestedCheckIn: payload.checkIn,
+      requestedCheckOut: payload.checkOut,
+    },
   })
   const reservationId = String(assertNoError<string>(createResult).data)
   const result = await supabaseAdminClient
@@ -554,6 +555,9 @@ async function createQuoteNotification(quote: ReturnType<typeof mapQuote>) {
         type: 'quote_request_created',
         quoteRequestId: quote.id,
         quoteNumber: quote.quoteNumber,
+        customerName: quote.customerName,
+        eventType: quote.eventType,
+        guestCount: quote.guestCount,
         deepLink: `/control/cotizaciones/${quote.id}`,
         idempotencyKey,
       },

@@ -12,6 +12,30 @@ import { notificationsClient, type AdminNotification } from '../../../services/n
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { LanguageSelector } from '../shared/LanguageSelector'
 
+function notificationChannel(channel: string, isEnglish: boolean) {
+  const labels: Record<string, [string, string]> = {
+    email: ['Correo', 'Email'],
+    push: ['Notificación', 'Notification'],
+    sms: ['Mensaje', 'Message'],
+    control: ['Operación', 'Operations'],
+  }
+  const [spanish, english] = labels[channel] ?? labels.control
+  return isEnglish ? english : spanish
+}
+
+function notificationContent(item: AdminNotification, isEnglish: boolean) {
+  if (!isEnglish || item.data?.type !== 'quote_request_created') {
+    return { title: item.title, body: item.body }
+  }
+  const customerName = typeof item.data.customerName === 'string' ? item.data.customerName : 'A customer'
+  const eventType = typeof item.data.eventType === 'string' ? item.data.eventType : 'an event'
+  const guestCount = Number(item.data.guestCount ?? 0)
+  return {
+    title: 'New quote request',
+    body: `${customerName} is requesting information for ${eventType}${guestCount > 0 ? ` for ${guestCount} guests` : ''}.`,
+  }
+}
+
 export function ControlTopbar() {
   const {
     adminName,
@@ -156,9 +180,9 @@ export function ControlTopbar() {
             </button>
             {showProfileMenu ? (
               <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-56 overflow-hidden rounded-[1rem] border border-white/45 bg-[rgba(255,250,244,0.92)] p-2 shadow-[0_22px_60px_rgba(45,20,16,0.22)] backdrop-blur-2xl">
-                <button type="button" onClick={() => { setShowProfileMenu(false); navigate('/control/configuracion') }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-soft)]">Mi cuenta</button>
-                <button type="button" onClick={() => { setShowProfileMenu(false); navigate('/control/configuracion') }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-soft)]">Configuración</button>
-                <button type="button" onClick={() => { setShowProfileMenu(false); void signOut().then(() => navigate('/login')) }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--color-burgundy)] hover:bg-[var(--color-soft)]">Cerrar sesión</button>
+                <button type="button" onClick={() => { setShowProfileMenu(false); navigate('/control/configuracion') }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-soft)]">{isEnglish ? 'My account' : 'Mi cuenta'}</button>
+                <button type="button" onClick={() => { setShowProfileMenu(false); navigate('/control/configuracion') }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm text-[var(--color-ink)] hover:bg-[var(--color-soft)]">{isEnglish ? 'Settings' : 'Configuración'}</button>
+                <button type="button" onClick={() => { setShowProfileMenu(false); void signOut().then(() => navigate('/login')) }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-[var(--color-burgundy)] hover:bg-[var(--color-soft)]">{isEnglish ? 'Sign out' : 'Cerrar sesión'}</button>
               </div>
             ) : null}
             </div>
@@ -190,6 +214,7 @@ export function ControlTopbar() {
                 type="button"
                 onClick={() => setShowAlerts(false)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(200,171,136,0.36)] bg-white/45 text-[var(--color-burgundy)]"
+                aria-label={isEnglish ? 'Close notifications' : 'Cerrar notificaciones'}
               >
                 <ChevronDown size={16} className="rotate-45" />
               </button>
@@ -215,6 +240,7 @@ export function ControlTopbar() {
               ) : null}
 
               {!alertsLoading && !alertsError ? alerts.map((item) => {
+                const translated = notificationContent(item, isEnglish)
                 const content = (
                   <div className="flex items-start gap-3">
                     <span
@@ -233,19 +259,13 @@ export function ControlTopbar() {
 
                     <div className="min-w-0">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[var(--color-muted)]">
-	                        {item.channel === 'email'
-	                          ? 'Correo'
-	                          : item.channel === 'push'
-	                            ? 'Notificación'
-	                            : item.channel === 'sms'
-	                              ? 'Mensaje'
-	                              : 'Operación'}
+                        {notificationChannel(item.channel, isEnglish)}
                       </p>
                       <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">
-                        {item.title}
+                        {translated.title}
                       </p>
                       <p className="mt-2 text-[12px] leading-6 text-[var(--color-muted-strong)]">
-                        {item.body}
+                        {translated.body}
                       </p>
                     </div>
                   </div>
