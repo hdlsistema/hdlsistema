@@ -2,21 +2,29 @@ import type { Request, Response } from 'express'
 import { sendOperationError } from '../operations/operationErrors'
 import {
   createCabinReservationSchema,
+  createAdminQuoteRequestSchema,
   createQuoteRequestSchema,
   createRestaurantReservationSchema,
+  cabinCatalogSchema,
+  commercialCatalogEntitySchema,
   patchQuoteRequestSchema,
   publicCommercialQuerySchema,
   quoteRequestListQuerySchema,
   sendQuoteRequestEmailSchema,
+  restaurantCatalogSchema,
+  venueCatalogSchema,
 } from './commercial.schemas'
 import {
   createCabinReservation,
+  createQuoteRequestAdmin,
   createQuoteRequest,
   createRestaurantReservation,
+  listAdminCommercialCatalog,
   getQuoteRequest,
   listPublicCommercialServices,
   listQuoteRequests,
   sendQuoteRequestEmail,
+  saveCommercialCatalogItem,
   updateQuoteRequest,
 } from './commercial.service'
 
@@ -36,6 +44,21 @@ export async function listPublicCommercial(req: Request, res: Response): Promise
   } catch (error) {
     sendOperationError(res, error)
   }
+}
+
+export async function listCommercialCatalogAdmin(req: Request, res: Response): Promise<void> {
+  try { res.json({ ok: true, ...(await listAdminCommercialCatalog(userContext(req))) }) }
+  catch (error) { sendOperationError(res, error) }
+}
+
+export async function saveCommercialCatalogAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const entity = commercialCatalogEntitySchema.parse(req.params.entity)
+    const schema = entity === 'cabins' ? cabinCatalogSchema : entity === 'restaurants' ? restaurantCatalogSchema : venueCatalogSchema
+    const payload = schema.parse(req.body)
+    const response = await saveCommercialCatalogItem(entity, req.params.id ?? null, payload, userContext(req))
+    res.status(req.params.id ? 200 : 201).json({ ok: true, ...response })
+  } catch (error) { sendOperationError(res, error) }
 }
 
 export async function createCabinReservationCustomer(req: Request, res: Response): Promise<void> {
@@ -62,6 +85,16 @@ export async function createQuoteRequestCustomer(req: Request, res: Response): P
   try {
     const payload = createQuoteRequestSchema.parse(req.body)
     const { data, duplicate } = await createQuoteRequest(payload, userContext(req))
+    res.status(duplicate ? 200 : 201).json({ ok: true, data, duplicate })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function createQuoteRequestAdminController(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = createAdminQuoteRequestSchema.parse(req.body)
+    const { data, duplicate } = await createQuoteRequestAdmin(payload, userContext(req))
     res.status(duplicate ? 200 : 201).json({ ok: true, data, duplicate })
   } catch (error) {
     sendOperationError(res, error)

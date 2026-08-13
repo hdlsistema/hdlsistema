@@ -1,4 +1,4 @@
-import { apiFetch } from './api'
+import { API_BASE, apiFetch } from './api'
 
 function assertToken(token: string | null | undefined): string {
   if (!token) {
@@ -75,11 +75,19 @@ export type ReservationRecord = {
   customerName: string
   email?: string | null
   phone?: string | null
+  reservationType: 'experience' | 'event' | 'cabin' | 'restaurant'
   experienceId?: string | null
   experienceTitle: string
   experienceSlotId?: string | null
   startAt?: string | null
   endAt?: string | null
+  reservationDate?: string | null
+  reservationTime?: string | null
+  checkIn?: string | null
+  checkOut?: string | null
+  occasion?: string | null
+  cabinPackage?: { id: string; name: string; slug: string } | null
+  restaurantLocation?: { id: string; name: string; slug: string } | null
   peopleCount: number
   subtotal: number
   total: number
@@ -252,5 +260,10 @@ export const reservationsClient = {
   },
   exportUrl(query?: Record<string, unknown>) {
     return `/api/admin/reservations/export${queryString(query)}`
+  },
+  exportCsv(token: string | null | undefined, query?: Record<string, unknown>) {
+    return fetch(`${API_BASE}/api/admin/reservations/export${queryString(query)}`, {
+      headers: { Authorization: `Bearer ${assertToken(token)}` },
+    })
   },
 }

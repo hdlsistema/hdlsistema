@@ -52,7 +52,7 @@ export function ControlSidebar({ groups }: ControlSidebarProps) {
                     }`
                   }
                 >
-                  <Icon size={17} strokeWidth={1.8} />
+                  <span className="control-sidebar__icon" aria-hidden="true"><Icon size={16} strokeWidth={1.65} /></span>
                   <span className="truncate">{label}</span>
                 </NavLink>
               ))}

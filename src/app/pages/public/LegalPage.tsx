@@ -161,6 +161,11 @@ export function LegalPage({ type }: LegalPageProps) {
               </a>
               .
             </p>
+            {type === 'privacy' ? (
+              <Link to="/eliminar-cuenta" className="mt-3 inline-flex rounded-full border border-[#d8bf9c] bg-white px-4 py-2 text-xs font-semibold text-[#681126]">
+                Solicitar eliminación de cuenta
+              </Link>
+            ) : null}
           </div>
         </article>
       </section>

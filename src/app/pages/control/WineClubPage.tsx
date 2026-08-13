@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Download, Gift, Plus, RefreshCw, Search, Star, Users } from 'lucide-react'
+import { BadgeCheck, Coins, Download, Plus, RefreshCw, Search, Users } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { membershipsClient, type MembershipRecord } from '../../../services/phase7e.service'
+import { customersClient, type CustomerRecord } from '../../../services/customers.service'
+import { adminContentClient, type ContentRecord } from '../../../services/content.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
+import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
+import { QuickCustomerDialog } from '../../components/control/QuickCustomerDialog'
 import { ActionButton, Field, Metric, ModalForm, StateBlock } from './phase7e/ControlOperationsUi'
 import { downloadCsv, formatDate, operationKey } from './phase7e/operationsUtils'
 
@@ -41,6 +45,8 @@ export function WineClubPage() {
   const token = session?.access_token
   const writable = canWrite(roles)
   const [memberships, setMemberships] = useState<MembershipRecord[]>([])
+  const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [plans, setPlans] = useState<ContentRecord[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -49,6 +55,7 @@ export function WineClubPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [formOpen, setFormOpen] = useState(false)
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [points, setPoints] = useState(emptyPoints)
   const [pendingAction, setPendingAction] = useState<PendingWineClubAction | null>(null)
@@ -74,6 +81,17 @@ export function WineClubPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!formOpen) return
+    Promise.all([
+      customersClient.list(token, { perPage: 100, status: 'published' }),
+      adminContentClient.list('membership-plans', token, { perPage: 100 }),
+    ]).then(([customerResponse, planResponse]) => {
+      setCustomers(customerResponse.data)
+      setPlans(planResponse.data.filter((plan) => !['archived', 'inactive', 'cancelled'].includes(String(plan.status ?? ''))))
+    }).catch((err) => setError(err instanceof Error ? err.message : 'No fue posible cargar clientes y planes.'))
+  }, [formOpen, token])
 
   async function submitMembership(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -169,8 +187,8 @@ export function WineClubPage() {
 
       <section className="grid gap-4 sm:grid-cols-3">
         <Metric icon={Users} label="Membresías" value={String(memberships.length)} />
-        <Metric icon={Gift} label="Activas" value={String(activeCount)} />
-        <Metric icon={Star} label="Puntos" value={String(totalPoints)} />
+        <Metric icon={BadgeCheck} label="Activas" value={String(activeCount)} />
+        <Metric icon={Coins} label="Puntos" value={String(totalPoints)} />
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
@@ -246,11 +264,37 @@ export function WineClubPage() {
 
       {formOpen ? (
         <ModalForm title="Asignar membresía" onClose={() => setFormOpen(false)} onSubmit={submitMembership} saving={saving}>
-          <Field label="Cliente relacionado" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
-          <Field label="Plan relacionado" value={form.planId} onChange={(value) => setForm({ ...form, planId: value })} required />
+          <ControlEntityPicker
+            label="Cliente relacionado"
+            value={form.customerId}
+            options={customers.map((customer) => ({ id: customer.id, label: customer.displayName, description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber }))}
+            onChange={(customerId) => setForm({ ...form, customerId })}
+            actionLabel="Crear cliente nuevo"
+            onAction={() => setCustomerDialogOpen(true)}
+            required
+          />
+          <ControlEntityPicker
+            label="Plan relacionado"
+            value={form.planId}
+            options={plans.map((plan) => ({ id: plan.id, label: String(plan.name ?? plan.code ?? 'Plan'), description: `${String(plan.billing_period ?? 'Periodo por definir')} · ${Number(plan.price ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}` }))}
+            onChange={(planId) => setForm({ ...form, planId })}
+            emptyMessage="No hay planes activos"
+            required
+          />
           <Field label="Fecha de inicio" type="datetime" value={form.startDate} onChange={(value) => setForm({ ...form, startDate: value })} />
         </ModalForm>
       ) : null}
+
+      <QuickCustomerDialog
+        open={customerDialogOpen}
+        token={token}
+        onClose={() => setCustomerDialogOpen(false)}
+        onCreated={(customer) => {
+          setCustomers((current) => [customer, ...current.filter((item) => item.id !== customer.id)])
+          setForm((current) => ({ ...current, customerId: customer.id }))
+          setToast('Cliente creado y seleccionado.')
+        }}
+      />
 
       <ControlConfirmDialog
         open={Boolean(pendingAction)}

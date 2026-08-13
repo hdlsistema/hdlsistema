@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Banknote, Download, ExternalLink, FileText, Plus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { paymentsClient, type PaymentRecord } from '../../../services/commerce.service'
+import { ordersClient, paymentsClient, type OrderRecord, type PaymentRecord } from '../../../services/commerce.service'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
+import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
+import { ControlStorageUpload } from '../../components/control/ControlStorageUpload'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
@@ -52,6 +54,7 @@ export function PaymentsPage() {
   const token = session?.access_token
   const writable = canFinance(roles)
   const [payments, setPayments] = useState<PaymentRecord[]>([])
+  const [orders, setOrders] = useState<OrderRecord[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -87,6 +90,13 @@ export function PaymentsPage() {
   useEffect(() => {
     void loadPayments()
   }, [loadPayments])
+
+  useEffect(() => {
+    if (!formOpen) return
+    ordersClient.list(token, { perPage: 100, status: 'pending_payment' })
+      .then((response) => setOrders(response.data))
+      .catch((err) => setError(err instanceof Error ? err.message : 'No fue posible cargar órdenes pendientes.'))
+  }, [formOpen, token])
 
   const metrics = useMemo(() => ({
     paid: payments.filter((payment) => payment.status === 'paid').reduce((sum, payment) => sum + payment.amount, 0),
@@ -203,19 +213,19 @@ export function PaymentsPage() {
 
       {error ? <div className="rounded-[var(--radius-card)] border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</div> : null}
 
-      <section className="control-master-detail grid min-w-0 gap-5 xl:grid-cols-[minmax(650px,1.7fr)_minmax(300px,0.8fr)]">
+      <section className="min-w-0 space-y-4">
         <div className="control-master-list min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
           <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
 	            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pagos</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{payments.length} registros</span>
           </div>
-          <div className="control-table-head grid grid-cols-[104px_105px_minmax(120px,1fr)_90px_100px_auto] gap-3 border-b border-[var(--color-line)] bg-[var(--color-soft)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
+          <div className="overflow-x-auto"><div className="min-w-[820px]"><div className="control-table-head grid grid-cols-[150px_170px_minmax(160px,1fr)_120px_120px_150px] gap-3 border-b border-[var(--color-line)] bg-[var(--color-soft)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
             <span>Fecha</span><span>Orden</span><span>Cliente</span><span>Método</span><span>Monto</span><span>Estado</span>
           </div>
           {loading ? <State text="Cargando pagos..." /> : payments.length === 0 ? <State title="Sin pagos registrados" text="Registra pagos manuales solo cuando exista comprobante operativo." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {payments.map((payment) => (
-                <button key={payment.id} type="button" onClick={() => setSelectedId(payment.id)} className="grid w-full grid-cols-[104px_105px_minmax(120px,1fr)_90px_100px_auto] items-center gap-3 px-4 py-2 text-left" style={{ backgroundColor: selected?.id === payment.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
+                <button key={payment.id} type="button" onClick={() => setSelectedId(payment.id)} className="grid w-full grid-cols-[150px_170px_minmax(160px,1fr)_120px_120px_150px] items-center gap-3 px-4 py-3 text-left" style={{ backgroundColor: selected?.id === payment.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
                   <p className="whitespace-nowrap text-[11px] text-[var(--color-muted)]">{dateLabel(payment.paidAt ?? payment.createdAt)}</p>
                   <p className="truncate text-xs font-semibold text-[var(--color-ink)]">{payment.orderNumber ?? 'Sin folio'}</p>
                   <p className="truncate text-xs text-[var(--color-ink)]">{payment.customerName ?? 'No identificado'}</p>
@@ -226,13 +236,17 @@ export function PaymentsPage() {
               ))}
             </div>
           )}
+          </div></div>
         </div>
 
         {selected ? (
-          <aside className="control-detail-pane rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle financiero</p>
-            <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{paymentReferenceLabel(selected.paymentReference, selected.orderNumber, selected.id)}</h3>
-            <div className="mt-5 grid gap-3">
+          <aside className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle financiero seleccionado</p><h3 className="mt-2 break-all text-xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{paymentReferenceLabel(selected.paymentReference, selected.orderNumber, selected.id)}</h3></div><div className="flex flex-wrap gap-2">
+              {selected.orderId ? <Action onClick={() => { window.location.href = `/control/ordenes?orderId=${encodeURIComponent(selected.orderId)}` }}><ExternalLink size={14} /> Abrir orden</Action> : null}
+              <Action disabled={!selected.hasReceipt} onClick={openReceipt}><FileText size={14} /> Comprobante</Action>
+              <Action disabled={!writable || !['paid', 'partially_refunded'].includes(selected.status)} onClick={() => { setRefundAmount(''); setRefundReason(''); setRefundOpen(true) }}><RotateCcw size={14} /> Reembolsar</Action>
+            </div></div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
               <Detail label="Cliente" value={selected.customerName ?? 'Cliente no identificado'} />
               <Detail label="Orden" value={selected.orderNumber ?? 'Sin folio'} />
               <Detail label="Estado" value={statusLabel(selected.status)} />
@@ -240,11 +254,6 @@ export function PaymentsPage() {
               <Detail label="Monto" value={money(selected.amount, selected.currency)} />
               <Detail label="Reembolsado" value={money(selected.refundedAmount, selected.currency)} />
               <Detail label="Fecha de pago" value={dateLabel(selected.paidAt)} />
-            </div>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {selected.orderId ? <Action onClick={() => { window.location.href = `/control/ordenes?orderId=${encodeURIComponent(selected.orderId)}` }}><ExternalLink size={14} /> Abrir orden</Action> : null}
-              <Action disabled={!selected.hasReceipt} onClick={openReceipt}><FileText size={14} /> Comprobante</Action>
-              <Action disabled={!writable || !['paid', 'partially_refunded'].includes(selected.status)} onClick={() => { setRefundAmount(''); setRefundReason(''); setRefundOpen(true) }}><RotateCcw size={14} /> Reembolsar</Action>
             </div>
           </aside>
         ) : null}
@@ -259,11 +268,37 @@ export function PaymentsPage() {
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="Orden relacionada" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} required />
+              <ControlEntityPicker
+                label="Orden relacionada"
+                value={form.orderId}
+                options={orders.map((order) => ({
+                  id: order.id,
+                  label: order.orderNumber,
+                  description: `${order.customerName} · Pendiente ${money(Math.max(order.total - order.paidAmount, 0), order.currency)}`,
+                  keywords: `${order.customerEmail ?? ''} ${order.source}`,
+                }))}
+                onChange={(orderId) => {
+                  const order = orders.find((item) => item.id === orderId)
+                  setForm({ ...form, orderId, amount: order ? String(Math.max(order.total - order.paidAmount, 0)) : form.amount })
+                }}
+                emptyMessage="No hay órdenes pendientes de pago"
+                required
+              />
               <Input label="Monto" type="number" min="0.01" value={form.amount} onChange={(value) => setForm({ ...form, amount: value })} required />
-              <Input label="Método" value={form.paymentMethodType} onChange={(value) => setForm({ ...form, paymentMethodType: value })} required />
+              <label className="block"><span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Método *</span><CrystalSelect value={form.paymentMethodType} onChange={(paymentMethodType) => setForm({ ...form, paymentMethodType })}><option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="terminal">Terminal</option><option value="deposito">Depósito</option><option value="cortesia">Cortesía autorizada</option></CrystalSelect></label>
               <Input label="Referencia" value={form.paymentReference} onChange={(value) => setForm({ ...form, paymentReference: value })} required />
-              <Input label="Referencia de comprobante" value={form.receiptStoragePath} onChange={(value) => setForm({ ...form, receiptStoragePath: value })} />
+              <div className="md:col-span-2">
+                <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Comprobante</span>
+                <ControlStorageUpload
+                  bucket="documents"
+                  pathPrefix={`payments/manual/${form.orderId || 'unassigned'}`}
+                  value={form.receiptStoragePath}
+                  onChange={(receiptStoragePath) => setForm({ ...form, receiptStoragePath })}
+                  label="comprobante"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  maxSizeMb={12}
+                />
+              </div>
               <Input label="Notas" value={form.notes} onChange={(value) => setForm({ ...form, notes: value })} />
             </div>
             <div className="mt-6 flex justify-end gap-3">

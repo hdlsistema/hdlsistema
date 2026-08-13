@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
+  BedDouble,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -11,7 +12,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { API_BASE } from '../../../services/api'
 import {
@@ -21,14 +22,20 @@ import {
   type ReservationHistoryItem,
   type ReservationRecord,
 } from '../../../services/operations.service'
+import { lodgingClient, type LodgingStay, type LodgingUnit } from '../../../services/lodging.service'
+import { customersClient, type CustomerRecord } from '../../../services/customers.service'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
+import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
+import { QuickCustomerDialog } from '../../components/control/QuickCustomerDialog'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
-import { dateTime, money, statusLabel as safeStatusLabel } from './controlCopy'
+import { dateOnly, dateTime, money, statusLabel as safeStatusLabel } from './controlCopy'
 
 type ReservationForm = {
+  customerId: string
   customerName: string
   customerEmail: string
   customerPhone: string
@@ -41,6 +48,7 @@ type ReservationForm = {
 }
 
 const emptyForm: ReservationForm = {
+  customerId: '',
   customerName: '',
   customerEmail: '',
   customerPhone: '',
@@ -80,9 +88,59 @@ function channelLabel(source?: string | null) {
     admin: 'Centro de Control',
     control: 'Centro de Control',
     'Centro de control': 'Centro de Control',
+    'Centro de Control': 'Centro de Control',
+    'Teléfono': 'Teléfono',
+    WhatsApp: 'WhatsApp',
+    Mostrador: 'Mostrador',
+    Agencia: 'Agencia',
+    Web: 'Web',
+    App: 'App',
+    Otro: 'Otro',
   }
   if (!source) return 'Sin canal'
-  return labels[source] ?? 'Operación'
+  return labels[source] ?? source
+}
+
+function reservationTypeLabel(type: ReservationRecord['reservationType']) {
+  const labels: Record<ReservationRecord['reservationType'], string> = {
+    experience: 'Experiencia',
+    event: 'Evento',
+    cabin: 'Hotel / Cabaña',
+    restaurant: 'Restaurante',
+  }
+  return labels[type]
+}
+
+function lodgingPeriod(checkIn?: string | null, checkOut?: string | null) {
+  if (!checkIn || !checkOut) return 'Fechas pendientes'
+  return `${dateOnly(checkIn)} → ${dateOnly(checkOut)}`
+}
+
+function lodgingNights(checkIn?: string | null, checkOut?: string | null) {
+  if (!checkIn || !checkOut) return 0
+  return Math.max(Math.round((new Date(`${checkOut}T12:00:00Z`).getTime() - new Date(`${checkIn}T12:00:00Z`).getTime()) / 86_400_000), 0)
+}
+
+function addReservationDays(value: string, count: number) {
+  const date = new Date(`${value}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + count)
+  return date.toISOString().slice(0, 10)
+}
+
+function housekeepingCopy(value: string) {
+  const labels: Record<string, string> = { clean: 'Limpia', dirty: 'Pendiente de limpieza', inspection: 'En inspección', out_of_service: 'Fuera de servicio' }
+  return labels[value] ?? value
+}
+
+function lodgingStayStatusCopy(value: string) {
+  const labels: Record<string, string> = { held: 'Hold temporal', reserved: 'Reservada', checked_in: 'Huésped alojado', checked_out: 'Salida realizada', cancelled: 'Cancelada', no_show: 'No se presentó', expired: 'Hold vencido' }
+  return labels[value] ?? value
+}
+
+function reservationSchedule(item: ReservationRecord) {
+  if (item.reservationType === 'cabin') return lodgingPeriod(item.checkIn, item.checkOut)
+  if (item.reservationType === 'restaurant') return [item.reservationDate ? dateOnly(item.reservationDate) : null, item.reservationTime].filter(Boolean).join(' · ') || 'Fecha pendiente'
+  return formatDateTime(item.startAt)
 }
 
 type PendingReservationAction = {
@@ -106,6 +164,14 @@ export function ReservationsPage() {
   const [history, setHistory] = useState<ReservationHistoryItem[]>([])
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
+  const [reservationType, setReservationType] = useState('')
+  const [lodgingStays, setLodgingStays] = useState<LodgingStay[]>([])
+  const [lodgingUnits, setLodgingUnits] = useState<LodgingUnit[]>([])
+  const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
+  const [cabinCheckIn, setCabinCheckIn] = useState('')
+  const [cabinCheckOut, setCabinCheckOut] = useState('')
+  const [cabinUnitId, setCabinUnitId] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -121,16 +187,23 @@ export function ReservationsPage() {
     setLoading(true)
     setError('')
     try {
-      const [reservationResponse, slotResponse] = await Promise.all([
+      const [reservationResponse, slotResponse, stayResponse, unitResponse, customerResponse] = await Promise.all([
         reservationsClient.list(token, {
           search: search || undefined,
           status: status || undefined,
+          reservationType: reservationType || undefined,
           perPage: 100,
         }),
         availabilityClient.slots(token, { availability: 'available' }),
+        lodgingClient.stays(token),
+        lodgingClient.units(token),
+        customersClient.list(token, { perPage: 100, status: 'published' }),
       ])
       setItems(reservationResponse.data)
       setSlots(slotResponse.data)
+      setLodgingStays(stayResponse.data)
+      setLodgingUnits(unitResponse.data)
+      setCustomers(customerResponse.data)
       const requestedReservationId = searchParams.get('reservationId')
       setSelectedId((current) => {
         if (requestedReservationId && reservationResponse.data.some((item) => item.id === requestedReservationId)) return requestedReservationId
@@ -141,11 +214,7 @@ export function ReservationsPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, searchParams, status, token])
-
-  useEffect(() => {
-    void loadReservations()
-  }, [loadReservations])
+  }, [reservationType, search, searchParams, status, token])
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadReservations(), 350)
@@ -156,6 +225,24 @@ export function ReservationsPage() {
     () => items.find((item) => item.id === selectedId) ?? items[0] ?? null,
     [items, selectedId],
   )
+
+  const selectedStay = useMemo(
+    () => lodgingStays.find((stay) => stay.reservationId === selected?.id) ?? null,
+    [lodgingStays, selected?.id],
+  )
+
+  useEffect(() => {
+    setPartySize(selected ? String(selected.peopleCount) : '')
+    if (selected?.reservationType === 'cabin') {
+      setCabinCheckIn(selected.checkIn ?? selectedStay?.plannedCheckIn ?? '')
+      setCabinCheckOut(selected.checkOut ?? selectedStay?.plannedCheckOut ?? '')
+      setCabinUnitId(selectedStay?.unitId ?? '')
+    } else {
+      setCabinCheckIn('')
+      setCabinCheckOut('')
+      setCabinUnitId('')
+    }
+  }, [selected, selectedStay])
 
   useEffect(() => {
     if (!selected?.id) {
@@ -172,7 +259,15 @@ export function ReservationsPage() {
     pending: items.filter((item) => item.status === 'pending').length,
     cancelled: items.filter((item) => item.status === 'cancelled').length,
     people: items.reduce((sum, item) => sum + item.peopleCount, 0),
+    cabins: items.filter((item) => item.reservationType === 'cabin').length,
   }), [items])
+
+  const compatibleLodgingUnits = useMemo(() => lodgingUnits.filter((unit) => (
+    unit.operationalStatus === 'active'
+    && unit.housekeepingStatus !== 'out_of_service'
+    && unit.capacity >= (selected?.peopleCount ?? 1)
+    && (!selected?.cabinPackage?.id || !unit.cabinPackageId || unit.cabinPackageId === selected.cabinPackage.id)
+  )), [lodgingUnits, selected?.cabinPackage?.id, selected?.peopleCount])
 
   const submitReservation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -181,9 +276,10 @@ export function ReservationsPage() {
     setError('')
     try {
       const response = await reservationsClient.create(token, {
-        customerName: form.customerName,
-        customerEmail: form.customerEmail,
-        customerPhone: form.customerPhone,
+        customerId: form.customerId,
+        customerName: form.customerId ? undefined : form.customerName,
+        customerEmail: form.customerId ? undefined : form.customerEmail,
+        customerPhone: form.customerId ? undefined : form.customerPhone,
         experienceSlotId: form.experienceSlotId,
         peopleCount: Number(form.peopleCount),
         status: form.status,
@@ -226,7 +322,7 @@ export function ReservationsPage() {
 
   const exportCsv = async () => {
     try {
-      const url = `${API_BASE}${reservationsClient.exportUrl({ search: search || undefined, status: status || undefined })}`
+      const url = `${API_BASE}${reservationsClient.exportUrl({ search: search || undefined, status: status || undefined, reservationType: reservationType || undefined })}`
       const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       if (!response.ok) throw new Error('No fue posible exportar reservaciones.')
       const blob = await response.blob()
@@ -253,11 +349,22 @@ export function ReservationsPage() {
     setRescheduleSlotId('')
   }
 
+  const submitCabinReschedule = () => {
+    if (!selected || selected.reservationType !== 'cabin' || !cabinCheckIn || !cabinCheckOut) return
+    requestAction({
+      title: 'Reprogramar estancia hotelera',
+      message: `Se validará inventario y se bloqueará ${cabinUnitId ? 'la cabaña seleccionada' : 'la primera cabaña compatible'} del ${dateOnly(cabinCheckIn)} al ${dateOnly(cabinCheckOut)} en una sola operación.`,
+      confirmLabel: 'Reprogramar estancia',
+      success: 'Estancia reprogramada y calendario actualizado.',
+      action: () => lodgingClient.reschedule(token, selected.id, { checkIn: cabinCheckIn, checkOut: cabinCheckOut, unitId: cabinUnitId || null }),
+    })
+  }
+
   const submitPartySize = async () => {
     if (!selected || !partySize) return
     requestAction({
       title: 'Cambiar número de personas',
-      message: 'Se validará el cupo disponible antes de guardar el cambio.',
+      message: selected.reservationType === 'cabin' ? 'Se validará la capacidad de la cabaña y del paquete sin alterar indebidamente la tarifa por noche.' : 'Se validará el cupo disponible antes de guardar el cambio.',
       confirmLabel: 'Cambiar personas',
       success: 'Número de personas actualizado.',
       action: () => reservationsClient.changePartySize(token, selected.id, Number(partySize)),
@@ -297,29 +404,31 @@ export function ReservationsPage() {
             <Download size={16} />
             Exportar CSV
           </button>
+          <Link to="/control/disponibilidad?view=hospedaje&action=nueva-reservacion" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-burgundy)]"><BedDouble size={16} />Nueva cabaña</Link>
           <button
             type="button"
             onClick={() => {
-              setForm({ ...emptyForm, experienceSlotId: slots[0]?.id ?? '' })
+              setForm({ ...emptyForm, customerId: customers[0]?.id ?? '', experienceSlotId: slots[0]?.id ?? '' })
               setFormOpen(true)
             }}
             disabled={!writable}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white shadow-[0_12px_25px_rgba(79,15,31,0.18)] disabled:opacity-50"
           >
-            Nueva reservación
+            Nueva experiencia
           </button>
         </div>
       </div>
 
-      <section className="control-metrics-strip grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="control-metrics-strip grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric icon={CheckCircle2} label="Confirmadas" value={String(metrics.confirmed)} />
         <Metric icon={Clock3} label="Pendientes" value={String(metrics.pending)} />
         <Metric icon={X} label="Canceladas" value={String(metrics.cancelled)} />
         <Metric icon={Users} label="Personas" value={String(metrics.people)} />
+        <Metric icon={BedDouble} label="Hotel / Cabañas" value={String(metrics.cabins)} />
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
-        <div className="grid gap-3 md:grid-cols-[1fr_220px_auto]">
+        <div className="grid gap-3 md:grid-cols-[minmax(240px,1fr)_190px_190px_auto]">
           <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4">
             <Search size={16} className="text-[var(--color-muted)]" />
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por cliente, correo, teléfono o folio..." className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
@@ -332,7 +441,14 @@ export function ReservationsPage() {
             <option value="completed">Completada</option>
             <option value="no_show">No asistió</option>
           </CrystalSelect>
-          <button type="button" onClick={() => { setSearch(''); setStatus('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">
+          <CrystalSelect value={reservationType} onChange={setReservationType}>
+            <option value="">Todos los servicios</option>
+            <option value="experience">Experiencias</option>
+            <option value="event">Eventos</option>
+            <option value="cabin">Hotel / Cabañas</option>
+            <option value="restaurant">Restaurantes</option>
+          </CrystalSelect>
+          <button type="button" onClick={() => { setSearch(''); setStatus(''); setReservationType('') }} className="min-h-11 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">
             Limpiar
           </button>
         </div>
@@ -368,11 +484,12 @@ export function ReservationsPage() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{reservation.customerName}</p>
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{reservation.experienceTitle}</p>
+                    <span className="mt-2 inline-flex rounded-full bg-[var(--color-soft)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--color-burgundy)]">{reservationTypeLabel(reservation.reservationType)}</span>
                     <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">{reservation.email}</p>
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-[var(--color-ink)]">{formatDateTime(reservation.startAt)}</p>
-                    <p className="mt-1 text-[10px] text-[var(--color-muted)]">{reservation.peopleCount} personas · cupo {reservation.available}</p>
+                    <p className="text-xs font-semibold text-[var(--color-ink)]">{reservationSchedule(reservation)}</p>
+                    <p className="mt-1 text-[10px] text-[var(--color-muted)]">{reservation.peopleCount} {reservation.reservationType === 'cabin' ? `huéspedes · ${lodgingNights(reservation.checkIn, reservation.checkOut)} noche(s)` : reservation.reservationType === 'restaurant' ? 'comensales' : `personas · ${reservation.available} lugares libres`}</p>
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-[var(--color-ink)]">{currency(reservation.total, reservation.currency)}</p>
@@ -391,34 +508,68 @@ export function ReservationsPage() {
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Detalle operativo</p>
               <h3 className="mt-2 truncate text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.customerName}</h3>
               <p className="mt-2 text-sm text-[var(--color-muted)]">{selected.reservationNumber}</p>
-              <div className="mt-5 grid gap-3">
-                <Detail label="Experiencia" value={selected.experienceTitle} />
-                <Detail label="Horario" value={formatDateTime(selected.startAt)} />
-                <Detail label="Personas" value={`${selected.peopleCount} personas`} />
-                <Detail label="Cupo disponible" value={String(selected.available)} />
-	                <Detail label="Canal" value={channelLabel(selected.source)} />
-                <Detail label="Total" value={currency(selected.total, selected.currency)} />
-              </div>
+              <div className="mt-3 flex items-center gap-2"><span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-burgundy)]">{reservationTypeLabel(selected.reservationType)}</span><StatusBadge label={statusLabel(selected.status)} /></div>
+              {selected.reservationType === 'cabin' ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Detail label="Paquete hotelero" value={selected.cabinPackage?.name ?? selected.experienceTitle} />
+                  <Detail label="Cabaña asignada" value={selectedStay ? `${selectedStay.unitCode} · ${selectedStay.unitName}` : 'Unidad pendiente'} />
+                  <Detail label="Entrada" value={selected.checkIn ? dateOnly(selected.checkIn) : 'Pendiente'} />
+                  <Detail label="Salida" value={selected.checkOut ? dateOnly(selected.checkOut) : 'Pendiente'} />
+                  <Detail label="Estancia" value={`${lodgingNights(selected.checkIn, selected.checkOut)} noche(s) · ${selected.peopleCount} huésped(es)`} />
+                  <Detail label="Estado de estancia" value={selectedStay ? lodgingStayStatusCopy(selectedStay.status) : 'Sin estancia operativa'} />
+                  <Detail label="Housekeeping" value={selectedStay ? housekeepingCopy(selectedStay.housekeepingStatus) : 'Sin asignar'} />
+                  <Detail label="Canal de venta" value={channelLabel(selected.source)} />
+                  <Detail label="Total" value={currency(selected.total, selected.currency)} />
+                </div>
+              ) : selected.reservationType === 'restaurant' ? (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Detail label="Restaurante" value={selected.restaurantLocation?.name ?? selected.experienceTitle} />
+                  <Detail label="Fecha y hora" value={reservationSchedule(selected)} />
+                  <Detail label="Comensales" value={String(selected.peopleCount)} />
+                  <Detail label="Ocasión" value={selected.occasion ?? 'No especificada'} />
+                  <Detail label="Canal" value={channelLabel(selected.source)} />
+                  <Detail label="Total" value={currency(selected.total, selected.currency)} />
+                </div>
+              ) : (
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  <Detail label={selected.reservationType === 'event' ? 'Evento' : 'Experiencia'} value={selected.experienceTitle} />
+                  <Detail label="Horario" value={formatDateTime(selected.startAt)} />
+                  <Detail label="Personas" value={`${selected.peopleCount} personas`} />
+                  <Detail label="Cupo disponible" value={String(selected.available)} />
+                  <Detail label="Canal" value={channelLabel(selected.source)} />
+                  <Detail label="Total" value={currency(selected.total, selected.currency)} />
+                </div>
+              )}
               <div className="mt-5 flex flex-wrap gap-2">
-                <ActionButton disabled={!writable || selected.status !== 'pending'} onClick={() => requestAction({ title: 'Confirmar reservación', message: 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
-                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar reservación', message: 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
+                <ActionButton disabled={!writable || selected.status !== 'pending' || (selected.reservationType === 'cabin' && selectedStay?.status === 'expired')} onClick={() => requestAction({ title: 'Confirmar reservación', message: selected.reservationType === 'cabin' ? 'El hold temporal se convertirá en reserva firme y las noches permanecerán bloqueadas para esta estancia.' : 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
+                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar reservación', message: selected.reservationType === 'cabin' ? 'Se cancelará la estancia y se liberarán sus noches en el calendario hotelero.' : 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
               </div>
             </article>
 
-            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><CalendarDays size={16} /> Reprogramar</h4>
-              <CrystalSelect value={rescheduleSlotId} onChange={setRescheduleSlotId} className="mt-3">
-                <option value="">Selecciona nuevo horario</option>
-                {slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
-              </CrystalSelect>
-              <ActionButton disabled={!writable || !rescheduleSlotId} onClick={submitReschedule}>Reprogramar</ActionButton>
-            </article>
+            {selected.reservationType === 'cabin' ? (
+              <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+                <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><BedDouble size={16} /> Reprogramar estancia</h4>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">Valida cruces, capacidad y unidad física antes de mover las noches.</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2"><CrystalDateField label="Nueva entrada" value={cabinCheckIn} onChange={(value) => { setCabinCheckIn(value); if (cabinCheckOut <= value) setCabinCheckOut(addReservationDays(value, Math.max(lodgingNights(selected.checkIn, selected.checkOut), 1))) }} /><CrystalDateField label="Nueva salida" value={cabinCheckOut} onChange={setCabinCheckOut} /></div>
+                <CrystalSelect value={cabinUnitId} onChange={setCabinUnitId} className="mt-3"><option value="">Asignación automática</option>{compatibleLodgingUnits.map((unit) => <option key={unit.id} value={unit.id}>{unit.code} · {unit.name} · {unit.capacity} huéspedes</option>)}</CrystalSelect>
+                <div className="flex flex-wrap gap-2"><ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || !selectedStay || !['held', 'reserved'].includes(selectedStay.status) || !cabinCheckIn || !cabinCheckOut || cabinCheckOut <= cabinCheckIn} onClick={submitCabinReschedule}>Validar y reprogramar</ActionButton><Link to="/control/disponibilidad?view=hospedaje" className="mt-3 inline-flex min-h-10 items-center rounded-xl border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]">Ver calendario hotelero</Link></div>
+              </article>
+            ) : selected.reservationType !== 'restaurant' ? (
+              <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+                <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><CalendarDays size={16} /> Reprogramar horario</h4>
+                <CrystalSelect value={rescheduleSlotId} onChange={setRescheduleSlotId} className="mt-3">
+                  <option value="">Selecciona nuevo horario</option>
+                  {slots.filter((slot) => !selected.experienceId || slot.experienceId === selected.experienceId).map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
+                </CrystalSelect>
+                <ActionButton disabled={!writable || !rescheduleSlotId} onClick={submitReschedule}>Reprogramar</ActionButton>
+              </article>
+            ) : null}
 
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><Users size={16} /> Personas y notas</h4>
               <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                 <input type="number" min="1" value={partySize} onChange={(event) => setPartySize(event.target.value)} placeholder="Personas" className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]" />
-                <ActionButton disabled={!writable || !partySize} onClick={submitPartySize}>Cambiar</ActionButton>
+                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || !partySize} onClick={submitPartySize}>Cambiar</ActionButton>
               </div>
               <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder="Nota interna" className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 py-3 text-sm text-[var(--color-ink)] outline-none" />
               <ActionButton disabled={!writable || !note.trim()} onClick={submitNote}><MessageSquarePlus size={14} /> Agregar nota</ActionButton>
@@ -440,14 +591,10 @@ export function ReservationsPage() {
       </section>
 
       {formOpen ? (
-        <Modal title="Nueva reservación" onClose={() => setFormOpen(false)}>
+        <Modal title="Nueva reservación de experiencia" onClose={() => setFormOpen(false)}>
           <form onSubmit={submitReservation} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <FormInput label="Nombre completo" value={form.customerName} onChange={(value) => setForm({ ...form, customerName: value })} required />
-              <FormInput label="Correo electrónico" type="email" value={form.customerEmail} onChange={(value) => setForm({ ...form, customerEmail: value })} required />
-              <FormInput label="Teléfono" value={form.customerPhone} onChange={(value) => setForm({ ...form, customerPhone: value })} />
-              <FormInput label="Personas" type="number" min="1" value={form.peopleCount} onChange={(value) => setForm({ ...form, peopleCount: value })} required />
-            </div>
+            <ControlEntityPicker label="Cliente relacionado" value={form.customerId} options={customers.map((customer) => ({ id: customer.id, label: customer.displayName, description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber }))} onChange={(customerId) => setForm({ ...form, customerId })} actionLabel="Crear cliente nuevo" onAction={() => setCustomerDialogOpen(true)} required />
+            <FormInput label="Personas" type="number" min="1" value={form.peopleCount} onChange={(value) => setForm({ ...form, peopleCount: value })} required />
             <FormSelect label="Horario disponible" value={form.experienceSlotId} onChange={(value) => setForm({ ...form, experienceSlotId: value })}>
               {slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
             </FormSelect>
@@ -455,16 +602,18 @@ export function ReservationsPage() {
               <option value="pending">Pendiente</option>
               <option value="confirmed">Confirmada</option>
             </FormSelect>
-            <FormInput label="Origen" value={form.source} onChange={(value) => setForm({ ...form, source: value })} />
+            <FormSelect label="Canal de venta" value={form.source} onChange={(value) => setForm({ ...form, source: value })}><option>Centro de control</option><option>Teléfono</option><option>WhatsApp</option><option>Mostrador</option><option>Agencia</option><option>Web</option><option>App</option><option>Otro</option></FormSelect>
             <FormText label="Notas del cliente" value={form.customerNotes} onChange={(value) => setForm({ ...form, customerNotes: value })} />
             <FormText label="Notas internas" value={form.internalNotes} onChange={(value) => setForm({ ...form, internalNotes: value })} />
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
-              <button type="submit" disabled={saving || slots.length === 0} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Crear reservación'}</button>
+              <button type="submit" disabled={saving || slots.length === 0 || !form.customerId} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Crear reservación'}</button>
             </div>
           </form>
         </Modal>
       ) : null}
+
+      <QuickCustomerDialog open={customerDialogOpen} token={token} onClose={() => setCustomerDialogOpen(false)} onCreated={(customer) => { setCustomers((current) => [customer, ...current]); setForm((current) => ({ ...current, customerId: customer.id })); setToast('Cliente creado y seleccionado.') }} />
 
       {toast ? (
         <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">

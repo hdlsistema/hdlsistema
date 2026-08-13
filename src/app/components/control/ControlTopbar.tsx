@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Bell,
+  CircleCheck,
   ChevronDown,
   CloudSun,
   ShieldAlert,
-  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { notificationsClient, type AdminNotification } from '../../../services/notifications.service'
@@ -227,7 +227,7 @@ export function ControlTopbar() {
                       {item.status === 'failed' ? (
                         <ShieldAlert size={18} />
                       ) : (
-                        <Sparkles size={18} />
+                        <CircleCheck size={18} strokeWidth={1.7} />
                       )}
                     </span>
 

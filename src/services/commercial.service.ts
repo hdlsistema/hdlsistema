@@ -46,6 +46,9 @@ export type PublicCommercialItem = {
   inclusions?: string[]
   coverImageUrl?: string | null
   verificationStatus?: string | null
+  status?: string
+  visibleInApp?: boolean
+  sortOrder?: number
   metadata?: Record<string, unknown>
 }
 
@@ -93,6 +96,18 @@ export const publicCommercialClient = {
   },
 }
 
+export const adminCommercialCatalogClient = {
+  list(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: Omit<CommercialServices, 'experiences'> }>('/api/admin/commercial/catalog', { headers: jsonHeaders(token) })
+  },
+  create(token: string | null | undefined, entity: 'cabins' | 'restaurants' | 'venues', payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: PublicCommercialItem }>(`/api/admin/commercial/${entity}`, { method: 'POST', headers: jsonHeaders(token), body: JSON.stringify(payload) })
+  },
+  update(token: string | null | undefined, entity: 'cabins' | 'restaurants' | 'venues', id: string, payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: PublicCommercialItem }>(`/api/admin/commercial/${entity}/${encodeURIComponent(id)}`, { method: 'PATCH', headers: jsonHeaders(token), body: JSON.stringify(payload) })
+  },
+}
+
 export const customerCommercialClient = {
   createCabinReservation(token: string | null | undefined, payload: Record<string, unknown>) {
     return apiFetch<{ ok: true; data: unknown; duplicate?: boolean }>('/api/customer/cabin-reservations', {
@@ -132,6 +147,13 @@ export const quoteRequestsClient = {
       headers: jsonHeaders(token),
     })
   },
+	create(token: string | null | undefined, payload: Record<string, unknown>) {
+	  return apiFetch<{ ok: true; data: QuoteRequestRecord; duplicate?: boolean }>('/api/admin/quote-requests', {
+	    method: 'POST',
+	    headers: jsonHeaders(token),
+	    body: JSON.stringify(payload),
+	  })
+	},
 	  update(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
 	    return apiFetch<{ ok: true; data: QuoteRequestRecord }>(`/api/admin/quote-requests/${encodeURIComponent(id)}`, {
 	      method: 'PATCH',

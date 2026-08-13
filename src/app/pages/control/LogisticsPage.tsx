@@ -1,0 +1,77 @@
+import { CheckCircle2, Loader2, PackageCheck, Plus, RefreshCw, Truck, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useAuth } from '../../../contexts/AuthContext'
+import { ordersClient, type OrderRecord } from '../../../services/commerce.service'
+import { shipmentsClient, type ShipmentRecord } from '../../../services/phase7e.service'
+import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
+import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
+import { CrystalDateTimeField } from '../../components/shared/CrystalDateField'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
+import { SectionTitle } from '../../components/shared/SectionTitle'
+import { StatusBadge } from '../../components/shared/StatusBadge'
+import { dateTime, money, statusLabel as safeStatusLabel } from './controlCopy'
+
+const emptyForm = { orderId: '', carrier: '', serviceLevel: '', trackingNumber: '', origin: 'Hacienda de Letras', destination: '', estimatedDeliveryAt: '', shippingCost: '0' }
+
+function canWrite(roles: string[]) { return roles.some((role) => ['super_admin', 'admin', 'operations'].includes(role)) }
+function shipmentStatus(value: string) { const labels: Record<string, string> = { pending: 'Pendiente', preparing: 'Preparando', ready: 'Lista para salida', shipped: 'Enviada', in_transit: 'En tránsito', delivered: 'Entregada', failed: 'Incidencia', returned: 'Devuelta', cancelled: 'Cancelada' }; return labels[value] ?? safeStatusLabel(value) }
+
+export function LogisticsPage() {
+  const { session, roles } = useAuth()
+  const token = session?.access_token
+  const writable = canWrite(roles)
+  const [shipments, setShipments] = useState<ShipmentRecord[]>([])
+  const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const [formOpen, setFormOpen] = useState(false)
+  const [form, setForm] = useState(emptyForm)
+  const [selected, setSelected] = useState<ShipmentRecord | null>(null)
+  const [pendingAction, setPendingAction] = useState<{ title: string; message: string; label: string; run: () => Promise<unknown> } | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try { const response = await shipmentsClient.list(token, { perPage: 100, status: status || undefined }); setShipments(response.data); setSelected((current) => response.data.find((item) => item.id === current?.id) ?? response.data[0] ?? null) }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'No fue posible cargar logística.') }
+    finally { setLoading(false) }
+  }, [status, token])
+
+  useEffect(() => { void load() }, [load])
+  useEffect(() => { if (!formOpen) return; ordersClient.list(token, { perPage: 100 }).then((response) => setOrders(response.data)).catch(() => setError('No fue posible cargar órdenes.')) }, [formOpen, token])
+
+  const metrics = useMemo(() => ({ preparing: shipments.filter((item) => ['pending', 'preparing', 'ready'].includes(item.status)).length, transit: shipments.filter((item) => ['shipped', 'in_transit'].includes(item.status)).length, delivered: shipments.filter((item) => item.status === 'delivered').length, incidents: shipments.reduce((sum, item) => sum + item.incidentCount, 0) }), [shipments])
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setSaving(true); setError('')
+    try { const response = await shipmentsClient.create(token, { orderId: form.orderId, carrierId: null, carrier: form.carrier || null, serviceLevel: form.serviceLevel || null, trackingNumber: form.trackingNumber || null, origin: form.origin || null, destination: form.destination || null, estimatedDeliveryAt: form.estimatedDeliveryAt ? new Date(form.estimatedDeliveryAt).toISOString() : null, shippingCost: Number(form.shippingCost), idempotencyKey: crypto.randomUUID() }); setSelected(response.data); setForm(emptyForm); setFormOpen(false); setToast('Envío creado.'); await load() }
+    catch (submitError) { setError(submitError instanceof Error ? submitError.message : 'No fue posible crear el envío.') }
+    finally { setSaving(false) }
+  }
+
+  async function confirmAction() { if (!pendingAction) return; setSaving(true); try { await pendingAction.run(); setToast('Logística actualizada.'); setPendingAction(null); await load() } catch (actionError) { setError(actionError instanceof Error ? actionError.message : 'No fue posible actualizar.') } finally { setSaving(false) } }
+
+  function askStatus(next: string) { if (!selected) return; setPendingAction({ title: 'Actualizar envío', message: `${selected.shipmentNumber ?? 'El envío'} cambiará a ${shipmentStatus(next)}.`, label: 'Actualizar', run: () => shipmentsClient.status(token, selected.id, next) }) }
+
+  return <div className="min-w-0 space-y-6">
+    <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"><SectionTitle eyebrow="Operación interna" title="Logística y entregas" subtitle="Preparación, guías, tránsito, incidencias y confirmación de entrega." /><div className="flex gap-2"><button type="button" onClick={load} className={secondary}><RefreshCw size={15} />Actualizar</button><button type="button" disabled={!writable} onClick={() => setFormOpen(true)} className={primary}><Plus size={15} />Nuevo envío</button></div></div>
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><Metric icon={PackageCheck} label="Preparación" value={metrics.preparing} /><Metric icon={Truck} label="En tránsito" value={metrics.transit} /><Metric icon={CheckCircle2} label="Entregadas" value={metrics.delivered} /><Metric icon={Truck} label="Incidencias" value={metrics.incidents} /></section>
+    <section className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]"><CrystalSelect value={status} onChange={setStatus}><option value="">Todos los estados</option><option value="pending">Pendiente</option><option value="preparing">Preparando</option><option value="ready">Lista</option><option value="shipped">Enviada</option><option value="in_transit">En tránsito</option><option value="delivered">Entregada</option><option value="failed">Incidencia</option><option value="returned">Devuelta</option><option value="cancelled">Cancelada</option></CrystalSelect></section>
+    {error ? <p className="rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</p> : null}
+    <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><div className="overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">{loading ? <div className="p-12"><Loader2 className="mx-auto animate-spin" /></div> : shipments.length === 0 ? <div className="p-12 text-center text-sm text-[var(--color-muted)]">Sin envíos registrados.</div> : <div className="divide-y divide-[var(--color-line)]">{shipments.map((item) => <button key={item.id} type="button" onClick={() => setSelected(item)} className={`grid w-full gap-3 p-4 text-left md:grid-cols-[1fr_0.7fr_0.7fr_auto] ${selected?.id === item.id ? 'bg-[var(--color-soft)]' : ''}`}><div><p className="text-sm font-semibold">{item.shipmentNumber ?? 'Envío'}</p><p className="mt-1 text-xs text-[var(--color-muted)]">{item.orderNumber ?? 'Sin orden'} · {item.customerName ?? 'Cliente'}</p></div><div className="text-xs"><p>{item.carrierName ?? 'Operación propia'}</p><p className="mt-1 text-[var(--color-muted)]">{item.trackingNumber ?? 'Sin guía'}</p></div><div className="text-xs"><p className="truncate">{item.destination ?? 'Destino pendiente'}</p><p className="mt-1 text-[var(--color-muted)]">{money(item.shippingCost)}</p></div><StatusBadge label={shipmentStatus(item.status)} /></button>)}</div>}</div>
+      {selected ? <aside className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]"><p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">Detalle logístico</p><h2 className="mt-2 text-xl font-semibold text-[var(--color-burgundy)]">{selected.shipmentNumber ?? 'Envío'}</h2><div className="mt-4 grid gap-2"><Detail label="Orden" value={selected.orderNumber ?? 'Sin orden'} /><Detail label="Cliente" value={selected.customerName ?? 'Sin cliente'} /><Detail label="Transportista" value={selected.carrierName ?? 'Operación propia'} /><Detail label="Guía" value={selected.trackingNumber ?? 'Pendiente'} /><Detail label="Destino" value={selected.destination ?? 'Pendiente'} /><Detail label="Entrega estimada" value={dateTime(selected.estimatedDeliveryAt)} /></div><div className="mt-4 flex flex-wrap gap-2"><Tiny onClick={() => askStatus('preparing')}>Preparando</Tiny><Tiny onClick={() => askStatus('ready')}>Lista</Tiny><Tiny onClick={() => askStatus('shipped')}>Enviar</Tiny><Tiny onClick={() => askStatus('in_transit')}>En tránsito</Tiny><Tiny onClick={() => setPendingAction({ title: 'Confirmar entrega', message: 'Confirma que el destinatario recibió el pedido.', label: 'Entregado', run: () => shipmentsClient.deliver(token, selected.id, 'Entrega confirmada desde Centro de Control') })}>Entregar</Tiny><Tiny onClick={() => setPendingAction({ title: 'Cancelar envío', message: 'El envío quedará cancelado en el historial.', label: 'Cancelar envío', run: () => shipmentsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</Tiny></div></aside> : null}
+    </section>
+    {formOpen ? <div className="fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm"><button type="button" className="absolute inset-0" onClick={() => setFormOpen(false)} /><form onSubmit={submit} className="relative z-10 w-full max-w-3xl rounded-2xl border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-2xl"><header className="mb-5 flex items-center justify-between"><h2 className="text-xl font-semibold text-[var(--color-burgundy)]">Nuevo envío</h2><button type="button" onClick={() => setFormOpen(false)}><X size={17} /></button></header><div className="grid gap-3 md:grid-cols-2"><ControlEntityPicker label="Orden" value={form.orderId} options={orders.map((order) => ({ id: order.id, label: order.orderNumber, description: `${order.customerName} · ${money(order.total, order.currency)}` }))} onChange={(orderId) => { const order = orders.find((item) => item.id === orderId); setForm({ ...form, orderId, destination: order?.shippingAddress ? `${order.shippingAddress.line1}, ${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.postalCode}` : form.destination }) }} required /><Field label="Transportista" value={form.carrier} onChange={(carrier) => setForm({ ...form, carrier })} /><Field label="Nivel de servicio" value={form.serviceLevel} onChange={(serviceLevel) => setForm({ ...form, serviceLevel })} /><Field label="Número de guía" value={form.trackingNumber} onChange={(trackingNumber) => setForm({ ...form, trackingNumber })} /><Field label="Origen" value={form.origin} onChange={(origin) => setForm({ ...form, origin })} /><Field label="Destino" value={form.destination} onChange={(destination) => setForm({ ...form, destination })} required /><CrystalDateTimeField value={form.estimatedDeliveryAt} onChange={(estimatedDeliveryAt) => setForm({ ...form, estimatedDeliveryAt })} label="Entrega estimada" /><Field label="Costo de envío" type="number" value={form.shippingCost} onChange={(shippingCost) => setForm({ ...form, shippingCost })} /><div className="flex justify-end md:col-span-2"><button type="submit" disabled={saving} className={primary}>{saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}Crear envío</button></div></div></form></div> : null}
+    <ControlConfirmDialog open={Boolean(pendingAction)} title={pendingAction?.title ?? ''} message={pendingAction?.message ?? ''} confirmLabel={pendingAction?.label} busy={saving} onCancel={() => setPendingAction(null)} onConfirm={confirmAction} />
+    {toast ? <div className="fixed bottom-6 right-6 z-[180] rounded-xl border border-[#cfddca] bg-white px-4 py-3 text-sm font-semibold text-[#5f7d63] shadow-xl">{toast}<button onClick={() => setToast('')} className="ml-3"><X size={14} /></button></div> : null}
+  </div>
+}
+
+const secondary = 'inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-4 text-xs font-semibold text-[var(--color-burgundy)]'
+const primary = 'inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-50'
+function Metric({ icon: Icon, label, value }: { icon: typeof Truck; label: string; value: number }) { return <article className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]"><div className="flex justify-between"><div><p className="text-[10px] uppercase text-[var(--color-muted)]">{label}</p><p className="mt-1 text-2xl font-semibold">{value}</p></div><Icon size={18} className="text-[var(--color-burgundy)]" /></div></article> }
+function Detail({ label, value }: { label: string; value: string }) { return <div className="rounded-lg bg-[var(--color-soft)] p-3"><p className="text-[9px] uppercase text-[var(--color-muted)]">{label}</p><p className="mt-1 text-xs font-semibold">{value}</p></div> }
+function Tiny({ children, onClick }: { children: string; onClick: () => void }) { return <button type="button" onClick={onClick} className="rounded-md border border-[var(--color-line)] px-2 py-1.5 text-[10px] font-semibold text-[var(--color-burgundy)]">{children}</button> }
+function Field({ label, value, onChange, type = 'text', required }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) { return <label><span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">{label}{required ? ' *' : ''}</span><input type={type} min={type === 'number' ? '0' : undefined} required={required} value={value} onChange={(event) => onChange(event.target.value)} className="min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm outline-none" /></label> }

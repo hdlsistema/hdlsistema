@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import {
   Ban,
+  BarChart3,
+  BedDouble,
   CalendarDays,
   Check,
   Clock3,
@@ -14,6 +16,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   availabilityClient,
@@ -26,6 +29,7 @@ import { CrystalDateField, CrystalDateTimeField } from '../../components/shared/
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { LodgingPage } from './LodgingPage'
 
 type SlotForm = {
   id?: string
@@ -127,6 +131,8 @@ export function AvailabilityPage() {
   const [blockoutForm, setBlockoutForm] = useState<BlockoutForm | null>(null)
   const [duplicateDate, setDuplicateDate] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingAvailabilityAction | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const availabilityMode = ['hospedaje', 'hotel', 'cabanas'].includes(searchParams.get('view') ?? '') ? 'hospedaje' : 'experiencias'
 
   const token = session?.access_token
 
@@ -164,6 +170,18 @@ export function AvailabilityPage() {
       blocked,
     }
   }, [slots])
+
+  const chartSlots = useMemo(
+    () => [...slots].sort((left, right) => left.startAt.localeCompare(right.startAt)).slice(0, 8),
+    [slots],
+  )
+
+  const selectMode = (mode: 'experiencias' | 'hospedaje') => {
+    const next = new URLSearchParams(searchParams)
+    if (mode === 'hospedaje') next.set('view', 'hospedaje')
+    else next.delete('view')
+    setSearchParams(next, { replace: true })
+  }
 
   const openNewSlot = () => {
     setSlotForm({
@@ -291,13 +309,27 @@ export function AvailabilityPage() {
     })
   }
 
+  if (availabilityMode === 'hospedaje') {
+    return (
+      <div className="min-w-0 space-y-5">
+        <SectionTitle
+          eyebrow={isEnglish ? 'Operations' : 'Operación'}
+          title={isEnglish ? 'Availability control' : 'Control de disponibilidad'}
+          subtitle={isEnglish ? 'Inventory, sellable capacity and operational blocks by business line.' : 'Inventario vendible, ocupación y bloqueos por línea de negocio.'}
+        />
+        <AvailabilityModeSwitch mode={availabilityMode} onChange={selectMode} />
+        <LodgingPage embedded />
+      </div>
+    )
+  }
+
   return (
     <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
-          title={isEnglish ? 'Availability' : 'Disponibilidad'}
-          subtitle={isEnglish ? 'Available schedules, capacity and operational blocks.' : 'Horarios, cupos y bloqueos operativos.'}
+          title={isEnglish ? 'Availability control' : 'Control de disponibilidad'}
+          subtitle={isEnglish ? 'Inventory, sellable capacity and operational blocks by business line.' : 'Inventario vendible, ocupación y bloqueos por línea de negocio.'}
         />
         <div className="flex flex-wrap gap-3">
           <button
@@ -329,12 +361,41 @@ export function AvailabilityPage() {
         </div>
       </div>
 
+      <AvailabilityModeSwitch mode={availabilityMode} onChange={selectMode} />
+
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Metric icon={CalendarDays} label="Horarios" value={String(slots.length)} />
         <Metric icon={Users} label="Capacidad" value={String(metrics.capacity)} />
         <Metric icon={Check} label="Confirmados" value={String(metrics.confirmed)} />
         <Metric icon={Clock3} label="Disponibles" value={String(metrics.available)} />
         <Metric icon={Lock} label="Bloqueados" value={String(metrics.blocked)} />
+      </section>
+
+      <section aria-label="Gráficas de ocupación de experiencias" className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+          <div className="flex items-center justify-between gap-3">
+            <div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">Ocupación consolidada</p><h3 className="mt-1 text-base font-semibold text-[var(--color-ink)]">Experiencias</h3></div>
+            <BarChart3 size={18} className="text-[var(--color-burgundy)]" />
+          </div>
+          <div className="mt-5 flex items-center gap-5">
+            <div className="grid h-28 w-28 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(var(--color-burgundy) 0 ${metrics.occupancy}%, #eee4d5 ${metrics.occupancy}% 100%)` }}>
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-[var(--color-panel)] text-center"><div><p className="text-2xl font-semibold text-[var(--color-ink)]">{metrics.occupancy}%</p><p className="text-[9px] uppercase text-[var(--color-muted)]">ocupado</p></div></div>
+            </div>
+            <div className="space-y-2 text-xs"><ChartLegend color="#6f1029" label={`${metrics.confirmed} confirmados`} /><ChartLegend color="#eee4d5" label={`${metrics.available} lugares libres`} /></div>
+          </div>
+        </article>
+        <article className="min-w-0 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+          <div><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">Demanda por horario</p><h3 className="mt-1 text-base font-semibold text-[var(--color-ink)]">Próximos horarios</h3></div>
+          <div className="mt-5 space-y-3">
+            {chartSlots.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Los horarios aparecerán aquí al configurar disponibilidad.</p> : chartSlots.map((slot) => (
+              <div key={`chart-${slot.id}`} className="grid items-center gap-3 sm:grid-cols-[minmax(150px,0.42fr)_minmax(160px,1fr)_42px]">
+                <div className="min-w-0"><p className="truncate text-xs font-semibold text-[var(--color-ink)]">{slot.experienceTitle}</p><p className="truncate text-[10px] text-[var(--color-muted)]">{formatDateTime(slot.startAt)}</p></div>
+                <div className="h-3 overflow-hidden rounded-full bg-[#eee4d5]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#6f1029,#b48a55)]" style={{ width: `${Math.min(slot.occupancy, 100)}%` }} /></div>
+                <p className="text-right text-xs font-semibold text-[var(--color-burgundy)]">{slot.occupancy}%</p>
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
@@ -521,6 +582,23 @@ export function AvailabilityPage() {
       ) : null}
     </div>
   )
+}
+
+function AvailabilityModeSwitch({ mode, onChange }: { mode: 'experiencias' | 'hospedaje'; onChange: (mode: 'experiencias' | 'hospedaje') => void }) {
+  return (
+    <section aria-label="Tipo de disponibilidad" className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-2 shadow-[var(--shadow-card)] sm:grid-cols-2">
+      <button type="button" onClick={() => onChange('experiencias')} className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-left transition ${mode === 'experiencias' ? 'bg-[var(--color-burgundy)] text-white shadow-md' : 'text-[var(--color-ink)] hover:bg-[var(--color-soft)]'}`}>
+        <CalendarDays size={19} /><span><strong className="block text-sm">Experiencias y eventos</strong><small className={`block text-[10px] ${mode === 'experiencias' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Horarios, cupos y bloqueos</small></span>
+      </button>
+      <button type="button" onClick={() => onChange('hospedaje')} className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-left transition ${mode === 'hospedaje' ? 'bg-[var(--color-burgundy)] text-white shadow-md' : 'text-[var(--color-ink)] hover:bg-[var(--color-soft)]'}`}>
+        <BedDouble size={19} /><span><strong className="block text-sm">Hotel / Cabañas</strong><small className={`block text-[10px] ${mode === 'hospedaje' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Noches, unidades, ocupación y recepción</small></span>
+      </button>
+    </section>
+  )
+}
+
+function ChartLegend({ color, label }: { color: string; label: string }) {
+  return <div className="flex items-center gap-2 text-[var(--color-muted-strong)]"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />{label}</div>
 }
 
 function Metric({ icon: Icon, label, value }: { icon: typeof CalendarDays; label: string; value: string }) {

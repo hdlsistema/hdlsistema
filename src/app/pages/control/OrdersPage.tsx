@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CheckCircle2, Download, ExternalLink, FileClock, MapPin, PackageCheck, Plus, RefreshCw, Search, Send, ShoppingBag, Truck, X } from 'lucide-react'
+import { CheckCircle2, Download, ExternalLink, FileClock, MapPin, PackageCheck, Plus, RefreshCw, Search, Send, ShoppingBag, Trash2, Truck, X } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ordersClient, type OrderItemRecord, type OrderRecord, type PaymentRecord } from '../../../services/commerce.service'
+import { adminContentClient, type ContentRecord } from '../../../services/content.service'
+import { customersClient, type CustomerRecord } from '../../../services/customers.service'
+import { reservationsClient, type ReservationRecord } from '../../../services/operations.service'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
+import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
+import { QuickCustomerDialog } from '../../components/control/QuickCustomerDialog'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
@@ -12,7 +17,16 @@ import { dateTime, eventLabel, money, paymentReferenceLabel, statusLabel as safe
 type OrderForm = {
   customerId: string
   reservationId: string
-  itemName: string
+  source: string
+  internalNotes: string
+  items: OrderLineForm[]
+}
+
+type OrderLineForm = {
+  id: string
+  itemId: string
+  itemType: string
+  name: string
   sku: string
   quantity: string
   unitPrice: string
@@ -27,10 +41,9 @@ type TrackingForm = {
 const emptyForm: OrderForm = {
   customerId: '',
   reservationId: '',
-  itemName: '',
-  sku: '',
-  quantity: '1',
-  unitPrice: '0',
+  source: 'Centro de control',
+  internalNotes: '',
+  items: [{ id: 'line-1', itemId: '', itemType: 'manual', name: '', sku: '', quantity: '1', unitPrice: '0' }],
 }
 
 function dateLabel(value?: string | null) {
@@ -78,6 +91,9 @@ export function OrdersPage() {
   const [items, setItems] = useState<OrderItemRecord[]>([])
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [history, setHistory] = useState<OrderHistoryRecord[]>([])
+  const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [reservations, setReservations] = useState<ReservationRecord[]>([])
+  const [wines, setWines] = useState<ContentRecord[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
@@ -87,6 +103,7 @@ export function OrdersPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [formOpen, setFormOpen] = useState(false)
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
   const [form, setForm] = useState<OrderForm>(emptyForm)
   const [trackingOpen, setTrackingOpen] = useState(false)
   const [trackingForm, setTrackingForm] = useState<TrackingForm>({ carrier: '', trackingNumber: '', trackingUrl: '' })
@@ -124,6 +141,25 @@ export function OrdersPage() {
     void loadOrders()
   }, [loadOrders])
 
+  const loadRelationOptions = useCallback(async () => {
+    try {
+      const [customerResponse, reservationResponse, wineResponse] = await Promise.all([
+        customersClient.list(token, { perPage: 100, status: 'published' }),
+        reservationsClient.list(token, { perPage: 100 }),
+        adminContentClient.list('wines', token, { perPage: 100, orderBy: 'name', orderDirection: 'asc' }),
+      ])
+      setCustomers(customerResponse.data)
+      setReservations(reservationResponse.data)
+      setWines(wineResponse.data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'No fue posible cargar clientes y reservaciones.')
+    }
+  }, [token])
+
+  useEffect(() => {
+    if (formOpen) void loadRelationOptions()
+  }, [formOpen, loadRelationOptions])
+
   useEffect(() => {
     if (!selected) {
       setItems([])
@@ -156,18 +192,20 @@ export function OrdersPage() {
       const response = await ordersClient.create(token, {
         customerId: form.customerId,
         reservationId: form.reservationId || null,
-        source: 'Centro de control',
+        source: form.source,
         idempotencyKey: crypto.randomUUID(),
-        items: [{
-          itemType: 'manual',
-          nameSnapshot: form.itemName,
-          skuSnapshot: form.sku || null,
-          quantity: Number(form.quantity),
-          unitPrice: Number(form.unitPrice),
-        }],
+        metadata: { internalNotes: form.internalNotes || null, capturedBy: 'control_center' },
+        items: form.items.map((item) => ({
+          itemType: item.itemType,
+          itemId: item.itemId || undefined,
+          nameSnapshot: item.name,
+          skuSnapshot: item.sku || null,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+        })),
       })
       setSelectedId(response.data.id)
-      setForm(emptyForm)
+      setForm({ ...emptyForm, items: [{ ...emptyForm.items[0] }] })
       setFormOpen(false)
       setToast('Orden creada.')
       await loadOrders()
@@ -420,19 +458,61 @@ export function OrdersPage() {
       {formOpen ? (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
           <button type="button" aria-label="Cerrar" onClick={() => setFormOpen(false)} className="absolute inset-0 cursor-default" />
-          <form onSubmit={submitOrder} className="relative z-10 w-full max-w-2xl rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]">
+          <form onSubmit={submitOrder} className="relative z-10 max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>Nueva orden</h2>
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="Cliente relacionado" value={form.customerId} onChange={(value) => setForm({ ...form, customerId: value })} required />
-              <Input label="Reservación relacionada" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
-              <Input label="Partida" value={form.itemName} onChange={(value) => setForm({ ...form, itemName: value })} required />
-              <Input label="SKU" value={form.sku} onChange={(value) => setForm({ ...form, sku: value })} />
-              <Input label="Cantidad" type="number" min="1" value={form.quantity} onChange={(value) => setForm({ ...form, quantity: value })} required />
-              <Input label="Precio unitario" type="number" min="0" value={form.unitPrice} onChange={(value) => setForm({ ...form, unitPrice: value })} required />
+              <ControlEntityPicker
+                label="Cliente relacionado"
+                value={form.customerId}
+                options={customers.map((customer) => ({
+                  id: customer.id,
+                  label: customer.displayName,
+                  description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber,
+                  keywords: customer.customerNumber,
+                }))}
+                onChange={(customerId) => setForm({ ...form, customerId, reservationId: customerId && reservations.some((item) => item.id === form.reservationId && item.customerId !== customerId) ? '' : form.reservationId })}
+                actionLabel="Crear cliente nuevo"
+                onAction={() => setCustomerDialogOpen(true)}
+                required
+              />
+              <ControlEntityPicker
+                label="Reservación relacionada"
+                value={form.reservationId}
+                options={reservations
+                  .filter((reservation) => !form.customerId || reservation.customerId === form.customerId)
+                  .map((reservation) => ({
+                    id: reservation.id,
+                    label: reservation.reservationNumber,
+                    description: `${reservation.customerName} · ${reservation.experienceTitle || 'Servicio'} · ${statusLabel(reservation.status)}`,
+                  }))}
+                onChange={(reservationId) => {
+                  const reservation = reservations.find((item) => item.id === reservationId)
+                  setForm({ ...form, reservationId, customerId: reservation?.customerId ?? form.customerId })
+                }}
+                emptyMessage={form.customerId ? 'Este cliente no tiene reservaciones' : 'Sin reservaciones'}
+              />
+              <label className="block"><span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Canal de venta</span><CrystalSelect value={form.source} onChange={(source) => setForm({ ...form, source })}><option>Centro de control</option><option>Teléfono</option><option>WhatsApp</option><option>Mostrador</option><option>Agencia</option><option>Evento</option><option>Web</option><option>App</option><option>Otro</option></CrystalSelect></label>
+              <Input label="Notas internas" value={form.internalNotes} onChange={(internalNotes) => setForm({ ...form, internalNotes })} />
             </div>
+            <section className="mt-5 rounded-xl border border-[var(--color-line)] bg-white/60 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-[var(--color-ink)]">Partidas de la orden</h3><p className="mt-1 text-xs text-[var(--color-muted)]">Agrega vinos, experiencias, hospedaje, alimentos, servicios o conceptos libres.</p></div><button type="button" onClick={() => setForm((current) => ({ ...current, items: [...current.items, { id: crypto.randomUUID(), itemId: '', itemType: 'manual', name: '', sku: '', quantity: '1', unitPrice: '0' }] }))} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]"><Plus size={14} />Agregar partida</button></div>
+              <div className="space-y-3">
+                {form.items.map((line, index) => (
+                  <div key={line.id} className="grid gap-3 rounded-xl bg-[var(--color-soft)] p-3 md:grid-cols-[150px_minmax(180px,1fr)_130px_90px_130px_auto]">
+                    <label><span className="mb-1 block text-[9px] font-semibold uppercase text-[var(--color-muted)]">Tipo</span><CrystalSelect value={line.itemType} onChange={(itemType) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, itemType, itemId: '', name: '', sku: '', unitPrice: '0' } : item) }))}><option value="manual">Concepto libre</option><option value="wine">Vino</option><option value="experience">Experiencia</option><option value="event">Evento</option><option value="lodging">Hospedaje</option><option value="restaurant">Alimentos</option><option value="service">Servicio</option></CrystalSelect></label>
+                    {line.itemType === 'wine' ? <ControlEntityPicker label={`Vino ${index + 1}`} value={line.itemId} options={wines.map((wine) => ({ id: wine.id, label: String(wine.name ?? 'Vino'), description: `${String(wine.sku ?? 'Sin SKU')} · ${money(Number(wine.price ?? 0))} · stock ${String(wine.stock_quantity ?? 0)}` }))} onChange={(itemId) => { const wine = wines.find((value) => value.id === itemId); setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, itemId, name: String(wine?.name ?? ''), sku: String(wine?.sku ?? ''), unitPrice: String(wine?.price ?? 0) } : item) })) }} required /> : <Input label={`Partida ${index + 1}`} value={line.name} onChange={(name) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, name } : item) }))} required />}
+                    <Input label="SKU" value={line.sku} onChange={(sku) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, sku } : item) }))} />
+                    <Input label="Cant." type="number" min="1" value={line.quantity} onChange={(quantity) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, quantity } : item) }))} required />
+                    <Input label="Precio" type="number" min="0" value={line.unitPrice} onChange={(unitPrice) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, unitPrice } : item) }))} required />
+                    <button type="button" aria-label="Quitar partida" disabled={form.items.length === 1} onClick={() => setForm((current) => ({ ...current, items: current.items.filter((item) => item.id !== line.id) }))} className="mt-5 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-alert)] disabled:opacity-30"><Trash2 size={15} /></button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end"><div className="rounded-lg bg-white px-4 py-2 text-right"><p className="text-[10px] uppercase text-[var(--color-muted)]">Total de la orden</p><p className="text-xl font-semibold text-[var(--color-burgundy)]">{money(form.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0), 0))}</p></div></div>
+            </section>
             <div className="mt-6 flex justify-end gap-3">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
               <button type="submit" disabled={saving} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Crear orden'}</button>
@@ -440,6 +520,17 @@ export function OrdersPage() {
           </form>
         </div>
       ) : null}
+
+      <QuickCustomerDialog
+        open={customerDialogOpen}
+        token={token}
+        onClose={() => setCustomerDialogOpen(false)}
+        onCreated={(customer) => {
+          setCustomers((current) => [customer, ...current.filter((item) => item.id !== customer.id)])
+          setForm((current) => ({ ...current, customerId: customer.id }))
+          setToast('Cliente creado y seleccionado.')
+        }}
+      />
 
       {toast ? <Toast value={toast} onClose={() => setToast('')} /> : null}
       <ControlConfirmDialog

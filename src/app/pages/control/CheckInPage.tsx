@@ -4,14 +4,18 @@ import { useAuth } from '../../../contexts/AuthContext'
 import {
   accessPassClient,
   checkinsClient,
+  ordersClient,
   type AccessPassRecord,
   type AccessPassValidation,
   type CheckinRecord,
+  type OrderRecord,
 } from '../../../services/commerce.service'
+import { reservationsClient, type ReservationRecord } from '../../../services/operations.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
 import { CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
+import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
 
 type PassForm = {
   reservationId: string
@@ -52,6 +56,8 @@ function canOperate(roles: string[]) {
 
 function passStatusLabel(pass: AccessPassRecord) {
   if (pass.revokedAt) return 'Revocado'
+  if (pass.usedAt) return 'Usado'
+  if (pass.validUntil && new Date(pass.validUntil).getTime() < Date.now()) return 'Expirado'
   const labels: Record<string, string> = {
     active: 'Activo',
     expired: 'Expirado',
@@ -69,6 +75,8 @@ export function CheckInPage() {
   const writable = canOperate(roles)
   const [passes, setPasses] = useState<AccessPassRecord[]>([])
   const [checkins, setCheckins] = useState<CheckinRecord[]>([])
+  const [reservations, setReservations] = useState<ReservationRecord[]>([])
+  const [orders, setOrders] = useState<OrderRecord[]>([])
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [validation, setValidation] = useState<AccessPassValidation | null>(null)
@@ -109,8 +117,19 @@ export function CheckInPage() {
     void loadCheckin()
   }, [loadCheckin])
 
+  useEffect(() => {
+    if (!formOpen) return
+    Promise.all([
+      reservationsClient.list(token, { perPage: 100 }),
+      ordersClient.list(token, { perPage: 100, status: 'paid' }),
+    ]).then(([reservationResponse, orderResponse]) => {
+      setReservations(reservationResponse.data)
+      setOrders(orderResponse.data)
+    }).catch((err) => setError(err instanceof Error ? err.message : 'No fue posible cargar reservaciones y órdenes.'))
+  }, [formOpen, token])
+
   const metrics = useMemo(() => ({
-    activePasses: passes.filter((item) => item.status === 'published' && !item.revokedAt).length,
+    activePasses: passes.filter((item) => item.status === 'published' && !item.revokedAt && !item.usedAt && (!item.validUntil || new Date(item.validUntil).getTime() >= Date.now())).length,
     used: passes.filter((item) => item.usedAt).length,
     activeCheckins: checkins.filter((item) => item.status === 'active').length,
   }), [checkins, passes])
@@ -319,7 +338,7 @@ export function CheckInPage() {
               <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selectedPass.passNumber ?? 'Pase'}</h3>
               <div className="mt-5 grid gap-3">
                 <Detail label="Invitado" value={selectedPass.guestName ?? 'Sin nombre'} />
-                <Detail label="Reservación" value={selectedPass.reservationNumber ?? 'Sin folio'} />
+                <Detail label={selectedPass.reservationNumber ? 'Reservación' : 'Orden'} value={selectedPass.reservationNumber ?? selectedPass.orderNumber ?? 'Sin folio'} />
                 <Detail label="Vigencia" value={`${dateLabel(selectedPass.validFrom)} - ${dateLabel(selectedPass.validUntil)}`} />
               </div>
               <button type="button" onClick={revokeSelectedPass} disabled={!writable || Boolean(selectedPass.revokedAt)} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><X size={14} />Revocar pase</button>
@@ -354,8 +373,20 @@ export function CheckInPage() {
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <Input label="Reservación vinculada" value={form.reservationId} onChange={(value) => setForm({ ...form, reservationId: value })} />
-              <Input label="Orden pagada vinculada" value={form.orderId} onChange={(value) => setForm({ ...form, orderId: value })} />
+              <ControlEntityPicker
+                label="Reservación vinculada"
+                value={form.reservationId}
+                options={reservations.map((reservation) => ({ id: reservation.id, label: reservation.reservationNumber, description: `${reservation.customerName} · ${reservation.experienceTitle || 'Servicio'}` }))}
+                onChange={(reservationId) => setForm({ ...form, reservationId, orderId: reservationId ? '' : form.orderId })}
+                emptyMessage="Sin reservaciones disponibles"
+              />
+              <ControlEntityPicker
+                label="Orden pagada vinculada"
+                value={form.orderId}
+                options={orders.map((order) => ({ id: order.id, label: order.orderNumber, description: `${order.customerName} · ${order.status === 'paid' ? 'Pagada' : order.status}` }))}
+                onChange={(orderId) => setForm({ ...form, orderId, reservationId: orderId ? '' : form.reservationId })}
+                emptyMessage="Sin órdenes pagadas disponibles"
+              />
               <Input label="Válido desde" type="datetime" value={form.validFrom} onChange={(value) => setForm({ ...form, validFrom: value })} />
               <Input label="Válido hasta" type="datetime" value={form.validUntil} onChange={(value) => setForm({ ...form, validUntil: value })} />
             </div>

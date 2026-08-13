@@ -21,6 +21,8 @@ import { RestaurantsScreen } from '../app/pages/mobile/RestaurantsScreen'
 import { SommelierScreen } from '../app/pages/mobile/SommelierScreen'
 import { StoreScreen } from '../app/pages/mobile/StoreScreen'
 import { WineDetailScreen } from '../app/pages/mobile/WineDetailScreen'
+import { PrivacyAccountScreen } from '../app/pages/mobile/PrivacyAccountScreen'
+import { DeleteAccountScreen } from '../app/pages/mobile/DeleteAccountScreen'
 import {
   MobileAuthCallbackPage,
   MobileLoginPage,
@@ -79,6 +81,8 @@ export function MobileRouter() {
         <Route path="pago/exitoso" element={protectedScreen(<PaymentStatusScreen mode="success" />)} />
         <Route path="pago/fallido" element={protectedScreen(<PaymentStatusScreen mode="failed" />)} />
         <Route path="perfil" element={protectedScreen(<ProfileScreen />)} />
+        <Route path="privacidad-cuenta" element={protectedScreen(<PrivacyAccountScreen />)} />
+        <Route path="eliminar-cuenta" element={protectedScreen(<DeleteAccountScreen />)} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

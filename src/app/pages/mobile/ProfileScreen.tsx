@@ -324,7 +324,7 @@ export function ProfileScreen() {
       items: [
         { label: t('app.premium.profile.personalData'), detail: customer?.customerNumber ?? t('app.premium.profile.customerProfile'), icon: UserRound, to: '#profile-form' },
         { label: t('app.premium.profile.notifications'), detail: preferences?.transactionalPush ? t('app.premium.profile.transactionalEnabled') : t('app.premium.profile.pendingSetup'), icon: Bell, to: '#profile-form' },
-        { label: t('app.premium.profile.settings'), detail: t('app.premium.profile.privacyAccess'), icon: Settings2, to: '#profile-form' },
+        { label: 'Privacidad y cuenta', detail: 'Privacidad, datos y eliminación de cuenta', icon: Settings2, to: appPath('/privacidad-cuenta') },
       ],
     },
   ]

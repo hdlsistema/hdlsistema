@@ -66,7 +66,6 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
         description: 'Información operativa que afecta compra y disponibilidad.',
         fields: [
           { key: 'price', label: 'Precio', type: 'number', required: true, publishRequired: true, publicVisible: true },
-          { key: 'stock_quantity', label: 'Stock comercial', type: 'number', required: true, publishRequired: true, publicVisible: true },
           { key: 'featured', label: 'Destacado', type: 'boolean', publicVisible: true },
         ],
       },

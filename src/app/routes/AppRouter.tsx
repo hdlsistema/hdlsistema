@@ -14,12 +14,18 @@ import { CustomersPage } from '../pages/control/CustomersPage'
 import { DashboardPage } from '../pages/control/DashboardPage'
 import { EditorialContentPage } from '../pages/control/EditorialContentPage'
 import { OrdersPage } from '../pages/control/OrdersPage'
+import { InventoryPage } from '../pages/control/InventoryPage'
+import { LogisticsPage } from '../pages/control/LogisticsPage'
+import { DistributorsPage } from '../pages/control/DistributorsPage'
+import { CommercialCatalogPage } from '../pages/control/CommercialCatalogPage'
+import { ReportsPage } from '../pages/control/ReportsPage'
 import { PaymentsPage } from '../pages/control/PaymentsPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
 import { WineClubPage } from '../pages/control/WineClubPage'
 import { LandingPage } from '../pages/public/LandingPage'
 import { LegalPage } from '../pages/public/LegalPage'
+import { AccountDeletionPage } from '../pages/public/AccountDeletionPage'
 import {
   AppAuthCallbackPage,
   LoginPage,
@@ -46,6 +52,9 @@ import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
 import { QuoteRequestsPage } from '../pages/control/QuoteRequestsPage'
+import { AccountDeletionRequestsPage } from '../pages/control/AccountDeletionRequestsPage'
+import { PrivacyAccountScreen } from '../pages/mobile/PrivacyAccountScreen'
+import { DeleteAccountScreen } from '../pages/mobile/DeleteAccountScreen'
 
 function TrackedMobileShell() {
   return <><AppActivityTracker /><MobileShell /></>
@@ -69,6 +78,7 @@ export function AppRouter() {
       <Route path="/politica-de-privacidad" element={<LegalPage type="privacy" />} />
       <Route path="/terminos" element={<LegalPage type="terms" />} />
       <Route path="/terminos-y-condiciones" element={<LegalPage type="terms" />} />
+      <Route path="/eliminar-cuenta" element={<AccountDeletionPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/recuperar" element={<RecoverPage />} />
@@ -175,6 +185,8 @@ export function AppRouter() {
             </ProtectedRoute>
           }
         />
+        <Route path="privacidad-cuenta" element={<ProtectedRoute><PrivacyAccountScreen /></ProtectedRoute>} />
+        <Route path="eliminar-cuenta" element={<ProtectedRoute><DeleteAccountScreen /></ProtectedRoute>} />
       </Route>
 
       {/* Centro de Control administrativo */}
@@ -194,6 +206,7 @@ export function AppRouter() {
         <Route path="vinos" element={<EditorialContentPage entity="wines" />} />
         <Route path="experiencias" element={<EditorialContentPage entity="experiences" />} />
         <Route path="eventos" element={<EditorialContentPage entity="events" />} />
+        <Route path="servicios" element={<CommercialCatalogPage />} />
         <Route path="clientes" element={<CustomersPage />} />
         <Route path="actividad" element={<AppActivityPage />} />
         <Route path="carritos" element={<CartsPage />} />
@@ -201,11 +214,16 @@ export function AppRouter() {
         <Route path="membresias" element={<EditorialContentPage entity="membership-plans" />} />
         <Route path="campanas" element={<EditorialContentPage entity="campaigns" />} />
         <Route path="disponibilidad" element={<AvailabilityPage />} />
+        <Route path="hospedaje" element={<Navigate to="/control/disponibilidad?view=hospedaje" replace />} />
+        <Route path="inventario" element={<InventoryPage />} />
+        <Route path="logistica" element={<LogisticsPage />} />
         <Route path="ordenes" element={<OrdersPage />} />
         <Route path="pagos" element={<PaymentsPage />} />
         <Route path="check-in" element={<CheckInPage />} />
         <Route path="wine-club" element={<WineClubPage />} />
-        <Route path="reportes" element={<Navigate to="/control/dashboard" replace />} />
+        <Route path="distribuidores" element={<DistributorsPage />} />
+        <Route path="reportes" element={<ReportsPage />} />
+        <Route path="eliminacion-cuentas" element={<AccountDeletionRequestsPage />} />
         <Route path="configuracion" element={<SettingsPage />} />
         <Route path="app" element={<AppPreviewPage />} />
 

@@ -10,11 +10,16 @@ import {
 } from '../operations/operationErrors'
 import type {
   CreateCabinReservationPayload,
+  CreateAdminQuoteRequestPayload,
   CreateQuoteRequestPayload,
   CreateRestaurantReservationPayload,
+  CabinCatalogPayload,
+  CommercialCatalogEntity,
   PatchQuoteRequestPayload,
   QuoteRequestListQuery,
   SendQuoteRequestEmailPayload,
+  RestaurantCatalogPayload,
+  VenueCatalogPayload,
 } from './commercial.schemas'
 
 const customerRoles = ['customer', 'super_admin', 'admin']
@@ -352,6 +357,51 @@ export async function listPublicCommercialServices() {
   }
 }
 
+export async function listAdminCommercialCatalog(user: UserContext) {
+  requireOperationRole(user, quoteReadRoles)
+  const [cabinsResult, restaurantsResult, spacesResult] = await Promise.all([
+    supabaseAdminClient.from('cabin_packages').select('id,slug,name,subtitle,description,price,currency,price_unit,min_guests,max_guests,nights,inclusions,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
+    supabaseAdminClient.from('restaurant_locations').select('id,slug,name,alias,description,full_address,city,state,phone,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
+    supabaseAdminClient.from('venue_spaces').select('id,slug,name,capacity,dimensions,description,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
+  ])
+  return { data: { cabins: (assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []).map(publicContent), restaurants: (assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? []).map(publicContent), venueSpaces: (assertNoError<ServiceContentRow[]>(spacesResult).data ?? []).map(publicContent) } }
+}
+
+function catalogCommonPayload(payload: CabinCatalogPayload | RestaurantCatalogPayload | VenueCatalogPayload) {
+  return {
+    slug: payload.slug,
+    name: payload.name,
+    status: payload.status,
+    visible_in_app: payload.visibleInApp,
+    verification_status: payload.verificationStatus,
+    cover_image_url: payload.coverImageUrl ?? null,
+    sort_order: payload.sortOrder,
+    metadata: payload.metadata ?? {},
+    updated_at: new Date().toISOString(),
+  }
+}
+
+export async function saveCommercialCatalogItem(entity: CommercialCatalogEntity, id: string | null, payload: CabinCatalogPayload | RestaurantCatalogPayload | VenueCatalogPayload, user: UserContext) {
+  requireOperationRole(user, quoteWriteRoles)
+  let result: unknown
+  if (entity === 'cabins') {
+    const value = payload as CabinCatalogPayload
+    const row = { ...catalogCommonPayload(value), subtitle: value.subtitle ?? null, description: value.description ?? null, price: value.price, currency: value.currency.toUpperCase(), price_unit: value.priceUnit, min_guests: value.minGuests, max_guests: value.maxGuests, nights: value.nights, inclusions: value.inclusions }
+    result = id ? await supabaseAdminClient.from('cabin_packages').update(row).eq('id', id).select('id,slug,name,subtitle,description,price,currency,price_unit,min_guests,max_guests,nights,inclusions,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').single() : await supabaseAdminClient.from('cabin_packages').insert(row).select('id,slug,name,subtitle,description,price,currency,price_unit,min_guests,max_guests,nights,inclusions,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').single()
+  } else if (entity === 'restaurants') {
+    const value = payload as RestaurantCatalogPayload
+    const row = { ...catalogCommonPayload(value), alias: value.alias ?? null, description: value.description ?? null, full_address: value.fullAddress ?? null, city: value.city ?? null, state: value.state ?? null, phone: value.phone ?? null, hours: value.hours, reservation_enabled: value.reservationEnabled }
+    result = id ? await supabaseAdminClient.from('restaurant_locations').update(row).eq('id', id).select('id,slug,name,alias,description,full_address,city,state,phone,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').single() : await supabaseAdminClient.from('restaurant_locations').insert(row).select('id,slug,name,alias,description,full_address,city,state,phone,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').single()
+  } else {
+    const value = payload as VenueCatalogPayload
+    const row = { ...catalogCommonPayload(value), capacity: value.capacity, dimensions: value.dimensions, description: value.description }
+    result = id ? await supabaseAdminClient.from('venue_spaces').update(row).eq('id', id).select('id,slug,name,capacity,dimensions,description,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').single() : await supabaseAdminClient.from('venue_spaces').insert(row).select('id,slug,name,capacity,dimensions,description,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').single()
+  }
+  const row = assertNoError<ServiceContentRow>(result as never).data
+  await supabaseAdminClient.from('audit_logs').insert({ actor_user_id: user.userId ?? null, action: id ? 'commercial_catalog_updated' : 'commercial_catalog_created', entity_type: entity, entity_id: row.id, after_data: { name: row.name, status: row.status } })
+  return { data: publicContent(row) }
+}
+
 export async function createCabinReservation(payload: CreateCabinReservationPayload, user: UserContext) {
   requireOperationRole(user, customerRoles)
   const customer = await getCustomerForUser(user)
@@ -380,30 +430,25 @@ export async function createCabinReservation(payload: CreateCabinReservationPayl
     throw httpError(400, 'Número de personas fuera del paquete')
   }
 
-  const total = numberValue(cabinPackage.price)
+  const defaultCheckOut = new Date(`${payload.checkIn}T12:00:00.000Z`)
+  defaultCheckOut.setUTCDate(defaultCheckOut.getUTCDate() + Math.max(cabinPackage.nights, 1))
+  const checkOut = payload.checkOut ?? defaultCheckOut.toISOString().slice(0, 10)
+
+  const createResult = await supabaseAdminClient.rpc('create_lodging_reservation_customer', {
+    p_user_id: user.userId,
+    p_cabin_package_id: cabinPackage.id,
+    p_check_in: payload.checkIn,
+    p_check_out: checkOut,
+    p_people_count: payload.peopleCount,
+    p_customer_notes: payload.customerNotes ?? null,
+    p_idempotency_key: payload.idempotencyKey,
+    p_metadata: { language: payload.language, bookingMode: 'TIMED_HOLD' },
+  })
+  const reservationId = String(assertNoError<string>(createResult).data)
   const result = await supabaseAdminClient
     .from('reservations')
-    .insert({
-      reservation_number: `CAB-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomBytes(4).toString('hex').toUpperCase()}`,
-      customer_id: customer.id,
-      user_id: user.userId,
-      reservation_type: 'cabin',
-      cabin_package_id: cabinPackage.id,
-      people_count: payload.peopleCount,
-      subtotal: total,
-      total,
-      currency: cabinPackage.currency ?? 'MXN',
-      status: 'pending',
-      operational_status: 'active',
-      source: 'app',
-      booking_channel: 'mobile_app',
-      check_in: payload.checkIn,
-      check_out: payload.checkOut ?? null,
-      customer_notes: payload.customerNotes ?? null,
-      idempotency_key: payload.idempotencyKey,
-      metadata: { language: payload.language, bookingMode: 'REQUEST_CONFIRMATION' },
-    })
     .select(reservationSelect)
+    .eq('id', reservationId)
     .single()
   const reservation = mapReservation(assertNoError<ReservationRow>(result).data)
 
@@ -582,6 +627,74 @@ export async function createQuoteRequest(payload: CreateQuoteRequestPayload, use
     eventKey: `quote-submitted-${quote.id}`,
     metadata: { result: 'succeeded' },
   }, { userId: user.userId, customerId: customer.id })
+
+  return { data: quote, duplicate: false }
+}
+
+export async function createQuoteRequestAdmin(payload: CreateAdminQuoteRequestPayload, user: UserContext) {
+  requireOperationRole(user, quoteWriteRoles)
+
+  if (payload.customerId) {
+    const customerResult = await supabaseAdminClient
+      .from('customers')
+      .select('id')
+      .eq('id', payload.customerId)
+      .maybeSingle()
+    if (!assertNoError<{ id: string } | null>(customerResult).data) throw httpError(404, 'Cliente no encontrado')
+  }
+
+  const existingResult = await supabaseAdminClient
+    .from('quote_requests')
+    .select(quoteSelect)
+    .eq('idempotency_key', payload.idempotencyKey)
+    .eq('source', payload.source)
+    .maybeSingle()
+  const existing = assertNoError<QuoteRequestRow | null>(existingResult).data
+  if (existing) return { data: mapQuote(existing), duplicate: true }
+
+  const result = await supabaseAdminClient
+    .from('quote_requests')
+    .insert({
+      quote_number: quoteNumber(),
+      customer_id: payload.customerId ?? null,
+      user_id: null,
+      event_category: payload.eventCategory,
+      event_type: payload.eventType,
+      preferred_date: payload.preferredDate ?? null,
+      alternative_date: payload.alternativeDate ?? null,
+      preferred_start_time: payload.preferredStartTime ?? null,
+      preferred_end_time: payload.preferredEndTime ?? null,
+      guest_count: payload.guestCount,
+      venue_space_id: payload.venueSpaceId ?? null,
+      venue_space_name: payload.venueSpaceName ?? null,
+      food_required: payload.foodRequired,
+      food_type: payload.foodType ?? null,
+      wine_required: payload.wineRequired,
+      wine_option: payload.wineOption ?? null,
+      requested_services: payload.requestedServices,
+      contact_first_name: payload.contactFirstName,
+      contact_last_name: payload.contactLastName,
+      contact_email: payload.contactEmail,
+      contact_phone: payload.contactPhone,
+      company_name: payload.companyName ?? null,
+      notes: payload.notes ?? null,
+      source: payload.source,
+      admin_notes: payload.adminNotes ?? null,
+      idempotency_key: payload.idempotencyKey,
+      metadata: { language: payload.language, source: 'control_center', capturedBy: user.userId ?? null },
+    })
+    .select(quoteSelect)
+    .single()
+  const quote = mapQuote(assertNoError<QuoteRequestRow>(result).data)
+  await createQuoteNotification(quote)
+
+  await supabaseAdminClient.from('audit_logs').insert({
+    actor_user_id: user.userId ?? null,
+    action: 'quote_request_created_admin',
+    entity_type: 'quote_requests',
+    entity_id: quote.id,
+    after_data: { quoteNumber: quote.quoteNumber, source: payload.source },
+  })
 
   return { data: quote, duplicate: false }
 }

@@ -927,6 +927,33 @@ html.hdl-mobile-app .crystal-date-popover__day {
   line-height: 1;
 }
 
+.control-sidebar__icon {
+  display: inline-flex;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 241, 222, 0.1);
+  border-radius: 0.48rem;
+  background: rgba(255, 255, 255, 0.045);
+  color: rgba(255, 243, 229, 0.78);
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.control-sidebar__item:hover .control-sidebar__icon {
+  border-color: rgba(216, 182, 128, 0.2);
+  background: rgba(255, 255, 255, 0.075);
+  color: #fff6ea;
+}
+
+.control-sidebar__item[aria-current='page'] .control-sidebar__icon {
+  border-color: rgba(232, 205, 164, 0.42);
+  background: rgba(255, 247, 233, 0.13);
+  color: #f0d6aa;
+  box-shadow: inset 0 0 0 1px rgba(87, 14, 31, 0.08);
+}
+
 .control-sidebar__item svg {
   width: 0.9rem;
   height: 0.9rem;

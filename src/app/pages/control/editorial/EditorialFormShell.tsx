@@ -1,4 +1,4 @@
-import { Eye, History, Loader2, Save, Sparkles } from 'lucide-react'
+import { BookOpenCheck, Eye, History, Loader2, Save, Workflow } from 'lucide-react'
 import type { FormEvent, ReactNode } from 'react'
 import type { ContentRecord } from '../../../../services/content.service'
 import type {
@@ -10,6 +10,7 @@ import type {
 import { statusLabel } from './forms/editorialFormMappers'
 import { CrystalDateTimeField } from '../../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../../components/shared/CrystalSelect'
+import { ControlStorageUpload } from '../../../components/control/ControlStorageUpload'
 
 type EditorialFormShellProps = {
   definition: EditorialDefinition
@@ -277,19 +278,36 @@ function FormField({
   value,
   error,
   onChange,
+  entity,
+  recordId,
 }: {
   field: EditorialField
   value: string
   error?: string
   onChange: (value: string) => void
+  entity: EditorialDefinition['entity']
+  recordId?: string
 }) {
+  const isCoverImage = field.key === 'cover_image_url' && ['wines', 'experiences', 'events', 'promotions'].includes(entity)
   return (
     <label className={field.type === 'textarea' || field.type === 'benefits' || field.type === 'campaignAudience' || field.type === 'campaignContent' ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
       <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
         {field.label}
         {field.required || field.publishRequired ? ' *' : ''}
       </span>
-      {field.type === 'benefits' ? (
+      {isCoverImage ? (
+        <ControlStorageUpload
+          bucket={entity}
+          pathPrefix={`${entity}/${recordId ?? 'draft'}`}
+          value={value}
+          onChange={onChange}
+          label="imagen"
+          accept="image/jpeg,image/png,image/webp,image/avif"
+          maxSizeMb={10}
+          publicFile
+          image
+        />
+      ) : field.type === 'benefits' ? (
         <BenefitsField value={value} error={error} onChange={onChange} />
       ) : field.type === 'campaignAudience' ? (
         <CampaignAudienceField value={value} error={error} onChange={onChange} />
@@ -305,6 +323,7 @@ function FormField({
 
 export function EditorialFormShell({
   definition,
+  record,
   form,
   fieldErrors,
   recordVersion,
@@ -395,7 +414,7 @@ export function EditorialFormShell({
 
       <div className="rounded-xl border border-[var(--color-line)] bg-white p-4">
         <div className="flex items-start gap-3">
-          <Sparkles size={18} className="mt-0.5 text-[var(--color-gold)]" />
+          {definition.entity === 'campaigns' ? <Workflow size={18} strokeWidth={1.7} className="mt-0.5 text-[var(--color-gold)]" /> : <BookOpenCheck size={18} strokeWidth={1.7} className="mt-0.5 text-[var(--color-gold)]" />}
           <div>
 	            <p className="text-[13px] font-semibold text-[var(--color-ink)]">
                 {definition.entity === 'campaigns' ? 'Cómo se opera' : 'Qué verá el cliente'}
@@ -424,13 +443,15 @@ export function EditorialFormShell({
           </summary>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             {section.fields.map((field) => (
-              <FormField
-                key={field.key}
-                field={field}
-                value={form[field.key] ?? ''}
-                error={fieldErrors[field.key]}
-                onChange={(value) => onChange(field.key, value)}
-              />
+                <FormField
+                  key={field.key}
+                  field={field}
+                  value={form[field.key] ?? ''}
+                  error={fieldErrors[field.key]}
+                  onChange={(value) => onChange(field.key, value)}
+                  entity={definition.entity}
+                  recordId={record?.id}
+                />
             ))}
           </div>
         </details>

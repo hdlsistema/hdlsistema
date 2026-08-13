@@ -36,6 +36,12 @@ export const createQuoteRequestSchema = z.object({
   idempotencyKey: z.string().trim().min(8).max(160),
 }).strict()
 
+export const createAdminQuoteRequestSchema = createQuoteRequestSchema.extend({
+  customerId: optionalUuid,
+  source: z.string().trim().min(1).max(80).default('Centro de control'),
+  adminNotes: optionalText(2500),
+}).strict()
+
 export const createCabinReservationSchema = z.object({
   cabinPackageId: uuid,
   checkIn: z.string().date(),
@@ -83,9 +89,59 @@ export const sendQuoteRequestEmailSchema = z.object({
   adminNotes: optionalText(2500),
 }).strict()
 
+const catalogCommon = {
+  slug: z.string().trim().min(2).max(140).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+  name: z.string().trim().min(2).max(180),
+  status: z.enum(['draft', 'published', 'inactive', 'archived']).default('draft'),
+  visibleInApp: z.boolean().default(false),
+  verificationStatus: z.enum(['verified', 'pending_client_confirmation']).default('verified'),
+  coverImageUrl: z.string().url().nullable().optional(),
+  sortOrder: z.coerce.number().int().min(0).default(0),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+}
+
+export const cabinCatalogSchema = z.object({
+  ...catalogCommon,
+  subtitle: optionalText(240),
+  description: optionalText(3000),
+  price: z.coerce.number().min(0),
+  currency: z.string().trim().length(3).default('MXN'),
+  priceUnit: z.string().trim().min(1).max(80).default('pareja'),
+  minGuests: z.coerce.number().int().min(1).max(30),
+  maxGuests: z.coerce.number().int().min(1).max(30),
+  nights: z.coerce.number().int().min(1).max(60),
+  inclusions: z.array(z.string().trim().min(1).max(180)).max(30).default([]),
+}).strict().refine((value) => value.maxGuests >= value.minGuests, { path: ['maxGuests'], message: 'Capacidad máxima inválida' })
+
+export const restaurantCatalogSchema = z.object({
+  ...catalogCommon,
+  alias: optionalText(180),
+  description: optionalText(3000),
+  fullAddress: optionalText(500),
+  city: optionalText(120),
+  state: optionalText(120),
+  phone: optionalText(40),
+  hours: z.record(z.string(), z.unknown()).default({}),
+  reservationEnabled: z.boolean().default(true),
+}).strict()
+
+export const venueCatalogSchema = z.object({
+  ...catalogCommon,
+  capacity: z.coerce.number().int().min(1).max(10000),
+  dimensions: z.string().trim().min(1).max(160),
+  description: z.string().trim().min(1).max(3000),
+}).strict()
+
+export const commercialCatalogEntitySchema = z.enum(['cabins', 'restaurants', 'venues'])
+
 export type CreateQuoteRequestPayload = z.infer<typeof createQuoteRequestSchema>
+export type CreateAdminQuoteRequestPayload = z.infer<typeof createAdminQuoteRequestSchema>
 export type CreateCabinReservationPayload = z.infer<typeof createCabinReservationSchema>
 export type CreateRestaurantReservationPayload = z.infer<typeof createRestaurantReservationSchema>
 export type QuoteRequestListQuery = z.infer<typeof quoteRequestListQuerySchema>
 export type PatchQuoteRequestPayload = z.infer<typeof patchQuoteRequestSchema>
 export type SendQuoteRequestEmailPayload = z.infer<typeof sendQuoteRequestEmailSchema>
+export type CabinCatalogPayload = z.infer<typeof cabinCatalogSchema>
+export type RestaurantCatalogPayload = z.infer<typeof restaurantCatalogSchema>
+export type VenueCatalogPayload = z.infer<typeof venueCatalogSchema>
+export type CommercialCatalogEntity = z.infer<typeof commercialCatalogEntitySchema>

@@ -1,20 +1,28 @@
 import {
   Activity,
+  BadgeCheck,
+  BarChart3,
+  Boxes,
+  Building2,
   CalendarDays,
+  CalendarRange,
   Cog,
   FileText,
   Gift,
+  IdCard,
   LayoutDashboard,
   Megaphone,
-  Package,
-  PackageSearch,
+  MapPinned,
   QrCode,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
+  Smartphone,
+  Tickets,
   Users,
+  Truck,
   Wine,
-  WineOff,
+  WalletCards,
+  UserRoundX,
 } from 'lucide-react'
 import { Outlet } from 'react-router-dom'
 import { ControlSidebar } from '../components/control/ControlSidebar'
@@ -50,8 +58,18 @@ export function ControlLayout() {
         },
         {
           to: '/control/disponibilidad',
-          label: t('control.availability'),
-          icon: Package,
+          label: `${t('control.availability')} / Hotel`,
+          icon: CalendarRange,
+        },
+        {
+          to: '/control/inventario',
+          label: 'Inventario',
+          icon: Boxes,
+        },
+        {
+          to: '/control/logistica',
+          label: 'Logística',
+          icon: Truck,
         },
         {
           to: '/control/check-in',
@@ -71,7 +89,7 @@ export function ControlLayout() {
         {
           to: '/control/pagos',
           label: t('control.payments'),
-          icon: PackageSearch,
+          icon: WalletCards,
         },
         {
           to: '/control/carritos',
@@ -81,7 +99,12 @@ export function ControlLayout() {
         {
           to: '/control/wine-club',
           label: 'Wine Club',
-          icon: Sparkles,
+          icon: BadgeCheck,
+        },
+        {
+          to: '/control/distribuidores',
+          label: 'Distribuidores',
+          icon: Building2,
         },
       ],
     },
@@ -96,12 +119,17 @@ export function ControlLayout() {
         {
           to: '/control/experiencias',
           label: t('control.experiences'),
-          icon: Sparkles,
+          icon: Tickets,
         },
         {
           to: '/control/eventos',
           label: t('control.events'),
           icon: CalendarDays,
+        },
+        {
+          to: '/control/servicios',
+          label: 'Servicios y sedes',
+          icon: MapPinned,
         },
         {
           to: '/control/promociones',
@@ -111,7 +139,7 @@ export function ControlLayout() {
         {
           to: '/control/membresias',
           label: t('control.memberships'),
-          icon: PackageSearch,
+          icon: IdCard,
         },
         {
           to: '/control/campanas',
@@ -124,6 +152,11 @@ export function ControlLayout() {
       label: 'Administración',
       items: [
         {
+          to: '/control/reportes',
+          label: 'Reportes',
+          icon: BarChart3,
+        },
+        {
           to: '/control/actividad',
           label: 'Actividad App',
           icon: Activity,
@@ -131,7 +164,12 @@ export function ControlLayout() {
         {
           to: '/control/app',
           label: t('control.appView'),
-          icon: WineOff,
+          icon: Smartphone,
+        },
+        {
+          to: '/control/eliminacion-cuentas',
+          label: 'Eliminación de cuentas',
+          icon: UserRoundX,
         },
         {
           to: '/control/configuracion',

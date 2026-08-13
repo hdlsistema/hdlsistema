@@ -1167,6 +1167,7 @@ export function LandingPage() {
 
             <div className="mt-5 flex flex-col gap-3 text-[13px] text-white/65">
               <Link to="/politica-de-privacidad">Política de Privacidad</Link>
+              <Link to="/eliminar-cuenta">Eliminar mi cuenta</Link>
               <Link to="/terminos-y-condiciones">Términos y Condiciones</Link>
               <Link to="/login">Acceso administrativo</Link>
             </div>
