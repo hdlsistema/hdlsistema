@@ -1,6 +1,6 @@
 {
   "name": "hacienda-letras-api",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Hacienda de Letras OS — API Server",
   "private": true,
   "engines": {
