@@ -35,6 +35,11 @@ import { AppToast, SectionHeading, StatusBadge } from '../../components/mobile/P
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { notifyProfileAvatarUpdated, useProfileAvatar } from '../../hooks/useProfileAvatar'
 import { appPath } from '../../utils/appRoutes'
+import {
+  emptyCustomerAddress,
+  isCustomerAddressComplete,
+  normalizeCustomerAddress,
+} from '../../utils/customerAddress'
 
 function isPendingPaymentOrder(order: CustomerOrder) {
   return order.status === 'pending_payment' || order.paymentStatus === 'pending_payment' || order.paymentStatus === 'pending'
@@ -43,22 +48,6 @@ function isPendingPaymentOrder(order: CustomerOrder) {
 function translatedStatus(status: string | null | undefined, t: (key: string, fallback?: string) => string) {
   const value = status || 'pending'
   return t(`common.status.${value}`, t('common.status.unknown'))
-}
-
-const emptyAddress: CustomerAddressPayload = {
-  label: '',
-  recipientName: '',
-  phone: '',
-  email: '',
-  line1: '',
-  line2: '',
-  neighborhood: '',
-  city: '',
-  state: '',
-  postalCode: '',
-  country: 'MX',
-  references: '',
-  isDefault: false,
 }
 
 function orderTimeline(order: CustomerOrder, t: (key: string, fallback?: string) => string) {
@@ -97,7 +86,7 @@ export function ProfileScreen() {
   const [notifications, setNotifications] = useState<CustomerNotification[]>([])
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
-  const [addressForm, setAddressForm] = useState<CustomerAddressPayload>(emptyAddress)
+  const [addressForm, setAddressForm] = useState<CustomerAddressPayload>(() => emptyCustomerAddress())
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
   const [membership, setMembership] = useState<CustomerMembership>(null)
   const [loyalty, setLoyalty] = useState<CustomerLoyaltySummary | null>(null)
@@ -255,48 +244,20 @@ export function ProfileScreen() {
   }
 
   const resetAddressForm = () => {
-    setAddressForm(emptyAddress)
+    setAddressForm(emptyCustomerAddress())
     setEditingAddressId(null)
   }
 
   const editAddress = (address: CustomerAddress) => {
     setEditingAddressId(address.id)
-    setAddressForm({
-      label: address.label ?? '',
-      recipientName: address.recipientName,
-      phone: address.phone ?? '',
-      email: address.email ?? '',
-      line1: address.line1,
-      line2: address.line2 ?? '',
-      neighborhood: address.neighborhood ?? '',
-      city: address.city,
-      state: address.state,
-      postalCode: address.postalCode,
-      country: address.country,
-      references: address.references ?? '',
-      isDefault: address.isDefault,
-    })
+    setAddressForm(normalizeCustomerAddress(address))
   }
 
   const saveAddress = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!session?.access_token || isSaving) return
-    const payload = {
-      ...addressForm,
-      label: addressForm.label?.trim() || null,
-      recipientName: addressForm.recipientName.trim(),
-      phone: addressForm.phone?.trim() || null,
-      email: addressForm.email?.trim() || null,
-      line1: addressForm.line1.trim(),
-      line2: addressForm.line2?.trim() || null,
-      neighborhood: addressForm.neighborhood?.trim() || null,
-      city: addressForm.city.trim(),
-      state: addressForm.state.trim(),
-      postalCode: addressForm.postalCode.trim(),
-      references: addressForm.references?.trim() || null,
-      country: addressForm.country || 'MX',
-    }
-    if (!payload.recipientName || !payload.line1 || !payload.city || !payload.state || !payload.postalCode) {
+    const payload = normalizeCustomerAddress(addressForm)
+    if (!isCustomerAddressComplete(payload)) {
       setMessage(t('app.premium.profile.addressRequired'))
       return
     }
@@ -566,6 +527,7 @@ export function ProfileScreen() {
           <p className="text-[13px] font-semibold text-[var(--color-ink)]">
             {editingAddressId ? t('app.premium.profile.editAddress') : (language === 'en' ? 'New shipping address' : 'Nuevo domicilio de envío')}
           </p>
+          <p className="text-[11px] font-semibold leading-5 text-[var(--color-burgundy)]">{t('app.premium.profile.allAddressFieldsRequired')}</p>
           {[
             ['label', t('app.premium.profile.addressLabel')],
             ['recipientName', t('app.premium.profile.recipientName')],
@@ -582,14 +544,21 @@ export function ProfileScreen() {
               key={key}
               value={String(addressForm[key as keyof CustomerAddressPayload] ?? '')}
               onChange={(event) => setAddressForm((current) => ({ ...current, [key]: event.target.value }))}
-              placeholder={placeholder}
+              type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
+              inputMode={key === 'postalCode' ? 'numeric' : undefined}
+              autoComplete={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'postalCode' ? 'postal-code' : undefined}
+              required
+              aria-required="true"
+              placeholder={`${placeholder} *`}
               className="min-h-12 rounded-[0.95rem] border border-[#dccab5] bg-white px-4 text-[13px] text-[var(--color-ink)] outline-none"
             />
           ))}
           <textarea
             value={addressForm.references ?? ''}
             onChange={(event) => setAddressForm((current) => ({ ...current, references: event.target.value }))}
-            placeholder={t('app.premium.profile.references')}
+            required
+            aria-required="true"
+            placeholder={`${t('app.premium.profile.references')} *`}
             className="min-h-[92px] rounded-[0.95rem] border border-[#dccab5] bg-white px-4 py-3 text-[13px] text-[var(--color-ink)] outline-none"
           />
           <button type="button" onClick={() => setAddressForm((current) => ({ ...current, isDefault: !current.isDefault }))} className="flex min-h-11 items-center gap-3 rounded-full bg-[#fff8f1] px-4 text-left text-[12px] text-[var(--color-muted)]">
@@ -599,7 +568,7 @@ export function ProfileScreen() {
             {t('app.premium.profile.defaultAddress')}
           </button>
           <div className="grid grid-cols-2 gap-2">
-            <button disabled={isSaving} type="submit" className="min-h-11 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white disabled:opacity-60">
+            <button disabled={isSaving || !isCustomerAddressComplete(addressForm)} type="submit" className="min-h-11 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white disabled:opacity-60">
               {isSaving ? t('app.premium.profile.saving') : t('app.premium.profile.saveAddress')}
             </button>
             <button type="button" onClick={resetAddressForm} className="min-h-11 rounded-full border border-[rgba(104,13,36,0.18)] bg-white text-[12px] font-semibold text-[var(--color-burgundy)]">

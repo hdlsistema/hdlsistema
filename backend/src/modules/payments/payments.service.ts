@@ -95,6 +95,22 @@ type CustomerOrderRow = {
 
 type OrderItemRow = {
   subtotal: number | string
+  item_type?: string | null
+}
+
+type OrderShippingAddressRow = {
+  label?: string | null
+  recipient_name?: string | null
+  phone?: string | null
+  email?: string | null
+  line1?: string | null
+  line2?: string | null
+  neighborhood?: string | null
+  city?: string | null
+  state?: string | null
+  postal_code?: string | null
+  country?: string | null
+  references?: string | null
 }
 
 type PaymentSessionData = {
@@ -226,6 +242,40 @@ async function getOwnedOrder(orderId: string, user: UserContext) {
   const order = assertNoError<CustomerOrderRow | null>(result).data
   if (!order) throw httpError(404, 'Orden no encontrada')
   return { customer, order }
+}
+
+async function assertCompleteShippingAddress(order: CustomerOrderRow) {
+  const itemResult = await supabaseAdminClient
+    .from('order_items')
+    .select('item_type')
+    .eq('order_id', order.id)
+  const orderItems = assertNoError<Array<{ item_type?: string | null }>>(itemResult).data ?? []
+  const needsShipping = Boolean(order.requires_shipping) || orderItems.some((item) => item.item_type === 'wine')
+  if (!needsShipping) return
+
+  const addressResult = await supabaseAdminClient
+    .from('order_shipping_addresses')
+    .select('label,recipient_name,phone,email,line1,line2,neighborhood,city,state,postal_code,country,references')
+    .eq('order_id', order.id)
+    .maybeSingle()
+  const address = assertNoError<OrderShippingAddressRow | null>(addressResult).data
+  const requiredFields: Array<keyof OrderShippingAddressRow> = [
+    'label',
+    'recipient_name',
+    'phone',
+    'email',
+    'line1',
+    'line2',
+    'neighborhood',
+    'city',
+    'state',
+    'postal_code',
+    'country',
+    'references',
+  ]
+  if (!address || requiredFields.some((field) => !String(address[field] ?? '').trim())) {
+    throw httpError(422, 'Domicilio de entrega completo requerido antes del pago')
+  }
 }
 
 async function validateOrderAmount(order: CustomerOrderRow) {
@@ -452,9 +502,10 @@ export async function getPaymentReceipt(id: string, user: UserContext) {
 }
 
 export async function createCustomerStripePaymentSession(orderId: string, user: UserContext): Promise<{ data: PaymentSessionData }> {
-  const stripe = requireStripeClient()
   const { order } = await getOwnedOrder(orderId, user)
   if (order.status !== 'pending_payment') throw httpError(409, 'Orden no disponible para pago')
+  await assertCompleteShippingAddress(order)
+  const stripe = requireStripeClient()
 
   const { amount, amountMinor, currency } = await validateOrderAmount(order)
   const idempotencyKey = `stripe-payment-intent:${order.id}:${amountMinor}:${currency}`

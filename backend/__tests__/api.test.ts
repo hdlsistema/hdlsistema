@@ -21,6 +21,7 @@ const supabaseMock = vi.hoisted(() => ({
   throwError: null as unknown,
   rpcError: null as unknown,
   rpcData: {} as Record<string, unknown>,
+  rpcCalls: [] as Array<{ name: string; args?: Record<string, unknown> }>,
   authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null; app_metadata?: Record<string, unknown> } | null,
   createdAuthUser: null as { id: string; email: string } | null,
   createUserPayload: null as Record<string, unknown> | null,
@@ -191,7 +192,8 @@ vi.mock('@supabase/supabase-js', () => ({
       }
       return builder
     }),
-    rpc: vi.fn(async (name: string) => {
+    rpc: vi.fn(async (name: string, args?: Record<string, unknown>) => {
+      supabaseMock.rpcCalls.push({ name, args })
       if (supabaseMock.throwError) throw supabaseMock.throwError
       if (supabaseMock.rpcError) return { data: null, error: supabaseMock.rpcError }
       return { data: supabaseMock.rpcData[name] ?? '00000000-0000-0000-0000-000000000099', error: null }
@@ -228,6 +230,7 @@ beforeEach(() => {
   supabaseMock.throwError = null
   supabaseMock.rpcError = null
   supabaseMock.rpcData = {}
+  supabaseMock.rpcCalls = []
   supabaseMock.authUser = null
   supabaseMock.createdAuthUser = null
   supabaseMock.createUserPayload = null
@@ -2507,13 +2510,45 @@ describe('Fase 8C customer cart and checkout API', () => {
     expect(detail.status).toBe(200)
   })
 
-  it('crea snapshot de domicilio de envío sin columnas ajenas al modelo de orden', async () => {
+  it('rechaza la compra física si falta cualquier campo del domicilio', async () => {
     signInCustomer()
     supabaseMock.rpcData.get_customer_cart = {
       ...cartPayload(),
       checkout: { ...cartPayload().checkout, fulfillmentMode: 'shipping' },
     }
-    supabaseMock.rpcData.create_customer_order_from_cart = orderId
+
+    const created = await request(app)
+      .post('/api/customer/orders')
+      .set('Authorization', 'Bearer customer-token')
+      .send({
+        idempotencyKey: 'fase8c-incomplete-shipping',
+        shippingAddress: {
+          label: 'Casa',
+          recipientName: 'Cliente Fase 8C',
+          phone: '4490000000',
+          email: customerUser.email,
+          line1: 'Calle Hacienda 123',
+          line2: 'N/A',
+          neighborhood: 'Centro',
+          city: 'Aguascalientes',
+          state: 'Aguascalientes',
+          postalCode: '20000',
+          country: 'MX',
+        },
+        saveAddress: true,
+      })
+
+    expect(created.status).toBe(422)
+    expect(supabaseMock.rpcCalls.some((call) => call.name === 'create_customer_shipping_order_from_cart')).toBe(false)
+  })
+
+  it('crea la orden física y guarda su domicilio en una sola RPC transaccional', async () => {
+    signInCustomer()
+    supabaseMock.rpcData.get_customer_cart = {
+      ...cartPayload(),
+      checkout: { ...cartPayload().checkout, fulfillmentMode: 'shipping' },
+    }
+    supabaseMock.rpcData.create_customer_shipping_order_from_cart = orderId
     supabaseMock.rpcData.get_customer_order_detail = orderPayload()
 
     const created = await request(app)
@@ -2527,20 +2562,31 @@ describe('Fase 8C customer cart and checkout API', () => {
           phone: '4490000000',
           email: customerUser.email,
           line1: 'Calle Hacienda 123',
+          line2: 'N/A',
+          neighborhood: 'Centro',
           city: 'Aguascalientes',
           state: 'Aguascalientes',
           postalCode: '20000',
           country: 'MX',
+          references: 'Portón color vino',
           isDefault: true,
         },
         saveAddress: true,
       })
-
-    const snapshot = supabaseMock.tableData.order_shipping_addresses?.[0] as Record<string, unknown>
     expect(created.status).toBe(201)
-    expect(snapshot.order_id).toBe(orderId)
-    expect(snapshot.recipient_name).toBe('Cliente Fase 8C')
-    expect(snapshot.is_default).toBeUndefined()
+    expect(supabaseMock.rpcCalls).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: 'create_customer_shipping_order_from_cart',
+        args: expect.objectContaining({
+          p_idempotency_key: 'fase8c-shipping-order',
+          p_save_address: true,
+          p_shipping_address: expect.objectContaining({
+            recipientName: 'Cliente Fase 8C',
+            references: 'Portón color vino',
+          }),
+        }),
+      }),
+    ]))
   })
 
   it('bloquea customer en órdenes administrativas', async () => {
@@ -2950,6 +2996,28 @@ describe('Fase 8D Stripe customer payments', () => {
 
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('bloquea el pago de una compra física sin domicilio completo', async () => {
+    signInCustomer()
+    supabaseMock.tableData.orders = [{
+      ...(supabaseMock.tableData.orders[0] as Record<string, unknown>),
+      requires_shipping: true,
+      shipping_status: 'pending_preparation',
+    }]
+    supabaseMock.tableData.order_items = [{
+      ...(supabaseMock.tableData.order_items[0] as Record<string, unknown>),
+      item_type: 'wine',
+    }]
+    ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
+
+    const res = await request(app)
+      .post(`/api/customer/orders/${orderId}/payment-session`)
+      .set('Authorization', 'Bearer jwt-customer')
+      .send({})
+
+    expect(res.status).toBe(422)
+    expect(stripeMock.paymentIntentsCreate).not.toHaveBeenCalled()
   })
 
   it('crea PaymentIntent con total backend y devuelve solo client_secret', async () => {

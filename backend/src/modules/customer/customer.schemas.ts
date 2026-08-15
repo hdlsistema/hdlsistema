@@ -55,18 +55,18 @@ export const updateCustomerCartItemSchema = z.object({
 }).strict()
 
 export const customerAddressSchema = z.object({
-  label: z.string().trim().min(1).max(80).default('Casa'),
+  label: z.string().trim().min(1).max(80),
   recipientName: z.string().trim().min(2).max(160),
-  phone: z.string().trim().min(7).max(40).optional(),
-  email: z.string().trim().email().optional(),
+  phone: z.string().trim().min(7).max(40),
+  email: z.string().trim().email(),
   line1: z.string().trim().min(4).max(220),
-  line2: z.string().trim().max(160).optional(),
-  neighborhood: z.string().trim().max(120).optional(),
+  line2: z.string().trim().min(1).max(160),
+  neighborhood: z.string().trim().min(1).max(120),
   city: z.string().trim().min(2).max(120),
   state: z.string().trim().min(2).max(120),
   postalCode: z.string().trim().min(4).max(12),
-  country: z.string().trim().min(2).max(80).default('MX'),
-  references: z.string().trim().max(500).optional(),
+  country: z.string().trim().min(2).max(80),
+  references: z.string().trim().min(1).max(500),
   isDefault: z.boolean().default(false),
 }).strict()
 

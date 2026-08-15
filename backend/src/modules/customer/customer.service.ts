@@ -293,14 +293,6 @@ function addressInsert(customer: CustomerRow, user: UserContext, payload: Custom
   }
 }
 
-function orderShippingInsert(orderId: string, customer: CustomerRow, user: UserContext, payload: CustomerAddressPayload) {
-  const { is_default: _isDefault, ...address } = addressInsert(customer, user, payload)
-  return {
-    order_id: orderId,
-    ...address,
-  }
-}
-
 function cartRequiresShipping(cart: unknown) {
   const data = cart && typeof cart === 'object' ? cart as Record<string, unknown> : {}
   const items = Array.isArray(data.items) ? data.items as Array<Record<string, unknown>> : []
@@ -841,38 +833,19 @@ export async function createCustomerOrder(payload: CreateCustomerOrderPayload, u
   if (needsShipping && !payload.shippingAddress) {
     throw httpError(422, 'Domicilio de envío requerido')
   }
-  const result = await rpcClient(user).rpc('create_customer_order_from_cart', {
-    p_idempotency_key: payload.idempotencyKey,
-    p_discount_code: payload.discountCode ?? null,
-  })
+  const result = needsShipping && payload.shippingAddress
+    ? await rpcClient(user).rpc('create_customer_shipping_order_from_cart', {
+        p_idempotency_key: payload.idempotencyKey,
+        p_shipping_address: payload.shippingAddress,
+        p_discount_code: payload.discountCode ?? null,
+        p_save_address: payload.saveAddress,
+      })
+    : await rpcClient(user).rpc('create_customer_order_from_cart', {
+        p_idempotency_key: payload.idempotencyKey,
+        p_discount_code: payload.discountCode ?? null,
+      })
   if (result.error) normalizeDatabaseError(result.error)
   const orderId = String(result.data)
-  if (needsShipping && payload.shippingAddress) {
-    if (payload.saveAddress) await createCustomerAddress(payload.shippingAddress, user)
-    assertNoError(await supabaseAdminClient
-      .from('order_shipping_addresses')
-      .upsert(orderShippingInsert(orderId, customer, user, payload.shippingAddress), { onConflict: 'order_id' })
-      .select('id')
-      .single())
-    assertNoError(await supabaseAdminClient
-      .from('orders')
-      .update({
-        requires_shipping: true,
-        shipping_status: 'pending_preparation',
-        metadata: {
-          checkoutMode: 'mobile',
-          paymentAvailable: true,
-          paymentStatus: 'pending_payment',
-          fulfillmentMode: 'shipping',
-          shippingPolicy: 'customer_address',
-          discountCode: payload.discountCode ?? null,
-        },
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId)
-      .select('id')
-      .single())
-  }
   const response = await getCustomerOrder(orderId, user)
   queueOrderEmails(response.data, customer, user, payload.language)
   recordCustomerOperation(customer, user, 'checkout_started', 'order', String((response.data as Record<string, unknown>).id ?? result.data), `checkout-started-${String((response.data as Record<string, unknown>).id ?? result.data)}`)

@@ -24,6 +24,12 @@ import {
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { isStripePublishableKeyConfigured, stripePromise } from '../../payments/stripe'
 import { appPath } from '../../utils/appRoutes'
+import {
+  emptyCustomerAddress,
+  invalidCustomerAddressFields,
+  isCustomerAddressComplete,
+  normalizeCustomerAddress,
+} from '../../utils/customerAddress'
 
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
@@ -34,65 +40,8 @@ function translatedStatus(status: string | null | undefined, t: (key: string, fa
   return t(`common.status.${value}`, t('common.status.unknown'))
 }
 
-const emptyAddress: CustomerAddressPayload = {
-  label: '',
-  recipientName: '',
-  phone: '',
-  email: '',
-  line1: '',
-  line2: '',
-  neighborhood: '',
-  city: '',
-  state: '',
-  postalCode: '',
-  country: 'MX',
-  references: '',
-  isDefault: false,
-}
-
 function cartRequiresShipping(cart: CustomerCart | null) {
   return Boolean(cart?.items.some((item) => item.itemType === 'wine'))
-}
-
-function normalizeAddress(address: CustomerAddressPayload): CustomerAddressPayload {
-  return {
-    label: address.label?.trim() || null,
-    recipientName: address.recipientName.trim(),
-    phone: address.phone?.trim() || null,
-    email: address.email?.trim() || null,
-    line1: address.line1.trim(),
-    line2: address.line2?.trim() || null,
-    neighborhood: address.neighborhood?.trim() || null,
-    city: address.city.trim(),
-    state: address.state.trim(),
-    postalCode: address.postalCode.trim(),
-    country: address.country?.trim() || 'MX',
-    references: address.references?.trim() || null,
-    isDefault: Boolean(address.isDefault),
-  }
-}
-
-function addressFromSaved(address: CustomerAddress): CustomerAddressPayload {
-  return normalizeAddress({
-    label: address.label,
-    recipientName: address.recipientName,
-    phone: address.phone,
-    email: address.email,
-    line1: address.line1,
-    line2: address.line2,
-    neighborhood: address.neighborhood,
-    city: address.city,
-    state: address.state,
-    postalCode: address.postalCode,
-    country: address.country,
-    references: address.references,
-    isDefault: address.isDefault,
-  })
-}
-
-function validateAddress(address: CustomerAddressPayload) {
-  const required = ['recipientName', 'line1', 'city', 'state', 'postalCode'] as const
-  return required.filter((key) => !String(address[key] ?? '').trim())
 }
 
 function EmbeddedStripePaymentForm({
@@ -193,7 +142,7 @@ export function CheckoutScreen() {
   const [cart, setCart] = useState<CustomerCart | null>(null)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
   const [selectedAddressId, setSelectedAddressId] = useState('')
-  const [addressForm, setAddressForm] = useState<CustomerAddressPayload>(emptyAddress)
+  const [addressForm, setAddressForm] = useState<CustomerAddressPayload>(() => emptyCustomerAddress())
   const [saveAddress, setSaveAddress] = useState(true)
   const [order, setOrder] = useState<CustomerOrder | null>(null)
   const [paymentSession, setPaymentSession] = useState<CustomerPaymentSession | null>(null)
@@ -235,7 +184,8 @@ export function CheckoutScreen() {
 	        if (!active) return
 	        setCart(cartResponse.data)
 	        setAddresses(addressResponse.data)
-	        const defaultAddress = addressResponse.data.find((item) => item.isDefault) ?? addressResponse.data[0] ?? null
+	        const completeAddresses = addressResponse.data.filter(isCustomerAddressComplete)
+	        const defaultAddress = completeAddresses.find((item) => item.isDefault) ?? completeAddresses[0] ?? null
 	        if (defaultAddress) setSelectedAddressId(defaultAddress.id)
       } catch {
         if (active) setMessage(t('app.premium.checkout.loadError'))
@@ -253,10 +203,10 @@ export function CheckoutScreen() {
     if (!session?.access_token || submitting) return
     const needsShipping = cartRequiresShipping(cart)
     const selectedAddress = addresses.find((item) => item.id === selectedAddressId)
-    const shippingAddress = selectedAddress ? addressFromSaved(selectedAddress) : normalizeAddress(addressForm)
+    const shippingAddress = normalizeCustomerAddress(selectedAddress ?? addressForm)
     if (needsShipping) {
-      const missing = validateAddress(shippingAddress)
-      if (missing.length) {
+      const invalid = invalidCustomerAddressFields(shippingAddress)
+      if (invalid.length) {
         setMessage(t('app.premium.checkout.addressRequired'))
         return
       }
@@ -290,6 +240,9 @@ export function CheckoutScreen() {
 
   const totals = cart?.totals
   const requiresShipping = cartRequiresShipping(cart)
+  const selectedAddress = addresses.find((item) => item.id === selectedAddressId)
+  const currentShippingAddress = normalizeCustomerAddress(selectedAddress ?? addressForm)
+  const addressIsComplete = !requiresShipping || isCustomerAddressComplete(currentShippingAddress)
   const stripeOptions = useMemo(() => paymentSession?.clientSecret
     ? {
         clientSecret: paymentSession.clientSecret,
@@ -428,6 +381,7 @@ export function CheckoutScreen() {
 	                <div>
 	                  <h2 className="text-[15px] font-semibold text-[var(--color-ink)]">{t('app.premium.checkout.deliveryAddress')}</h2>
 	                  <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">{t('app.premium.checkout.deliveryCopy')}</p>
+	                  <p className="mt-1 text-[11px] font-semibold leading-5 text-[var(--color-burgundy)]">{t('app.premium.checkout.allAddressFieldsRequired')}</p>
 	                </div>
 	              </div>
 
@@ -437,7 +391,16 @@ export function CheckoutScreen() {
 	                    <button
 	                      key={address.id}
 	                      type="button"
-	                      onClick={() => setSelectedAddressId(address.id)}
+	                      onClick={() => {
+	                        if (!isCustomerAddressComplete(address)) {
+	                          setSelectedAddressId('')
+	                          setAddressForm(normalizeCustomerAddress(address))
+	                          setMessage(t('app.premium.checkout.addressRequired'))
+	                          return
+	                        }
+	                        setSelectedAddressId(address.id)
+	                        setMessage('')
+	                      }}
 	                      className={`w-full rounded-[1rem] border px-4 py-3 text-left transition ${selectedAddressId === address.id ? 'border-[var(--color-burgundy)] bg-[#fff4f6]' : 'border-[rgba(220,202,181,0.72)] bg-white/76'}`}
 	                    >
 	                      <span className="flex items-center gap-2 text-[13px] font-semibold text-[var(--color-ink)]">
@@ -474,14 +437,21 @@ export function CheckoutScreen() {
 	                      key={key}
 	                      value={String(addressForm[key as keyof CustomerAddressPayload] ?? '')}
 	                      onChange={(event) => setAddressForm((current) => ({ ...current, [key]: event.target.value }))}
-	                      placeholder={placeholder}
+	                      type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
+	                      inputMode={key === 'postalCode' ? 'numeric' : undefined}
+	                      autoComplete={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'postalCode' ? 'postal-code' : undefined}
+	                      required
+	                      aria-required="true"
+	                      placeholder={`${placeholder} *`}
 	                      className="min-h-12 w-full rounded-[0.95rem] border border-[rgba(170,125,67,0.28)] bg-white/88 px-4 text-[13px] text-[var(--color-ink)] outline-none"
 	                    />
 	                  ))}
 	                  <textarea
 	                    value={addressForm.references ?? ''}
 	                    onChange={(event) => setAddressForm((current) => ({ ...current, references: event.target.value }))}
-	                    placeholder={t('app.premium.profile.references')}
+	                    required
+	                    aria-required="true"
+	                    placeholder={`${t('app.premium.profile.references')} *`}
 	                    className="min-h-[96px] w-full rounded-[0.95rem] border border-[rgba(170,125,67,0.28)] bg-white/88 px-4 py-3 text-[13px] text-[var(--color-ink)] outline-none"
 	                  />
 	                  <button
@@ -527,7 +497,7 @@ export function CheckoutScreen() {
             </div>
           </section>
 
-          <PrimaryButton onClick={createOrder} disabled={submitting}>
+          <PrimaryButton onClick={createOrder} disabled={submitting || !addressIsComplete}>
             {submitting ? t('app.premium.checkout.creatingOrder') : t('app.premium.checkout.createOrder')}
           </PrimaryButton>
         </>

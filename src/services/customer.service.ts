@@ -192,36 +192,36 @@ export type CustomerCart = {
 
 export type CustomerAddress = {
   id: string
-  label?: string | null
+  label: string
   recipientName: string
-  phone?: string | null
-  email?: string | null
+  phone: string
+  email: string
   line1: string
-  line2?: string | null
-  neighborhood?: string | null
+  line2: string
+  neighborhood: string
   city: string
   state: string
   postalCode: string
   country: string
-  references?: string | null
+  references: string
   isDefault: boolean
   createdAt: string
   updatedAt: string
 }
 
 export type CustomerAddressPayload = {
-  label?: string | null
+  label: string
   recipientName: string
-  phone?: string | null
-  email?: string | null
+  phone: string
+  email: string
   line1: string
-  line2?: string | null
-  neighborhood?: string | null
+  line2: string
+  neighborhood: string
   city: string
   state: string
   postalCode: string
-  country?: string
-  references?: string | null
+  country: string
+  references: string
   isDefault?: boolean
 }
 
