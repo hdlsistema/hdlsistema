@@ -2758,7 +2758,8 @@ describe('Fase 8E communications API', () => {
   it('aplica la identidad elegante de Hacienda de Letras a todas las plantillas', () => {
     for (const eventType of communicationEventTypes) {
       const template = renderEmailTemplate(eventType, { customerName: 'Patricia' }, 'es-MX')
-      expect(template.html).toContain('hacienda%20de%20letras%20logo1.png')
+      expect(template.html).toContain('https://www.haciendadeletras.com/wp-content/uploads/2021/08/Logo.png')
+      expect(template.html).not.toContain('https://admhaciendadeletras.com')
       expect(template.html).toContain('#5d0d24')
       expect(template.html).toContain('#c49a52')
       expect(template.html).toContain('El vino de Aguascalientes')

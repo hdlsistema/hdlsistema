@@ -14,7 +14,7 @@ type TemplateCopy = {
 }
 
 const brandName = 'Hacienda de Letras'
-const brandLogoUrl = 'https://admhaciendadeletras.com/hacienda%20de%20letras%20logo1.png'
+const brandLogoUrl = 'https://www.haciendadeletras.com/wp-content/uploads/2021/08/Logo.png'
 const publicSiteUrl = 'https://www.haciendadeletras.com/'
 const supportedLocales: CommunicationLocale[] = ['es-MX', 'en-US']
 
