@@ -5,9 +5,12 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerPaymentStatus } from '../../../services/customer.service'
 import { AppToast, PrimaryButton, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import {
+  canRetryPayment,
+  reconcilePaymentMode,
+  type PaymentStatusMode,
+} from '../../payments/paymentRouting'
 import { appPath } from '../../utils/appRoutes'
-
-type PaymentStatusMode = 'processing' | 'success' | 'failed'
 
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
@@ -53,12 +56,14 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
         const response = await customerClient.paymentStatus(session.access_token, orderId)
         if (!active) return
         setStatus(response.data)
-        if (mode === 'processing') {
-          if (response.data.orderStatus === 'paid' || response.data.paymentStatus === 'paid') {
-            navigate(`${appPath('/pago/exitoso')}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
-          } else if (['failed', 'cancelled'].includes(response.data.paymentStatus)) {
-            navigate(`${appPath('/pago/fallido')}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
-          }
+        const reconciledMode = reconcilePaymentMode(mode, response.data)
+        if (reconciledMode !== mode) {
+          const route = reconciledMode === 'success'
+            ? '/pago/exitoso'
+            : reconciledMode === 'failed'
+              ? '/pago/fallido'
+              : '/pago/procesando'
+          navigate(`${appPath(route)}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
         }
       } catch {
         if (active) setMessage(t('app.premium.payment.verifyError'))
@@ -72,15 +77,17 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
     }
   }, [session?.access_token, orderId, mode, navigate, t])
 
-  const icon = mode === 'success'
+  const resolvedMode = reconcilePaymentMode(mode, status)
+  const canRetry = canRetryPayment(status)
+  const icon = resolvedMode === 'success'
     ? <CheckCircle2 size={30} className="text-[var(--color-vineyard)]" />
-    : mode === 'failed'
+    : resolvedMode === 'failed'
       ? <AlertCircle size={30} className="text-[var(--color-alert)]" />
       : <Loader2 size={30} className="animate-spin text-[var(--color-burgundy)]" />
 
   return (
     <div className="app-page space-y-6">
-      <SectionHeading eyebrow={t('app.premium.payment.eyebrow')} title={titleFor(mode, t)} />
+      <SectionHeading eyebrow={t('app.premium.payment.eyebrow')} title={titleFor(resolvedMode, t)} />
 
       <section className="rounded-[1.25rem] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
         <div className="flex items-start gap-3">
@@ -88,7 +95,7 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
             {icon}
           </span>
           <p className="min-w-0 text-[13px] leading-5 text-[var(--color-muted)]">
-            {copyFor(mode, t)}
+            {copyFor(resolvedMode, t)}
           </p>
         </div>
 
@@ -108,13 +115,13 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
         ) : null}
 
         <div className="mt-5 grid gap-3">
-          {status?.canRetry ? (
+          {canRetry ? (
             <Link to={`${appPath('/checkout')}${orderId ? `?orderId=${encodeURIComponent(orderId)}` : ''}`} className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
               <RotateCcw size={16} />
               {t('app.premium.payment.retryPayment')}
             </Link>
           ) : null}
-          <PrimaryButton to={appPath('/perfil')} tone={status?.canRetry ? 'ghost' : 'primary'}>
+          <PrimaryButton to={appPath('/perfil')} tone={canRetry ? 'ghost' : 'primary'}>
             {t('app.premium.payment.viewOrders')}
           </PrimaryButton>
         </div>

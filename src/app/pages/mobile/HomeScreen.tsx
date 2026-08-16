@@ -86,8 +86,8 @@ export function HomeScreen() {
   ]
 
   return (
-    <div className="pb-2">
-      <section className="relative -mt-px min-h-[clamp(330px,64vh,430px)] overflow-hidden bg-[#2D1811]">
+    <div className="ipad-home-screen pb-2">
+      <section className="ipad-home-hero relative -mt-px min-h-[clamp(330px,64vh,430px)] overflow-hidden bg-[#2D1811]">
         <img
           src="/Hacienda-de-Letras hacienda.jpg"
           alt="Hacienda de Letras"
@@ -124,7 +124,7 @@ export function HomeScreen() {
         </div>
       </section>
 
-      <div className="space-y-7 px-[var(--app-pad)]">
+      <div className="ipad-home-content space-y-7 px-[var(--app-pad)]">
         <Link
           to={appPath('/vinos')}
           className="relative z-10 -mt-7 flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-white/80 bg-white/72 p-4 shadow-[0_18px_42px_rgba(58,32,18,0.11),inset_0_1px_0_rgba(255,255,255,.9)] backdrop-blur-xl"
@@ -162,7 +162,7 @@ export function HomeScreen() {
           </div>
 
           {loadingWines ? (
-            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+            <div className="ipad-home-wines app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
               <Skeleton className="h-[210px] w-[156px] shrink-0" />
               <Skeleton className="h-[210px] w-[156px] shrink-0" />
             </div>
@@ -178,7 +178,7 @@ export function HomeScreen() {
               description={t('app.premium.informationSoon')}
             />
           ) : (
-            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+            <div className="ipad-home-wines app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
               {wines.slice(0, 4).map((wine) => (
                 <Link
                   key={wine.id}
@@ -228,7 +228,7 @@ export function HomeScreen() {
           </div>
 
           {loadingExperiences ? (
-            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+            <div className="ipad-home-experiences app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
               <Skeleton className="h-[160px] w-[min(86%,340px)] shrink-0" />
               <Skeleton className="h-[160px] w-[min(86%,340px)] shrink-0" />
             </div>
@@ -244,7 +244,7 @@ export function HomeScreen() {
               description={t('app.premium.informationSoon')}
             />
           ) : (
-            <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
+            <div className="ipad-home-experiences app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
               {experiences.slice(0, 4).map((experience) => (
                 <div key={experience.id} className="w-[min(86%,340px)] shrink-0">
                   <EditorialCard
@@ -276,7 +276,7 @@ export function HomeScreen() {
           />
         ) : null}
 
-        <section className="space-y-3">
+        <section className="ipad-home-modules space-y-3">
           {modules.map((item) => {
             const Icon = item.icon
             return (

@@ -103,7 +103,7 @@ export function WineDetailScreen() {
   ].filter(Boolean) as Array<{ icon: typeof Grape; label: string; value: string }>
 
   return (
-    <div className="pb-2">
+    <div className="ipad-wine-detail pb-2">
       <section className="relative -mt-px flex min-h-[clamp(360px,66vh,480px)] flex-col justify-end overflow-hidden bg-[#24150F] px-[var(--app-pad)] pb-6 text-white">
         {coverImage ? (
           <img src={coverImage} alt={wineName} className="absolute inset-0 h-full w-full object-cover opacity-78" />

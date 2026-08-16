@@ -141,7 +141,7 @@ export function StoreScreen() {
   }
 
   return (
-    <div className="space-y-5 px-[var(--app-pad)] pb-2 pt-3">
+    <div className="ipad-store-screen space-y-5 px-[var(--app-pad)] pb-2 pt-3">
       <section className="space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -210,7 +210,7 @@ export function StoreScreen() {
           description={t('app.premium.contentPreparing')}
         />
       ) : (
-        <section className="grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-x-2.5 gap-y-5">
+        <section className="ipad-wine-grid grid grid-cols-[repeat(auto-fit,minmax(136px,1fr))] gap-x-2.5 gap-y-5">
           {filteredWines.map((wine, index) => {
             const stockControlled = Boolean(wine.stock_control_enabled)
             const soldOut = stockControlled && numberField(wine, 'stock_quantity') <= 0

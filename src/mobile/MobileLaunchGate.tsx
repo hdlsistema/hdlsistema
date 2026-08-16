@@ -4,6 +4,13 @@ import { useAuth } from '../contexts/AuthContext'
 
 const MINIMUM_SPLASH_MS = 1650
 const ONBOARDING_KEY = 'hdl-mobile-onboarding-v3'
+const IOS_ONBOARDING_KEY = 'hdl-mobile-onboarding-ios-v4'
+
+function onboardingKey() {
+  return document.documentElement.dataset.platform === 'ios'
+    ? IOS_ONBOARDING_KEY
+    : ONBOARDING_KEY
+}
 
 const slides = [
   {
@@ -20,7 +27,7 @@ const slides = [
 
 function onboardingComplete() {
   try {
-    return window.localStorage.getItem(ONBOARDING_KEY) === 'complete'
+    return window.localStorage.getItem(onboardingKey()) === 'complete'
   } catch {
     return false
   }
@@ -28,7 +35,7 @@ function onboardingComplete() {
 
 function completeOnboarding() {
   try {
-    window.localStorage.setItem(ONBOARDING_KEY, 'complete')
+    window.localStorage.setItem(onboardingKey(), 'complete')
   } catch {
     // The app can continue when local storage is not available.
   }
@@ -65,6 +72,7 @@ function MobileOnboarding({ onComplete }: { onComplete: () => void }) {
 
   return (
     <main className="mobile-onboarding" style={{ backgroundImage: `url(${slide.image})` }}>
+      <img src={slide.image} alt="" className="mobile-onboarding__media" aria-hidden="true" />
       <div className="mobile-onboarding__veil" aria-hidden="true" />
       <div className="mobile-onboarding__content">
         <img src="/hacienda de letras logo 2.png" alt="Hacienda de Letras" className="mobile-onboarding__logo" />

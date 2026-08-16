@@ -149,7 +149,7 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className={`${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/58 bg-[linear-gradient(155deg,rgba(91,9,34,.95),rgba(61,5,22,.88))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(46,4,17,.28),inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-2xl touch-none`}
+        className={`app-edge-panel-handle ${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/58 bg-[linear-gradient(155deg,rgba(91,9,34,.95),rgba(61,5,22,.88))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(46,4,17,.28),inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-2xl touch-none`}
         style={{ right: handleRight, transition: dragOffset === null ? 'right 260ms cubic-bezier(.2,.8,.2,1)' : 'none' }}
       >
         <PanelRightOpen size={17} strokeWidth={1.4} aria-hidden="true" />

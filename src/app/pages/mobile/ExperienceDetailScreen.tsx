@@ -103,7 +103,7 @@ export function ExperienceDetailScreen() {
   const gallery = galleryImages(experience, 'experience_images', imageField(experience, ''))
 
   return (
-    <div className="app-page space-y-6">
+    <div className="ipad-experience-detail app-page space-y-6">
       <BackButton label={t('app.premium.back')} />
       <HeroEditorial
         eyebrow={t('app.publishedExperience')}

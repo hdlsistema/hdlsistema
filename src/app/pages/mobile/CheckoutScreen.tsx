@@ -22,6 +22,10 @@ import {
   StatusBadge,
 } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import {
+  routeAfterStripeConfirmation,
+  shouldRequestPaymentRetry,
+} from '../../payments/paymentRouting'
 import { isStripePublishableKeyConfigured, stripePromise } from '../../payments/stripe'
 import { appPath } from '../../utils/appRoutes'
 import {
@@ -106,7 +110,8 @@ function EmbeddedStripePaymentForm({
       return
     }
 
-    navigate(`${appPath('/pago/procesando')}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
+    const nextRoute = routeAfterStripeConfirmation(result.paymentIntent.status)
+    navigate(`${appPath(nextRoute)}?orderId=${encodeURIComponent(orderId)}`, { replace: true })
   }
 
   return (
@@ -137,6 +142,7 @@ function EmbeddedStripePaymentForm({
 export function CheckoutScreen() {
   const { t, locale, language } = useAppPreferences()
   const { session } = useAuth()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const requestedOrderId = searchParams.get('orderId') ?? ''
   const [cart, setCart] = useState<CustomerCart | null>(null)
@@ -163,6 +169,11 @@ export function CheckoutScreen() {
           if (!active) return
           setOrder(orderResponse.data)
           setCart(null)
+          if (!shouldRequestPaymentRetry(orderResponse.data)) {
+            setPaymentSession(null)
+            navigate(`${appPath('/pago/exitoso')}?orderId=${encodeURIComponent(requestedOrderId)}`, { replace: true })
+            return
+          }
           try {
             const paymentResponse = await customerClient.retryPayment(session.access_token, requestedOrderId, {
               idempotencyKey: `checkout-retry-${requestedOrderId}-${Date.now()}`,
@@ -197,7 +208,7 @@ export function CheckoutScreen() {
     return () => {
       active = false
     }
-  }, [requestedOrderId, session?.access_token, t])
+  }, [requestedOrderId, session?.access_token, navigate, t])
 
   const createOrder = async () => {
     if (!session?.access_token || submitting) return
