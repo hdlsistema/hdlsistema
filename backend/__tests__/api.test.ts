@@ -2763,7 +2763,19 @@ describe('Fase 8E communications API', () => {
       expect(template.html).toContain('#c49a52')
       expect(template.html).toContain('El vino de Aguascalientes')
       expect(template.html).toContain('Hacienda de Letras')
+      expect(template.subject).not.toContain('Bienvenida')
+      expect(template.html).not.toContain('Bienvenida')
     }
+  })
+
+  it('usa Bienvenido en la comunicación de alta sin asumir el género por los datos del perfil', () => {
+    const template = renderEmailTemplate('customer.welcome', { customerName: 'Alex' }, 'es-MX')
+    expect(template.subject).toBe('Bienvenido a Hacienda de Letras')
+    expect(template.html).toContain('Bienvenido a Hacienda de Letras')
+    expect(template.html).toContain('Bienvenido a una historia')
+    expect(template.html).toContain('href="https://admhaciendadeletras.com/app/login"')
+    expect(template.html).not.toContain('href="https://admhaciendadeletras.com/control')
+    expect(template.html).not.toContain('Bienvenida')
   })
 
   const adminUser = {

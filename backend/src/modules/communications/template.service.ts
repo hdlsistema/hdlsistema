@@ -21,10 +21,10 @@ const supportedLocales: CommunicationLocale[] = ['es-MX', 'en-US']
 const copies: Record<CommunicationLocale, Record<CommunicationEventType, TemplateCopy>> = {
   'es-MX': {
     'customer.welcome': {
-      subject: 'Bienvenida a Hacienda de Letras',
+      subject: 'Bienvenido a Hacienda de Letras',
       preheader: 'Tu historia con Hacienda de Letras comienza aquí.',
-      title: 'Bienvenida a Hacienda de Letras',
-      body: 'Qué alegría recibirte. Tu cuenta ya está lista para descubrir nuestros vinos, reservar experiencias memorables y disfrutar todo lo que hemos preparado para ti. Bienvenida a una historia nacida entre viñedos, hospitalidad y el vino de Aguascalientes.',
+      title: 'Bienvenido a Hacienda de Letras',
+      body: 'Qué alegría recibirte. Tu cuenta ya está lista para descubrir nuestros vinos, reservar experiencias memorables y disfrutar todo lo que hemos preparado para ti. Bienvenido a una historia nacida entre viñedos, hospitalidad y el vino de Aguascalientes.',
       cta: 'Descubrir Hacienda de Letras',
     },
     'reservation.created': {
@@ -107,7 +107,7 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
     'membership.activated': {
       subject: 'Membresía activada',
       preheader: 'Tu membresía Wine Club ya está activa.',
-      title: 'Bienvenida a Wine Club',
+      title: 'Bienvenido a Wine Club',
       body: 'Tu membresía quedó activa con el plan registrado por Hacienda de Letras.',
       cta: 'Ver membresía',
     },
@@ -397,6 +397,9 @@ function safeHttpUrl(value: unknown) {
 }
 
 function ctaUrl(eventType: CommunicationEventType, payload: CommunicationPayload) {
+  if (eventType === 'customer.welcome') {
+    return 'https://admhaciendadeletras.com/app/login'
+  }
   if (eventType === 'order.tracking_assigned' || eventType === 'order.shipped') {
     return safeHttpUrl(payload.trackingUrl) ?? `${customerAppUrl}#orders`
   }

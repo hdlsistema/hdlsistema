@@ -165,7 +165,7 @@ for select to authenticated using (
 
 insert into public.email_templates (template_key, locale, subject, preheader, status)
 values
-  ('customer.welcome', 'es-MX', 'Bienvenida a Hacienda de Letras', 'Tu cuenta ya está lista.', 'active'),
+  ('customer.welcome', 'es-MX', 'Bienvenido a Hacienda de Letras', 'Tu cuenta ya está lista.', 'active'),
   ('reservation.created', 'es-MX', 'Reservación recibida', 'Recibimos tu solicitud de reservación.', 'active'),
   ('reservation.rescheduled', 'es-MX', 'Reservación reprogramada', 'Actualizamos el horario de tu reservación.', 'active'),
   ('reservation.cancelled', 'es-MX', 'Reservación cancelada', 'Tu reservación fue cancelada correctamente.', 'active'),
