@@ -15,7 +15,7 @@ type TemplateCopy = {
 
 const brandName = 'Hacienda de Letras'
 const brandLogoUrl = 'https://admhaciendadeletras.com/hacienda%20de%20letras%20logo1.png'
-const customerAppUrl = 'https://admhaciendadeletras.com/app/perfil'
+const publicSiteUrl = 'https://www.haciendadeletras.com/'
 const supportedLocales: CommunicationLocale[] = ['es-MX', 'en-US']
 
 const copies: Record<CommunicationLocale, Record<CommunicationEventType, TemplateCopy>> = {
@@ -396,19 +396,21 @@ function safeHttpUrl(value: unknown) {
   }
 }
 
+function safeCustomerUrl(value: unknown) {
+  const url = safeHttpUrl(value)
+  if (!url) return null
+  const hostname = new URL(url).hostname.toLowerCase()
+  if (hostname === 'admhaciendadeletras.com' || hostname === 'www.admhaciendadeletras.com') return null
+  return url
+}
+
 function ctaUrl(eventType: CommunicationEventType, payload: CommunicationPayload) {
-  if (eventType === 'customer.welcome') {
-    return 'https://admhaciendadeletras.com/app/login'
-  }
   if (eventType === 'order.tracking_assigned' || eventType === 'order.shipped') {
-    return safeHttpUrl(payload.trackingUrl) ?? `${customerAppUrl}#orders`
+    return safeCustomerUrl(payload.trackingUrl) ?? publicSiteUrl
   }
-  const explicit = safeHttpUrl(payload.ctaUrl)
+  const explicit = safeCustomerUrl(payload.ctaUrl)
   if (explicit) return explicit
-  if (eventType.startsWith('reservation.')) return 'https://admhaciendadeletras.com/app/perfil#reservations'
-  if (eventType.startsWith('order.')) return `${customerAppUrl}#orders`
-  if (eventType.startsWith('membership.')) return 'https://admhaciendadeletras.com/app/membresias'
-  return 'https://admhaciendadeletras.com/app/home'
+  return publicSiteUrl
 }
 
 function copyForPayload(
@@ -475,7 +477,7 @@ export function renderEmailTemplate(
         </td></tr>
         <tr><td style="padding:20px 34px;background:#5b1025;color:#f7e9dc;">
           <p style="margin:0 0 5px;font-family:Georgia,'Times New Roman',serif;font-size:16px;">Hacienda de Letras</p>
-          <p style="margin:0;color:#dfc8bb;font-size:10px;line-height:1.6;">${escapeHtml(automaticCopy)}<br />Aguascalientes, México · admhaciendadeletras.com</p>
+          <p style="margin:0;color:#dfc8bb;font-size:10px;line-height:1.6;">${escapeHtml(automaticCopy)}<br />Aguascalientes, México · <a href="${publicSiteUrl}" style="color:#f7e9dc;text-decoration:underline;">www.haciendadeletras.com</a></p>
         </td></tr>
       </table>
     </td></tr>

@@ -2763,6 +2763,8 @@ describe('Fase 8E communications API', () => {
       expect(template.html).toContain('#c49a52')
       expect(template.html).toContain('El vino de Aguascalientes')
       expect(template.html).toContain('Hacienda de Letras')
+      expect(template.html).toContain('href="https://www.haciendadeletras.com/"')
+      expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com/)
       expect(template.subject).not.toContain('Bienvenida')
       expect(template.html).not.toContain('Bienvenida')
     }
@@ -2773,9 +2775,17 @@ describe('Fase 8E communications API', () => {
     expect(template.subject).toBe('Bienvenido a Hacienda de Letras')
     expect(template.html).toContain('Bienvenido a Hacienda de Letras')
     expect(template.html).toContain('Bienvenido a una historia')
-    expect(template.html).toContain('href="https://admhaciendadeletras.com/app/login"')
-    expect(template.html).not.toContain('href="https://admhaciendadeletras.com/control')
+    expect(template.html).toContain('href="https://www.haciendadeletras.com/"')
+    expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com/)
     expect(template.html).not.toContain('Bienvenida')
+  })
+
+  it('nunca expone el centro de control como destino de un CTA para clientes', () => {
+    const template = renderEmailTemplate('campaign.marketing', {
+      ctaUrl: 'https://admhaciendadeletras.com/control/clientes',
+    }, 'es-MX')
+    expect(template.html).toContain('href="https://www.haciendadeletras.com/"')
+    expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com/)
   })
 
   const adminUser = {
@@ -2928,7 +2938,8 @@ describe('Fase 8E communications API', () => {
     expect(template.html).not.toContain('Reservación')
     expect(template.text).toContain('This is a transactional message related to your activity with Hacienda de Letras.')
     expect(template.html).toContain('Hacienda de Letras')
-    expect(template.html).toContain('admhaciendadeletras.com')
+    expect(template.html).toContain('www.haciendadeletras.com')
+    expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com/)
   })
 
   it('renderiza correo elegante de guía con paquetería, rastreo y CTA externo seguro', () => {
