@@ -22,10 +22,10 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
   'es-MX': {
     'customer.welcome': {
       subject: 'Bienvenida a Hacienda de Letras',
-      preheader: 'Tu cuenta ya está lista.',
-      title: 'Tu cuenta está lista',
-      body: 'Gracias por registrarte. Ya puedes consultar experiencias, reservaciones, Wine Club y órdenes desde la app.',
-      cta: 'Ir a mi cuenta',
+      preheader: 'Tu historia con Hacienda de Letras comienza aquí.',
+      title: 'Bienvenida a Hacienda de Letras',
+      body: 'Qué alegría recibirte. Tu cuenta ya está lista para descubrir nuestros vinos, reservar experiencias memorables y disfrutar todo lo que hemos preparado para ti. Bienvenida a una historia nacida entre viñedos, hospitalidad y el vino de Aguascalientes.',
+      cta: 'Descubrir Hacienda de Letras',
     },
     'reservation.created': {
       subject: 'Reservación recibida',
@@ -136,10 +136,10 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
   'en-US': {
     'customer.welcome': {
       subject: 'Welcome to Hacienda de Letras',
-      preheader: 'Your account is ready.',
-      title: 'Your account is ready',
-      body: 'Thank you for registering. You can now review experiences, reservations, Wine Club and orders from the app.',
-      cta: 'Open my account',
+      preheader: 'Your story with Hacienda de Letras begins here.',
+      title: 'Welcome to Hacienda de Letras',
+      body: 'We are delighted to welcome you. Your account is ready to discover our wines, reserve memorable experiences and enjoy everything we have prepared for you. Welcome to a story shaped by vineyards, hospitality and the wine of Aguascalientes.',
+      cta: 'Discover Hacienda de Letras',
     },
     'reservation.created': {
       subject: 'Reservation received',
@@ -287,7 +287,7 @@ function formatPayloadValue(key: string, value: unknown, locale: CommunicationLo
     return statusLabels[locale][String(value)] ?? String(value).replace(/_/g, ' ')
   }
 
-  if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate', 'estimatedDeliveryAt'].includes(key)) {
+  if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate', 'estimatedDeliveryAt', 'reservationDate', 'checkIn', 'checkOut'].includes(key)) {
     const date = new Date(value)
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined }).format(date)
@@ -312,7 +312,8 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       reservationNumber: 'Reservación',
       orderNumber: 'Orden',
       membershipNumber: 'Membresía',
-      experienceTitle: 'Experiencia',
+      reservationType: 'Tipo de reservación',
+      experienceTitle: 'Servicio',
       planName: 'Plan',
       status: 'Estado',
       peopleCount: 'Personas',
@@ -328,6 +329,10 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       campaignName: 'Campaña',
       ctaLabel: 'Acción',
       startAt: 'Fecha',
+      reservationDate: 'Fecha de reservación',
+      reservationTime: 'Hora',
+      checkIn: 'Llegada',
+      checkOut: 'Salida',
       renewalDate: 'Renovación',
       expiresAt: 'Expira',
       carrier: 'Paquetería',
@@ -340,7 +345,8 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       reservationNumber: 'Reservation',
       orderNumber: 'Order',
       membershipNumber: 'Membership',
-      experienceTitle: 'Experience',
+      reservationType: 'Reservation type',
+      experienceTitle: 'Service',
       planName: 'Plan',
       status: 'Status',
       peopleCount: 'Guests',
@@ -356,6 +362,10 @@ function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) 
       campaignName: 'Campaign',
       ctaLabel: 'Action',
       startAt: 'Date',
+      reservationDate: 'Reservation date',
+      reservationTime: 'Time',
+      checkIn: 'Check-in',
+      checkOut: 'Check-out',
       renewalDate: 'Renewal',
       expiresAt: 'Expires',
       carrier: 'Carrier',

@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express'
 import { supabaseAdminClient } from '../../config/supabase'
+import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
+import { ensureCustomerWelcomeEmail } from '../customer/customer.service'
 import { httpError, sendOperationError } from '../operations/operationErrors'
 import { customerRegistrationSchema, initialPasswordSchema } from './auth.schemas'
 
@@ -71,6 +73,20 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
   }
 
   res.json({ profile: data })
+}
+
+export async function ensureCustomerWelcome(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.authUser
+    if (!user) {
+      res.status(401).json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Sesión requerida' } })
+      return
+    }
+    const result = await ensureCustomerWelcomeEmail({ userId: user.id, accessToken: req.authToken, roles: [] })
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
 }
 
 export async function changeInitialPassword(req: Request, res: Response): Promise<void> {
@@ -145,11 +161,25 @@ export async function registerCustomer(req: Request, res: Response): Promise<voi
       },
     })
 
+    const recipientEmail = data.user.email ?? input.email
+    await enqueueAndProcessTransactionalEmail({
+      eventType: 'customer.welcome',
+      aggregateType: 'profiles',
+      aggregateId: data.user.id,
+      userId: data.user.id,
+      recipientEmail,
+      locale: input.preferredLanguage,
+      payload: {
+        customerName: displayName,
+      },
+      idempotencyKey: `customer.welcome:${data.user.id}`,
+    }).catch(() => undefined)
+
     res.status(201).json({
       ok: true,
       data: {
         userId: data.user.id,
-        email: data.user.email ?? input.email,
+        email: recipientEmail,
         emailConfirmed: true,
       },
     })

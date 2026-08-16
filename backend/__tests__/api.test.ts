@@ -12,6 +12,7 @@ import {
   enqueueTransactionalEmail,
 } from '../src/modules/communications/communications.service'
 import { renderEmailTemplate } from '../src/modules/communications/template.service'
+import { communicationEventTypes } from '../src/modules/communications/communications.schemas'
 import { execSync } from 'child_process'
 import { createHmac } from 'crypto'
 import { resolve } from 'path'
@@ -374,6 +375,21 @@ describe('Fase 3 auth API', () => {
     expect(supabaseMock.tableData.audit_logs).toEqual(expect.arrayContaining([
       expect.objectContaining({ action: 'customer_self_registered', entity_id: supabaseMock.createdAuthUser.id }),
     ]))
+    expect(supabaseMock.tableData.communication_events).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        event_type: 'customer.welcome',
+        aggregate_id: supabaseMock.createdAuthUser.id,
+        idempotency_key: `customer.welcome:${supabaseMock.createdAuthUser.id}`,
+      }),
+    ]))
+    expect(supabaseMock.tableData.email_outbox).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        template_key: 'customer.welcome',
+        recipient_email: 'nuevo.cliente@example.com',
+        locale: 'en-US',
+        provider: 'resend',
+      }),
+    ]))
   })
 
   it('/api/auth/register rechaza atributos administrativos', async () => {
@@ -417,6 +433,47 @@ describe('Fase 3 auth API', () => {
     })
     expect(JSON.stringify(res.body)).not.toContain('valid-token')
     expect(JSON.stringify(res.body)).not.toContain('refresh')
+  })
+
+  it('/api/auth/welcome cubre OAuth y evita duplicar la bienvenida', async () => {
+    supabaseMock.authUser = {
+      id: '00000000-0000-0000-0000-000000000002',
+      email: 'oauth.customer@example.com',
+      created_at: '2026-08-16T00:00:00.000Z',
+      email_confirmed_at: '2026-08-16T00:00:00.000Z',
+      app_metadata: { provider: 'google' },
+    }
+    supabaseMock.tableData.customers = [{
+      id: '00000000-0000-0000-0000-000000000003',
+      user_id: supabaseMock.authUser.id,
+      customer_number: 'HDL-OAUTH',
+      first_name: 'Cliente',
+      last_name: 'Google',
+      email: supabaseMock.authUser.email,
+      status: 'published',
+    }]
+    supabaseMock.tableData.profiles = [{
+      id: supabaseMock.authUser.id,
+      preferred_language: 'es',
+    }]
+
+    const first = await request(app)
+      .post('/api/auth/welcome')
+      .set('Authorization', 'Bearer valid-token')
+    const second = await request(app)
+      .post('/api/auth/welcome')
+      .set('Authorization', 'Bearer valid-token')
+
+    expect(first.status).toBe(200)
+    expect(second.status).toBe(200)
+    expect(supabaseMock.tableData.communication_events).toHaveLength(1)
+    expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
+    expect(supabaseMock.tableData.email_outbox[0]).toMatchObject({
+      template_key: 'customer.welcome',
+      recipient_email: 'oauth.customer@example.com',
+      locale: 'es-MX',
+      provider: 'resend',
+    })
   })
 
   it('/api/admin/users requiere autenticación', async () => {
@@ -2698,6 +2755,17 @@ describe('CORS', () => {
 
 // ─── Fase 8E. Comunicaciones transaccionales ────────────────────────────────
 describe('Fase 8E communications API', () => {
+  it('aplica la identidad elegante de Hacienda de Letras a todas las plantillas', () => {
+    for (const eventType of communicationEventTypes) {
+      const template = renderEmailTemplate(eventType, { customerName: 'Patricia' }, 'es-MX')
+      expect(template.html).toContain('hacienda%20de%20letras%20logo1.png')
+      expect(template.html).toContain('#5d0d24')
+      expect(template.html).toContain('#c49a52')
+      expect(template.html).toContain('El vino de Aguascalientes')
+      expect(template.html).toContain('Hacienda de Letras')
+    }
+  })
+
   const adminUser = {
     id: '99999999-9999-4999-8999-999999999901',
     email: 'admin@alqia.tech',

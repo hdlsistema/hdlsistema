@@ -11,6 +11,7 @@ export const communicationEventTypes = [
   'order.created',
   'order.pending_payment',
   'order.paid',
+  'order.tracking_assigned',
   'order.shipped',
   'membership.activated',
   'membership.renewed',

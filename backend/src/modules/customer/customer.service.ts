@@ -428,10 +428,41 @@ async function getCustomerForUser(user: UserContext) {
   return customer
 }
 
+export async function ensureCustomerWelcomeEmail(user: UserContext) {
+  if (!user.userId) throw httpError(401, 'Sesión requerida')
+  const customer = await getCustomerForUser(user)
+  const profileResult = await supabaseAdminClient
+    .from('profiles')
+    .select('preferred_language')
+    .eq('id', user.userId)
+    .maybeSingle()
+  const profile = assertNoError<{ preferred_language?: string | null } | null>(profileResult).data
+  const result = await enqueueAndProcessTransactionalEmail({
+    eventType: 'customer.welcome',
+    aggregateType: 'profiles',
+    aggregateId: user.userId,
+    customerId: customer.id,
+    userId: user.userId,
+    recipientEmail: customer.email,
+    locale: profile?.preferred_language,
+    payload: {
+      customerName: customerDisplayName(customer),
+    },
+    idempotencyKey: `customer.welcome:${user.userId}`,
+  })
+  return {
+    data: {
+      handled: true,
+      status: result.outbox.status,
+    },
+  }
+}
+
 export async function getCustomerMe(user: UserContext) {
   assertCustomerAccess(user)
   const result = await rpcClient(user).rpc('get_customer_profile')
   if (result.error) normalizeDatabaseError(result.error)
+  await ensureCustomerWelcomeEmail(user).catch(() => undefined)
   return { data: result.data }
 }
 
