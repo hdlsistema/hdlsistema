@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import {
   getCurrentProfile,
   getCurrentRoles,
+  ensureCustomerWelcome,
   completeInitialPasswordChange as completeInitialPasswordChangeService,
   signIn as signInService,
   signOut as signOutService,
@@ -71,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [nextProfile, nextRoles] = await Promise.all([
       getCurrentProfile(nextSession.user.id),
       getCurrentRoles(nextSession.user.id),
+      ensureCustomerWelcome(nextSession.access_token).catch(() => undefined),
     ])
 
     if (mounted.current) {

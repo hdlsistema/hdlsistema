@@ -254,6 +254,15 @@ export async function refreshSession() {
   return data.session
 }
 
+export async function ensureCustomerWelcome(accessToken: string) {
+  await apiFetch('/api/auth/welcome', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+}
+
 export async function getCurrentProfile(userId: string) {
   const { data, error } = await supabase
     .from('profiles')
