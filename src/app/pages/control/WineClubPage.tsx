@@ -175,7 +175,7 @@ export function WineClubPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="control-page control-page--wineclub min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle eyebrow="Wine Club" title="Wine Club" subtitle="Membresías, beneficios, puntos e historial operativo." />
         <div className="flex flex-wrap gap-3">

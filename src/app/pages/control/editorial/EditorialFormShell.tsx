@@ -441,7 +441,7 @@ export function EditorialFormShell({
             <h3 className="text-base font-semibold text-[var(--color-ink)]">{section.title}</h3>
             <p className="mt-1 text-[13px] text-[var(--color-muted)]">{section.description}</p>
           </summary>
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <div className="control-editorial-fields mt-3 grid gap-4 md:grid-cols-2">
             {section.fields.map((field) => (
                 <FormField
                   key={field.key}

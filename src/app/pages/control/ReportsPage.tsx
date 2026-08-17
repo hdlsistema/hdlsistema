@@ -62,7 +62,7 @@ export function ReportsPage() {
     } catch (downloadError) { setError(downloadError instanceof Error ? downloadError.message : 'No fue posible exportar.') }
   }
 
-  return <div className="min-w-0 space-y-6">
+  return <div className="control-page control-page--reports min-w-0 space-y-6">
     <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between"><SectionTitle eyebrow="Dirección" title="Reportes operativos" subtitle="Ventas, cobros, reservaciones, hospedaje e inventario con datos vivos del centro de control." /><button type="button" onClick={load} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-4 text-xs font-semibold text-[var(--color-burgundy)]"><RefreshCw size={15} />Actualizar</button></div>
     <section className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]"><div className="flex flex-wrap items-end gap-3"><CrystalDateField value={from} onChange={setFrom} label="Desde" /><CrystalDateField value={to} onChange={setTo} label="Hasta" /><p className="pb-2 text-xs text-[var(--color-muted)]">Periodo aplicado a ventas, pagos y reservaciones. Inventario y ocupación muestran estado actual.</p></div></section>
     {error ? <p className="rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</p> : null}

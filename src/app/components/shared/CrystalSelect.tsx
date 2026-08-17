@@ -9,7 +9,9 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
+import { useFloatingControlMenu } from './useFloatingControlMenu'
 
 type CrystalSelectOption = {
   value: string
@@ -46,8 +48,11 @@ export function CrystalSelect({
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const listboxId = useId()
+  const floatingMenu = useFloatingControlMenu(triggerRef, open)
 
   const childOptions = useMemo(() => {
     return Children.toArray(children).flatMap((child) => {
@@ -69,7 +74,8 @@ export function CrystalSelect({
     const handlePointerDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(event.target as Node) &&
+        !menuRef.current?.contains(event.target as Node)
       ) {
         setOpen(false)
       }
@@ -145,6 +151,7 @@ export function CrystalSelect({
       className={joinClasses('relative min-w-0', className)}
     >
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
@@ -171,14 +178,24 @@ export function CrystalSelect({
         />
       </button>
 
-      {open ? (
+      {open ? createPortal(
         <div
+          ref={menuRef}
+          data-control-floating-menu
+          data-placement={floatingMenu.placement}
+          style={floatingMenu.style}
           className={joinClasses(
-            'absolute left-0 right-0 top-[calc(100%+0.45rem)] z-50 overflow-hidden rounded-[1rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.96),rgba(247,239,229,0.96))] p-2 shadow-[0_24px_48px_rgba(58,23,18,0.16)] backdrop-blur-2xl',
+            'overflow-hidden rounded-[1rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.98),rgba(247,239,229,0.98))] p-2 shadow-[0_24px_48px_rgba(58,23,18,0.2)] backdrop-blur-2xl',
             menuClassName,
           )}
         >
-          <div id={listboxId} role="listbox" aria-label={ariaLabel ?? selected?.label ?? 'Opciones'} className="max-h-72 overflow-y-auto pr-1">
+          <div
+            id={listboxId}
+            role="listbox"
+            aria-label={ariaLabel ?? selected?.label ?? 'Opciones'}
+            className="overflow-y-auto overscroll-contain pr-1"
+            style={{ maxHeight: floatingMenu.contentMaxHeight }}
+          >
             {options.map((option, index) => {
               const active = option.value === value
 
@@ -213,7 +230,7 @@ export function CrystalSelect({
             })}
           </div>
         </div>
-      ) : null}
+      , document.body) : null}
     </div>
   )
 }

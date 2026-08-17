@@ -321,7 +321,7 @@ export function AvailabilityPage() {
 
   if (availabilityMode === 'hospedaje') {
     return (
-      <div className="min-w-0 space-y-5">
+      <div className="control-page control-page--availability min-w-0 space-y-5">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
           title={isEnglish ? 'Availability' : 'Disponibilidad'}
@@ -335,7 +335,7 @@ export function AvailabilityPage() {
 
   if (availabilityMode === 'restaurantes') {
     return (
-      <div className="min-w-0 space-y-5">
+      <div className="control-page control-page--availability min-w-0 space-y-5">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
           title={isEnglish ? 'Availability' : 'Disponibilidad'}
@@ -348,7 +348,7 @@ export function AvailabilityPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="control-page control-page--availability min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
@@ -653,10 +653,10 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+    <div className="control-form-overlay fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 cursor-default" />
-      <div className="relative z-10 max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]">
-        <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="control-form-surface relative z-10 max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label={title}>
+        <div className="control-form-header mb-6 flex items-center justify-between gap-4">
           <h2 className="text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{title}</h2>
           <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
         </div>

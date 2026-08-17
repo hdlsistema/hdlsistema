@@ -13,7 +13,8 @@ const MOBILE_API_FALLBACK: string = import.meta.env.VITE_HDL_APP_TARGET === 'mob
   : ''
 
 /** URL base del servicio sin slash final. */
-export const API_BASE: string = (RAW_BASE || MOBILE_API_FALLBACK).replace(/\/+$/, '')
+const RESOLVED_API_BASE = (RAW_BASE || MOBILE_API_FALLBACK).replace(/\/+$/, '')
+export const API_BASE: string = import.meta.env.MODE === 'development' ? '' : RESOLVED_API_BASE
 
 const DEFAULT_TIMEOUT_MS = 10_000
 

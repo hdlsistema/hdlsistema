@@ -876,9 +876,9 @@ export function CustomersPage() {
       </div>
 
       {form ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-          <form onSubmit={submitCustomer} className="grid max-h-[92vh] w-full max-w-3xl gap-4 overflow-auto rounded-lg bg-white p-5 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
+        <div className="control-form-overlay fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+          <form onSubmit={submitCustomer} className="control-form-surface grid max-h-[92vh] w-full max-w-4xl gap-4 overflow-auto rounded-lg bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-label={form.id ? 'Editar cliente' : 'Nuevo cliente'}>
+            <div className="control-form-header flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-[var(--color-ink)]">{form.id ? 'Editar cliente' : 'Nuevo cliente'}</h2>
                 <p className="text-sm text-[var(--color-muted)]">Registro administrativo del cliente; el acceso se gestiona por separado.</p>
@@ -951,9 +951,9 @@ export function CustomersPage() {
         </div>
       ) : null}
       {tagEdit ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
-          <form onSubmit={submitTagEdit} className="grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-xl">
-            <div className="flex items-start justify-between gap-3">
+        <div className="control-form-overlay fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+          <form onSubmit={submitTagEdit} className="control-form-surface control-form-surface--compact grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-label="Editar etiqueta">
+            <div className="control-form-header flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold text-[var(--color-ink)]">Editar etiqueta</h2>
                 <p className="text-sm text-[var(--color-muted)]">Actualiza el nombre visible para segmentación comercial.</p>

@@ -1,5 +1,7 @@
 import { Check, ChevronDown, Plus, Search, X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useFloatingControlMenu } from '../shared/useFloatingControlMenu'
 
 export type ControlEntityOption = {
   id: string
@@ -39,6 +41,10 @@ export function ControlEntityPicker({
 }: ControlEntityPickerProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const anchorRef = useRef<HTMLSpanElement | null>(null)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+  const floatingMenu = useFloatingControlMenu(anchorRef, open)
   const selected = options.find((option) => option.id === value) ?? null
   const visible = useMemo(() => {
     const term = normalized(query.trim())
@@ -54,12 +60,31 @@ export function ControlEntityPicker({
     setOpen(false)
   }
 
+  useEffect(() => {
+    if (!open) return
+    const closeOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (!containerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
+        setOpen(false)
+      }
+    }
+    const closeWithEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('mousedown', closeOutside)
+    window.addEventListener('keydown', closeWithEscape)
+    return () => {
+      window.removeEventListener('mousedown', closeOutside)
+      window.removeEventListener('keydown', closeWithEscape)
+    }
+  }, [open])
+
   return (
-    <label className="relative block">
+    <div ref={containerRef} className="relative block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
         {label}{required ? ' *' : ''}
       </span>
-      <span className="flex min-h-11 items-center rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-3 focus-within:border-[var(--color-burgundy)]">
+      <span ref={anchorRef} className="flex min-h-11 items-center rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-3 focus-within:border-[var(--color-line-strong)] focus-within:ring-[3px] focus-within:ring-[rgba(170,125,67,0.12)]">
         <Search size={15} className="shrink-0 text-[var(--color-muted)]" />
         <input
           value={open ? query : selected?.label ?? ''}
@@ -92,8 +117,14 @@ export function ControlEntityPicker({
         ) : <ChevronDown size={15} className="text-[var(--color-muted)]" />}
       </span>
 
-      {open && !disabled ? (
-        <span className="absolute z-[170] mt-2 block max-h-72 w-full overflow-y-auto rounded-xl border border-[var(--color-line)] bg-white p-1 shadow-[0_22px_50px_rgba(45,22,14,0.2)]">
+      {open && !disabled ? createPortal(
+        <div
+          ref={menuRef}
+          data-control-floating-menu
+          data-placement={floatingMenu.placement}
+          style={{ ...floatingMenu.style, overflowY: 'auto' }}
+          className="overscroll-contain rounded-xl border border-[var(--color-line)] bg-[rgba(255,252,247,0.99)] p-1 shadow-[0_22px_50px_rgba(45,22,14,0.22)] backdrop-blur-xl"
+        >
           {visible.map((option) => (
             <button
               key={option.id}
@@ -123,8 +154,9 @@ export function ControlEntityPicker({
               <Plus size={14} /> {actionLabel ?? 'Crear nuevo'}
             </button>
           ) : null}
-        </span>
+        </div>,
+        document.body,
       ) : null}
-    </label>
+    </div>
   )
 }

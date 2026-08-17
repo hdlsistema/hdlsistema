@@ -61,10 +61,10 @@ export function QuickCustomerDialog({ open, token, onClose, onCreated }: QuickCu
   const inputClass = 'min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-burgundy)]'
 
   return (
-    <div className="fixed inset-0 z-[190] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+    <div className="control-form-overlay fixed inset-0 z-[190] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 cursor-default" />
-      <form onSubmit={submit} className="relative z-10 w-full max-w-xl rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-page)] p-5 shadow-[0_35px_90px_rgba(29,5,12,0.38)]">
-        <div className="mb-5 flex items-start justify-between gap-4">
+      <form onSubmit={submit} className="control-form-surface control-form-surface--compact relative z-10 w-full max-w-xl rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-page)] p-5 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Crear cliente">
+        <div className="control-form-header mb-5 flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">CRM inmediato</p>
             <h2 className="mt-1 text-xl font-semibold text-[var(--color-burgundy)]">Crear cliente</h2>

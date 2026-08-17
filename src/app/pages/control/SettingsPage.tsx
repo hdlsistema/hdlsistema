@@ -147,7 +147,7 @@ export function SettingsPage() {
 
   return (
     <div
-      className="space-y-6 pb-8"
+      className="control-page control-page--settings space-y-6 pb-8"
       style={{ fontFamily: 'var(--font-body)' }}
     >
       <SectionTitle

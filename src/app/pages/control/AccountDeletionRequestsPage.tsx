@@ -154,7 +154,7 @@ export function AccountDeletionRequestsPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-6 pb-8">
+    <div className="control-page control-page--account-deletion min-w-0 space-y-6 pb-8">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle eyebrow="Privacidad operativa" title="Eliminación de cuentas" subtitle="Cola real de solicitudes recibidas desde la web pública y la app. Validación, seguimiento, conservación limitada y cierre con trazabilidad." />
         <button type="button" onClick={() => void load()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-4 text-xs font-semibold text-[var(--color-burgundy)]"><RefreshCw size={15} />Actualizar</button>

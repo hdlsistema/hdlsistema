@@ -248,8 +248,8 @@ export function EventTicketTypesPanel({
           <Field label="Precio MXN" type="number" value={draft.price} onChange={(price) => setDraft({ ...draft, price })} required />
           <Field label="Capacidad" type="number" value={draft.capacity} onChange={(capacity) => setDraft({ ...draft, capacity })} required />
           <Field label="Orden" type="number" value={draft.sortOrder} onChange={(sortOrder) => setDraft({ ...draft, sortOrder })} />
-          <label><span className={labelClass}>Inicio de venta</span><CrystalDateTimeField value={draft.salesStartAt} onChange={(salesStartAt) => setDraft({ ...draft, salesStartAt })} /></label>
-          <label><span className={labelClass}>Cierre de venta</span><CrystalDateTimeField value={draft.salesEndAt} onChange={(salesEndAt) => setDraft({ ...draft, salesEndAt })} /></label>
+          <label className="min-w-0"><span className={labelClass}>Inicio de venta</span><CrystalDateTimeField value={draft.salesStartAt} onChange={(salesStartAt) => setDraft({ ...draft, salesStartAt })} /></label>
+          <label className="min-w-0"><span className={labelClass}>Cierre de venta</span><CrystalDateTimeField value={draft.salesEndAt} onChange={(salesEndAt) => setDraft({ ...draft, salesEndAt })} /></label>
           <label><span className={labelClass}>Estado</span><CrystalSelect value={draft.status} onChange={(status) => setDraft({ ...draft, status: status as TicketDraft['status'] })}><option value="draft">Borrador</option><option value="published">Publicado</option><option value="inactive">Inactivo</option><option value="archived">Archivado</option></CrystalSelect></label>
           <label><span className={labelClass}>Venta</span><CrystalSelect value={draft.active} onChange={(active) => setDraft({ ...draft, active })}><option value="true">Activa</option><option value="false">Inactiva</option></CrystalSelect></label>
           <label><span className={labelClass}>Visible en app</span><CrystalSelect value={draft.visibleInApp} onChange={(visibleInApp) => setDraft({ ...draft, visibleInApp })}><option value="true">Sí</option><option value="false">No</option></CrystalSelect></label>

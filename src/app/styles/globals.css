@@ -2675,7 +2675,10 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-assistant-voice > strong::before { width: 0.48rem; height: 0.48rem; border-radius: 50%; background: #dcb26d; content: ''; }
 .control-assistant-voice > strong.is-listening::before,
 .control-assistant-voice > strong.is-speaking::before { animation: control-assistant-pulse 1.4s infinite; background: #a9d8b0; }
-.control-assistant-voice button { min-height: 2.35rem; padding: 0.55rem 0.7rem; border-radius: 0.65rem; background: #fff3df; color: #5f1024; font-size: 0.58rem; font-weight: 700; }
+.control-assistant-voice button { display: inline-flex; min-height: 2.65rem; align-items: center; justify-content: center; gap: 0.55rem; padding: 0.6rem 0.75rem; border-radius: 0.65rem; background: #fff3df; color: #5f1024; font-size: 0.64rem; font-weight: 700; }
+.control-assistant-voice button.is-microphone { border: 1px solid rgba(236, 202, 147, 0.7); box-shadow: 0 10px 24px rgba(18, 3, 8, 0.18); }
+.control-assistant-voice button.is-microphone svg { flex: 0 0 auto; color: #681127; }
+.control-assistant-voice button.is-microphone.is-active { background: #e7c28a; }
 .control-assistant-voice button.is-secondary { border: 1px solid rgba(255, 247, 234, 0.28); background: transparent; color: #fff8ed; }
 @keyframes control-assistant-pulse { 50% { box-shadow: 0 0 0 6px rgba(169, 216, 176, 0.1); } }
 
@@ -2696,7 +2699,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-assistant-dialog form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.55rem; padding-top: 0.75rem; border-top: 1px solid rgba(182, 143, 91, 0.25); }
 .control-assistant-dialog textarea { width: 100%; min-height: 3.4rem; resize: none; border: 1px solid rgba(137, 91, 61, 0.3); border-radius: 0.8rem; background: #fff; padding: 0.7rem; color: #321c20; font-size: 0.62rem; outline: 0; }
 .control-assistant-dialog textarea:focus { border-color: #b48745; box-shadow: 0 0 0 3px rgba(180, 135, 69, 0.12); }
-.control-assistant-dialog form button { align-self: stretch; min-width: 5.5rem; border-radius: 0.8rem; background: #681127; color: #fff8ed; font-size: 0.61rem; font-weight: 700; }
+.control-assistant-dialog form button { display: inline-flex; align-self: stretch; min-width: 5.5rem; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 0.8rem; background: #681127; color: #fff8ed; font-size: 0.61rem; font-weight: 700; }
 .control-assistant-dialog form button:disabled { cursor: not-allowed; opacity: 0.45; }
 
 @media (max-width: 767px) {
@@ -2854,6 +2857,19 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
 .control-editorial-section {
   align-self: start;
+  min-width: 0;
+}
+
+.control-editorial-fields,
+.control-editorial-fields > label,
+.control-date-time-field,
+.control-date-time-field > * {
+  min-width: 0;
+  width: 100%;
+}
+
+.control-editorial-fields > label {
+  display: block;
 }
 
 .control-editorial-section summary {
@@ -3161,5 +3177,239 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
   .control-dashboard-panel--performance .control-performance-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Centro de Control: surfaces, forms and responsive overlays */
+.control-page:not(.control-page--dashboard) {
+  position: relative;
+}
+
+.control-page:not(.control-page--dashboard)::before {
+  position: absolute;
+  z-index: -1;
+  top: -1.4rem;
+  right: -0.8rem;
+  width: min(26rem, 46vw);
+  height: 15rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(198, 154, 92, 0.1), rgba(198, 154, 92, 0) 68%);
+  content: '';
+  pointer-events: none;
+}
+
+.control-page-title {
+  position: relative;
+  gap: 0.38rem;
+  padding-left: 0.9rem;
+}
+
+.control-page-title::before {
+  position: absolute;
+  top: 0.18rem;
+  bottom: 0.12rem;
+  left: 0;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #d6b06f, rgba(108, 16, 42, 0.42));
+  content: '';
+}
+
+.control-page-title > p:first-child {
+  color: #9a6a2f;
+}
+
+.control-page:not(.control-page--dashboard) > section[class*='rounded'],
+.control-page:not(.control-page--dashboard) > div[class*='rounded'][class*='border'],
+.control-page:not(.control-page--dashboard) > section > article[class*='rounded'],
+.control-page:not(.control-page--dashboard) > section > div[class*='rounded'] {
+  border-color: rgba(199, 163, 119, 0.43);
+  background-color: rgba(255, 251, 246, 0.82);
+  box-shadow: 0 15px 38px rgba(74, 38, 23, 0.075);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+
+.control-page:not(.control-page--dashboard) table thead {
+  background: linear-gradient(90deg, rgba(108, 16, 42, 0.07), rgba(198, 154, 92, 0.09));
+}
+
+.control-page:not(.control-page--dashboard) table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.control-page:not(.control-page--dashboard) table tbody tr:hover {
+  background: rgba(198, 154, 92, 0.055);
+}
+
+.control-page :is(input, textarea):focus,
+.control-form-surface :is(input, textarea):focus {
+  border-color: rgba(181, 135, 73, 0.72) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(181, 135, 73, 0.13) !important;
+}
+
+.control-page .control-select:focus-visible,
+.control-form-surface .control-select:focus-visible {
+  border-color: rgba(181, 135, 73, 0.72) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(181, 135, 73, 0.13) !important;
+}
+
+[data-control-floating-menu] {
+  isolation: isolate;
+  scrollbar-color: rgba(108, 16, 42, 0.34) transparent;
+  scrollbar-width: thin;
+}
+
+[data-control-floating-menu]::-webkit-scrollbar,
+[data-control-floating-menu] *::-webkit-scrollbar {
+  width: 6px;
+}
+
+[data-control-floating-menu]::-webkit-scrollbar-thumb,
+[data-control-floating-menu] *::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(108, 16, 42, 0.3);
+}
+
+.control-form-overlay {
+  overflow-y: auto;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overscroll-behavior: contain;
+}
+
+.control-form-surface {
+  position: relative;
+  width: min(64rem, 100%) !important;
+  max-width: min(64rem, calc(100vw - 2rem)) !important;
+  max-height: calc(100dvh - 2rem) !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-color: rgba(210, 177, 137, 0.68) !important;
+  border-radius: 1.45rem !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(207, 166, 104, 0.12), transparent 26rem),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.985), rgba(249, 242, 232, 0.985)) !important;
+  box-shadow: 0 32px 100px rgba(41, 8, 17, 0.34) !important;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+
+.control-form-surface::before {
+  position: absolute;
+  top: 0;
+  right: 1.4rem;
+  left: 1.4rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6c102a, #d4ae6e 70%, rgba(212, 174, 110, 0));
+  content: '';
+}
+
+.control-form-surface--compact {
+  width: min(36rem, 100%) !important;
+  max-width: min(36rem, calc(100vw - 2rem)) !important;
+}
+
+.control-form-header {
+  position: relative;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(200, 164, 121, 0.32);
+}
+
+.control-form-surface :is(input, textarea) {
+  background-color: rgba(255, 253, 249, 0.92);
+}
+
+.control-page--carts aside.fixed,
+.control-side-drawer {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(204, 163, 101, 0.12), transparent 22rem),
+    rgba(255, 251, 246, 0.985) !important;
+  box-shadow: -24px 0 70px rgba(51, 16, 20, 0.22) !important;
+}
+
+.control-page--checkin [aria-labelledby='checkin-scanner-title'] {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+}
+
+@media (max-width: 767px) {
+  .control-form-overlay {
+    align-items: flex-end !important;
+    justify-content: center;
+    padding: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .control-form-surface,
+  .control-form-surface--compact {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)) - max(1rem, env(safe-area-inset-bottom))) !important;
+    padding: 1rem !important;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+    border-radius: 1.25rem !important;
+  }
+
+  .control-form-header {
+    align-items: flex-start;
+    gap: 0.7rem;
+    margin-bottom: 1rem !important;
+    padding-bottom: 0.8rem;
+  }
+
+  .control-form-header h2 {
+    font-size: 1.35rem;
+  }
+
+  .control-form-surface form,
+  .control-form-grid {
+    min-width: 0;
+  }
+
+  [data-control-floating-menu] {
+    max-width: calc(100vw - 1rem) !important;
+  }
+
+  .control-page--carts aside.fixed,
+  .control-side-drawer {
+    top: var(--control-topbar-height) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    border-left: 0;
+    border-top: 1px solid var(--color-line);
+  }
+
+  .control-page--checkin [aria-labelledby='checkin-scanner-title'] {
+    max-height: calc(100dvh - 1rem);
+    border-radius: 1.2rem;
+  }
+
+  .control-page:not(.control-page--dashboard) > section[class*='rounded'],
+  .control-page:not(.control-page--dashboard) > div[class*='rounded'][class*='border'] {
+    border-radius: 1rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .control-page-title {
+    padding-left: 0.7rem;
+  }
+
+  .control-main .control-page-title h1 {
+    font-size: 1.75rem;
+  }
+
+  .control-form-surface > :is(form, section, article),
+  .control-main .control-form-surface {
+    max-height: none;
+  }
+
+  .control-form-surface :is(footer, [class*='justify-end']) {
+    flex-wrap: wrap;
   }
 }

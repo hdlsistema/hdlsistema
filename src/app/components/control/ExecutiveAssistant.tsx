@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Mic, MicOff, Send, Volume2, VolumeX } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { executiveAssistantClient, type ExecutiveAssistantMessage } from '../../../services/executiveAssistant.service'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -9,6 +10,25 @@ const executiveUserIds = new Set([
 ])
 
 type VoiceState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'error'
+
+type BrowserSpeechResult = {
+  isFinal: boolean
+  0: { transcript: string }
+}
+
+type BrowserSpeechRecognition = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  onstart: (() => void) | null
+  onresult: ((event: { resultIndex: number; results: ArrayLike<BrowserSpeechResult> }) => void) | null
+  onerror: ((event: { error?: string }) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  abort: () => void
+}
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
 
 export function ExecutiveAssistant() {
   const { session } = useAuth()
@@ -24,11 +44,22 @@ export function ExecutiveAssistant() {
   const streamRef = useRef<MediaStream | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const assistantDraftRef = useRef('')
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
+  const voiceActiveRef = useRef(false)
+  const browserVoiceRef = useRef(false)
+  const voiceAwaitingRef = useRef(false)
+  const mutedRef = useRef(false)
 
   const userId = session?.user?.id
   const enabled = Boolean(userId && executiveUserIds.has(userId))
 
   function stopVoice() {
+    voiceActiveRef.current = false
+    browserVoiceRef.current = false
+    voiceAwaitingRef.current = false
+    recognitionRef.current?.abort()
+    recognitionRef.current = null
+    window.speechSynthesis?.cancel()
     streamRef.current?.getTracks().forEach((track) => track.stop())
     peerRef.current?.close()
     streamRef.current = null
@@ -38,7 +69,9 @@ export function ExecutiveAssistant() {
 
   useEffect(() => stopVoice, [])
   useEffect(() => {
+    mutedRef.current = muted
     if (audioRef.current) audioRef.current.muted = muted
+    if (muted) window.speechSynthesis?.cancel()
   }, [muted])
 
   if (!enabled) return null
@@ -50,7 +83,7 @@ export function ExecutiveAssistant() {
     prompts: ['What needs my attention today?', 'Give me the commercial summary', 'Where are the operational risks?'],
     voice: 'Voice conversation', startVoice: 'Start voice', stopVoice: 'Stop', mute: 'Mute response', unmute: 'Hear response',
     states: { idle: 'Ready', connecting: 'Connecting', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking', error: 'Unavailable' },
-    failure: 'The assistant could not respond. Try again in a moment.', voiceFailure: 'Voice could not be started. Check microphone permission and try again.',
+    failure: 'The assistant could not consult the operation. Try again in a moment.', accessFailure: 'Your session cannot consult the assistant right now. Sign in again and retry.', voiceFailure: 'Voice could not be started. Check microphone permission and try again.',
   } : {
     eyebrow: 'LECTURA EJECUTIVA PRIVADA', title: 'Mi asistente', intro: 'Una lectura directa de la operación de la Hacienda, actualizada desde el Centro de Control.',
     privacy: 'Sólo consulta. Usa indicadores agregados y nunca modifica registros.', open: 'Abrir conversación', close: 'Cerrar',
@@ -58,10 +91,10 @@ export function ExecutiveAssistant() {
     prompts: ['¿Qué requiere mi atención hoy?', 'Dame el resumen comercial', '¿Dónde están los riesgos operativos?'],
     voice: 'Conversación por voz', startVoice: 'Iniciar conversación', stopVoice: 'Detener', mute: 'Silenciar respuesta', unmute: 'Escuchar respuesta',
     states: { idle: 'Lista', connecting: 'Conectando', listening: 'Escuchando', thinking: 'Analizando', speaking: 'Respondiendo', error: 'No disponible' },
-    failure: 'La asistente no pudo responder. Intenta nuevamente en un momento.', voiceFailure: 'No fue posible iniciar la voz. Revisa el permiso del micrófono e intenta otra vez.',
+    failure: 'La asistente no pudo consultar la operación. Intenta nuevamente en un momento.', accessFailure: 'Tu sesión no puede consultar la asistente en este momento. Vuelve a iniciar sesión e intenta otra vez.', voiceFailure: 'No fue posible iniciar la voz. Revisa el permiso del micrófono e intenta otra vez.',
   }
 
-  async function sendText(text = message) {
+  async function sendText(text = message, voiceReply = false) {
     const clean = text.trim()
     if (!clean || sending) return
     const history = messages.slice(-8)
@@ -72,11 +105,111 @@ export function ExecutiveAssistant() {
     try {
       const response = await executiveAssistantClient.message(session?.access_token, clean, history)
       setMessages((current) => [...current, { role: 'assistant', content: response.data.answer }])
-    } catch {
-      setError(copy.failure)
+      if (voiceReply && browserVoiceRef.current) {
+        speakBrowserAnswer(response.data.answer)
+      }
+    } catch (requestError) {
+      const status = typeof requestError === 'object' && requestError && 'status' in requestError
+        ? Number((requestError as { status?: unknown }).status)
+        : 0
+      setError(status === 401 || status === 403 ? copy.accessFailure : copy.failure)
+      if (voiceReply) {
+        voiceAwaitingRef.current = false
+        setVoiceState('error')
+      }
     } finally {
       setSending(false)
     }
+  }
+
+  function restartBrowserRecognition() {
+    if (!voiceActiveRef.current || !browserVoiceRef.current || voiceAwaitingRef.current) return
+    window.setTimeout(() => {
+      if (!voiceActiveRef.current || !browserVoiceRef.current || voiceAwaitingRef.current) return
+      try {
+        recognitionRef.current?.start()
+      } catch {
+        // El navegador puede mantener la sesión de reconocimiento activa unos milisegundos más.
+      }
+    }, 220)
+  }
+
+  function speakBrowserAnswer(answer: string) {
+    voiceAwaitingRef.current = false
+    if (!voiceActiveRef.current || !browserVoiceRef.current) return
+    if (mutedRef.current || !('speechSynthesis' in window)) {
+      setVoiceState('listening')
+      restartBrowserRecognition()
+      return
+    }
+
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(answer)
+    utterance.lang = 'es-MX'
+    utterance.rate = 0.88
+    utterance.pitch = 0.98
+    const voices = window.speechSynthesis.getVoices()
+    const preferredNames = ['monica', 'mónica', 'paulina', 'ximena', 'sabina', 'marisol']
+    utterance.voice = voices.find((voice) => voice.lang.toLowerCase() === 'es-mx' && preferredNames.some((name) => voice.name.toLowerCase().includes(name)))
+      ?? voices.find((voice) => voice.lang.toLowerCase() === 'es-mx')
+      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('es'))
+      ?? null
+    utterance.onstart = () => setVoiceState('speaking')
+    utterance.onend = () => {
+      if (!voiceActiveRef.current) return
+      setVoiceState('listening')
+      restartBrowserRecognition()
+    }
+    utterance.onerror = () => {
+      if (!voiceActiveRef.current) return
+      setVoiceState('listening')
+      restartBrowserRecognition()
+    }
+    window.speechSynthesis.speak(utterance)
+  }
+
+  function startBrowserVoice() {
+    const browserWindow = window as Window & {
+      SpeechRecognition?: BrowserSpeechRecognitionConstructor
+      webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
+    }
+    const Recognition = browserWindow.SpeechRecognition ?? browserWindow.webkitSpeechRecognition
+    if (!Recognition) throw new Error('browser_speech_unavailable')
+
+    const recognition = new Recognition()
+    recognition.lang = 'es-MX'
+    recognition.continuous = false
+    recognition.interimResults = true
+    recognition.onstart = () => setVoiceState('listening')
+    recognition.onresult = (event) => {
+      let interim = ''
+      let finalText = ''
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index]
+        const transcript = result?.[0]?.transcript?.trim() ?? ''
+        if (result?.isFinal) finalText += `${transcript} `
+        else interim += `${transcript} `
+      }
+      if (interim.trim()) setMessage(interim.trim())
+      if (finalText.trim()) {
+        const clean = finalText.trim()
+        setMessage('')
+        voiceAwaitingRef.current = true
+        setVoiceState('thinking')
+        void sendText(clean, true)
+      }
+    }
+    recognition.onerror = (event) => {
+      if (!voiceActiveRef.current || event.error === 'aborted') return
+      voiceAwaitingRef.current = false
+      setVoiceState('error')
+      setError(event.error === 'not-allowed' ? copy.voiceFailure : copy.failure)
+    }
+    recognition.onend = () => restartBrowserRecognition()
+    recognitionRef.current = recognition
+    browserVoiceRef.current = true
+    voiceActiveRef.current = true
+    recognition.start()
   }
 
   function handleRealtimeEvent(event: MessageEvent<string>) {
@@ -103,18 +236,21 @@ export function ExecutiveAssistant() {
   }
 
   async function startVoice() {
-    if (peerRef.current) return
+    if (peerRef.current || voiceActiveRef.current) return
     setError('')
     setVoiceState('connecting')
+    voiceActiveRef.current = true
     try {
       const sessionResponse = await executiveAssistantClient.realtimeSession(session?.access_token)
       const peer = new RTCPeerConnection()
+      peerRef.current = peer
       const audio = new Audio()
       audio.autoplay = true
       audio.muted = muted
       audioRef.current = audio
       peer.ontrack = (event) => { audio.srcObject = event.streams[0] }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       stream.getTracks().forEach((track) => peer.addTrack(track, stream))
       const channel = peer.createDataChannel('oai-events')
       channel.onopen = () => setVoiceState('listening')
@@ -129,12 +265,19 @@ export function ExecutiveAssistant() {
       })
       if (!answer.ok) throw new Error('realtime_connection_failed')
       await peer.setRemoteDescription({ type: 'answer', sdp: await answer.text() })
-      peerRef.current = peer
-      streamRef.current = stream
     } catch {
-      stopVoice()
-      setVoiceState('error')
-      setError(copy.voiceFailure)
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+      peerRef.current?.close()
+      streamRef.current = null
+      peerRef.current = null
+      voiceActiveRef.current = false
+      try {
+        startBrowserVoice()
+      } catch {
+        stopVoice()
+        setVoiceState('error')
+        setError(copy.voiceFailure)
+      }
     }
   }
 
@@ -151,8 +294,52 @@ export function ExecutiveAssistant() {
           <section className="control-assistant-dialog" role="dialog" aria-modal="true" aria-labelledby="assistant-title">
             <header><div><p>{copy.eyebrow}</p><h2 id="assistant-title">{copy.title}</h2></div><button type="button" onClick={() => { stopVoice(); setOpen(false) }}>{copy.close}</button></header>
             <div className="control-assistant-dialog__body">
-              <aside><div className="control-assistant-identity"><span>Hacienda de Letras</span><strong>Dirección</strong><i /></div><p>{copy.privacy}</p><div className="control-assistant-voice"><span>{copy.voice}</span><strong className={`is-${voiceState}`}>{copy.states[voiceState]}</strong>{voiceState === 'idle' || voiceState === 'error' ? <button type="button" onClick={() => void startVoice()}>{copy.startVoice}</button> : <button type="button" onClick={stopVoice}>{copy.stopVoice}</button>}<button type="button" className="is-secondary" onClick={() => setMuted((value) => !value)}>{muted ? copy.unmute : copy.mute}</button></div></aside>
-              <main><div className="control-assistant-messages" aria-live="polite">{messages.length === 0 ? <div className="control-assistant-welcome"><span>Mi asistente</span><p>{copy.welcome}</p><div>{copy.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => void sendText(prompt)}>{prompt}</button>)}</div></div> : messages.map((item, index) => <article key={`${item.role}-${index}`} className={`is-${item.role}`}><span>{item.role === 'assistant' ? copy.title : (isEnglish ? 'You' : 'Tú')}</span><p>{item.content}</p></article>)}{sending ? <article className="is-assistant is-loading"><span>{copy.title}</span><p>{copy.states.thinking}</p></article> : null}</div>{error ? <p className="control-assistant-error">{error}</p> : null}<form onSubmit={(event) => { event.preventDefault(); void sendText() }}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder={copy.placeholder} rows={2} /><button type="submit" disabled={sending || !message.trim()}>{copy.send}</button></form></main>
+              <aside>
+                <div className="control-assistant-identity"><span>Hacienda de Letras</span><strong>Dirección</strong><i /></div>
+                <p>{copy.privacy}</p>
+                <div className="control-assistant-voice">
+                  <span>{copy.voice}</span>
+                  <strong className={`is-${voiceState}`}>{copy.states[voiceState]}</strong>
+                  {voiceState === 'idle' || voiceState === 'error' ? (
+                    <button type="button" className="is-microphone" onClick={() => void startVoice()} aria-label={copy.startVoice}>
+                      <Mic size={19} aria-hidden="true" /><span>{copy.startVoice}</span>
+                    </button>
+                  ) : (
+                    <button type="button" className="is-microphone is-active" onClick={stopVoice} aria-label={copy.stopVoice}>
+                      <MicOff size={19} aria-hidden="true" /><span>{copy.stopVoice}</span>
+                    </button>
+                  )}
+                  <button type="button" className="is-secondary" onClick={() => setMuted((value) => !value)}>
+                    {muted ? <Volume2 size={17} aria-hidden="true" /> : <VolumeX size={17} aria-hidden="true" />}
+                    <span>{muted ? copy.unmute : copy.mute}</span>
+                  </button>
+                </div>
+              </aside>
+              <main>
+                <div className="control-assistant-messages" aria-live="polite">
+                  {messages.length === 0 ? (
+                    <div className="control-assistant-welcome"><span>Mi asistente</span><p>{copy.welcome}</p><div>{copy.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => void sendText(prompt)}>{prompt}</button>)}</div></div>
+                  ) : messages.map((item, index) => (
+                    <article key={`${item.role}-${index}`} className={`is-${item.role}`}><span>{item.role === 'assistant' ? copy.title : (isEnglish ? 'You' : 'Tú')}</span><p>{item.content}</p></article>
+                  ))}
+                  {sending ? <article className="is-assistant is-loading"><span>{copy.title}</span><p>{copy.states.thinking}</p></article> : null}
+                </div>
+                {error ? <p className="control-assistant-error" role="alert">{error}</p> : null}
+                <form onSubmit={(event) => { event.preventDefault(); void sendText() }}>
+                  <textarea
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return
+                      event.preventDefault()
+                      void sendText()
+                    }}
+                    placeholder={copy.placeholder}
+                    rows={2}
+                  />
+                  <button type="submit" disabled={sending || !message.trim()} aria-label={copy.send}><Send size={17} aria-hidden="true" /><span>{copy.send}</span></button>
+                </form>
+              </main>
             </div>
           </section>
         </div>
