@@ -78,7 +78,6 @@ function normalizeError(error: unknown): AuthServiceError {
   if (lower.includes('unsupported provider') || lower.includes('provider is not enabled')) {
     return { code: 'provider_not_enabled', message: 'El método de acceso aún no está habilitado.' }
   }
-
   return { code: 'auth_error', message: 'No fue posible completar la operación.' }
 }
 
@@ -166,15 +165,37 @@ export async function signInWithAppleNative() {
     if (error) throw error
 
     const userData: Record<string, string> = {}
-    if (credential.givenName) userData.first_name = credential.givenName
-    if (credential.familyName) userData.last_name = credential.familyName
+    if (credential.givenName) {
+      userData.first_name = credential.givenName
+      userData.given_name = credential.givenName
+    }
+    if (credential.familyName) {
+      userData.last_name = credential.familyName
+      userData.family_name = credential.familyName
+    }
     if (credential.givenName || credential.familyName) {
-      userData.display_name = [credential.givenName, credential.familyName].filter(Boolean).join(' ')
+      const displayName = [credential.givenName, credential.familyName].filter(Boolean).join(' ')
+      userData.display_name = displayName
+      userData.full_name = displayName
     }
 
     if (Object.keys(userData).length > 0) {
       const { error: updateError } = await supabase.auth.updateUser({ data: userData })
       if (updateError) throw updateError
+
+      if (!data.session?.access_token) throw new Error('Apple no devolvió una sesión válida.')
+      await apiFetch('/api/customer/me', {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${data.session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...(credential.givenName ? { firstName: credential.givenName } : {}),
+          ...(credential.familyName ? { lastName: credential.familyName } : {}),
+          displayName: userData.display_name,
+        }),
+      })
     }
 
     return data

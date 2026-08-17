@@ -84,12 +84,49 @@ class NativeAppleAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
         guard let call = activeCall else { return }
         defer { clearActiveRequest() }
 
-        if let authError = error as? ASAuthorizationError, authError.code == .canceled {
-            call.reject("Inicio con Apple cancelado.", "apple_cancelled")
+        let nsError = error as NSError
+
+        guard let authError = error as? ASAuthorizationError else {
+            NSLog(
+                "NativeAppleAuth error domain=%@ description=%@",
+                nsError.domain,
+                nsError.localizedDescription
+            )
+            call.reject(
+                nsError.localizedDescription,
+                "apple_auth_failed",
+                error,
+                [
+                    "domain": nsError.domain,
+                    "localizedDescription": nsError.localizedDescription
+                ]
+            )
             return
         }
 
-        call.reject("No fue posible completar el acceso con Apple.", "apple_auth_failed")
+        let appleErrorCode = appleAuthorizationErrorCode(authError.code)
+        let rejectionCode = authError.code == .canceled
+            ? "apple_cancelled"
+            : "apple_authorization_\(appleErrorCode)"
+
+        NSLog(
+            "NativeAppleAuth error code=%@ rawCode=%ld domain=%@ description=%@",
+            appleErrorCode,
+            authError.code.rawValue,
+            nsError.domain,
+            nsError.localizedDescription
+        )
+        call.reject(
+            nsError.localizedDescription,
+            rejectionCode,
+            error,
+            [
+                "appleErrorCode": appleErrorCode,
+                "appleErrorRawValue": authError.code.rawValue,
+                "domain": nsError.domain,
+                "localizedDescription": nsError.localizedDescription
+            ]
+        )
     }
 
     @available(iOS 13.0, *)
@@ -100,6 +137,26 @@ class NativeAppleAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
     private func clearActiveRequest() {
         activeCall = nil
         activeNonce = nil
+    }
+
+    @available(iOS 13.0, *)
+    private func appleAuthorizationErrorCode(_ code: ASAuthorizationError.Code) -> String {
+        switch code {
+        case .canceled:
+            return "canceled"
+        case .failed:
+            return "failed"
+        case .invalidResponse:
+            return "invalidResponse"
+        case .notHandled:
+            return "notHandled"
+        case .unknown:
+            return "unknown"
+        case .notInteractive:
+            return "notInteractive"
+        @unknown default:
+            return "unknown"
+        }
     }
 
     private func randomNonceString(length: Int = 32) throws -> String {

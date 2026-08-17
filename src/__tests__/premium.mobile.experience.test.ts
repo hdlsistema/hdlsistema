@@ -168,6 +168,7 @@ describe('premium customer app experience', () => {
     const nativePlugin = readFileSync(resolve(__dirname, '../../ios/App/App/NativeAppleAuthPlugin.swift'), 'utf8')
     const bridge = readFileSync(resolve(__dirname, '../../ios/App/App/HdlBridgeViewController.swift'), 'utf8')
     const entitlements = readFileSync(resolve(__dirname, '../../ios/App/App/App.entitlements'), 'utf8')
+    const infoPlist = readFileSync(resolve(__dirname, '../../ios/App/App/Info.plist'), 'utf8')
     const xcodeProject = readFileSync(resolve(__dirname, '../../ios/App/App.xcodeproj/project.pbxproj'), 'utf8')
 
     expect(nativeAppleAuth).toContain("registerPlugin<NativeAppleAuthPlugin>('NativeAppleAuth')")
@@ -176,7 +177,14 @@ describe('premium customer app experience', () => {
     expect(nativePlugin).toContain('request.nonce = sha256(nonce)')
     expect(nativePlugin).toContain('"identityToken": identityToken')
     expect(nativePlugin).toContain('"nonce": nonce')
-    expect(bridge).toContain('registerPluginType(NativeAppleAuthPlugin.self)')
+    expect(nativePlugin).toContain('"appleErrorCode": appleErrorCode')
+    expect(nativePlugin).toContain('"appleErrorRawValue": authError.code.rawValue')
+    expect(nativePlugin).toContain('"domain": nsError.domain')
+    expect(nativePlugin).toContain('"localizedDescription": nsError.localizedDescription')
+    expect(nativePlugin).toContain('case .notInteractive:')
+    expect(infoPlist).toContain('com.haciendadeletras.app.auth')
+    expect(infoPlist).toContain('<string>com.haciendadeletras.app</string>')
+    expect(bridge).toContain('registerPluginInstance(NativeAppleAuthPlugin())')
     expect(entitlements).toContain('com.apple.developer.applesignin')
     expect(entitlements).toContain('aps-environment')
     expect(xcodeProject).toContain('DEVELOPMENT_TEAM = XK3A98XNZ3')
@@ -368,5 +376,36 @@ describe('premium customer app experience', () => {
     expect(styles).toContain('transform: translate(-50%, -50%)')
     expect(styles).toContain('border-radius: 999px')
     expect(styles).toContain('width: min(86vw, 19rem)')
+  })
+
+  it('mantiene el boleto sobre la navegación, desplazable y con safe-area completa', () => {
+    const reservation = readFileSync(resolve(__dirname, '../app/pages/mobile/ReservationScreen.tsx'), 'utf8')
+
+    expect(reservation).toContain('z-[180]')
+    expect(reservation).toContain('overflow-y-auto')
+    expect(reservation).toContain('env(safe-area-inset-bottom)+86px')
+    expect(reservation).toContain("margin: 4")
+    expect(reservation).toContain('aria-modal="true"')
+  })
+
+  it('captura QR con cámara en Check-in y conserva captura manual', () => {
+    const checkin = readFileSync(resolve(__dirname, '../app/pages/control/CheckInPage.tsx'), 'utf8')
+
+    expect(checkin).toContain("from 'jsqr'")
+    expect(checkin).toContain('navigator.mediaDevices.getUserMedia')
+    expect(checkin).toContain('Escanear QR')
+    expect(checkin).toContain('Captura manual de código QR')
+    expect(checkin).toContain('accessPassClient.validate')
+  })
+
+  it('sincroniza el nombre único de Apple con Auth y el perfil de cliente', () => {
+    const authService = readFileSync(resolve(__dirname, '../services/auth.service.ts'), 'utf8')
+
+    expect(authService).toContain('userData.given_name')
+    expect(authService).toContain('userData.family_name')
+    expect(authService).toContain('userData.full_name')
+    expect(authService).toContain("apiFetch('/api/customer/me'")
+    expect(authService).not.toContain('isAppleAudienceMismatch')
+    expect(authService).not.toContain('apple_configuration_error')
   })
 })

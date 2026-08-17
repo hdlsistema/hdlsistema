@@ -121,7 +121,7 @@ function AccessQr({ payload, alt }: { payload: string; alt: string }) {
     let active = true
     QRCode.toDataURL(payload, {
       errorCorrectionLevel: 'M',
-      margin: 2,
+      margin: 4,
       width: 260,
       color: {
         dark: '#2D1811',
@@ -158,8 +158,12 @@ function TicketSheet({
   t: (key: string, fallback?: string) => string
 }) {
   return (
-    <div className="fixed inset-0 z-[80] flex items-end bg-[rgba(45,24,17,0.46)] p-3 backdrop-blur-md">
-      <section className="w-full rounded-[2rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.92)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
+    <div
+      className="fixed inset-0 z-[180] flex items-end overflow-y-auto bg-[rgba(45,24,17,0.46)] px-3 pb-[calc(env(safe-area-inset-bottom)+86px)] pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-md"
+      role="dialog"
+      aria-modal="true"
+    >
+      <section className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-104px)] w-full overflow-y-auto overscroll-contain rounded-[2rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.92)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.ticket.eyebrow', 'Mi boleto')}</p>

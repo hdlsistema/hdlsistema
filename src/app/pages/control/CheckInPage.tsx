@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, Download, KeyRound, QrCode, RefreshCw, RotateCcw, ShieldCheck, Ticket, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import jsQR from 'jsqr'
+import { Camera, Check, Download, KeyRound, QrCode, RefreshCw, RotateCcw, ShieldCheck, Ticket, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   accessPassClient,
@@ -16,6 +17,7 @@ import { CrystalDateTimeField } from '../../components/shared/CrystalDateField'
 import { StatusBadge } from '../../components/shared/StatusBadge'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
+import { normalizeAccessQrCode } from '../../utils/accessQr'
 
 type PassForm = {
   reservationId: string
@@ -89,6 +91,12 @@ export function CheckInPage() {
   const [issuedToken, setIssuedToken] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingCheckinAction | null>(null)
   const [reasonDraft, setReasonDraft] = useState('')
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannerError, setScannerError] = useState('')
+  const scannerVideoRef = useRef<HTMLVideoElement | null>(null)
+  const scannerCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const scannerStreamRef = useRef<MediaStream | null>(null)
+  const scannerFrameRef = useRef<number | null>(null)
 
   const selectedPass = useMemo(
     () => passes.find((item) => item.id === selectedPassId) ?? passes[0] ?? null,
@@ -161,12 +169,19 @@ export function CheckInPage() {
     }
   }
 
-  const validateCode = async () => {
-    if (!code.trim() || saving) return
+  const validateCode = async (candidate = code) => {
+    const normalizedCode = normalizeAccessQrCode(candidate)
+    if (!normalizedCode) {
+      setValidation(null)
+      setError('El código capturado no corresponde a un pase de Hacienda de Letras.')
+      return
+    }
+    if (saving) return
     setSaving(true)
     setError('')
+    setCode(normalizedCode)
     try {
-      const response = await accessPassClient.validate(token, code.trim())
+      const response = await accessPassClient.validate(token, normalizedCode)
       setValidation(response.data)
       setSelectedPassId(response.data.accessPassId)
     } catch (err) {
@@ -175,6 +190,86 @@ export function CheckInPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const stopScannerMedia = useCallback(() => {
+    if (scannerFrameRef.current !== null) {
+      window.cancelAnimationFrame(scannerFrameRef.current)
+      scannerFrameRef.current = null
+    }
+    scannerStreamRef.current?.getTracks().forEach((track) => track.stop())
+    scannerStreamRef.current = null
+    if (scannerVideoRef.current) scannerVideoRef.current.srcObject = null
+  }, [])
+
+  useEffect(() => {
+    if (!scannerOpen) return
+    let cancelled = false
+
+    const scanFrame = () => {
+      if (cancelled) return
+      const video = scannerVideoRef.current
+      const canvas = scannerCanvasRef.current
+      if (video && canvas && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+        const width = Math.min(video.videoWidth, 960)
+        const height = Math.round((video.videoHeight / video.videoWidth) * width)
+        canvas.width = width
+        canvas.height = height
+        const context = canvas.getContext('2d', { willReadFrequently: true })
+        if (context) {
+          context.drawImage(video, 0, 0, width, height)
+          const image = context.getImageData(0, 0, width, height)
+          const result = jsQR(image.data, width, height, { inversionAttempts: 'attemptBoth' })
+          if (result?.data) {
+            const normalizedCode = normalizeAccessQrCode(result.data)
+            if (normalizedCode) {
+              stopScannerMedia()
+              setScannerOpen(false)
+              setToast('Código QR capturado. Validando pase...')
+              void validateCode(normalizedCode)
+              return
+            }
+          }
+        }
+      }
+      scannerFrameRef.current = window.requestAnimationFrame(scanFrame)
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScannerError('Este navegador no permite usar la cámara. Captura el código manualmente.')
+      return () => {
+        cancelled = true
+        stopScannerMedia()
+      }
+    }
+
+    navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: 'environment' } },
+    }).then(async (stream) => {
+      if (cancelled) {
+        stream.getTracks().forEach((track) => track.stop())
+        return
+      }
+      scannerStreamRef.current = stream
+      if (!scannerVideoRef.current) return
+      scannerVideoRef.current.srcObject = stream
+      await scannerVideoRef.current.play()
+      scannerFrameRef.current = window.requestAnimationFrame(scanFrame)
+    }).catch(() => {
+      if (!cancelled) setScannerError('No fue posible abrir la cámara. Revisa el permiso del navegador o captura el código manualmente.')
+    })
+
+    return () => {
+      cancelled = true
+      stopScannerMedia()
+    }
+  }, [scannerOpen, stopScannerMedia])
+
+  const closeScanner = () => {
+    stopScannerMedia()
+    setScannerOpen(false)
+    setScannerError('')
   }
 
   const registerValidatedCheckin = async () => {
@@ -279,12 +374,13 @@ export function CheckInPage() {
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+        <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
           <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4">
             <QrCode size={16} className="text-[var(--color-muted)]" />
             <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="Captura manual de código QR" className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
           </label>
-          <button type="button" onClick={validateCode} disabled={!writable || !code.trim() || saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><KeyRound size={16} />Validar</button>
+          <button type="button" onClick={() => { setScannerError(''); setScannerOpen(true) }} disabled={!writable || saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><Camera size={16} />Escanear QR</button>
+          <button type="button" onClick={() => void validateCode()} disabled={!writable || !code.trim() || saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><KeyRound size={16} />Validar</button>
         </div>
         {validation ? (
           <div className="mt-4 rounded-xl bg-[var(--color-soft)] p-4">
@@ -395,6 +491,29 @@ export function CheckInPage() {
               <button type="submit" disabled={saving || (!form.reservationId && !form.orderId)} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Emitir pase'}</button>
             </div>
           </form>
+        </div>
+      ) : null}
+
+      {scannerOpen ? (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#210711]/78 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="checkin-scanner-title">
+          <button type="button" aria-label="Cerrar escáner" onClick={closeScanner} className="absolute inset-0 cursor-default" />
+          <section className="relative z-10 w-full max-w-xl overflow-hidden rounded-[1.5rem] border border-white/20 bg-[#fff9f1] shadow-[0_35px_90px_rgba(29,5,12,0.42)]">
+            <header className="flex items-center justify-between gap-4 border-b border-[var(--color-line)] px-5 py-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">Acceso seguro</p>
+                <h2 id="checkin-scanner-title" className="mt-1 text-xl font-semibold text-[var(--color-burgundy)]">Escanear boleto QR</h2>
+              </div>
+              <button type="button" onClick={closeScanner} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]" aria-label="Cerrar"><X size={18} /></button>
+            </header>
+            <div className="p-4">
+              <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[#2d1811]">
+                <video ref={scannerVideoRef} muted playsInline className="h-full w-full object-cover" />
+                <div className="pointer-events-none absolute inset-[12%] rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(20,5,10,0.28)]" />
+              </div>
+              <canvas ref={scannerCanvasRef} className="hidden" aria-hidden="true" />
+              {scannerError ? <p className="mt-4 rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-3 text-sm text-[#8a4b16]">{scannerError}</p> : <p className="mt-4 text-center text-sm text-[var(--color-muted)]">Coloca el código completo dentro del recuadro. La validación inicia automáticamente.</p>}
+            </div>
+          </section>
         </div>
       ) : null}
 
