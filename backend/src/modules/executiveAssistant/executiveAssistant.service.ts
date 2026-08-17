@@ -122,6 +122,47 @@ function instructions(snapshot: unknown) {
   return `Eres Mi asistente, consejera ejecutiva privada de la dirección de Hacienda de Letras. Responde en español mexicano, con tono adulto, cálido, sereno, profesional y directo. Tu lectura operativa debe ser completa, pero sólo puedes afirmar lo contenido en el resumen agregado. Distingue hechos, riesgos y recomendaciones; nunca inventes datos. Si falta detalle individual, indica en qué módulo del Centro de Control debe revisarse. Cero emojis. No puedes crear, editar, confirmar, cancelar ni eliminar registros.\n\nRESUMEN OPERATIVO ACTUAL:\n${JSON.stringify(snapshot)}`
 }
 
+function formatMoneyTotals(totals: Record<string, number> | undefined) {
+  const entries = Object.entries(totals ?? {})
+  if (!entries.length) return '$0 MXN'
+  return entries.map(([currency, value]) => `${new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(value)} ${currency}`).join(' y ')
+}
+
+function answerFromSnapshot(question: string, snapshot: Awaited<ReturnType<typeof buildExecutiveSnapshot>>) {
+  const normalized = question.toLocaleLowerCase('es-MX')
+  const dashboard = snapshot.dashboard
+  const period = snapshot.last30Days
+  if (/cliente|usuario|registro/.test(normalized)) {
+    return `Hay ${dashboard.customers} clientes registrados y ${dashboard.activeCustomersRecent} clientes con actividad durante los últimos 30 días.`
+  }
+  if (/reserv|experiencia|evento|cupo|ocupaci/.test(normalized)) {
+    return `Actualmente hay ${dashboard.activeReservations} reservaciones activas: ${dashboard.confirmedReservations} confirmadas y ${dashboard.pendingReservations} pendientes. La ocupación futura registrada es de ${dashboard.occupancyRate}%. En los últimos 30 días se registraron ${period.reservations.total} reservaciones para ${period.reservations.people} personas.`
+  }
+  if (/venta|cobro|pago|ingreso|comercial/.test(normalized)) {
+    return `El cobro registrado es ${formatMoneyTotals(Object.fromEntries(dashboard.collected.map((item) => [item.currency, item.amount])))} mediante ${dashboard.confirmedPayments} pagos confirmados. Hay ${dashboard.pendingPaymentOrders} órdenes pendientes de pago y ${period.orders.total} órdenes creadas en los últimos 30 días.`
+  }
+  if (/orden|pedido|entrega|logística|logistica|envío|envio/.test(normalized)) {
+    return `En los últimos 30 días se registraron ${period.orders.total} órdenes y ${period.logistics.total} movimientos de logística. Estados de órdenes: ${JSON.stringify(period.orders.byStatus)}. Estados logísticos: ${JSON.stringify(period.logistics.byStatus)}.`
+  }
+  if (/inventario|existencia|stock|vino|botella/.test(normalized)) {
+    const inventory = snapshot.operation.inventory
+    return `El inventario registra ${inventory.items} partidas, ${inventory.onHand} unidades físicas, ${inventory.reserved} reservadas y ${inventory.available} disponibles. ${inventory.lowAvailability} partidas están en o por debajo de su punto de reposición.`
+  }
+  if (/cabaña|cabana|hosped|estancia|habitación|habitacion/.test(normalized)) {
+    return `Hay ${snapshot.operation.lodgingUnits.total} unidades de hospedaje registradas y ${period.lodgingStays.total} estancias creadas en los últimos 30 días. Estados operativos de unidades: ${JSON.stringify(snapshot.operation.lodgingUnits.byOperation)}.`
+  }
+  if (/campaña|campana|promoci|marketing/.test(normalized)) {
+    return `En los últimos 30 días se registraron ${period.campaigns.total} campañas. El catálogo contiene ${snapshot.catalog.promotions.total} promociones. Canales de campaña: ${JSON.stringify(period.campaigns.byChannel)}.`
+  }
+  if (/cotiz|celebra|solicitud/.test(normalized)) {
+    return `En los últimos 30 días se registraron ${period.quotes.total} solicitudes de cotización para ${period.quotes.guests} invitados estimados. Estados: ${JSON.stringify(period.quotes.byStatus)}.`
+  }
+  if (/riesgo|atención|atencion|pendiente|hoy|resumen/.test(normalized)) {
+    return `Lectura ejecutiva actual: ${dashboard.pendingReservations} reservaciones pendientes, ${dashboard.pendingPaymentOrders} órdenes por cobrar, ${snapshot.operation.inventory.lowAvailability} partidas de inventario en punto de reposición y ${period.quotes.total} cotizaciones recibidas en los últimos 30 días. Conviene revisar primero Reservaciones, Pagos e Inventario.`
+  }
+  return `La operación está disponible y actualizada. Hay ${dashboard.customers} clientes registrados, ${dashboard.activeReservations} reservaciones activas, ${dashboard.pendingPaymentOrders} órdenes por cobrar y una ocupación futura de ${dashboard.occupancyRate}%. Puedes preguntarme por clientes, reservaciones, cobros, inventario, hospedaje, logística, campañas o cotizaciones.`
+}
+
 export async function getExecutiveAssistantStatus(user: UserContext) {
   await assertExecutiveAccess(user)
   return { enabled: true, modes: ['text', 'voice'], readOnly: true }
@@ -129,10 +170,14 @@ export async function getExecutiveAssistantStatus(user: UserContext) {
 
 export async function sendExecutiveAssistantMessage(payload: ExecutiveAssistantMessagePayload, user: UserContext) {
   await assertExecutiveAccess(user)
-  if (!env.OPENAI_API_KEY) throw httpError(503, 'Asistente ejecutiva no configurada')
   const auditId = await createAudit(user.userId!, 'text')
   try {
     const snapshot = await buildExecutiveSnapshot(user)
+    if (!env.OPENAI_API_KEY) {
+      const answer = answerFromSnapshot(payload.message, snapshot)
+      await completeAudit(auditId, 'completed')
+      return { answer, generatedAt: snapshot.generatedAt, mode: 'operational' as const }
+    }
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
