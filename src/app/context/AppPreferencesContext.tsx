@@ -46,8 +46,6 @@ type AppPreferencesContextValue = AppPreferencesState & {
   formatNumber: (value: number | string | null | undefined) => string
 }
 
-const STORAGE_KEY = 'hdl-os-preferences-v1'
-
 const defaultPreferences: AppPreferencesState = {
   adminName: 'Director General',
   adminRole: 'Administrador',
@@ -58,60 +56,16 @@ const defaultPreferences: AppPreferencesState = {
 const AppPreferencesContext =
   createContext<AppPreferencesContextValue | null>(null)
 
-function readStoredPreferences(): AppPreferencesState {
-  if (typeof window === 'undefined') {
-    return defaultPreferences
-  }
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-
-    if (!raw) {
-      return defaultPreferences
-    }
-
-    const parsed = JSON.parse(raw) as Partial<AppPreferencesState>
-
-    return {
-      adminName:
-        typeof parsed.adminName === 'string' && parsed.adminName.trim()
-          ? parsed.adminName
-          : defaultPreferences.adminName,
-      adminRole:
-        typeof parsed.adminRole === 'string' && parsed.adminRole.trim()
-          ? parsed.adminRole
-          : defaultPreferences.adminRole,
-      adminEmail:
-        typeof parsed.adminEmail === 'string' && parsed.adminEmail.trim()
-          ? parsed.adminEmail
-          : defaultPreferences.adminEmail,
-      language: normalizeLanguage(parsed.language),
-    }
-  } catch {
-    return defaultPreferences
-  }
-}
-
 export function AppPreferencesProvider({
   children,
 }: {
   children: ReactNode
 }) {
-  const [preferences, setPreferences] = useState<AppPreferencesState>(
-    () => readStoredPreferences(),
-  )
+  const [preferences, setPreferences] = useState<AppPreferencesState>(defaultPreferences)
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(preferences),
-    )
     document.documentElement.lang = languageToLocale(preferences.language)
-  }, [preferences])
+  }, [preferences.language])
 
   const value = useMemo<AppPreferencesContextValue>(() => {
     const updatePreferences = (

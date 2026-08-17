@@ -11,7 +11,9 @@ import { recordBusinessActivity } from '../activity/activity.service'
 import type { AppEventName } from '../activity/activity.schemas'
 import {
   ensureEventTicketAccessPassesForPaidOrder,
+  ensureReservationAccessPassForPaidOrder,
   revokeOrderAccessPasses,
+  revokeReservationAccessPasses,
 } from '../checkin/accessPassIssuer'
 import {
   assertNoError,
@@ -119,10 +121,19 @@ type PaymentSessionData = {
   provider: 'stripe'
   environment: 'test' | 'live'
   clientSecret: string
+  customerSessionClientSecret: string
   paymentIntentId: string
   amount: number
   currency: string
   status: string
+}
+
+type CustomerPaymentProfileRow = {
+  id: string
+  customer_id: string
+  user_id?: string | null
+  provider_customer_id: string
+  provider_environment: string
 }
 
 type PaymentStatusData = {
@@ -242,6 +253,93 @@ async function getOwnedOrder(orderId: string, user: UserContext) {
   const order = assertNoError<CustomerOrderRow | null>(result).data
   if (!order) throw httpError(404, 'Orden no encontrada')
   return { customer, order }
+}
+
+async function getOrCreateStripeCustomer(customer: CustomerRow, stripe: Stripe) {
+  const environment = stripeEnvironment()
+  const existingResult = await supabaseAdminClient
+    .from('customer_payment_profiles')
+    .select('id,customer_id,user_id,provider_customer_id,provider_environment')
+    .eq('customer_id', customer.id)
+    .eq('provider', 'stripe')
+    .eq('provider_environment', environment)
+    .maybeSingle()
+  const existing = assertNoError<CustomerPaymentProfileRow | null>(existingResult).data
+  if (existing?.provider_customer_id) return existing.provider_customer_id
+
+  const stripeCustomer = await stripe.customers.create({
+    email: customer.email ?? undefined,
+    name: customerName(customer),
+    metadata: {
+      hacienda_customer_id: customer.id,
+      environment,
+    },
+  }, { idempotencyKey: `stripe-customer:${environment}:${customer.id}` })
+
+  const saved = await supabaseAdminClient
+    .from('customer_payment_profiles')
+    .upsert({
+      customer_id: customer.id,
+      user_id: customer.user_id,
+      provider: 'stripe',
+      provider_customer_id: stripeCustomer.id,
+      provider_environment: environment,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'customer_id,provider,provider_environment' })
+    .select('provider_customer_id')
+    .single()
+  return assertNoError<{ provider_customer_id: string }>(saved).data.provider_customer_id
+}
+
+async function createPaymentElementCustomerSession(stripe: Stripe, stripeCustomerId: string) {
+  const session = await stripe.customerSessions.create({
+    customer: stripeCustomerId,
+    components: {
+      payment_element: {
+        enabled: true,
+        features: {
+          payment_method_redisplay: 'enabled',
+          payment_method_redisplay_limit: 5,
+          payment_method_remove: 'enabled',
+          payment_method_save: 'enabled',
+          payment_method_save_usage: 'on_session',
+          payment_method_allow_redisplay_filters: ['always'],
+        },
+      },
+    },
+  })
+  return session.client_secret
+}
+
+export async function listCustomerStripePaymentMethods(user: UserContext) {
+  const customer = await getCustomerForPayment(user)
+  const stripe = requireStripeClient()
+  const profileResult = await supabaseAdminClient
+    .from('customer_payment_profiles')
+    .select('provider_customer_id')
+    .eq('customer_id', customer.id)
+    .eq('provider', 'stripe')
+    .eq('provider_environment', stripeEnvironment())
+    .maybeSingle()
+  const stripeCustomerId = assertNoError<{ provider_customer_id: string } | null>(profileResult).data?.provider_customer_id
+  if (!stripeCustomerId) return { data: [] }
+
+  const methods = await stripe.paymentMethods.list({
+    customer: stripeCustomerId,
+    type: 'card',
+    limit: 10,
+  })
+  return {
+    data: methods.data.map((method) => ({
+      id: method.id,
+      type: method.type,
+      brand: method.card?.brand ?? null,
+      last4: method.card?.last4 ?? null,
+      expMonth: method.card?.exp_month ?? null,
+      expYear: method.card?.exp_year ?? null,
+      funding: method.card?.funding ?? null,
+    })),
+  }
 }
 
 async function assertCompleteShippingAddress(order: CustomerOrderRow) {
@@ -440,7 +538,15 @@ export async function recordManualPayment(payload: ManualPaymentPayload, user: U
     p_metadata: payload.metadata ?? {},
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getPayment(String(result.data), user)
+  const payment = await getPayment(String(result.data), user)
+  const order = await getOrderById(payload.orderId)
+  if (order && ['paid', 'fulfilled'].includes(order.status)) {
+    await ensureEventTicketAccessPassesForPaidOrder(order.id)
+    await ensureReservationAccessPassForPaidOrder(order.id)
+    if (order.requires_shipping) await ensureOrderShippingAfterPayment(order.id)
+    await queueOrderPaidEmail(order)
+  }
+  return payment
 }
 
 export async function refundPayment(id: string, payload: RefundPaymentPayload, user: UserContext) {
@@ -478,7 +584,19 @@ export async function refundPayment(id: string, payload: RefundPaymentPayload, u
     p_metadata: payload.metadata ?? {},
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getPayment(id, user)
+  const payment = await getPayment(id, user)
+  const order = await getOrderById(current.order_id)
+  if (order?.status === 'refunded') {
+    await revokeOrderAccessPasses(order.id, 'payment_refunded')
+    const reservationResult = await supabaseAdminClient
+      .from('orders')
+      .select('reservation_id')
+      .eq('id', order.id)
+      .maybeSingle()
+    const reservationId = assertNoError<{ reservation_id?: string | null } | null>(reservationResult).data?.reservation_id
+    if (reservationId) await revokeReservationAccessPasses(reservationId, 'payment_refunded')
+  }
+  return payment
 }
 
 export async function getPaymentReceipt(id: string, user: UserContext) {
@@ -502,10 +620,12 @@ export async function getPaymentReceipt(id: string, user: UserContext) {
 }
 
 export async function createCustomerStripePaymentSession(orderId: string, user: UserContext): Promise<{ data: PaymentSessionData }> {
-  const { order } = await getOwnedOrder(orderId, user)
+  const { customer, order } = await getOwnedOrder(orderId, user)
   if (order.status !== 'pending_payment') throw httpError(409, 'Orden no disponible para pago')
   await assertCompleteShippingAddress(order)
   const stripe = requireStripeClient()
+  const stripeCustomerId = await getOrCreateStripeCustomer(customer, stripe)
+  const customerSessionClientSecret = await createPaymentElementCustomerSession(stripe, stripeCustomerId)
 
   const { amount, amountMinor, currency } = await validateOrderAmount(order)
   const idempotencyKey = `stripe-payment-intent:${order.id}:${amountMinor}:${currency}`
@@ -532,6 +652,7 @@ export async function createCustomerStripePaymentSession(orderId: string, user: 
           provider: 'stripe',
           environment: stripeEnvironment(),
           clientSecret: intent.client_secret,
+          customerSessionClientSecret,
           paymentIntentId: intent.id,
           amount,
           currency: currency.toUpperCase(),
@@ -549,6 +670,7 @@ export async function createCustomerStripePaymentSession(orderId: string, user: 
         enabled: true,
         allow_redirects: 'never',
       },
+      customer: stripeCustomerId,
       metadata: {
         order_id: order.id,
         order_number: order.order_number,
@@ -583,6 +705,7 @@ export async function createCustomerStripePaymentSession(orderId: string, user: 
       provider: 'stripe',
       environment: stripeEnvironment(),
       clientSecret: intent.client_secret,
+      customerSessionClientSecret,
       paymentIntentId: intent.id,
       amount,
       currency: currency.toUpperCase(),
@@ -625,7 +748,7 @@ export async function retryCustomerStripePayment(orderId: string, user: UserCont
 async function getOrderById(orderId: string) {
   const result = await supabaseAdminClient
     .from('orders')
-    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,metadata')
+    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,requires_shipping,shipping_status,metadata')
     .eq('id', orderId)
     .maybeSingle()
   return assertNoError<CustomerOrderRow | null>(result).data
@@ -698,6 +821,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       })
       .eq('id', order.id)
     await ensureEventTicketAccessPassesForPaidOrder(order.id)
+    await ensureReservationAccessPassForPaidOrder(order.id)
     if (order.requires_shipping) await ensureOrderShippingAfterPayment(order.id)
     await queueOrderPaidEmail(order)
     recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')
@@ -769,11 +893,18 @@ async function persistRefundFromWebhook(charge: Stripe.Charge) {
       .update({ status: 'refunded', updated_at: now })
       .eq('id', payment.order_id)
     await revokeOrderAccessPasses(payment.order_id, 'stripe_refunded')
+    const reservationResult = await supabaseAdminClient
+      .from('orders')
+      .select('reservation_id')
+      .eq('id', payment.order_id)
+      .maybeSingle()
+    const reservationId = assertNoError<{ reservation_id?: string | null } | null>(reservationResult).data?.reservation_id
+    if (reservationId) await revokeReservationAccessPasses(reservationId, 'stripe_refunded')
   }
 
   const orderResult = await supabaseAdminClient
     .from('orders')
-    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,metadata')
+    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,requires_shipping,shipping_status,metadata')
     .eq('id', payment.order_id)
     .maybeSingle()
   const order = assertNoError<CustomerOrderRow | null>(orderResult).data

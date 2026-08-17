@@ -126,7 +126,18 @@ export const restaurantCatalogSchema = z.object({
   phone: optionalText(40),
   hours: z.record(z.string(), z.unknown()).default({}),
   reservationEnabled: z.boolean().default(true),
-}).strict()
+}).strict().superRefine((value, context) => {
+  const reservationTimes = Array.isArray(value.metadata?.reservationTimes)
+    ? value.metadata.reservationTimes.filter((time): time is string => typeof time === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time))
+    : []
+  if (value.status === 'published' && value.visibleInApp && value.reservationEnabled && reservationTimes.length === 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['metadata', 'reservationTimes'],
+      message: 'Configura al menos un horario de solicitud antes de publicar reservaciones',
+    })
+  }
+})
 
 export const venueCatalogSchema = z.object({
   ...catalogCommon,

@@ -2,11 +2,13 @@ import type { Request, Response } from 'express'
 import { sendOperationError } from '../operations/operationErrors'
 import {
   listCustomerNotifications,
+  markCustomerNotificationClicked,
   markCustomerNotificationRead,
 } from '../notifications/notifications.service'
 import {
   createCustomerStripePaymentSession,
   getCustomerStripePaymentStatus,
+  listCustomerStripePaymentMethods,
   retryCustomerStripePayment,
 } from '../payments/payments.service'
 import {
@@ -71,6 +73,15 @@ export async function getCustomerMeController(req: Request, res: Response): Prom
   }
 }
 
+export async function listCustomerPaymentMethodsController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await listCustomerStripePaymentMethods(userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
 export async function patchCustomerMeController(req: Request, res: Response): Promise<void> {
   try {
     const payload = customerProfilePatchSchema.parse(req.body)
@@ -114,6 +125,15 @@ export async function listCustomerNotificationsController(req: Request, res: Res
 export async function markCustomerNotificationReadController(req: Request, res: Response): Promise<void> {
   try {
     const result = await markCustomerNotificationRead(req.params.id, userContext(req))
+    res.json({ ok: true, data: result.data })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function markCustomerNotificationClickedController(req: Request, res: Response): Promise<void> {
+  try {
+    const result = await markCustomerNotificationClicked(req.params.id, userContext(req))
     res.json({ ok: true, data: result.data })
   } catch (error) {
     sendOperationError(res, error)

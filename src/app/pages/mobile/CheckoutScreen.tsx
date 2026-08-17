@@ -257,6 +257,7 @@ export function CheckoutScreen() {
   const stripeOptions = useMemo(() => paymentSession?.clientSecret
     ? {
         clientSecret: paymentSession.clientSecret,
+        customerSessionClientSecret: paymentSession.customerSessionClientSecret,
         developerTools: {
           assistant: {
             enabled: false,
@@ -273,7 +274,7 @@ export function CheckoutScreen() {
           },
         },
       } as unknown as StripeElementsOptions
-    : null, [paymentSession?.clientSecret])
+    : null, [paymentSession?.clientSecret, paymentSession?.customerSessionClientSecret])
 
   return (
     <div className="app-page space-y-6">

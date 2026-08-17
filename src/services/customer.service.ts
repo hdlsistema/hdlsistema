@@ -56,7 +56,14 @@ export type CustomerAvailabilitySlot = {
 export type CustomerReservation = {
   id: string
   reservationNumber: string
+  reservationType: 'experience' | 'cabin' | 'restaurant' | string
+  title?: string | null
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'
+  paymentStatus?: 'not_required' | 'pending' | 'paid' | 'cancelled' | 'refunded' | string
+  paymentExpiresAt?: string | null
+  paymentOrderId?: string | null
+  paymentOrderNumber?: string | null
+  paymentOrderStatus?: string | null
   peopleCount: number
   subtotal: number
   total: number
@@ -65,11 +72,17 @@ export type CustomerReservation = {
   experienceId?: string | null
   experienceTitle: string
   experienceSlug?: string | null
+  cabinPackageId?: string | null
+  restaurantLocationId?: string | null
   coverImageUrl?: string | null
   location?: string | null
   slotId?: string | null
   startAt?: string | null
   endAt?: string | null
+  reservationDate?: string | null
+  reservationTime?: string | null
+  checkIn?: string | null
+  checkOut?: string | null
   available: number
   confirmedAt?: string | null
   cancelledAt?: string | null
@@ -293,10 +306,21 @@ export type CustomerPaymentSession = {
   provider: 'stripe'
   environment: 'test' | 'live'
   clientSecret: string
+  customerSessionClientSecret: string
   paymentIntentId: string
   amount: number
   currency: string
   status: string
+}
+
+export type CustomerPaymentMethod = {
+  id: string
+  type: string
+  brand?: string | null
+  last4?: string | null
+  expMonth?: number | null
+  expYear?: number | null
+  funding?: string | null
 }
 
 export type CustomerPaymentStatus = {
@@ -364,6 +388,11 @@ function queryString(query: Record<string, unknown> = {}) {
 export const customerClient = {
   me(token: string | null | undefined) {
     return apiFetch<{ ok: true; data: CustomerMe }>('/api/customer/me', {
+      headers: customerHeaders(token),
+    })
+  },
+  paymentMethods(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: CustomerPaymentMethod[] }>('/api/customer/payment-methods', {
       headers: customerHeaders(token),
     })
   },
@@ -529,6 +558,12 @@ export const customerClient = {
   },
   readNotification(token: string | null | undefined, id: string) {
     return apiFetch<{ ok: true; data: CustomerNotification }>(`/api/customer/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
+      headers: customerHeaders(token),
+    })
+  },
+  clickNotification(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: CustomerNotification }>(`/api/customer/notifications/${encodeURIComponent(id)}/click`, {
       method: 'POST',
       headers: customerHeaders(token),
     })

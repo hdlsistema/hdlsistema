@@ -106,7 +106,7 @@ function StatusPill({ status, label }: { status?: string | null; label: string }
 
 export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const config = editorialDefinitions[entity]
-  const { session } = useAuth()
+  const { session, roles } = useAuth()
   const token = session?.access_token
   const [records, setRecords] = useState<ContentRecord[]>([])
   const [selected, setSelected] = useState<ContentRecord | null>(null)
@@ -658,6 +658,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     onVersions: loadVersions,
     actions: actionControls,
     versions: versionsPanel,
+    token,
+    canWrite: roles.some((role) => ['super_admin', 'admin', 'operations'].includes(role)),
+    canDelete: roles.some((role) => ['super_admin', 'admin'].includes(role)),
   }
 
   return (

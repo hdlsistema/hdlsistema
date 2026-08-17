@@ -241,6 +241,45 @@ function mapReservation(row: ReservationRow) {
   }
 }
 
+function queueCommercialReservationEmail(
+  reservation: ReturnType<typeof mapReservation>,
+  customer: CustomerRow,
+  user: UserContext,
+  locale?: string | null,
+) {
+  const customerName = customer.display_name
+    || [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
+    || undefined
+  const serviceTitle = reservation.reservationType === 'cabin'
+    ? reservation.cabinPackage?.name ?? 'Cabaña'
+    : reservation.restaurantLocation?.name ?? 'Restaurante'
+
+  void enqueueAndProcessTransactionalEmail({
+    eventType: 'reservation.created',
+    aggregateType: 'reservations',
+    aggregateId: reservation.id,
+    customerId: customer.id,
+    userId: user.userId ?? null,
+    recipientEmail: customer.email,
+    locale,
+    payload: {
+      customerName,
+      reservationNumber: reservation.reservationNumber,
+      reservationType: reservation.reservationType,
+      experienceTitle: serviceTitle,
+      peopleCount: reservation.peopleCount,
+      status: reservation.status,
+      reservationDate: reservation.reservationDate,
+      reservationTime: reservation.reservationTime,
+      checkIn: reservation.checkIn,
+      checkOut: reservation.checkOut,
+      total: reservation.total,
+      currency: reservation.currency,
+    },
+    idempotencyKey: `reservation.created:${reservation.id}:${customer.email ?? 'no-email'}`,
+  }).catch(() => undefined)
+}
+
 function mapQuote(row: QuoteRequestRow) {
   const customer = first(row.customers)
   const venue = first(row.venue_spaces)
@@ -478,6 +517,8 @@ export async function createCabinReservation(payload: CreateCabinReservationPayl
     metadata: { result: 'succeeded' },
   }, { userId: user.userId, customerId: customer.id })
 
+  queueCommercialReservationEmail(reservation, customer, user, payload.language)
+
   return { data: reservation, duplicate: false }
 }
 
@@ -489,13 +530,22 @@ export async function createRestaurantReservation(payload: CreateRestaurantReser
 
   const restaurantResult = await supabaseAdminClient
     .from('restaurant_locations')
-    .select('id,name,slug,reservation_enabled,status,visible_in_app')
+    .select('id,name,slug,reservation_enabled,status,visible_in_app,metadata')
     .eq('id', payload.restaurantLocationId)
     .eq('status', 'published')
     .eq('visible_in_app', true)
     .maybeSingle()
-  const restaurant = assertNoError<{ id: string; name: string; slug: string; reservation_enabled: boolean } | null>(restaurantResult).data
+  const restaurant = assertNoError<{ id: string; name: string; slug: string; reservation_enabled: boolean; metadata?: Record<string, unknown> | null } | null>(restaurantResult).data
   if (!restaurant || !restaurant.reservation_enabled) throw httpError(404, 'Restaurante no disponible')
+  const reservationTimes = Array.isArray(restaurant.metadata?.reservationTimes)
+    ? restaurant.metadata.reservationTimes.filter((value): value is string => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))
+    : []
+  if (!reservationTimes.includes(payload.reservationTime)) {
+    throw httpError(422, 'El horario no está disponible para solicitudes')
+  }
+  if (Date.parse(`${payload.reservationDate}T${payload.reservationTime}:00-06:00`) <= Date.now()) {
+    throw httpError(422, 'La fecha y hora deben ser futuras')
+  }
 
   const result = await supabaseAdminClient
     .from('reservations')
@@ -532,6 +582,8 @@ export async function createRestaurantReservation(payload: CreateRestaurantReser
     eventKey: `restaurant-reservation-${reservation.id}`,
     metadata: { result: 'succeeded' },
   }, { userId: user.userId, customerId: customer.id })
+
+  queueCommercialReservationEmail(reservation, customer, user, payload.language)
 
   return { data: reservation, duplicate: false }
 }

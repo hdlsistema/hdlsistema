@@ -33,6 +33,9 @@ const supabaseMock = vi.hoisted(() => ({
 const stripeMock = vi.hoisted(() => ({
   paymentIntentsCreate: vi.fn(),
   paymentIntentsRetrieve: vi.fn(),
+  customersCreate: vi.fn(),
+  customerSessionsCreate: vi.fn(),
+  paymentMethodsList: vi.fn(),
   refundsCreate: vi.fn(),
   constructEvent: vi.fn(),
 }))
@@ -208,6 +211,15 @@ vi.mock('stripe', () => ({
       create: stripeMock.paymentIntentsCreate,
       retrieve: stripeMock.paymentIntentsRetrieve,
     },
+    customers: {
+      create: stripeMock.customersCreate,
+    },
+    customerSessions: {
+      create: stripeMock.customerSessionsCreate,
+    },
+    paymentMethods: {
+      list: stripeMock.paymentMethodsList,
+    },
     refunds: {
       create: stripeMock.refundsCreate,
     },
@@ -239,6 +251,9 @@ beforeEach(() => {
   supabaseMock.selectQueries = []
   stripeMock.paymentIntentsCreate.mockReset()
   stripeMock.paymentIntentsRetrieve.mockReset()
+  stripeMock.customersCreate.mockReset()
+  stripeMock.customerSessionsCreate.mockReset()
+  stripeMock.paymentMethodsList.mockReset()
   stripeMock.refundsCreate.mockReset()
   stripeMock.constructEvent.mockReset()
   ;(env as Record<string, string>).SUPABASE_URL = originalSupabaseUrl
@@ -986,11 +1001,12 @@ describe('Fase 4B content API', () => {
         email: 'cliente.consentido@example.com',
         segment: 'wine_club',
         marketing_email_consent: true,
+        marketing_push_consent: true,
         total_spend: 1500,
         total_visits: 2,
         preferred_language: 'es-MX',
         metadata: { city: 'Aguascalientes' },
-        status: 'active',
+        status: 'published',
         created_at: '2026-08-01T00:00:00.000Z',
       },
       {
@@ -1005,17 +1021,22 @@ describe('Fase 4B content API', () => {
     const preview = await request(app)
       .post('/api/admin/campaigns/audience-preview')
       .set('Authorization', 'Bearer marketing-token')
-      .send({ segment: 'wine_club' })
+      .send({ segment: 'wine_club', channels: ['email', 'push', 'in_app'] })
     const send = await request(app)
       .post('/api/admin/campaigns/00000000-0000-0000-0000-000000000261/send')
       .set('Authorization', 'Bearer marketing-token')
-      .send({ audience: { segment: 'wine_club' } })
+      .send({ audience: { segment: 'wine_club' }, channels: ['email', 'push', 'in_app'] })
     const publicCampaigns = await request(app).get('/api/public/campaigns')
 
     expect(preview.status).toBe(200)
-    expect(preview.body.data).toMatchObject({ total: 1, consentRequired: 'marketing_email_consent' })
+    expect(preview.body.data).toMatchObject({
+      total: 1,
+      consentRequired: 'channel_specific_marketing_consent',
+      channels: ['email', 'push', 'in_app'],
+      channelTotals: { email: 1, push: 1, in_app: 1 },
+    })
     expect(send.status).toBe(202)
-    expect(send.body.data).toMatchObject({ recipients: 1, pending: 1, sent: 0 })
+    expect(send.body.data).toMatchObject({ recipients: 1, pending: 0, sent: 1, channels: ['email', 'push', 'in_app'] })
     expect(supabaseMock.tableData.email_outbox).toHaveLength(1)
     expect(supabaseMock.tableData.email_outbox[0]).toMatchObject({
       template_key: 'campaign.marketing',
@@ -1023,6 +1044,12 @@ describe('Fase 4B content API', () => {
       status: 'pending_configuration',
     })
     expect(supabaseMock.tableData.campaign_recipients).toHaveLength(1)
+    expect(supabaseMock.tableData.notifications).toHaveLength(1)
+    expect(supabaseMock.tableData.campaign_recipient_deliveries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ channel: 'email', customer_id: '00000000-0000-0000-0000-000000000262' }),
+      expect.objectContaining({ channel: 'push', customer_id: '00000000-0000-0000-0000-000000000262' }),
+      expect.objectContaining({ channel: 'in_app', customer_id: '00000000-0000-0000-0000-000000000262' }),
+    ]))
     expect(supabaseMock.tableData.campaigns[0]).toMatchObject({
       status: 'completed',
       visible_in_app: false,
@@ -1194,6 +1221,23 @@ describe('Fase 7B operations API', () => {
 
   it('clasifica sobrecupo como 409 sin ocultarlo', async () => {
     signInAs('operations')
+    supabaseMock.tableData.reservations = [{
+      id: '11111111-1111-4111-8111-111111111074',
+      reservation_number: 'RES-FASE7B-PENDING',
+      customer_id: '11111111-1111-4111-8111-111111111075',
+      reservation_type: 'experience',
+      people_count: 2,
+      subtotal: 1300,
+      discount_total: 0,
+      tax_total: 0,
+      total: 1300,
+      currency: 'MXN',
+      status: 'pending',
+      payment_status: 'not_required',
+      source: 'Centro de control',
+      created_at: '2026-08-01T00:00:00.000Z',
+      updated_at: '2026-08-01T00:00:00.000Z',
+    }]
     supabaseMock.rpcError = new Error('CAPACITY_EXCEEDED')
 
     const res = await request(app)
@@ -3116,6 +3160,8 @@ describe('Fase 8D Stripe customer payments', () => {
     signInCustomer()
     ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
     ;(env as Record<string, string>).STRIPE_ENVIRONMENT = 'test'
+    stripeMock.customersCreate.mockResolvedValue({ id: 'cus_fase8d_mock' })
+    stripeMock.customerSessionsCreate.mockResolvedValue({ client_secret: 'cuss_fase8d_mock_secret' })
     stripeMock.paymentIntentsCreate.mockResolvedValue(mockPaymentIntent())
 
     const res = await request(app)
@@ -3128,6 +3174,7 @@ describe('Fase 8D Stripe customer payments', () => {
       expect.objectContaining({
         amount: 96000,
         currency: 'mxn',
+        customer: 'cus_fase8d_mock',
         automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
       }),
       expect.objectContaining({ idempotencyKey: expect.stringContaining(orderId) }),
@@ -3135,6 +3182,7 @@ describe('Fase 8D Stripe customer payments', () => {
     expect(res.body.data).toMatchObject({
       provider: 'stripe',
       clientSecret: 'pi_fase8d_mock_secret_client',
+      customerSessionClientSecret: 'cuss_fase8d_mock_secret',
       amount: 960,
       currency: 'MXN',
     })

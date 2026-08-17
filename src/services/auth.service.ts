@@ -273,6 +273,23 @@ export async function getCurrentProfile(userId: string) {
   return data
 }
 
+export async function updateCurrentPreferredLanguage(
+  userId: string,
+  language: 'es' | 'en',
+) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      preferred_language: language,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+    .select('*')
+    .single()
+  if (error) throw normalizeError(error)
+  return data
+}
+
 export async function getCurrentRoles(userId: string): Promise<UserRole[]> {
   const { data, error } = await supabase
     .from('user_roles')

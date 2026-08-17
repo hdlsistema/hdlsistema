@@ -93,6 +93,8 @@ export type ReservationRecord = {
   total: number
   currency: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'no_show'
+  paymentStatus: 'not_required' | 'pending' | 'paid' | 'cancelled' | 'refunded' | string
+  paymentExpiresAt?: string | null
   source: string
   customerNotes?: string | null
   internalNotes?: string | null

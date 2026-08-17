@@ -529,6 +529,7 @@ export function ReservationsPage() {
                   <Detail label="Ocasión" value={selected.occasion ?? 'No especificada'} />
                   <Detail label="Canal" value={channelLabel(selected.source)} />
                   <Detail label="Total" value={currency(selected.total, selected.currency)} />
+                  <Detail label="Pago" value={selected.paymentStatus === 'not_required' ? 'No requerido' : selected.paymentStatus === 'pending' ? 'Pendiente en App' : selected.paymentStatus === 'paid' ? 'Pagado' : selected.paymentStatus} />
                 </div>
               ) : (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -538,11 +539,12 @@ export function ReservationsPage() {
                   <Detail label="Cupo disponible" value={String(selected.available)} />
                   <Detail label="Canal" value={channelLabel(selected.source)} />
                   <Detail label="Total" value={currency(selected.total, selected.currency)} />
+                  <Detail label="Pago" value={selected.paymentStatus === 'not_required' ? 'No requerido' : selected.paymentStatus === 'pending' ? 'Pendiente en App' : selected.paymentStatus === 'paid' ? 'Pagado' : selected.paymentStatus} />
                 </div>
               )}
               <div className="mt-5 flex flex-wrap gap-2">
-                <ActionButton disabled={!writable || selected.status !== 'pending' || (selected.reservationType === 'cabin' && selectedStay?.status === 'expired')} onClick={() => requestAction({ title: 'Confirmar reservación', message: selected.reservationType === 'cabin' ? 'La solicitud pendiente se convertirá en reserva firme; las noches ya están bloqueadas para impedir cruces.' : 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
-                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status)} onClick={() => requestAction({ title: 'Cancelar reservación', message: selected.reservationType === 'cabin' ? 'Se cancelará la estancia y se liberarán sus noches en el calendario de cabañas.' : 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
+                <ActionButton disabled={!writable || selected.status !== 'pending' || (selected.reservationType === 'cabin' && selectedStay?.status === 'expired') || (selected.reservationType === 'experience' && selected.paymentStatus !== 'not_required')} onClick={() => requestAction({ title: 'Confirmar reservación', message: selected.reservationType === 'cabin' ? 'La solicitud pendiente se convertirá en reserva firme; las noches ya están bloqueadas para impedir cruces.' : 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
+                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || (selected.reservationType === 'experience' && selected.paymentStatus !== 'not_required')} onClick={() => requestAction({ title: 'Cancelar reservación', message: selected.reservationType === 'cabin' ? 'Se cancelará la estancia y se liberarán sus noches en el calendario de cabañas.' : 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
               </div>
             </article>
 
@@ -561,7 +563,7 @@ export function ReservationsPage() {
                   <option value="">Selecciona nuevo horario</option>
                   {slots.filter((slot) => !selected.experienceId || slot.experienceId === selected.experienceId).map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
                 </CrystalSelect>
-                <ActionButton disabled={!writable || !rescheduleSlotId} onClick={submitReschedule}>Reprogramar</ActionButton>
+                <ActionButton disabled={!writable || !rescheduleSlotId || selected.paymentStatus !== 'not_required'} onClick={submitReschedule}>Reprogramar</ActionButton>
               </article>
             ) : null}
 
@@ -569,7 +571,7 @@ export function ReservationsPage() {
               <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><Users size={16} /> Personas y notas</h4>
               <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
                 <input type="number" min="1" value={partySize} onChange={(event) => setPartySize(event.target.value)} placeholder="Personas" className="min-h-11 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm text-[var(--color-ink)]" />
-                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || !partySize} onClick={submitPartySize}>Cambiar</ActionButton>
+                <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || !partySize || (selected.reservationType === 'experience' && selected.paymentStatus !== 'not_required')} onClick={submitPartySize}>Cambiar</ActionButton>
               </div>
               <textarea value={note} onChange={(event) => setNote(event.target.value)} rows={3} placeholder="Nota interna" className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 py-3 text-sm text-[var(--color-ink)] outline-none" />
               <ActionButton disabled={!writable || !note.trim()} onClick={submitNote}><MessageSquarePlus size={14} /> Agregar nota</ActionButton>

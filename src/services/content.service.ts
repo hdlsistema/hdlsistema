@@ -58,6 +58,43 @@ export type ContentItemResponse = {
   data: ContentRecord
 }
 
+export type EventTicketType = {
+  id: string
+  event_id: string
+  name: string
+  description?: string | null
+  price: number
+  capacity: number
+  sold_count: number
+  reserved_count?: number | null
+  sales_start_at?: string | null
+  sales_end_at?: string | null
+  active: boolean
+  status: 'draft' | 'published' | 'scheduled' | 'archived' | 'inactive' | string
+  visible_in_app: boolean
+  sort_order: number
+  publish_at?: string | null
+  unpublish_at?: string | null
+  published_at?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+}
+
+export type EventTicketTypePayload = {
+  name: string
+  description?: string | null
+  price: number
+  capacity: number
+  sales_start_at?: string | null
+  sales_end_at?: string | null
+  active: boolean
+  status: 'draft' | 'published' | 'scheduled' | 'archived' | 'inactive'
+  visible_in_app: boolean
+  sort_order: number
+  publish_at?: string | null
+  unpublish_at?: string | null
+}
+
 export type ContentVersionsResponse = {
   ok: true
   data: Array<{
@@ -84,6 +121,7 @@ export type PreviewResponse = {
 }
 
 export type CampaignAudienceFilters = {
+  channels?: Array<'email' | 'push' | 'in_app'>
   search?: string
   segment?: string
   source?: string
@@ -109,6 +147,8 @@ export type CampaignAudiencePreviewResponse = {
   data: {
     total: number
     consentRequired: string
+    channels: Array<'email' | 'push' | 'in_app'>
+    channelTotals: Record<'email' | 'push' | 'in_app', number>
     filters: CampaignAudienceFilters
     sample: Array<{
       id: string
@@ -130,9 +170,27 @@ export type CampaignSendResponse = {
     campaignId: string
     sentAt: string
     recipients: number
+    channels: Array<'email' | 'push' | 'in_app'>
     sent: number
     pending: number
     failed: number
+  }
+}
+
+export type CampaignMetricsResponse = {
+  ok: true
+  data: {
+    campaignId: string
+    recipients: number
+    channels: Array<{
+      channel: 'email' | 'push' | 'in_app'
+      total: number
+      delivered: number
+      pending: number
+      failed: number
+      opened: number
+      clicked: number
+    }>
   }
 }
 
@@ -267,6 +325,40 @@ export const adminContentClient = {
       headers: adminHeaders(token),
       body: JSON.stringify(payload),
     })
+  },
+
+  campaignMetrics(id: string, token: string | null | undefined) {
+    return apiFetch<CampaignMetricsResponse>(`/api/admin/campaigns/${encodeURIComponent(id)}/metrics`, {
+      headers: adminHeaders(token),
+    })
+  },
+
+  eventTicketTypes(eventId: string, token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: EventTicketType[] }>(
+      `/api/admin/events/${encodeURIComponent(eventId)}/ticket-types`,
+      { headers: adminHeaders(token) },
+    )
+  },
+
+  createEventTicketType(eventId: string, payload: EventTicketTypePayload, token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: EventTicketType }>(
+      `/api/admin/events/${encodeURIComponent(eventId)}/ticket-types`,
+      { method: 'POST', headers: adminHeaders(token), body: JSON.stringify(payload) },
+    )
+  },
+
+  updateEventTicketType(eventId: string, ticketId: string, payload: Partial<EventTicketTypePayload>, token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: EventTicketType }>(
+      `/api/admin/events/${encodeURIComponent(eventId)}/ticket-types/${encodeURIComponent(ticketId)}`,
+      { method: 'PATCH', headers: adminHeaders(token), body: JSON.stringify(payload) },
+    )
+  },
+
+  removeEventTicketType(eventId: string, ticketId: string, token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: EventTicketType }>(
+      `/api/admin/events/${encodeURIComponent(eventId)}/ticket-types/${encodeURIComponent(ticketId)}`,
+      { method: 'DELETE', headers: adminHeaders(token) },
+    )
   },
 	}
 

@@ -74,6 +74,9 @@ export type EditorialFormProps = {
   onVersions: () => void
   actions: ReactNode
   versions: ReactNode
+  token?: string | null
+  canWrite?: boolean
+  canDelete?: boolean
 }
 
 export type ValidationIntent = 'save' | 'publish' | 'schedule'

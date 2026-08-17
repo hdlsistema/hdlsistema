@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Loader2, RotateCcw } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Ticket } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -115,13 +115,19 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
         ) : null}
 
         <div className="mt-5 grid gap-3">
+          {resolvedMode === 'success' ? (
+            <PrimaryButton to={`${appPath('/reservacion')}#boletos`}>
+              <Ticket size={16} />
+              {t('app.premium.payment.viewTickets', 'Ver boletos y códigos QR')}
+            </PrimaryButton>
+          ) : null}
           {canRetry ? (
             <Link to={`${appPath('/checkout')}${orderId ? `?orderId=${encodeURIComponent(orderId)}` : ''}`} className="flex min-h-[48px] items-center justify-center gap-2 rounded-[0.95rem] bg-[var(--color-burgundy)] px-4 text-[13px] font-bold text-white">
               <RotateCcw size={16} />
               {t('app.premium.payment.retryPayment')}
             </Link>
           ) : null}
-          <PrimaryButton to={appPath('/perfil')} tone={canRetry ? 'ghost' : 'primary'}>
+          <PrimaryButton to={appPath('/perfil')} tone={canRetry || resolvedMode === 'success' ? 'ghost' : 'primary'}>
             {t('app.premium.payment.viewOrders')}
           </PrimaryButton>
         </div>

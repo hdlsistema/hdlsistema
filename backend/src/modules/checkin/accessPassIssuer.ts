@@ -48,6 +48,7 @@ type OrderRow = {
   customer_id: string
   user_id?: string | null
   status: string
+  reservation_id?: string | null
 }
 
 type OrderItemRow = {
@@ -262,12 +263,13 @@ export async function ensureEventTicketAccessPassesForPaidOrder(orderId: string)
 
   for (const item of items) {
     const eventStartsAt = typeof item.metadata?.eventStartsAt === 'string' ? item.metadata.eventStartsAt : null
+    const eventEndsAt = typeof item.metadata?.eventEndsAt === 'string' ? item.metadata.eventEndsAt : null
     for (let index = 1; index <= Number(item.quantity ?? 0); index += 1) {
       const pass = await upsertAccessPass({
         orderId: order.id,
         eventTicketTypeId: item.item_id,
         validFrom: eventStartsAt,
-        validUntil: null,
+        validUntil: eventEndsAt,
         idempotencyKey: `event-ticket-access:${order.id}:${item.id}:${index}`,
         metadata: {
           accessType: 'event_ticket',
@@ -282,6 +284,37 @@ export async function ensureEventTicketAccessPassesForPaidOrder(orderId: string)
   }
 
   return passes
+}
+
+export async function ensureReservationAccessPassForPaidOrder(orderId: string) {
+  const orderResult = await supabaseAdminClient
+    .from('orders')
+    .select('id,customer_id,user_id,status,reservation_id')
+    .eq('id', orderId)
+    .maybeSingle()
+  const order = assertNoError<OrderRow | null>(orderResult).data
+  if (!order?.reservation_id || !['paid', 'fulfilled'].includes(order.status)) return null
+
+  const reservationResult = await supabaseAdminClient
+    .from('reservations')
+    .select('id,status,people_count,experience_slots(start_at,end_at)')
+    .eq('id', order.reservation_id)
+    .maybeSingle()
+  const reservation = assertNoError<{
+    id: string
+    status: string
+    people_count: number
+    experience_slots?: Relation<{ start_at?: string | null; end_at?: string | null }>
+  } | null>(reservationResult).data
+  if (!reservation) return null
+  const slot = first(reservation.experience_slots)
+  return ensureReservationAccessPass({
+    id: reservation.id,
+    status: reservation.status,
+    peopleCount: reservation.people_count,
+    startAt: slot?.start_at ?? null,
+    endAt: slot?.end_at ?? null,
+  })
 }
 
 export async function listCustomerAccessPasses(customerId: string, userId: string) {

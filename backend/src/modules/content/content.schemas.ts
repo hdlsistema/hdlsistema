@@ -29,6 +29,7 @@ const eventStatus = z.enum([
 const campaignStatus = z.enum(['draft', 'scheduled', 'active', 'paused', 'completed', 'cancelled'])
 const campaignAudienceFiltersSchema = z
   .object({
+    channels: z.array(z.enum(['email', 'push', 'in_app'])).min(1).max(3).optional(),
     search: z.string().trim().max(120).optional(),
     segment: z.string().trim().max(80).optional(),
     source: z.string().trim().max(80).optional(),
@@ -199,6 +200,7 @@ export const sendCampaignSchema = z
     ctaLabel: z.string().trim().max(80).optional(),
     ctaUrl: z.string().url().optional(),
     limit: z.number().int().min(1).max(500).optional(),
+    channels: z.array(z.enum(['email', 'push', 'in_app'])).min(1).max(3).optional(),
   })
   .strict()
 

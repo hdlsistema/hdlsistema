@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { customerClient } from '../../services/customer.service'
+import { updateCurrentPreferredLanguage } from '../../services/auth.service'
 import { normalizeLanguage } from '../i18n'
 import { useAppPreferences } from './AppPreferencesContext'
 
 export function AppPreferencesAuthSync() {
-  const { session, profile, roles, isLoading } = useAuth()
+  const { session, profile, isLoading } = useAuth()
   const { language, setLanguage } = useAppPreferences()
   const loadedUser = useRef<string | null>(null)
   const persisted = useRef<string | null>(null)
@@ -21,17 +21,15 @@ export function AppPreferencesAuthSync() {
   }, [isLoading, language, profile?.preferred_language, session?.user?.id, setLanguage])
 
   useEffect(() => {
-    if (!session?.access_token || isLoading) return
-    if (!roles.includes('customer')) return
+    if (!session?.user?.id || isLoading) return
     if (persisted.current === language) return
     persisted.current = language
 
-    customerClient
-      .updateMe(session.access_token, { preferredLanguage: language })
+    updateCurrentPreferredLanguage(session.user.id, language)
       .catch(() => {
         persisted.current = null
       })
-  }, [isLoading, language, roles, session?.access_token])
+  }, [isLoading, language, session?.user?.id])
 
   return null
 }

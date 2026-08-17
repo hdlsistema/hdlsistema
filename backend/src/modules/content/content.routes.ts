@@ -4,11 +4,18 @@ import { authorize } from '../../middleware/authorize'
 import { rateLimit } from '../../middleware/rateLimit'
 import { contentAdminRoles } from './content.permissions'
 import {
+  createEventTicketTypeAdmin,
+  listEventTicketTypesAdmin,
+  patchEventTicketTypeAdmin,
+  removeEventTicketTypeAdmin,
+} from './eventTickets.controller'
+import {
   archiveAdmin,
   createAdmin,
   duplicateAdmin,
   getAdmin,
-  getPreview,
+	  getPreview,
+	  getCampaignMetricsAdmin,
   getPublicBySlug,
   listAdmin,
 	  listPublic,
@@ -33,6 +40,11 @@ const protectedAdmin = [authenticate, authorize(contentAdminRoles)]
 adminRouter.use(rateLimit(240, 60_000))
 adminRouter.post('/campaigns/audience-preview', ...protectedAdmin, previewCampaignAudienceAdmin)
 adminRouter.post('/campaigns/:id/send', ...protectedAdmin, sendCampaignAdmin)
+adminRouter.get('/campaigns/:id/metrics', ...protectedAdmin, getCampaignMetricsAdmin)
+adminRouter.get('/events/:eventId/ticket-types', ...protectedAdmin, listEventTicketTypesAdmin)
+adminRouter.post('/events/:eventId/ticket-types', ...protectedAdmin, createEventTicketTypeAdmin)
+adminRouter.patch('/events/:eventId/ticket-types/:ticketId', ...protectedAdmin, patchEventTicketTypeAdmin)
+adminRouter.delete('/events/:eventId/ticket-types/:ticketId', ...protectedAdmin, removeEventTicketTypeAdmin)
 adminRouter.get('/:entity', ...protectedAdmin, listAdmin)
 adminRouter.get('/:entity/:id', ...protectedAdmin, getAdmin)
 adminRouter.post('/:entity', ...protectedAdmin, createAdmin)

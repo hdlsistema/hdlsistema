@@ -40,7 +40,7 @@ export const contentConfigs: Record<ContentRouteEntity, ContentConfig> = {
     searchColumns: ['title', 'slug', 'subtitle', 'venue'],
     adminSelect: '*',
     publicSelect:
-      'id,slug,title,subtitle,description,short_description,venue,start_at,end_at,capacity,sold_count,featured,status,visible_in_app,sales_enabled,cover_image_url,sort_order,publish_at,unpublish_at,published_at,locale,version,event_images(id,url,alt_text,sort_order,status,visible_in_app,publish_at,unpublish_at,archived_at,deleted_at),event_ticket_types(id,name,description,price,capacity,sold_count,active,status,visible_in_app,sales_start_at,sales_end_at)',
+      'id,slug,title,subtitle,description,short_description,venue,start_at,end_at,capacity,sold_count,reserved_count,featured,status,visible_in_app,sales_enabled,cover_image_url,sort_order,publish_at,unpublish_at,published_at,locale,version,event_images(id,url,alt_text,sort_order,status,visible_in_app,publish_at,unpublish_at,archived_at,deleted_at),event_ticket_types(id,name,description,price,capacity,sold_count,reserved_count,active,status,visible_in_app,sales_start_at,sales_end_at,publish_at,unpublish_at,archived_at,deleted_at)',
     publishStatus: 'published',
     unpublishStatus: 'inactive',
     archiveStatus: 'archived',

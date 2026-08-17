@@ -1,6 +1,8 @@
 import { createHash, randomBytes, randomUUID } from 'crypto'
 import { supabaseAdminClient } from '../../config/supabase'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
+import { createCustomerCampaignNotification } from '../notifications/notifications.service'
+import { assertNoError } from '../operations/operationErrors'
 import type { CampaignAudienceFilters, SendCampaignPayload } from './content.schemas'
 import { contentConfigs, getContentConfig } from './content.config'
 import { canAccessContent } from './content.permissions'
@@ -49,6 +51,7 @@ type CustomerAudienceRow = {
   total_visits?: number | null
   preferred_language?: string | null
   marketing_email_consent?: boolean | null
+  marketing_push_consent?: boolean | null
   metadata?: Record<string, unknown> | null
   status?: string | null
   created_at?: string | null
@@ -200,9 +203,8 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
   const limit = Math.min(filters.limit ?? 250, 500)
   let query: any = supabaseAdminClient
     .from('customers')
-    .select('id,user_id,customer_number,first_name,last_name,email,birth_date,source,segment,total_spend,total_visits,preferred_language,marketing_email_consent,metadata,status,created_at')
-    .eq('marketing_email_consent', true)
-    .not('email', 'is', null)
+    .select('id,user_id,customer_number,first_name,last_name,email,birth_date,source,segment,total_spend,total_visits,preferred_language,marketing_email_consent,marketing_push_consent,metadata,status,created_at')
+    .eq('status', 'published')
     .order('created_at', { ascending: false })
     .limit(1000)
 
@@ -258,11 +260,54 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
 
   const unique = new Map<string, CustomerAudienceRow>()
   for (const row of rows) {
-    const email = normalizeCustomerEmail(row.email)
-    if (email && row.marketing_email_consent) unique.set(row.id, row)
+    unique.set(row.id, row)
   }
 
   return Array.from(unique.values()).slice(0, limit)
+}
+
+type CampaignChannel = 'email' | 'push' | 'in_app'
+
+function requestedCampaignChannels(value: unknown): CampaignChannel[] {
+  const source = Array.isArray(value)
+    ? value
+    : typeof value === 'string'
+      ? value.split(/[,;+]/)
+      : []
+  const channels = source
+    .map((item) => String(item).trim().toLowerCase())
+    .filter((item): item is CampaignChannel => ['email', 'push', 'in_app'].includes(item))
+  return Array.from(new Set(channels.length ? channels : ['email']))
+}
+
+function customerEligibleForChannel(row: CustomerAudienceRow, channel: CampaignChannel) {
+  if (channel === 'email') return Boolean(normalizeCustomerEmail(row.email) && row.marketing_email_consent)
+  return Boolean(row.user_id && row.marketing_push_consent)
+}
+
+async function upsertCampaignDelivery(input: {
+  campaignId: string
+  customerId: string
+  channel: CampaignChannel
+  status: string
+  notificationId?: string | null
+  providerReference?: string | null
+  errorCode?: string | null
+}) {
+  const delivered = ['sent', 'delivered', 'read'].includes(input.status)
+  await supabaseAdminClient
+    .from('campaign_recipient_deliveries')
+    .upsert({
+      campaign_id: input.campaignId,
+      customer_id: input.customerId,
+      channel: input.channel,
+      notification_id: input.notificationId ?? null,
+      status: input.status,
+      provider_reference: input.providerReference ?? null,
+      error_code: input.errorCode ?? null,
+      delivered_at: delivered ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'campaign_id,customer_id,channel' })
 }
 
 function publicAudienceRow(row: CustomerAudienceRow) {
@@ -277,6 +322,30 @@ function publicAudienceRow(row: CustomerAudienceRow) {
     totalSpend: Number(row.total_spend ?? 0),
     totalVisits: row.total_visits ?? 0,
   }
+}
+
+async function assertEventSalesReady(eventId: string, event: Record<string, unknown>) {
+  if (event.sales_enabled !== true) return
+  const endAt = typeof event.end_at === 'string' ? new Date(event.end_at).getTime() : Number.NaN
+  if (!Number.isFinite(endAt) || endAt <= Date.now()) {
+    throw httpError(422, 'Un evento con venta activa debe terminar en una fecha futura')
+  }
+  const ticketsResult = await supabaseAdminClient
+    .from('event_ticket_types')
+    .select('id,capacity,sold_count,reserved_count,status,active,visible_in_app,sales_start_at,sales_end_at')
+    .eq('event_id', eventId)
+    .eq('status', 'published')
+    .eq('active', true)
+    .eq('visible_in_app', true)
+    .is('deleted_at', null)
+    .is('archived_at', null)
+  const tickets = assertNoError<Array<Record<string, unknown>>>(ticketsResult).data ?? []
+  const now = Date.now()
+  const usable = tickets.some((ticket) => (
+    Number(ticket.capacity ?? 0) > Number(ticket.sold_count ?? 0) + Number(ticket.reserved_count ?? 0)
+    && (typeof ticket.sales_end_at !== 'string' || new Date(ticket.sales_end_at).getTime() >= now)
+  ))
+  if (!usable) throw httpError(422, 'Configura y publica al menos un tipo de boleto con cupo antes de activar la venta')
 }
 
 export async function listAdminContent(
@@ -299,12 +368,19 @@ export async function previewCampaignAudience(filters: CampaignAudienceFilters, 
   const config = assertEntity('campaigns')
   requirePermission(config, 'read', user)
   const recipients = await resolveCampaignAudience(filters)
+  const channels = requestedCampaignChannels(filters.channels)
+  const eligible = recipients.filter((recipient) => channels.some((channel) => customerEligibleForChannel(recipient, channel)))
   return {
     data: {
-      total: recipients.length,
-      consentRequired: 'marketing_email_consent',
+      total: eligible.length,
+      consentRequired: 'channel_specific_marketing_consent',
+      channels,
+      channelTotals: Object.fromEntries(channels.map((channel) => [
+        channel,
+        recipients.filter((recipient) => customerEligibleForChannel(recipient, channel)).length,
+      ])),
       filters,
-      sample: recipients.slice(0, 20).map(publicAudienceRow),
+      sample: eligible.slice(0, 20).map(publicAudienceRow),
     },
   }
 }
@@ -334,35 +410,95 @@ export async function sendCampaignEmail(id: string, payload: SendCampaignPayload
     ...(payload.audience ?? {}),
     limit: payload.limit ?? payload.audience?.limit ?? storedAudience.limit,
   } as CampaignAudienceFilters
-  const recipients = await resolveCampaignAudience(audience)
+  const channels = requestedCampaignChannels(payload.channels ?? audience.channels ?? campaign.channel)
+  audience.channels = channels
+  const allRecipients = await resolveCampaignAudience(audience)
+  const recipients = allRecipients.filter((recipient) => channels.some((channel) => customerEligibleForChannel(recipient, channel)))
   if (recipients.length === 0) throw httpError(422, 'No hay destinatarios con consentimiento para esta audiencia')
 
   const sendHash = campaignHash({ subject, body, cta: content.cta_label, url: content.cta_url, audience })
   const results = []
   for (const recipient of recipients) {
     const email = normalizeCustomerEmail(recipient.email)
-    if (!email) continue
-    const sent = await enqueueAndProcessTransactionalEmail({
-      eventType: 'campaign.marketing',
-      aggregateType: 'campaigns',
-      aggregateId: id,
-      customerId: recipient.id,
-      userId: recipient.user_id ?? null,
-      recipientEmail: email,
-      locale: recipient.preferred_language ?? audience.locale ?? 'es-MX',
-      payload: {
-        subject,
+    const channelResults: Array<{ channel: CampaignChannel; status: string }> = []
+
+    if (channels.includes('email') && customerEligibleForChannel(recipient, 'email') && email) {
+      const sent = await enqueueAndProcessTransactionalEmail({
+        eventType: 'campaign.marketing',
+        aggregateType: 'campaigns',
+        aggregateId: id,
+        customerId: recipient.id,
+        userId: recipient.user_id ?? null,
+        recipientEmail: email,
+        locale: recipient.preferred_language ?? audience.locale ?? 'es-MX',
+        payload: {
+          subject,
+          title: subject,
+          body,
+          campaignName: String(campaign.name ?? 'Campaña Hacienda de Letras'),
+          customerName: customerDisplayName(recipient),
+          ctaLabel: typeof content.cta_label === 'string' ? content.cta_label : undefined,
+          ctaUrl: typeof content.cta_url === 'string' ? content.cta_url : undefined,
+        },
+        idempotencyKey: `campaign.marketing:${id}:${recipient.id}:${sendHash}:email`,
+      })
+      const emailStatus = sent.outbox.status === 'sent' || sent.outbox.status === 'delivered'
+        ? sent.outbox.status
+        : sent.outbox.status === 'failed'
+          ? 'failed'
+          : sent.outbox.status === 'pending_configuration'
+            ? 'pending_configuration'
+            : 'pending'
+      await upsertCampaignDelivery({
+        campaignId: id,
+        customerId: recipient.id,
+        channel: 'email',
+        status: emailStatus,
+        providerReference: sent.outbox.id,
+        errorCode: sent.outbox.error_code ?? null,
+      })
+      channelResults.push({ channel: 'email', status: emailStatus })
+    }
+
+    const wantsPush = channels.includes('push') && customerEligibleForChannel(recipient, 'push')
+    const wantsInApp = channels.includes('in_app') && customerEligibleForChannel(recipient, 'in_app')
+    if (wantsPush || wantsInApp) {
+      const notification = await createCustomerCampaignNotification({
+        campaignId: id,
+        customerId: recipient.id,
+        userId: recipient.user_id ?? null,
         title: subject,
         body,
-        campaignName: String(campaign.name ?? 'Campaña Hacienda de Letras'),
-        customerName: customerDisplayName(recipient),
-        ctaLabel: typeof content.cta_label === 'string' ? content.cta_label : undefined,
-      },
-      idempotencyKey: `campaign.marketing:${id}:${recipient.id}:${sendHash}`,
-    })
-    const deliveryStatus = sent.outbox.status === 'sent' || sent.outbox.status === 'delivered'
+        deepLink: '/app/inicio',
+        data: { campaignId: id, campaignName: String(campaign.name ?? '') },
+        sendPush: wantsPush,
+      })
+      if (wantsPush) {
+        await upsertCampaignDelivery({
+          campaignId: id,
+          customerId: recipient.id,
+          channel: 'push',
+          status: notification.delivery.status,
+          notificationId: notification.data.id,
+          errorCode: notification.delivery.errorCode,
+        })
+        channelResults.push({ channel: 'push', status: notification.delivery.status })
+      }
+      if (wantsInApp) {
+        await upsertCampaignDelivery({
+          campaignId: id,
+          customerId: recipient.id,
+          channel: 'in_app',
+          status: 'sent',
+          notificationId: notification.data.id,
+        })
+        channelResults.push({ channel: 'in_app', status: 'sent' })
+      }
+    }
+
+    const deliveryStatus = channelResults.some((item) => ['sent', 'delivered', 'read'].includes(item.status))
       ? 'sent'
-      : sent.outbox.status === 'failed'
+      : channelResults.some((item) => item.status === 'failed')
         ? 'failed'
         : 'pending'
     await supabaseAdminClient
@@ -372,13 +508,12 @@ export async function sendCampaignEmail(id: string, payload: SendCampaignPayload
         customer_id: recipient.id,
         delivery_status: deliveryStatus,
         delivered_at: deliveryStatus === 'sent' ? new Date().toISOString() : null,
-        error_code: sent.outbox.status === 'failed' ? sent.outbox.error_code ?? 'provider_error' : null,
+        error_code: deliveryStatus === 'failed' ? 'channel_delivery_failed' : null,
       }, { onConflict: 'campaign_id,customer_id' })
     results.push({
       customerId: recipient.id,
-      emailStatus: sent.outbox.status,
-      outboxId: sent.outbox.id,
-      eventId: sent.event.id,
+      channelResults,
+      status: deliveryStatus,
     })
   }
 
@@ -394,13 +529,14 @@ export async function sendCampaignEmail(id: string, payload: SendCampaignPayload
 
   await supabaseAdminClient.from('audit_logs').insert({
     actor_user_id: user.userId ?? null,
-    action: 'campaign_email_sent',
+    action: 'campaign_multichannel_sent',
     entity_type: 'campaigns',
     entity_id: id,
     before_data: { status: campaign.status },
     after_data: {
       status: 'completed',
       recipients: results.length,
+      channels,
       sendHash,
     },
   })
@@ -410,9 +546,48 @@ export async function sendCampaignEmail(id: string, payload: SendCampaignPayload
       campaignId: id,
       sentAt,
       recipients: results.length,
-      sent: results.filter((item) => item.emailStatus === 'sent' || item.emailStatus === 'delivered').length,
-      pending: results.filter((item) => item.emailStatus !== 'sent' && item.emailStatus !== 'delivered' && item.emailStatus !== 'failed').length,
-      failed: results.filter((item) => item.emailStatus === 'failed').length,
+      channels,
+      sent: results.filter((item) => item.status === 'sent').length,
+      pending: results.filter((item) => item.status === 'pending').length,
+      failed: results.filter((item) => item.status === 'failed').length,
+    },
+  }
+}
+
+export async function getCampaignMetrics(id: string, user: UserContext) {
+  const config = assertEntity('campaigns')
+  requirePermission(config, 'read', user)
+  const campaign = await getContentById(config, id)
+  if (!campaign.data) throw httpError(404, 'Campaña no encontrada')
+  const result = await supabaseAdminClient
+    .from('campaign_recipient_deliveries')
+    .select('customer_id,channel,status,delivered_at,opened_at,clicked_at')
+    .eq('campaign_id', id)
+  const rows = assertNoError<Array<{
+    customer_id: string
+    channel: CampaignChannel
+    status: string
+    delivered_at?: string | null
+    opened_at?: string | null
+    clicked_at?: string | null
+  }>>(result).data ?? []
+  const channels = (['email', 'push', 'in_app'] as CampaignChannel[]).map((channel) => {
+    const selected = rows.filter((row) => row.channel === channel)
+    return {
+      channel,
+      total: selected.length,
+      delivered: selected.filter((row) => Boolean(row.delivered_at) || ['sent', 'delivered', 'read'].includes(row.status)).length,
+      pending: selected.filter((row) => ['pending', 'pending_configuration'].includes(row.status)).length,
+      failed: selected.filter((row) => row.status === 'failed').length,
+      opened: selected.filter((row) => Boolean(row.opened_at)).length,
+      clicked: selected.filter((row) => Boolean(row.clicked_at)).length,
+    }
+  })
+  return {
+    data: {
+      campaignId: id,
+      recipients: new Set(rows.map((row) => row.customer_id)).size,
+      channels,
     },
   }
 }
@@ -424,6 +599,9 @@ export async function createAdminContent(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'create', user)
+  if (routeEntity === 'events' && payload.status === 'published' && payload.sales_enabled === true) {
+    throw httpError(422, 'Guarda el evento como borrador, configura sus boletos y después publícalo')
+  }
   return insertContent(config, { ...payload, created_by: user.userId, updated_by: user.userId })
 }
 
@@ -435,6 +613,12 @@ export async function updateAdminContent(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'update', user)
+  if (routeEntity === 'events') {
+    const current = await getContentById(config, id)
+    if (!current.data) throw httpError(404, 'Evento no encontrado')
+    const candidate = { ...(current.data as unknown as Record<string, unknown>), ...payload }
+    if (candidate.status === 'published') await assertEventSalesReady(id, candidate)
+  }
   return updateContent(config, id, { ...payload, updated_by: user.userId })
 }
 
@@ -452,6 +636,11 @@ export async function applyPublicationAction(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, action, user)
+  if (routeEntity === 'events' && action === 'publish') {
+    const current = await getContentById(config, id)
+    if (!current.data) throw httpError(404, 'Evento no encontrado')
+    await assertEventSalesReady(id, current.data as unknown as Record<string, unknown>)
+  }
   return updateContent(config, id, { ...buildStatusPatch(config, action), updated_by: user.userId })
 }
 
@@ -465,6 +654,11 @@ export async function schedulePublicationAction(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'schedule', user)
+  if (routeEntity === 'events' && action === 'publish') {
+    const current = await getContentById(config, id)
+    if (!current.data) throw httpError(404, 'Evento no encontrado')
+    await assertEventSalesReady(id, current.data as unknown as Record<string, unknown>)
+  }
   return createPublicationJob(config, id, action, runAt, timezone, user.userId)
 }
 

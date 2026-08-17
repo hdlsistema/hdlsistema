@@ -16,26 +16,40 @@ type EventTicketType = {
   price?: number | string | null
   capacity?: number | null
   sold_count?: number | null
+  reserved_count?: number | null
   active?: boolean | null
   status?: string | null
   visible_in_app?: boolean | null
   sales_start_at?: string | null
   sales_end_at?: string | null
+  publish_at?: string | null
+  unpublish_at?: string | null
+  archived_at?: string | null
+  deleted_at?: string | null
 }
 
 function liveTicket(ticket: EventTicketType) {
   const now = Date.now()
   const starts = ticket.sales_start_at ? new Date(ticket.sales_start_at).getTime() : null
   const ends = ticket.sales_end_at ? new Date(ticket.sales_end_at).getTime() : null
+  const publishes = ticket.publish_at ? new Date(ticket.publish_at).getTime() : null
+  const unpublishes = ticket.unpublish_at ? new Date(ticket.unpublish_at).getTime() : null
   return ticket.active !== false
     && ticket.visible_in_app !== false
     && ticket.status === 'published'
+    && !ticket.archived_at
+    && !ticket.deleted_at
     && (starts === null || starts <= now)
     && (ends === null || ends >= now)
+    && (publishes === null || publishes <= now)
+    && (unpublishes === null || unpublishes > now)
 }
 
 function ticketAvailable(ticket: EventTicketType) {
-  return Math.max(Number(ticket.capacity ?? 0) - Number(ticket.sold_count ?? 0), 0)
+  return Math.max(
+    Number(ticket.capacity ?? 0) - Number(ticket.sold_count ?? 0) - Number(ticket.reserved_count ?? 0),
+    0,
+  )
 }
 
 export function EventDetailScreen() {
@@ -87,6 +101,10 @@ export function EventDetailScreen() {
   const ticketTypes = (Array.isArray(event.event_ticket_types) ? event.event_ticket_types : [])
     .filter((item): item is EventTicketType => Boolean(item && typeof item === 'object' && 'id' in item))
     .filter(liveTicket)
+  const eventAvailable = Math.max(
+    numberField(event, 'capacity') - numberField(event, 'sold_count') - numberField(event, 'reserved_count'),
+    0,
+  )
 
   const addTicketToCart = async (ticket: EventTicketType) => {
     const token = session?.access_token
@@ -94,7 +112,7 @@ export function EventDetailScreen() {
       navigate(appPath('/login'))
       return
     }
-    const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(ticketAvailable(ticket), 1))
+    const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(Math.min(ticketAvailable(ticket), eventAvailable), 1))
     setAddingTicket(ticket.id)
     setCartError('')
     setCartMessage('')
@@ -173,7 +191,7 @@ export function EventDetailScreen() {
         ) : (
           <div className="grid gap-3">
             {ticketTypes.map((ticket) => {
-              const available = ticketAvailable(ticket)
+              const available = Math.min(ticketAvailable(ticket), eventAvailable)
               const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(available, 1))
               return (
                 <article key={ticket.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">

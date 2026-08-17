@@ -38,13 +38,23 @@ function notificationContent(item: AdminNotification, isEnglish: boolean) {
 
 export function ControlTopbar() {
   const {
-    adminName,
-    adminRole,
     locale,
     isEnglish,
     t,
   } = useAppPreferences()
-  const { session, signOut } = useAuth()
+  const { session, profile, roles, signOut } = useAuth()
+  const adminName = profile?.display_name?.trim() || session?.user?.email || 'Usuario'
+  const primaryRole = roles.find((role) => role !== 'customer') ?? roles[0]
+  const roleLabels: Record<string, string> = {
+    super_admin: 'Superadministrador',
+    admin: 'Administrador',
+    operations: 'Operaciones',
+    marketing: 'Marketing',
+    finance: 'Finanzas',
+    viewer: 'Consulta',
+    customer: 'Cliente',
+  }
+  const adminRole = primaryRole ? roleLabels[primaryRole] ?? primaryRole : 'Usuario'
   const navigate = useNavigate()
   const [timeLabel, setTimeLabel] = useState('')
   const [showAlerts, setShowAlerts] = useState(false)

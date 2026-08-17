@@ -51,14 +51,24 @@ type ReservationRow = {
   reservation_number: string
   customer_id: string
   user_id?: string | null
+  reservation_type?: string | null
   experience_id?: string | null
   experience_slot_id?: string | null
+  cabin_package_id?: string | null
+  restaurant_location_id?: string | null
   people_count: number
   subtotal: number
   total: number
   currency: string
   status: string
+  payment_status?: string | null
+  payment_expires_at?: string | null
+  metadata?: Record<string, unknown> | null
   customer_notes?: string | null
+  reservation_date?: string | null
+  reservation_time?: string | null
+  check_in?: string | null
+  check_out?: string | null
   confirmed_at?: string | null
   cancelled_at?: string | null
   cancellation_reason?: string | null
@@ -67,6 +77,9 @@ type ReservationRow = {
   updated_at: string
   experiences?: Relation<{ id: string; title: string; slug: string; cover_image_url?: string | null; location?: string | null }>
   experience_slots?: Relation<{ id: string; start_at: string; end_at: string; capacity: number; confirmed_count?: number | null; reserved_count?: number | null }>
+  cabin_packages?: Relation<{ id: string; name: string; slug: string; cover_image_url?: string | null }>
+  restaurant_locations?: Relation<{ id: string; name: string; slug: string; cover_image_url?: string | null; full_address?: string | null }>
+  orders?: Relation<{ id: string; order_number: string; status: string; source?: string | null; created_at: string }>
 }
 type BenefitRow = {
   id: string
@@ -144,11 +157,14 @@ type ShipmentRow = {
 }
 
 const reservationSelect = `
-  id,reservation_number,customer_id,user_id,experience_id,experience_slot_id,people_count,
-  subtotal,total,currency,status,customer_notes,confirmed_at,cancelled_at,cancellation_reason,
-  rescheduled_at,created_at,updated_at,
+  id,reservation_number,customer_id,user_id,reservation_type,experience_id,experience_slot_id,cabin_package_id,restaurant_location_id,people_count,
+  subtotal,total,currency,status,payment_status,payment_expires_at,metadata,customer_notes,confirmed_at,cancelled_at,cancellation_reason,
+  reservation_date,reservation_time,check_in,check_out,rescheduled_at,created_at,updated_at,
   experiences(id,title,slug,cover_image_url,location),
-  experience_slots(id,start_at,end_at,capacity,confirmed_count,reserved_count)
+  experience_slots(id,start_at,end_at,capacity,confirmed_count,reserved_count),
+  cabin_packages(id,name,slug,cover_image_url),
+  restaurant_locations(id,name,slug,cover_image_url,full_address),
+  orders(id,order_number,status,source,created_at)
 `
 
 function rpcClient(user: UserContext) {
@@ -170,26 +186,54 @@ function toDate(value?: string) {
 function mapReservation(row: ReservationRow) {
   const experience = first(row.experiences)
   const slot = first(row.experience_slots)
-  const confirmed = Number(slot?.confirmed_count ?? slot?.reserved_count ?? 0)
+  const cabin = first(row.cabin_packages)
+  const restaurant = first(row.restaurant_locations)
+  const relatedOrders = Array.isArray(row.orders) ? row.orders : row.orders ? [row.orders] : []
+  const metadataOrderId = typeof row.metadata?.paymentOrderId === 'string' ? row.metadata.paymentOrderId : null
+  const paymentOrder = relatedOrders.find((order) => order.id === metadataOrderId)
+    ?? relatedOrders.find((order) => order.source === 'app_reservation')
+    ?? relatedOrders.sort((left, right) => right.created_at.localeCompare(left.created_at))[0]
+    ?? null
+  const committed = Number(slot?.reserved_count ?? slot?.confirmed_count ?? 0)
   const capacity = Number(slot?.capacity ?? 0)
+  const reservationType = row.reservation_type
+    ?? (row.cabin_package_id || cabin ? 'cabin' : row.restaurant_location_id || restaurant ? 'restaurant' : 'experience')
+  const title = reservationType === 'cabin'
+    ? cabin?.name ?? 'Cabaña'
+    : reservationType === 'restaurant'
+      ? restaurant?.name ?? 'Restaurante'
+      : experience?.title ?? 'Experiencia'
   return {
     id: row.id,
     reservationNumber: row.reservation_number,
     status: row.status,
+    paymentStatus: row.payment_status ?? 'not_required',
+    paymentExpiresAt: row.payment_expires_at ?? null,
+    paymentOrderId: paymentOrder?.id ?? null,
+    paymentOrderNumber: paymentOrder?.order_number ?? null,
+    paymentOrderStatus: paymentOrder?.status ?? null,
     peopleCount: row.people_count,
     subtotal: row.subtotal,
     total: row.total,
     currency: row.currency,
     customerNotes: row.customer_notes ?? null,
+    reservationType,
+    title,
     experienceId: experience?.id ?? row.experience_id ?? null,
-    experienceTitle: experience?.title ?? 'Experiencia',
+    experienceTitle: title,
     experienceSlug: experience?.slug ?? null,
-    coverImageUrl: experience?.cover_image_url ?? null,
-    location: experience?.location ?? null,
+    cabinPackageId: cabin?.id ?? row.cabin_package_id ?? null,
+    restaurantLocationId: restaurant?.id ?? row.restaurant_location_id ?? null,
+    coverImageUrl: experience?.cover_image_url ?? cabin?.cover_image_url ?? restaurant?.cover_image_url ?? null,
+    location: experience?.location ?? restaurant?.full_address ?? null,
     slotId: slot?.id ?? row.experience_slot_id ?? null,
     startAt: slot?.start_at ?? null,
     endAt: slot?.end_at ?? null,
-    available: Math.max(capacity - confirmed, 0),
+    reservationDate: row.reservation_date ?? null,
+    reservationTime: row.reservation_time ?? null,
+    checkIn: row.check_in ?? null,
+    checkOut: row.check_out ?? null,
+    available: Math.max(capacity - committed, 0),
     confirmedAt: row.confirmed_at ?? null,
     cancelledAt: row.cancelled_at ?? null,
     cancellationReason: row.cancellation_reason ?? null,
@@ -200,6 +244,9 @@ function mapReservation(row: ReservationRow) {
 }
 
 async function withReservationAccessPass(reservation: CustomerReservationData) {
+  if (reservation.reservationType !== 'experience') {
+    return { ...reservation, accessPass: null }
+  }
   const accessPass = await ensureReservationAccessPass({
     id: reservation.id,
     status: reservation.status,
@@ -586,6 +633,10 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
     if (result.error) normalizeDatabaseError(result.error)
     const response = await getCustomerReservation(String(result.data), user)
     queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
+    if (response.data.paymentOrderId) {
+      const order = await getCustomerOrder(response.data.paymentOrderId, user)
+      queueOrderEmails(order.data, customer, user, payload.language)
+    }
     recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
     return { data: await withReservationAccessPass(response.data) }
   } catch (error) {
@@ -611,6 +662,10 @@ export async function cancelCustomerReservation(id: string, payload: CancelCusto
 
 export async function rescheduleCustomerReservation(id: string, payload: RescheduleCustomerReservationPayload, user: UserContext) {
   assertCustomerAccess(user)
+  const current = await getCustomerReservation(id, user)
+  if (current.data.reservationType !== 'experience') {
+    throw httpError(422, 'Sólo las experiencias se reprograman mediante horarios publicados')
+  }
   const result = await rpcClient(user).rpc('reschedule_customer_reservation', {
     p_reservation_id: id,
     p_new_slot_id: payload.experienceSlotId,

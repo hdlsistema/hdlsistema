@@ -26,6 +26,11 @@ type CustomerNotificationInput = {
   data?: Record<string, unknown>
 }
 
+type CampaignNotificationInput = CustomerNotificationInput & {
+  campaignId: string
+  sendPush: boolean
+}
+
 type NotificationDeviceRow = {
   id: string
   firebase_token: string
@@ -72,21 +77,25 @@ async function setPushState(id: string, patch: Record<string, unknown>) {
     .eq('id', id)
 }
 
-async function deliverCustomerPush(notification: NotificationRow, userId: string | null) {
+async function deliverCustomerPush(
+  notification: NotificationRow,
+  userId: string | null,
+  preferenceColumn: 'transactional_push' | 'marketing_push' = 'transactional_push',
+) {
   if (!userId) {
     await setPushState(notification.id, { push_status: 'skipped', push_error_code: 'customer_without_app_user' }).catch(() => undefined)
-    return
+    return { status: 'skipped' as const, errorCode: 'customer_without_app_user' }
   }
 
   const preferenceResult = await supabaseAdminClient
     .from('user_preferences')
-    .select('transactional_push')
+    .select(preferenceColumn)
     .eq('user_id', userId)
     .maybeSingle()
-  const preferences = assertNoError<{ transactional_push?: boolean | null } | null>(preferenceResult).data
-  if (preferences?.transactional_push === false) {
+  const preferences = assertNoError<Record<string, boolean | null> | null>(preferenceResult).data
+  if (preferences?.[preferenceColumn] === false) {
     await setPushState(notification.id, { push_status: 'skipped', push_error_code: 'preference_disabled' }).catch(() => undefined)
-    return
+    return { status: 'skipped' as const, errorCode: 'preference_disabled' }
   }
 
   const deviceResult = await supabaseAdminClient
@@ -97,12 +106,12 @@ async function deliverCustomerPush(notification: NotificationRow, userId: string
   const devices = assertNoError<NotificationDeviceRow[]>(deviceResult).data ?? []
   if (!devices.length) {
     await setPushState(notification.id, { push_status: 'skipped', push_error_code: 'no_active_device' }).catch(() => undefined)
-    return
+    return { status: 'skipped' as const, errorCode: 'no_active_device' }
   }
 
   if (!pushProviderState().configured) {
     await setPushState(notification.id, { push_status: 'pending_configuration', push_error_code: 'provider_not_configured' }).catch(() => undefined)
-    return
+    return { status: 'pending_configuration' as const, errorCode: 'provider_not_configured' }
   }
 
   const results = await Promise.allSettled(devices.map((device) => sendPushNotification({
@@ -141,13 +150,17 @@ async function deliverCustomerPush(notification: NotificationRow, userId: string
         updated_at: new Date().toISOString(),
       })
       .eq('id', notification.id)
-    return
+    return { status: 'sent' as const, errorCode: rejected.length ? 'partial_delivery' : null }
   }
 
   await setPushState(notification.id, {
     push_status: 'failed',
     push_error_code: rejected[0] ? errorCode(rejected[0].result.reason) : 'push_failed',
   }).catch(() => undefined)
+  return {
+    status: 'failed' as const,
+    errorCode: rejected[0] ? errorCode(rejected[0].result.reason) : 'push_failed',
+  }
 }
 
 export async function createCustomerNotification(input: CustomerNotificationInput) {
@@ -173,6 +186,40 @@ export async function createCustomerNotification(input: CustomerNotificationInpu
     await setPushState(notification.id, { push_status: 'failed', push_error_code: errorCode(error) }).catch(() => undefined)
   })
   return { data: mapNotification(notification) }
+}
+
+export async function createCustomerCampaignNotification(input: CampaignNotificationInput) {
+  const userId = await customerUserId(input.customerId, input.userId)
+  const now = new Date().toISOString()
+  const result = await supabaseAdminClient
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      customer_id: input.customerId,
+      channel: input.sendPush ? 'push' : 'in_app',
+      title: input.title,
+      body: input.body,
+      data: {
+        ...input.data,
+        campaignId: input.campaignId,
+        deepLink: input.deepLink,
+      },
+      status: input.sendPush ? 'pending' : 'sent',
+      sent_at: input.sendPush ? null : now,
+      push_status: input.sendPush ? 'pending' : 'skipped',
+      push_error_code: input.sendPush ? null : 'in_app_only',
+    })
+    .select('id,user_id,customer_id,channel,title,body,status,data,sent_at,read_at,created_at')
+    .single()
+  const notification = assertNoError<NotificationRow>(result).data
+  const delivery = input.sendPush
+    ? await deliverCustomerPush(notification, userId, 'marketing_push').catch(async (error) => {
+        const code = errorCode(error)
+        await setPushState(notification.id, { push_status: 'failed', push_error_code: code }).catch(() => undefined)
+        return { status: 'failed' as const, errorCode: code }
+      })
+    : { status: 'sent' as const, errorCode: null }
+  return { data: mapNotification(notification), delivery }
 }
 
 export async function listCustomerNotifications(user: UserContext, limit = 40) {
@@ -219,7 +266,24 @@ export async function markCustomerNotificationRead(id: string, user: UserContext
     .maybeSingle()
   const row = assertNoError<NotificationRow | null>(result).data
   if (!row) throw httpError(404, 'Notificación no encontrada')
+  await supabaseAdminClient
+    .from('campaign_recipient_deliveries')
+    .update({ status: 'read', opened_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('notification_id', row.id)
+    .in('channel', ['push', 'in_app'])
+    .is('opened_at', null)
   return { data: mapNotification(row) }
+}
+
+export async function markCustomerNotificationClicked(id: string, user: UserContext) {
+  const read = await markCustomerNotificationRead(id, user)
+  await supabaseAdminClient
+    .from('campaign_recipient_deliveries')
+    .update({ clicked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('notification_id', id)
+    .in('channel', ['push', 'in_app'])
+    .is('clicked_at', null)
+  return read
 }
 
 export async function listAdminNotifications(query: NotificationListQuery, user: UserContext) {

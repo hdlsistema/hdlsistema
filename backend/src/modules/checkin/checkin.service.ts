@@ -60,7 +60,9 @@ type CheckinRow = {
   created_at?: string | null
   access_passes?: Relation<{
     pass_number?: string | null
-	    reservations?: Relation<{ reservation_number: string; experiences?: Relation<{ title: string }>; events?: Relation<{ title: string }> }>
+    reservations?: Relation<{ reservation_number: string; experiences?: Relation<{ title: string }>; events?: Relation<{ title: string }> }>
+    orders?: Relation<{ order_number: string }>
+    event_ticket_types?: Relation<{ name?: string | null; events?: Relation<{ title?: string | null }> }>
   }>
 }
 
@@ -90,7 +92,7 @@ const passSelect = `
 
 const checkinSelect = `
   id,access_pass_id,checked_in_at,notes,reversed_at,reversal_reason,created_at,
-	  access_passes(pass_number,reservations(reservation_number,experiences(title),events(title)))
+  access_passes(pass_number,reservations(reservation_number,experiences(title),events(title)),orders(order_number),event_ticket_types(name,events(title)))
 `
 
 function rpcClient(user: UserContext) {
@@ -112,6 +114,8 @@ function makePassToken() {
 function mapPass(row: PassRow) {
   const reservation = firstRelation(row.reservations)
   const customer = firstRelation(reservation?.customers)
+  const ticketType = firstRelation(row.event_ticket_types)
+  const ticketEvent = firstRelation(ticketType?.events)
   return {
     id: row.id,
     reservationId: row.reservation_id ?? null,
@@ -121,7 +125,8 @@ function mapPass(row: PassRow) {
     reservationNumber: reservation?.reservation_number ?? null,
     orderNumber: firstRelation(row.orders)?.order_number ?? null,
     guestName: customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim(),
-	    eventOrExperience: firstRelation(reservation?.experiences)?.title ?? firstRelation(reservation?.events)?.title ?? null,
+    eventOrExperience: firstRelation(reservation?.experiences)?.title ?? firstRelation(reservation?.events)?.title ?? ticketEvent?.title ?? null,
+    ticketTypeName: ticketType?.name ?? null,
     peopleCount: reservation?.people_count ?? null,
     status: row.status,
     validFrom: row.valid_from ?? null,
@@ -137,12 +142,15 @@ function mapPass(row: PassRow) {
 function mapCheckin(row: CheckinRow) {
   const pass = firstRelation(row.access_passes)
   const reservation = firstRelation(pass?.reservations)
+  const ticketType = firstRelation(pass?.event_ticket_types)
+  const ticketEvent = firstRelation(ticketType?.events)
   return {
     id: row.id,
     accessPassId: row.access_pass_id,
     passNumber: pass?.pass_number ?? null,
-    reservationNumber: reservation?.reservation_number ?? null,
-	    eventOrExperience: firstRelation(reservation?.experiences)?.title ?? firstRelation(reservation?.events)?.title ?? null,
+    reservationNumber: reservation?.reservation_number ?? firstRelation(pass?.orders)?.order_number ?? null,
+    eventOrExperience: firstRelation(reservation?.experiences)?.title ?? firstRelation(reservation?.events)?.title ?? ticketEvent?.title ?? null,
+    ticketTypeName: ticketType?.name ?? null,
     checkedInAt: row.checked_in_at,
     reversedAt: row.reversed_at ?? null,
     reversalReason: row.reversal_reason ?? null,

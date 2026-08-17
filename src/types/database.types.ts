@@ -1124,6 +1124,7 @@ export type Database = {
           publish_at: string | null
           published_at: string | null
           published_by: string | null
+          reserved_count: number
           sales_end_at: string | null
           sales_start_at: string | null
           sold_count: number
@@ -1153,6 +1154,7 @@ export type Database = {
           publish_at?: string | null
           published_at?: string | null
           published_by?: string | null
+          reserved_count?: number
           sales_end_at?: string | null
           sales_start_at?: string | null
           sold_count?: number
@@ -1182,6 +1184,7 @@ export type Database = {
           publish_at?: string | null
           published_at?: string | null
           published_by?: string | null
+          reserved_count?: number
           sales_end_at?: string | null
           sales_start_at?: string | null
           sold_count?: number
@@ -1204,6 +1207,74 @@ export type Database = {
           },
         ]
       }
+      event_ticket_allocations: {
+        Row: {
+          allocation_status: string
+          created_at: string
+          event_id: string
+          event_ticket_type_id: string
+          id: string
+          order_id: string
+          order_item_id: string
+          quantity: number
+          release_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          allocation_status?: string
+          created_at?: string
+          event_id: string
+          event_ticket_type_id: string
+          id?: string
+          order_id: string
+          order_item_id: string
+          quantity: number
+          release_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allocation_status?: string
+          created_at?: string
+          event_id?: string
+          event_ticket_type_id?: string
+          id?: string
+          order_id?: string
+          order_item_id?: string
+          quantity?: number
+          release_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_ticket_allocations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ticket_allocations_event_ticket_type_id_fkey"
+            columns: ["event_ticket_type_id"]
+            isOneToOne: false
+            referencedRelation: "event_ticket_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ticket_allocations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_ticket_allocations_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: true
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           archived_at: string | null
@@ -1221,6 +1292,7 @@ export type Database = {
           publish_at: string | null
           published_at: string | null
           published_by: string | null
+          reserved_count: number
           sales_enabled: boolean
           short_description: string | null
           slug: string
@@ -1254,6 +1326,7 @@ export type Database = {
           publish_at?: string | null
           published_at?: string | null
           published_by?: string | null
+          reserved_count?: number
           sales_enabled?: boolean
           short_description?: string | null
           slug: string
@@ -1287,6 +1360,7 @@ export type Database = {
           publish_at?: string | null
           published_at?: string | null
           published_by?: string | null
+          reserved_count?: number
           sales_enabled?: boolean
           short_description?: string | null
           slug?: string

@@ -11,6 +11,7 @@ import {
   Pencil,
   PackageCheck,
   Settings2,
+  ShieldCheck,
   Trash2,
   Truck,
   UserRound,
@@ -30,6 +31,7 @@ import {
   type CustomerReservation,
   type CustomerLoyaltySummary,
   type CustomerOrder,
+  type CustomerPaymentMethod,
 } from '../../../services/customer.service'
 import { AppToast, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -90,6 +92,7 @@ export function ProfileScreen() {
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null)
   const [membership, setMembership] = useState<CustomerMembership>(null)
   const [loyalty, setLoyalty] = useState<CustomerLoyaltySummary | null>(null)
+  const [paymentMethods, setPaymentMethods] = useState<CustomerPaymentMethod[]>([])
   const avatarUrl = useProfileAvatar()
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -122,8 +125,9 @@ export function ProfileScreen() {
 	      customerClient.addresses(token),
 	      customerClient.membership(token),
 	      customerClient.membershipLoyalty(token),
+	      customerClient.paymentMethods(token).catch(() => ({ ok: true as const, data: [] as CustomerPaymentMethod[] })),
 	    ])
-	      .then(([meResponse, reservationResponse, orderResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse]) => {
+	      .then(([meResponse, reservationResponse, orderResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse, paymentMethodResponse]) => {
 	        if (!active) return
 	        if (meResponse.status === 'fulfilled') setCustomerMe(meResponse.value.data)
 	        if (reservationResponse.status === 'fulfilled') setReservations(reservationResponse.value.data)
@@ -135,6 +139,7 @@ export function ProfileScreen() {
 	        if (addressResponse.status === 'fulfilled') setAddresses(addressResponse.value.data)
 	        if (membershipResponse.status === 'fulfilled') setMembership(membershipResponse.value.data)
 	        if (loyaltyResponse.status === 'fulfilled') setLoyalty(loyaltyResponse.value.data)
+	        if (paymentMethodResponse.status === 'fulfilled') setPaymentMethods(paymentMethodResponse.value.data)
 	        if ([meResponse, reservationResponse, orderResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse].some((result) => result.status === 'rejected')) {
 	          setMessage(t('app.premium.profile.loadError'))
 	        }
@@ -312,7 +317,15 @@ export function ProfileScreen() {
   }
 
   const openNotification = async (notification: CustomerNotification) => {
-    if (session?.access_token && !notification.readAt) {
+    if (session?.access_token && notification.deepLink) {
+      try {
+        const response = await customerClient.clickNotification(session.access_token, notification.id)
+        setNotifications((current) => current.map((item) => item.id === notification.id ? response.data : item))
+        if (!notification.readAt) setUnreadNotifications((current) => Math.max(current - 1, 0))
+      } catch {
+        // El destino sigue disponible aunque falle la métrica no crítica.
+      }
+    } else if (session?.access_token && !notification.readAt) {
       try {
         const response = await customerClient.readNotification(session.access_token, notification.id)
         setNotifications((current) => current.map((item) => item.id === notification.id ? response.data : item))
@@ -476,6 +489,35 @@ export function ProfileScreen() {
         </section>
       ))}
 
+      <section className="space-y-3" id="payment-methods">
+        <SectionHeading
+          title={language === 'en' ? 'Saved payment methods' : 'Métodos de pago guardados'}
+          subtitle={language === 'en'
+            ? 'Cards are tokenized and protected by Stripe. Hacienda never stores full card numbers or security codes.'
+            : 'Las tarjetas están tokenizadas y protegidas por Stripe. Hacienda nunca guarda números completos ni códigos de seguridad.'}
+        />
+        {paymentMethods.length === 0 ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.05)]">
+            {language === 'en'
+              ? 'You can securely save a payment method during your next checkout.'
+              : 'Podrás guardar un método de forma segura durante tu próximo pago.'}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {paymentMethods.map((method) => (
+              <article key={method.id} className="flex items-center gap-3 rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.05)]">
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8eee5] text-[var(--color-burgundy)]"><WalletCards size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold capitalize text-[var(--color-ink)]">{method.brand ?? method.type} •••• {method.last4 ?? '----'}</p>
+                  <p className="mt-1 text-[11px] text-[var(--color-muted)]">{language === 'en' ? 'Expires' : 'Vence'} {String(method.expMonth ?? '').padStart(2, '0')}/{method.expYear ?? '----'}</p>
+                </div>
+                <ShieldCheck size={17} className="shrink-0 text-[var(--color-vineyard)]" />
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
       <section className="space-y-3" id="addresses">
         <SectionHeading
           title={language === 'en' ? 'Shipping addresses' : 'Domicilios de envío'}
@@ -505,18 +547,18 @@ export function ProfileScreen() {
                   </p>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <button type="button" onClick={() => editAddress(address)} className="min-h-10 rounded-full border border-[rgba(104,13,36,0.18)] bg-white text-[11px] font-semibold text-[var(--color-burgundy)]">
-                  <Pencil className="mx-auto mb-0.5" size={13} />
-                  {t('common.edit')}
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => editAddress(address)} className="inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-3 text-[10px] font-semibold leading-tight text-[var(--color-burgundy)]">
+                  <Pencil className="shrink-0" size={13} />
+                  <span className="min-w-0">{t('common.edit')}</span>
                 </button>
-                <button type="button" onClick={() => void setDefaultAddress(address)} disabled={address.isDefault || isSaving} className="min-h-10 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-2 text-[11px] font-semibold text-[var(--color-burgundy)] disabled:opacity-50">
-                  <CheckCircle2 className="mx-auto mb-0.5" size={13} />
-                  {t('app.premium.profile.makeDefault')}
+                <button type="button" onClick={() => void deleteAddress(address)} disabled={isSaving} className="inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-3 text-[10px] font-semibold leading-tight text-[var(--color-burgundy)] disabled:opacity-50">
+                  <Trash2 className="shrink-0" size={13} />
+                  <span className="min-w-0">{t('common.delete')}</span>
                 </button>
-                <button type="button" onClick={() => void deleteAddress(address)} disabled={isSaving} className="min-h-10 rounded-full border border-[rgba(104,13,36,0.18)] bg-white text-[11px] font-semibold text-[var(--color-burgundy)] disabled:opacity-50">
-                  <Trash2 className="mx-auto mb-0.5" size={13} />
-                  {t('common.delete')}
+                <button type="button" onClick={() => void setDefaultAddress(address)} disabled={address.isDefault || isSaving} className="col-span-2 inline-flex min-h-10 min-w-0 items-center justify-center gap-2 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[10px] font-semibold leading-tight text-[var(--color-burgundy)] disabled:opacity-50">
+                  <CheckCircle2 className="shrink-0" size={13} />
+                  <span className="min-w-0 break-words text-center">{t('app.premium.profile.makeDefault')}</span>
                 </button>
               </div>
             </article>

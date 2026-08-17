@@ -8,6 +8,7 @@ import {
   duplicateAdminContent,
   generatePreviewToken,
   getAdminContent,
+  getCampaignMetrics,
   getPreviewContent,
   getPublicEntityBySlug,
   listAdminContent,
@@ -109,6 +110,15 @@ export async function sendCampaignAdmin(req: Request, res: Response): Promise<vo
     const payload = sendCampaignSchema.parse(req.body)
     const { data } = await sendCampaignEmail(req.params.id, payload, userContext(req))
     res.status(202).json({ ok: true, data })
+  } catch (error) {
+    sendError(res, error)
+  }
+}
+
+export async function getCampaignMetricsAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { data } = await getCampaignMetrics(req.params.id, userContext(req))
+    res.json({ ok: true, data })
   } catch (error) {
     sendError(res, error)
   }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
 import { CalendarDays, Check, ChevronDown, Clock3, Minus, Plus, QrCode, RefreshCw, Ticket, Users, X } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
@@ -9,6 +9,7 @@ import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerAccessPass, type CustomerAvailabilitySlot, type CustomerReservation } from '../../../services/customer.service'
+import { appPath } from '../../utils/appRoutes'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
   return {
@@ -35,6 +36,27 @@ function formatDateTime(value: string | null | undefined, locale: string, fallba
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date)
+}
+
+function reservationSchedule(reservation: CustomerReservation, locale: string, fallback: string) {
+  if (reservation.reservationType === 'restaurant' && reservation.reservationDate) {
+    const date = new Date(`${reservation.reservationDate}T12:00:00`)
+    if (!Number.isNaN(date.getTime())) {
+      const formatted = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+      return reservation.reservationTime ? `${formatted} · ${reservation.reservationTime.slice(0, 5)}` : formatted
+    }
+  }
+  if (reservation.reservationType === 'cabin' && reservation.checkIn) {
+    const start = new Date(`${reservation.checkIn}T12:00:00`)
+    const end = reservation.checkOut ? new Date(`${reservation.checkOut}T12:00:00`) : null
+    if (!Number.isNaN(start.getTime())) {
+      const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+      return end && !Number.isNaN(end.getTime())
+        ? `${formatter.format(start)} – ${formatter.format(end)}`
+        : formatter.format(start)
+    }
+  }
+  return formatDateTime(reservation.startAt, locale, fallback)
 }
 
 function makeIdempotencyKey(prefix: string) {
@@ -166,6 +188,7 @@ export function ReservationScreen() {
   const { t, locale, language } = useAppPreferences()
   const { session } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const requestedExperienceId = (location.state as { experienceId?: string } | null)?.experienceId
   const { records: experiences, loading, error, retry } = usePublicContent('experiences')
   const [selectedExperienceId, setSelectedExperienceId] = useState('')
@@ -174,6 +197,7 @@ export function ReservationScreen() {
   const [notes, setNotes] = useState('')
   const [slots, setSlots] = useState<ReturnType<typeof normalizeSlot>[]>([])
   const [reservations, setReservations] = useState<CustomerReservation[]>([])
+  const [accessPasses, setAccessPasses] = useState<CustomerAccessPass[]>([])
   const [loadingSlots, setLoadingSlots] = useState(true)
   const [loadingReservations, setLoadingReservations] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -183,7 +207,9 @@ export function ReservationScreen() {
   const [experienceSheetOpen, setExperienceSheetOpen] = useState(false)
 
   const featuredExperience =
-    experiences.find((experience) => contentRouteId(experience) === requestedExperienceId || experience.id === requestedExperienceId) ?? experiences[0]
+    experiences.find((experience) => String(experience.id) === selectedExperienceId)
+    ?? experiences.find((experience) => contentRouteId(experience) === requestedExperienceId || experience.id === requestedExperienceId)
+    ?? experiences[0]
 
   useEffect(() => {
     if (featuredExperience && !selectedExperienceId) {
@@ -198,26 +224,30 @@ export function ReservationScreen() {
     setLoadingSlots(true)
     setOperationError('')
     try {
-      const response = await customerClient.availability(token, selectedExperienceId ? { experienceId: selectedExperienceId } : undefined)
+      const response = await customerClient.availability(token)
       const nextSlots = response.data.map(normalizeSlot)
       setSlots(nextSlots)
-      setSelectedSlotId((current) => current && nextSlots.some((slot) => slot.id === current) ? current : nextSlots[0]?.id ?? '')
     } catch {
       setSlots([])
       setOperationError(t('app.premium.reservation.availabilityError'))
     } finally {
       setLoadingSlots(false)
     }
-  }, [selectedExperienceId, t, token])
+  }, [t, token])
 
   const loadReservations = useCallback(async () => {
     if (!token) return
     setLoadingReservations(true)
     try {
-      const response = await customerClient.reservations(token, { perPage: 20 })
-      setReservations(response.data)
+      const [reservationResponse, passResponse] = await Promise.all([
+        customerClient.reservations(token, { perPage: 20 }),
+        customerClient.accessPasses(token).catch(() => ({ ok: true as const, data: [] as CustomerAccessPass[] })),
+      ])
+      setReservations(reservationResponse.data)
+      setAccessPasses(passResponse.data)
     } catch {
       setReservations([])
+      setAccessPasses([])
     } finally {
       setLoadingReservations(false)
     }
@@ -236,19 +266,39 @@ export function ReservationScreen() {
     [selectedSlotId, slots],
   )
 
+  const bookingSlots = useMemo(
+    () => slots.filter((slot) => slot.experienceId === selectedExperienceId),
+    [selectedExperienceId, slots],
+  )
+
+  const eventPasses = useMemo(
+    () => accessPasses.filter((pass) => pass.accessType === 'event_ticket'),
+    [accessPasses],
+  )
+
+  useEffect(() => {
+    setSelectedSlotId((current) => current && bookingSlots.some((slot) => slot.id === current)
+      ? current
+      : bookingSlots[0]?.id ?? '')
+  }, [bookingSlots])
+
   const createReservation = async () => {
     if (!token || !selectedSlot) return
     setSubmitting(true)
     setMessage('')
     setOperationError('')
     try {
-      await customerClient.createReservation(token, {
+      const response = await customerClient.createReservation(token, {
         experienceSlotId: selectedSlot.id,
         peopleCount: people,
         customerNotes: notes || null,
         language,
         idempotencyKey: makeIdempotencyKey('reservation'),
       })
+      if (response.data.paymentOrderId) {
+        navigate(`${appPath('/checkout')}?orderId=${encodeURIComponent(response.data.paymentOrderId)}`)
+        return
+      }
       setMessage(t('app.premium.reservation.created'))
       setNotes('')
       await Promise.all([loadSlots(), loadReservations()])
@@ -352,13 +402,13 @@ export function ReservationScreen() {
         <SectionHeading title={t('app.premium.reservation.chooseSlot')} />
         {loadingSlots ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingAvailability')}</div>
-        ) : slots.length === 0 ? (
+        ) : bookingSlots.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
             {t('app.premium.reservation.noSlots')}
           </div>
         ) : (
           <div className="grid gap-3">
-            {slots.slice(0, 8).map((slot) => (
+            {bookingSlots.slice(0, 8).map((slot) => (
               <button
                 key={slot.id}
                 type="button"
@@ -414,8 +464,31 @@ export function ReservationScreen() {
 
       <PrimaryButton onClick={createReservation} disabled={!selectedSlot || submitting}>
         <CalendarDays size={16} />
-        {submitting ? t('app.premium.reservation.processing') : t('app.premium.reservation.confirm')}
+        {submitting ? t('app.premium.reservation.processing') : t('app.premium.reservation.continueToPayment', 'Continuar al pago')}
       </PrimaryButton>
+
+      <section id="boletos" className="scroll-mt-6 space-y-3">
+        <SectionHeading eyebrow={t('app.premium.events.ticket', 'Boletos')} title={t('app.premium.ticket.myAccesses', 'Mis boletos y accesos')} />
+        {eventPasses.length === 0 ? (
+          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
+            {t('app.premium.ticket.noEventPasses', 'Los boletos pagados aparecerán aquí con su código QR de entrada.')}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {eventPasses.map((pass) => (
+              <article key={pass.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{pass.orderNumber ?? pass.passNumber}</p>
+                <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{pass.title ?? t('app.premium.events.ticket')}</h3>
+                <p className="mt-1 text-[11px] text-[var(--color-muted)]">{formatDateTime(pass.startsAt, locale, t('common.toBeConfirmed'))}</p>
+                <button type="button" onClick={() => setSelectedTicket(pass)} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
+                  <QrCode size={15} />
+                  {t('app.premium.ticket.show', 'Ver boleto QR')}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="space-y-3">
         <div className="flex items-start justify-between gap-3">
@@ -435,8 +508,13 @@ export function ReservationScreen() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>
-                    <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.experienceTitle}</h3>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{formatDateTime(reservation.startAt, locale, t('common.toBeConfirmed'))}</p>
+                    <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.title ?? reservation.experienceTitle}</h3>
+                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{reservationSchedule(reservation, locale, t('common.toBeConfirmed'))}</p>
+                    {reservation.paymentStatus === 'pending' && reservation.paymentOrderId ? (
+                      <button type="button" onClick={() => navigate(`${appPath('/checkout')}?orderId=${encodeURIComponent(reservation.paymentOrderId ?? '')}`)} className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-[var(--color-burgundy)] px-4 text-[11px] font-semibold text-white">
+                        {t('app.premium.reservation.completePayment', 'Completar pago')}
+                      </button>
+                    ) : null}
                   </div>
                   <span className="rounded-full bg-[#f8eee5] px-3 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">{reservation.status}</span>
                 </div>
@@ -448,21 +526,23 @@ export function ReservationScreen() {
                         {t('app.premium.ticket.show', 'Ver boleto QR')}
                       </button>
                     ) : null}
-                    <AppSelect
-                      value=""
-                      onChange={(value) => value && void rescheduleReservation(reservation, value)}
-                      disabled={submitting}
-                      options={[
-                        { value: '', label: t('app.premium.reservation.rescheduleTo') },
-                        ...slots
-                          .filter((slot) => slot.id !== reservation.slotId)
-                          .slice(0, 8)
-                          .map((slot) => ({
-                            value: slot.id,
-                            label: `${formatDateTime(slot.startAt, locale, t('common.toBeConfirmed'))} · ${slot.available}`,
-                          })),
-                      ]}
-                    />
+                    {reservation.reservationType === 'experience' ? (
+                      <AppSelect
+                        value=""
+                        onChange={(value) => value && void rescheduleReservation(reservation, value)}
+                        disabled={submitting}
+                        options={[
+                          { value: '', label: t('app.premium.reservation.rescheduleTo') },
+                          ...slots
+                            .filter((slot) => slot.experienceId === reservation.experienceId && slot.id !== reservation.slotId)
+                            .slice(0, 8)
+                            .map((slot) => ({
+                              value: slot.id,
+                              label: `${formatDateTime(slot.startAt, locale, t('common.toBeConfirmed'))} · ${slot.available}`,
+                            })),
+                        ]}
+                      />
+                    ) : null}
                     <button type="button" onClick={() => void cancelReservation(reservation)} disabled={submitting} className="rounded-[0.9rem] border border-[rgba(157,71,63,0.28)] px-3 py-2 text-[12px] font-semibold text-[var(--color-alert)]">
                       {t('app.premium.reservation.cancel')}
                     </button>

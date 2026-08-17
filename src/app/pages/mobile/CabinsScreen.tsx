@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Loader2, MapPin, MoonStar, Navigation, Users } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
@@ -38,6 +38,7 @@ export function CabinsScreen() {
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [notes, setNotes] = useState('')
+  const [people, setPeople] = useState(2)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [showDirections, setShowDirections] = useState(false)
@@ -49,6 +50,12 @@ export function CabinsScreen() {
   const includedNights = Math.max(selectedPackageRecord?.nights ?? 1, 1)
   const packageUnits = nightCount > 0 ? Math.ceil(nightCount / includedNights) : 0
   const estimatedTotal = (selectedPackageRecord?.price ?? 0) * packageUnits
+  const minGuests = Math.max(selectedPackageRecord?.minGuests ?? 1, 1)
+  const maxGuests = Math.max(selectedPackageRecord?.maxGuests ?? minGuests, minGuests)
+
+  useEffect(() => {
+    setPeople((current) => Math.min(Math.max(current, minGuests), maxGuests))
+  }, [maxGuests, minGuests])
 
   const selectPackage = (packageId: string) => {
     setSelected(packageId)
@@ -88,7 +95,7 @@ export function CabinsScreen() {
         cabinPackageId: selectedPackage,
         checkIn,
         checkOut,
-        peopleCount: 2,
+        peopleCount: people,
         customerNotes: notes || null,
         language: locale.startsWith('en') ? 'en' : 'es',
         idempotencyKey: nextIdempotencyKey('cabin'),
@@ -161,7 +168,7 @@ export function CabinsScreen() {
                 <span className="mt-3 block text-[12px] leading-5 text-[#776053]">{item.description}</span>
                 <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-[#E8D7C2] py-2.5 text-[10px] font-semibold text-[#6B4A3B]">
                   <span className="inline-flex items-center gap-1.5"><MoonStar size={13} />{item.nights ?? 1} {isEnglish ? 'night' : 'noche'}</span>
-                  <span className="inline-flex items-center gap-1.5"><Users size={13} />2 {isEnglish ? 'guests' : 'personas'}</span>
+                  <span className="inline-flex items-center gap-1.5"><Users size={13} />{item.minGuests === item.maxGuests ? item.minGuests : `${item.minGuests ?? 1}–${item.maxGuests ?? 1}`} {isEnglish ? 'guests' : 'personas'}</span>
                   <span>{isEnglish ? 'Breakfast included' : 'Desayuno incluido'}</span>
                 </span>
                 <span className="mt-3 flex flex-wrap gap-2">
@@ -207,6 +214,18 @@ export function CabinsScreen() {
             </p>
           </div>
         ) : null}
+        <label className="mt-3 block rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3">
+          <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#B88A4A]">{isEnglish ? 'Guests' : 'Personas'}</span>
+          <input
+            type="number"
+            min={minGuests}
+            max={maxGuests}
+            value={people}
+            onChange={(event) => setPeople(Math.min(Math.max(Number(event.target.value) || minGuests, minGuests), maxGuests))}
+            className="mt-2 w-full bg-transparent text-[13px] outline-none"
+          />
+          <span className="mt-1 block text-[10px] text-[#776053]">{isEnglish ? `Allowed for this package: ${minGuests} to ${maxGuests}.` : `Permitido para este paquete: ${minGuests} a ${maxGuests}.`}</span>
+        </label>
         <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={isEnglish ? 'Notes for Hacienda de Letras' : 'Notas para Hacienda de Letras'} className="mt-3 min-h-24 w-full rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3 text-[13px] text-[#2D1811] outline-none" />
         <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#8A1238] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request cabin' : 'Solicitar cabaña')}

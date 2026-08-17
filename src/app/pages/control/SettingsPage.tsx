@@ -15,20 +15,28 @@ const languageOptions = [
 ]
 
 export function SettingsPage() {
-  const { session } = useAuth()
+  const { session, user, profile, roles } = useAuth()
   const {
-    adminName,
-    adminRole,
-    adminEmail,
     language,
     updatePreferences,
     isEnglish,
   } = useAppPreferences()
 
+  const primaryRole = roles.find((role) => role !== 'customer') ?? roles[0]
+  const roleLabels: Record<string, string> = {
+    super_admin: 'Superadministrador',
+    admin: 'Administrador',
+    operations: 'Operaciones',
+    marketing: 'Marketing',
+    finance: 'Finanzas',
+    viewer: 'Consulta',
+    customer: 'Cliente',
+  }
+  const adminName = profile?.display_name?.trim() || user?.email || 'Usuario'
+  const adminRole = primaryRole ? roleLabels[primaryRole] ?? primaryRole : 'Usuario'
+  const adminEmail = user?.email || '—'
+
   const [formValues, setFormValues] = useState({
-    adminName,
-    adminRole,
-    adminEmail,
     language,
     sommelierDailyLimit: 10,
     cartAbandonmentMinutes: 45,
@@ -175,13 +183,8 @@ export function SettingsPage() {
                     {copy.fullName}
                   </span>
                   <input
-                    value={formValues.adminName}
-                    onChange={(event) =>
-                      setFormValues((current) => ({
-                        ...current,
-                        adminName: event.target.value,
-                      }))
-                    }
+                    value={adminName}
+                    readOnly
                     className="min-h-12 w-full rounded-xl border border-[rgba(220,202,181,0.9)] bg-white/80 px-4 text-sm text-[var(--color-ink)] outline-none"
                   />
                 </label>
@@ -191,13 +194,8 @@ export function SettingsPage() {
                     {copy.role}
                   </span>
                   <input
-                    value={formValues.adminRole}
-                    onChange={(event) =>
-                      setFormValues((current) => ({
-                        ...current,
-                        adminRole: event.target.value,
-                      }))
-                    }
+                    value={adminRole}
+                    readOnly
                     className="min-h-12 w-full rounded-xl border border-[rgba(220,202,181,0.9)] bg-white/80 px-4 text-sm text-[var(--color-ink)] outline-none"
                   />
                 </label>
@@ -207,13 +205,8 @@ export function SettingsPage() {
                     {copy.email}
                   </span>
                   <input
-                    value={formValues.adminEmail}
-                    onChange={(event) =>
-                      setFormValues((current) => ({
-                        ...current,
-                        adminEmail: event.target.value,
-                      }))
-                    }
+                    value={adminEmail}
+                    readOnly
                     className="min-h-12 w-full rounded-xl border border-[rgba(220,202,181,0.9)] bg-white/80 px-4 text-sm text-[var(--color-ink)] outline-none"
                   />
                 </label>
@@ -352,7 +345,7 @@ export function SettingsPage() {
 	                      marketingPush: formValues.marketingPush,
 	                    },
 	                  })
-	                  updatePreferences(formValues)
+	                  updatePreferences({ language: formValues.language })
 	                  setSaved(true)
 	                  window.setTimeout(() => setSaved(false), 2400)
 	                } catch {
@@ -400,15 +393,15 @@ export function SettingsPage() {
           <div className="mt-6 space-y-3 rounded-[1.15rem] border border-white/12 bg-white/8 p-4">
             <InfoRow
               label={copy.fullName}
-              value={formValues.adminName || '—'}
+              value={adminName || '—'}
             />
             <InfoRow
               label={copy.role}
-              value={formValues.adminRole || '—'}
+              value={adminRole || '—'}
             />
             <InfoRow
               label={copy.email}
-              value={formValues.adminEmail || '—'}
+              value={adminEmail || '—'}
             />
             <InfoRow
               label={copy.languageField}

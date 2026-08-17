@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Loader2, MapPin, Navigation } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
@@ -14,9 +14,6 @@ function nextIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
 }
 
-const restaurantTimes = ['12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30']
-  .map((value) => ({ value, label: value }))
-
 export function RestaurantsScreen() {
   const { locale, isEnglish } = useAppPreferences()
   const { session, isAuthenticated } = useAuth()
@@ -31,14 +28,27 @@ export function RestaurantsScreen() {
   const { services, loading, error, retry } = usePublicCommercialServices()
   const restaurants = services.restaurants
   const selectedRestaurant = selected || restaurants[0]?.id || ''
+  const selectedRestaurantRecord = restaurants.find((item) => item.id === selectedRestaurant) ?? null
+  const restaurantTimes = useMemo(() => {
+    const configured = selectedRestaurantRecord?.metadata?.reservationTimes
+    if (!Array.isArray(configured)) return []
+    return [...new Set(configured.filter((value): value is string => typeof value === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value)))]
+      .sort()
+      .map((value) => ({ value, label: value }))
+  }, [selectedRestaurantRecord])
+  const canRequest = Boolean(selectedRestaurantRecord?.reservationEnabled && restaurantTimes.length > 0)
   const directionsRestaurant = restaurants.find((item) => item.slug === directionsSlug) ?? null
+
+  useEffect(() => {
+    if (time && !restaurantTimes.some((option) => option.value === time)) setTime('')
+  }, [restaurantTimes, time])
 
   const submit = async () => {
     if (!isAuthenticated) {
       setMessage(isEnglish ? 'Sign in to request a booking.' : 'Inicia sesión para solicitar una reservación.')
       return
     }
-    if (!selectedRestaurant || !date || !time) {
+    if (!selectedRestaurant || !date || !time || !canRequest) {
       setMessage(isEnglish ? 'Select a restaurant, date and time.' : 'Selecciona restaurante, fecha y horario.')
       return
     }
@@ -110,7 +120,7 @@ export function RestaurantsScreen() {
           <CrystalDateField value={date} onChange={setDate} label={isEnglish ? 'Date' : 'Fecha'} placeholder={isEnglish ? 'Choose date' : 'Elegir fecha'} buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[12px]" />
           <div>
             <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Time' : 'Hora'}</span>
-            <CrystalSelect value={time} onChange={setTime} options={[{ value: '', label: isEnglish ? 'Choose time' : 'Elegir hora' }, ...restaurantTimes]} buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[12px]" />
+            <CrystalSelect value={time} onChange={setTime} disabled={!canRequest} options={[{ value: '', label: restaurantTimes.length ? (isEnglish ? 'Choose time' : 'Elegir hora') : (isEnglish ? 'No configured times' : 'Sin horarios configurados') }, ...restaurantTimes]} buttonClassName="rounded-[16px] border-[#E2CCAE] bg-white/70 text-[12px]" />
           </div>
         </div>
         <label className="mt-3 block rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3">
@@ -118,7 +128,8 @@ export function RestaurantsScreen() {
           <input type="number" min={1} max={40} value={people} onChange={(event) => setPeople(Number(event.target.value))} className="mt-2 w-full bg-transparent text-[13px] outline-none" />
         </label>
         <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={isEnglish ? 'Occasion or special request' : 'Ocasión o solicitud especial'} className="mt-3 min-h-24 w-full rounded-[16px] border border-[#E2CCAE] bg-white/70 px-3 py-3 text-[13px] text-[#2D1811] outline-none" />
-        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#8A1238] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
+        {!canRequest && selectedRestaurantRecord ? <p className="mt-3 text-[12px] leading-5 text-[#776053]">{isEnglish ? 'This restaurant has no request times published from Control Center.' : 'Este restaurante aún no tiene horarios de solicitud publicados desde el Centro de Control.'}</p> : null}
+        <button type="button" onClick={submit} disabled={submitting || !canRequest} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#8A1238] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request table' : 'Solicitar mesa')}
         </button>
         {message ? <p className="mt-3 text-[12px] leading-5 text-[#690D2B]">{message}</p> : null}

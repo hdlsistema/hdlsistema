@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
-import { Loader2, Mail, Search } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { BarChart3, Bell, Inbox, Loader2, Mail, Search } from 'lucide-react'
 import { supabase } from '../../../../../lib/supabase'
 import {
   adminContentClient,
   type CampaignAudienceFilters,
   type CampaignAudiencePreviewResponse,
+  type CampaignMetricsResponse,
   type CampaignSendResponse,
 } from '../../../../../services/content.service'
 import { CrystalSelect } from '../../../../components/shared/CrystalSelect'
@@ -42,6 +43,13 @@ async function currentAccessToken() {
 export function CampaignEditorialForm(props: EditorialFormProps) {
   const storedAudience = useMemo(() => parseJson(props.form.audience_definition), [props.form.audience_definition])
   const storedContent = useMemo(() => parseJson(props.form.content), [props.form.content])
+  const [channels, setChannels] = useState<Array<'email' | 'push' | 'in_app'>>(() => {
+    const value = storedAudience.channels
+    const selected = Array.isArray(value)
+      ? value.filter((channel): channel is 'email' | 'push' | 'in_app' => ['email', 'push', 'in_app'].includes(String(channel)))
+      : []
+    return selected.length ? selected : ['email']
+  })
   const [filters, setFilters] = useState({
     search: stringValue(storedAudience.search),
     segment: stringValue(storedAudience.segment),
@@ -57,10 +65,12 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
   })
   const [preview, setPreview] = useState<CampaignAudiencePreviewResponse['data'] | null>(null)
   const [sendResult, setSendResult] = useState<CampaignSendResponse['data'] | null>(null)
+  const [metrics, setMetrics] = useState<CampaignMetricsResponse['data'] | null>(null)
   const [working, setWorking] = useState('')
   const [operationError, setOperationError] = useState('')
 
   const audiencePayload = () => cleanFilters({
+    channels,
     search: filters.search,
     segment: filters.segment,
     source: filters.source,
@@ -73,6 +83,32 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
     minTotalSpend: filters.minTotalSpend ? Number(filters.minTotalSpend) : undefined,
     limit: filters.limit ? Number(filters.limit) : undefined,
   })
+
+  useEffect(() => {
+    if (!props.record?.id) {
+      setMetrics(null)
+      return
+    }
+    let active = true
+    void (async () => {
+      try {
+        const response = await adminContentClient.campaignMetrics(props.record!.id, await currentAccessToken())
+        if (active) setMetrics(response.data)
+      } catch {
+        if (active) setMetrics(null)
+      }
+    })()
+    return () => { active = false }
+  }, [props.record?.id])
+
+  const toggleChannel = (channel: 'email' | 'push' | 'in_app') => {
+    setChannels((current) => {
+      if (current.includes(channel)) return current.length === 1 ? current : current.filter((item) => item !== channel)
+      return [...current, channel]
+    })
+    setPreview(null)
+    setSendResult(null)
+  }
 
   const previewAudience = async () => {
     setWorking('preview')
@@ -101,6 +137,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
       const content = parseJson(props.form.content)
       const response = await adminContentClient.sendCampaign(props.record.id, {
         audience: audiencePayload(),
+        channels,
         subject: stringValue(content.subject),
         body: stringValue(content.body),
         ctaLabel: stringValue(content.cta_label),
@@ -108,6 +145,8 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
         limit: filters.limit ? Number(filters.limit) : undefined,
       }, await currentAccessToken())
       setSendResult(response.data)
+      const updatedMetrics = await adminContentClient.campaignMetrics(props.record.id, await currentAccessToken())
+      setMetrics(updatedMetrics.data)
       props.onChange('audience_definition', JSON.stringify(audiencePayload()))
     } catch {
       setSendResult(null)
@@ -125,7 +164,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
           <div>
             <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">Operación de campaña</p>
             <h3 className="mt-1 text-xl font-semibold text-[var(--color-ink)]">Audiencia y envío de campaña</h3>
-            <p className="mt-1 text-[13px] text-[var(--color-muted)]">Solo se incluyen clientes con correo válido y consentimiento de marketing por email.</p>
+            <p className="mt-1 text-[13px] text-[var(--color-muted)]">La audiencia se calcula desde Supabase y respeta el consentimiento de cada canal.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => void previewAudience()} disabled={Boolean(working)} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[var(--color-line)] bg-white/72 px-4 text-sm font-semibold text-[var(--color-burgundy)]">
@@ -137,6 +176,29 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
               Enviar campaña
             </button>
           </div>
+        </div>
+
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          {([
+            { id: 'email' as const, label: 'Correo', icon: Mail },
+            { id: 'push' as const, label: 'Notificación push', icon: Bell },
+            { id: 'in_app' as const, label: 'Buzón en la App', icon: Inbox },
+          ]).map((channel) => {
+            const Icon = channel.icon
+            const selected = channels.includes(channel.id)
+            return (
+              <button
+                key={channel.id}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => toggleChannel(channel.id)}
+                className={`flex min-h-12 items-center gap-3 rounded-2xl border px-4 text-left text-sm font-semibold transition ${selected ? 'border-[var(--color-burgundy)] bg-[#fff3f5] text-[var(--color-burgundy)]' : 'border-[var(--color-line)] bg-white/64 text-[var(--color-muted)]'}`}
+              >
+                <Icon size={17} />
+                {channel.label}
+              </button>
+            )
+          })}
         </div>
 
         <div className="mt-5 grid gap-3 lg:grid-cols-5">
@@ -156,7 +218,14 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
 
         {preview ? (
           <div className="mt-5 rounded-[1rem] border border-[var(--color-line)] bg-white/64 p-4">
-            <p className="text-sm font-semibold text-[var(--color-ink)]">{preview.total} destinatarios con consentimiento</p>
+            <p className="text-sm font-semibold text-[var(--color-ink)]">{preview.total} destinatarios elegibles</p>
+            <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
+              {preview.channels.map((channel) => (
+                <span key={channel} className="rounded-full bg-white px-3 py-1">
+                  {channel === 'email' ? 'Correo' : channel === 'push' ? 'Push' : 'App'}: {preview.channelTotals[channel] ?? 0}
+                </span>
+              ))}
+            </div>
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               {preview.sample.slice(0, 8).map((item) => (
                 <div key={item.id} className="rounded-2xl bg-white/72 px-4 py-3 text-sm">
@@ -172,6 +241,21 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
         {sendResult ? (
           <div className="mt-5 rounded-[1rem] border border-green-200 bg-green-50/80 p-4 text-sm text-green-900">
             Campaña enviada: {sendResult.sent} aceptados, {sendResult.pending} pendientes, {sendResult.failed} fallidos.
+          </div>
+        ) : null}
+
+        {metrics?.channels.some((channel) => channel.total > 0) ? (
+          <div className="mt-5 rounded-[1rem] border border-[var(--color-line)] bg-white/64 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><BarChart3 size={16} /> Métricas guardadas en Supabase</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {metrics.channels.filter((channel) => channel.total > 0).map((channel) => (
+                <div key={channel.channel} className="rounded-2xl bg-white/76 p-3 text-xs text-[var(--color-muted)]">
+                  <p className="font-semibold text-[var(--color-ink)]">{channel.channel === 'email' ? 'Correo' : channel.channel === 'push' ? 'Push' : 'Buzón App'}</p>
+                  <p className="mt-1">Entregados {channel.delivered} · Pendientes {channel.pending} · Fallidos {channel.failed}</p>
+                  <p className="mt-1">Abiertos {channel.opened} · Clics {channel.clicked}</p>
+                </div>
+              ))}
+            </div>
           </div>
         ) : null}
       </section>
