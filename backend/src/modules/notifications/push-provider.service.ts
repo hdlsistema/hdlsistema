@@ -1,4 +1,5 @@
-import { createSign } from 'crypto'
+import { createSign, sign } from 'crypto'
+import { connect } from 'http2'
 import { env } from '../../config/env'
 
 type PushMessage = {
@@ -14,6 +15,7 @@ type CachedAccessToken = {
 }
 
 let cachedAccessToken: CachedAccessToken | null = null
+let cachedAppleToken: CachedAccessToken | null = null
 
 function base64Url(value: string | Buffer) {
   return Buffer.from(value).toString('base64url')
@@ -27,6 +29,17 @@ export function pushProviderState() {
   return {
     provider: 'firebase',
     configured: Boolean(env.FIREBASE_PROJECT_ID && env.FIREBASE_CLIENT_EMAIL && privateKey()),
+  }
+}
+
+function applePrivateKey() {
+  return env.APNS_PRIVATE_KEY.replace(/\\n/g, '\n').trim()
+}
+
+export function apnsProviderState() {
+  return {
+    provider: 'apns',
+    configured: Boolean(env.APNS_TEAM_ID && env.APNS_KEY_ID && applePrivateKey() && env.APNS_BUNDLE_ID),
   }
 }
 
@@ -134,6 +147,82 @@ export async function sendPushNotification(message: PushMessage) {
   }
 }
 
+function appleAccessToken() {
+  if (cachedAppleToken && cachedAppleToken.expiresAt > Date.now() + 60_000) return cachedAppleToken.value
+  if (!apnsProviderState().configured) throw providerError('apns_provider_not_configured', 503)
+  const now = Math.floor(Date.now() / 1000)
+  const header = base64Url(JSON.stringify({ alg: 'ES256', kid: env.APNS_KEY_ID }))
+  const claims = base64Url(JSON.stringify({ iss: env.APNS_TEAM_ID, iat: now }))
+  const unsigned = `${header}.${claims}`
+  const signature = sign('sha256', Buffer.from(unsigned), {
+    key: applePrivateKey(),
+    dsaEncoding: 'ieee-p1363',
+  }).toString('base64url')
+  const value = `${unsigned}.${signature}`
+  cachedAppleToken = { value, expiresAt: Date.now() + 50 * 60_000 }
+  return value
+}
+
+export async function sendApplePushNotification(message: PushMessage) {
+  const authorization = appleAccessToken()
+  const origin = env.APNS_ENVIRONMENT === 'sandbox'
+    ? 'https://api.sandbox.push.apple.com'
+    : 'https://api.push.apple.com'
+
+  return new Promise<{ id: string }>((resolve, reject) => {
+    const client = connect(origin)
+    let settled = false
+    const finish = (callback: () => void) => {
+      if (settled) return
+      settled = true
+      client.close()
+      callback()
+    }
+    client.once('error', () => finish(() => reject(providerError('apns_connection_failed'))))
+
+    const request = client.request({
+      ':method': 'POST',
+      ':path': `/3/device/${encodeURIComponent(message.token)}`,
+      authorization: `bearer ${authorization}`,
+      'apns-topic': env.APNS_BUNDLE_ID,
+      'apns-push-type': 'alert',
+      'apns-priority': '10',
+    })
+    let status = 0
+    let responseBody = ''
+    let responseId = ''
+    request.setEncoding('utf8')
+    request.on('response', (headers) => {
+      status = Number(headers[':status'] ?? 0)
+      responseId = String(headers['apns-id'] ?? '')
+    })
+    request.on('data', (chunk) => { responseBody += chunk.slice(0, 2000) })
+    request.once('error', () => finish(() => reject(providerError('apns_request_failed'))))
+    request.on('end', () => {
+      if (status === 200) {
+        finish(() => resolve({ id: responseId }))
+        return
+      }
+      let reason = `apns_${status || 'failed'}`
+      try {
+        const parsed = responseBody ? JSON.parse(responseBody) as { reason?: unknown } : null
+        if (parsed?.reason) reason = String(parsed.reason)
+      } catch {
+        // APNs puede cerrar sin cuerpo; conservamos un código seguro y breve.
+      }
+      finish(() => reject(providerError(reason, status || 502)))
+    })
+    request.end(JSON.stringify({
+      aps: {
+        alert: { title: message.title, body: message.body },
+        sound: 'default',
+      },
+      ...pushData(message.data),
+    }))
+  })
+}
+
 export function resetPushProviderCacheForTests() {
   cachedAccessToken = null
+  cachedAppleToken = null
 }

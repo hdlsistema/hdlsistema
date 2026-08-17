@@ -1419,6 +1419,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 .control-layout {
+  --control-layout-inline: var(--control-space-lg);
   position: relative;
   display: grid;
   grid-template-columns: var(--control-sidebar-width) minmax(0, 1fr);
@@ -1447,33 +1448,33 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
 .control-sidebar__tab {
   position: fixed;
-  top: 50dvh;
-  left: max(0.35rem, calc((100vw - 1600px) / 2 + var(--control-sidebar-width) + 0.35rem));
+  top: calc(var(--control-topbar-height) + var(--control-space-md) + 0.15rem);
+  left: calc(max(0px, calc((100vw - 1600px) / 2)) + var(--control-layout-inline) + var(--control-sidebar-width) - 0.15rem);
   z-index: 48;
   display: inline-flex;
   width: 2rem;
-  min-height: 3rem;
+  min-height: 2.8rem;
   align-items: center;
   justify-content: center;
   padding: 0;
   border: 1px solid rgba(255, 247, 233, 0.5);
-  border-radius: 0 0.75rem 0.75rem 0;
+  border-radius: 0 0.7rem 0.7rem 0;
   background: linear-gradient(135deg, rgba(77, 10, 29, 0.9), rgba(104, 17, 38, 0.82));
   color: #fff8ed;
   box-shadow: 0 14px 34px rgba(52, 8, 20, 0.2), inset 0 1px 0 rgba(255,255,255,.15);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   transition: left 220ms ease, background-color 160ms ease, transform 160ms ease;
-  transform: translateY(-50%);
+  transform: none;
 }
 
 .control-sidebar__tab:hover {
-  transform: translate(2px, -50%);
+  transform: translateX(2px);
   background: linear-gradient(135deg, rgba(92, 13, 35, 0.96), rgba(116, 24, 48, 0.9));
 }
 
 .control-layout.is-sidebar-collapsed .control-sidebar__tab {
-  left: max(4.35rem, calc((100vw - 1600px) / 2 + 4.35rem));
+  left: calc(max(0px, calc((100vw - 1600px) / 2)) + var(--control-layout-inline) + 4rem - 0.15rem);
 }
 
 .control-layout.is-sidebar-collapsed .control-sidebar__brand {
@@ -1985,6 +1986,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
   }
 
   .control-layout {
+    --control-layout-inline: var(--control-space-md);
     padding-right: var(--control-space-md);
     padding-left: var(--control-space-md);
   }
@@ -2046,19 +2048,29 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
   .control-sidebar__tab,
   .control-layout.is-sidebar-collapsed .control-sidebar__tab {
-    top: 50dvh;
-    left: 0;
+    top: calc(var(--control-topbar-height) / 2);
+    left: 0.55rem;
     z-index: 51;
+    width: 2.3rem;
+    min-height: 2.3rem;
+    border-radius: 0.7rem;
     transform: translateY(-50%);
   }
 
   .control-layout.is-sidebar-open .control-sidebar__tab {
+    top: calc(var(--control-topbar-height) + 0.6rem);
     left: calc(min(86vw, 19rem) + 0.15rem);
+    min-height: 2.8rem;
+    border-radius: 0 0.7rem 0.7rem 0;
+    transform: none;
   }
 
-  .control-layout.is-sidebar-open .control-sidebar__tab:hover,
   .control-layout.is-sidebar-collapsed .control-sidebar__tab:hover {
     transform: translate(2px, -50%);
+  }
+
+  .control-layout.is-sidebar-open .control-sidebar__tab:hover {
+    transform: translateX(2px);
   }
 
   .control-layout.is-sidebar-collapsed .control-sidebar__brand-copy {

@@ -17,6 +17,7 @@ import {
 } from '../operations/operationErrors'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import { recordBusinessActivity } from '../activity/activity.service'
+import { createCustomerNotification } from '../notifications/notifications.service'
 import type { AppEventName } from '../activity/activity.schemas'
 import type {
   CancelCustomerReservationPayload,
@@ -436,6 +437,32 @@ function queueReservationEmail(event: 'reservation.created' | 'reservation.resch
   }).catch(() => undefined)
 }
 
+function queueReservationPush(
+  event: 'reservation.created' | 'reservation.rescheduled' | 'reservation.cancelled',
+  reservation: CustomerReservationData,
+  customer: CustomerRow,
+  user: UserContext,
+) {
+  const copy = event === 'reservation.cancelled'
+    ? { title: 'Reservación cancelada', body: `La reservación ${reservation.reservationNumber} fue cancelada.` }
+    : event === 'reservation.rescheduled'
+      ? { title: 'Reservación reprogramada', body: `Tu reservación ${reservation.reservationNumber} tiene un nuevo horario.` }
+      : { title: 'Reservación recibida', body: `Recibimos tu solicitud ${reservation.reservationNumber}. Consulta aquí su avance.` }
+  void createCustomerNotification({
+    customerId: customer.id,
+    userId: user.userId ?? customer.user_id,
+    title: copy.title,
+    body: copy.body,
+    deepLink: '/app/reservacion',
+    data: {
+      type: event.replace('.', '_'),
+      reservationId: reservation.id,
+      reservationNumber: reservation.reservationNumber,
+      status: reservation.status,
+    },
+  }).catch(() => undefined)
+}
+
 function queueOrderEmails(order: unknown, customer: CustomerRow, user: UserContext, locale?: string | null) {
   const data = order && typeof order === 'object' ? order as Record<string, unknown> : {}
   const orderId = String(data.id ?? '')
@@ -633,6 +660,7 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
     if (result.error) normalizeDatabaseError(result.error)
     const response = await getCustomerReservation(String(result.data), user)
     queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
+    queueReservationPush('reservation.created', response.data, customer, user)
     if (response.data.paymentOrderId) {
       const order = await getCustomerOrder(response.data.paymentOrderId, user)
       queueOrderEmails(order.data, customer, user, payload.language)
@@ -656,6 +684,7 @@ export async function cancelCustomerReservation(id: string, payload: CancelCusto
   const customer = await getCustomerForUser(user)
   await revokeReservationAccessPasses(response.data.id, 'customer_reservation_cancelled')
   queueReservationEmail('reservation.cancelled', response.data, customer, user)
+  queueReservationPush('reservation.cancelled', response.data, customer, user)
   recordCustomerOperation(customer, user, 'reservation_cancelled', 'reservation', response.data.id, `reservation-cancelled-${response.data.id}-${response.data.updatedAt}`)
   return response
 }
@@ -676,6 +705,7 @@ export async function rescheduleCustomerReservation(id: string, payload: Resched
   const customer = await getCustomerForUser(user)
   const data = await withReservationAccessPass(response.data)
   queueReservationEmail('reservation.rescheduled', response.data, customer, user)
+  queueReservationPush('reservation.rescheduled', response.data, customer, user)
   recordCustomerOperation(customer, user, 'reservation_rescheduled', 'reservation', response.data.id, `reservation-rescheduled-${response.data.id}-${response.data.rescheduledAt ?? response.data.updatedAt}`)
   return { data }
 }

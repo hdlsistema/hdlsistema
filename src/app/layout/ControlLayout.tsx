@@ -96,7 +96,7 @@ export function ControlLayout() {
         },
         {
           to: '/control/disponibilidad',
-          label: `${t('control.availability')} / ${isEnglish ? 'Cabins' : 'Cabañas'}`,
+          label: t('control.availability'),
           icon: CalendarRange,
         },
         {

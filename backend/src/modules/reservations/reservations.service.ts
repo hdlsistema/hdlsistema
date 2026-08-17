@@ -15,6 +15,7 @@ import type {
   PatchReservationPayload,
   ReservationListQuery,
 } from './reservations.schemas'
+import { createCustomerNotification } from '../notifications/notifications.service'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 const writeRoles = ['super_admin', 'admin', 'operations']
@@ -174,6 +175,7 @@ function mapReservation(row: ReservationRow) {
     id: row.id,
     reservationNumber: row.reservation_number,
     customerId: row.customer_id,
+    userId: row.user_id ?? null,
     customerName: customerName(row),
     email: customer?.email ?? null,
     phone: customer?.phone ?? null,
@@ -211,6 +213,34 @@ function mapReservation(row: ReservationRow) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+function queueReservationStatusPush(
+  reservation: ReturnType<typeof mapReservation>,
+  event: 'created' | 'confirmed' | 'cancelled' | 'rescheduled' | 'updated',
+) {
+  const copy = event === 'confirmed'
+    ? { title: 'Reservación confirmada', body: `Tu reservación ${reservation.reservationNumber} está confirmada.` }
+    : event === 'cancelled'
+      ? { title: 'Reservación cancelada', body: `La reservación ${reservation.reservationNumber} fue cancelada.` }
+      : event === 'rescheduled'
+        ? { title: 'Reservación reprogramada', body: `La reservación ${reservation.reservationNumber} tiene una nueva fecha u horario.` }
+        : event === 'updated'
+          ? { title: 'Reservación actualizada', body: `Actualizamos los datos de tu reservación ${reservation.reservationNumber}.` }
+          : { title: 'Reservación registrada', body: `Registramos tu solicitud ${reservation.reservationNumber}.` }
+  void createCustomerNotification({
+    customerId: reservation.customerId,
+    userId: reservation.userId,
+    title: copy.title,
+    body: copy.body,
+    deepLink: '/app/reservacion',
+    data: {
+      type: `reservation_${event}`,
+      reservationId: reservation.id,
+      reservationNumber: reservation.reservationNumber,
+      status: reservation.status,
+    },
+  }).catch(() => undefined)
 }
 
 function matchesSearch(row: ReservationRow, search?: string) {
@@ -290,7 +320,9 @@ export async function createReservation(payload: CreateReservationPayload, user:
     p_metadata: payload.metadata ?? {},
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getReservation(String(result.data), user)
+  const response = await getReservation(String(result.data), user)
+  queueReservationStatusPush(response.data, 'created')
+  return response
 }
 
 export async function updateReservation(id: string, payload: PatchReservationPayload, user: UserContext) {
@@ -324,42 +356,46 @@ async function runReservationRpc(name: string, args: Record<string, unknown>, id
   return getReservation(id, user)
 }
 
-export function confirmReservation(id: string, user: UserContext) {
-  return getReservation(id, user).then((current) => {
-    if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
-      throw httpError(409, 'La reservación se confirma automáticamente cuando la orden queda pagada')
-    }
-    return runReservationRpc('confirm_reservation', {}, id, user)
-  })
+export async function confirmReservation(id: string, user: UserContext) {
+  const current = await getReservation(id, user)
+  if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
+    throw httpError(409, 'La reservación se confirma automáticamente cuando la orden queda pagada')
+  }
+  const response = await runReservationRpc('confirm_reservation', {}, id, user)
+  queueReservationStatusPush(response.data, 'confirmed')
+  return response
 }
 
-export function cancelReservation(id: string, reason: string | null | undefined, user: UserContext) {
-  return getReservation(id, user).then((current) => {
-    if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
-      throw httpError(409, current.data.paymentStatus === 'paid'
-        ? 'Primero registra el reembolso de la orden; la cancelación será automática'
-        : 'Cancela la reservación pendiente desde la App para liberar el apartado de pago')
-    }
-    return runReservationRpc('cancel_reservation', { p_reason: reason ?? null }, id, user)
-  })
+export async function cancelReservation(id: string, reason: string | null | undefined, user: UserContext) {
+  const current = await getReservation(id, user)
+  if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
+    throw httpError(409, current.data.paymentStatus === 'paid'
+      ? 'Primero registra el reembolso de la orden; la cancelación será automática'
+      : 'Cancela la reservación pendiente desde la App para liberar el apartado de pago')
+  }
+  const response = await runReservationRpc('cancel_reservation', { p_reason: reason ?? null }, id, user)
+  queueReservationStatusPush(response.data, 'cancelled')
+  return response
 }
 
-export function rescheduleReservation(id: string, newSlotId: string, user: UserContext) {
-  return getReservation(id, user).then((current) => {
-    if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
-      throw httpError(409, 'Reprograma la reservación pagada desde la App para mantener orden, cupo y acceso sincronizados')
-    }
-    return runReservationRpc('reschedule_reservation', { p_new_slot_id: newSlotId }, id, user)
-  })
+export async function rescheduleReservation(id: string, newSlotId: string, user: UserContext) {
+  const current = await getReservation(id, user)
+  if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
+    throw httpError(409, 'Reprograma la reservación pagada desde la App para mantener orden, cupo y acceso sincronizados')
+  }
+  const response = await runReservationRpc('reschedule_reservation', { p_new_slot_id: newSlotId }, id, user)
+  queueReservationStatusPush(response.data, 'rescheduled')
+  return response
 }
 
-export function changeReservationPartySize(id: string, peopleCount: number, user: UserContext) {
-  return getReservation(id, user).then((current) => {
-    if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
-      throw httpError(409, 'El número de personas no puede cambiar sin recalcular la orden de pago')
-    }
-    return runReservationRpc('update_reservation_people', { p_people_count: peopleCount }, id, user)
-  })
+export async function changeReservationPartySize(id: string, peopleCount: number, user: UserContext) {
+  const current = await getReservation(id, user)
+  if (current.data.reservationType === 'experience' && current.data.paymentStatus !== 'not_required') {
+    throw httpError(409, 'El número de personas no puede cambiar sin recalcular la orden de pago')
+  }
+  const response = await runReservationRpc('update_reservation_people', { p_people_count: peopleCount }, id, user)
+  queueReservationStatusPush(response.data, 'updated')
+  return response
 }
 
 export async function addReservationNote(id: string, note: string, user: UserContext) {

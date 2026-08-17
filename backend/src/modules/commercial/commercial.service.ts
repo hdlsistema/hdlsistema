@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'crypto'
 import { supabaseAdminClient } from '../../config/supabase'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import { recordBusinessActivity } from '../activity/activity.service'
+import { createCustomerNotification } from '../notifications/notifications.service'
 import {
   assertNoError,
   httpError,
@@ -61,6 +62,7 @@ type ServiceContentRow = {
   full_address?: string | null
   city?: string | null
   state?: string | null
+  phone?: string | null
   alias?: string | null
   hours?: Record<string, unknown> | null
   reservation_enabled?: boolean | null
@@ -199,6 +201,7 @@ function publicContent(row: ServiceContentRow, locale = 'es-MX') {
     address: localizedText('address', row.full_address ?? null),
     city: localizedText('city', row.city ?? null),
     state: localizedText('state', row.state ?? null),
+    phone: row.phone ?? null,
     alias: row.alias ?? null,
     hours: row.hours ?? {},
     reservationEnabled: row.reservation_enabled ?? true,
@@ -277,6 +280,32 @@ function queueCommercialReservationEmail(
       currency: reservation.currency,
     },
     idempotencyKey: `reservation.created:${reservation.id}:${customer.email ?? 'no-email'}`,
+  }).catch(() => undefined)
+}
+
+function queueCommercialReservationPush(
+  reservation: ReturnType<typeof mapReservation>,
+  customer: CustomerRow,
+  user: UserContext,
+) {
+  const serviceTitle = reservation.reservationType === 'cabin'
+    ? reservation.cabinPackage?.name ?? 'cabaña'
+    : reservation.restaurantLocation?.name ?? 'restaurante'
+  const dateDetail = reservation.reservationType === 'cabin'
+    ? [reservation.checkIn, reservation.checkOut].filter(Boolean).join(' al ')
+    : [reservation.reservationDate, reservation.reservationTime].filter(Boolean).join(' · ')
+  void createCustomerNotification({
+    customerId: customer.id,
+    userId: user.userId ?? customer.user_id ?? null,
+    title: 'Solicitud de reservación recibida',
+    body: `Recibimos tu solicitud para ${serviceTitle}${dateDetail ? ` (${dateDetail})` : ''}. Te avisaremos cuando quede confirmada.`,
+    deepLink: '/app/reservacion',
+    data: {
+      type: 'reservation_created',
+      reservationId: reservation.id,
+      reservationNumber: reservation.reservationNumber,
+      status: reservation.status,
+    },
   }).catch(() => undefined)
 }
 
@@ -382,7 +411,7 @@ export async function listPublicCommercialServices(locale = 'es-MX') {
       .order('sort_order', { ascending: true }),
     supabaseAdminClient
       .from('restaurant_locations')
-      .select('id,slug,name,alias,description,full_address,city,state,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at')
+      .select('id,slug,name,alias,description,full_address,city,state,phone,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at')
       .eq('status', 'published')
       .eq('visible_in_app', true)
       .is('deleted_at', null)
@@ -518,6 +547,7 @@ export async function createCabinReservation(payload: CreateCabinReservationPayl
   }, { userId: user.userId, customerId: customer.id })
 
   queueCommercialReservationEmail(reservation, customer, user, payload.language)
+  queueCommercialReservationPush(reservation, customer, user)
 
   return { data: reservation, duplicate: false }
 }
@@ -584,6 +614,7 @@ export async function createRestaurantReservation(payload: CreateRestaurantReser
   }, { userId: user.userId, customerId: customer.id })
 
   queueCommercialReservationEmail(reservation, customer, user, payload.language)
+  queueCommercialReservationPush(reservation, customer, user)
 
   return { data: reservation, duplicate: false }
 }

@@ -322,6 +322,7 @@ export function ProfileScreen() {
         const response = await customerClient.clickNotification(session.access_token, notification.id)
         setNotifications((current) => current.map((item) => item.id === notification.id ? response.data : item))
         if (!notification.readAt) setUnreadNotifications((current) => Math.max(current - 1, 0))
+        window.dispatchEvent(new CustomEvent('hdl:notifications-changed'))
       } catch {
         // El destino sigue disponible aunque falle la métrica no crítica.
       }
@@ -330,6 +331,7 @@ export function ProfileScreen() {
         const response = await customerClient.readNotification(session.access_token, notification.id)
         setNotifications((current) => current.map((item) => item.id === notification.id ? response.data : item))
         setUnreadNotifications((current) => Math.max(0, current - 1))
+        window.dispatchEvent(new CustomEvent('hdl:notifications-changed'))
       } catch {
         // Reading the destination remains available if the read receipt fails.
       }

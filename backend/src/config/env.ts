@@ -64,6 +64,14 @@ export const env = {
   FIREBASE_CLIENT_EMAIL: optionalEnv('FIREBASE_CLIENT_EMAIL', ''),
   FIREBASE_PRIVATE_KEY: optionalEnv('FIREBASE_PRIVATE_KEY', ''),
 
+  // Apple Push Notification service — entrega directa usando el token APNs
+  // emitido por Capacitor en iOS. La llave privada vive sólo en Railway.
+  APNS_TEAM_ID: optionalEnv('APNS_TEAM_ID', ''),
+  APNS_KEY_ID: optionalEnv('APNS_KEY_ID', ''),
+  APNS_PRIVATE_KEY: optionalEnv('APNS_PRIVATE_KEY', ''),
+  APNS_BUNDLE_ID: optionalEnv('APNS_BUNDLE_ID', 'com.haciendadeletras.app'),
+  APNS_ENVIRONMENT: optionalEnv('APNS_ENVIRONMENT', 'production'),
+
   // Stripe — pagos customer con PaymentIntent; solo lado servidor
   STRIPE_SECRET_KEY: optionalEnv('STRIPE_SECRET_KEY', ''),
   STRIPE_WEBHOOK_SECRET: optionalEnv('STRIPE_WEBHOOK_SECRET', ''),

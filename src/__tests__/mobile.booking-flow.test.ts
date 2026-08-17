@@ -57,4 +57,16 @@ describe('flujo mobile de reservaciones y boletos', () => {
     expect(paymentStatus).toContain("appPath('/reservacion')}#boletos")
     expect(paymentStatus).toContain('Ver boletos y códigos QR')
   })
+
+  it('muestra campana conectada y crea el canal nativo de notificaciones', () => {
+    const header = readFileSync(resolve(__dirname, '../app/components/mobile/AppHeader.tsx'), 'utf8')
+    const push = readFileSync(resolve(__dirname, '../mobile/MobilePushRegistration.tsx'), 'utf8')
+
+    expect(header).toContain("customerClient.notifications(session.access_token, 1)")
+    expect(header).toContain("`${appPath('/perfil')}#notifications`")
+    expect(header).toContain('unreadNotifications > 99')
+    expect(push).toContain('PushNotifications.createChannel')
+    expect(push).toContain("id: 'orders'")
+    expect(push).toContain("window.dispatchEvent(new CustomEvent('hdl:push-received'))")
+  })
 })

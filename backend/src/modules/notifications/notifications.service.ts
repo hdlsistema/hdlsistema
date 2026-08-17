@@ -1,7 +1,7 @@
 import { supabaseAdminClient } from '../../config/supabase'
 import { assertNoError, httpError, requireOperationRole, type UserContext } from '../operations/operationErrors'
 import type { NotificationListQuery } from './notifications.schemas'
-import { pushProviderState, sendPushNotification } from './push-provider.service'
+import { apnsProviderState, pushProviderState, sendApplePushNotification, sendPushNotification } from './push-provider.service'
 
 const notificationReadRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 
@@ -34,6 +34,7 @@ type CampaignNotificationInput = CustomerNotificationInput & {
 type NotificationDeviceRow = {
   id: string
   firebase_token: string
+  platform?: 'android' | 'ios' | null
 }
 
 function mapNotification(row: NotificationRow) {
@@ -100,7 +101,7 @@ async function deliverCustomerPush(
 
   const deviceResult = await supabaseAdminClient
     .from('notification_devices')
-    .select('id,firebase_token')
+    .select('id,firebase_token,platform')
     .eq('user_id', userId)
     .eq('active', true)
   const devices = assertNoError<NotificationDeviceRow[]>(deviceResult).data ?? []
@@ -109,29 +110,36 @@ async function deliverCustomerPush(
     return { status: 'skipped' as const, errorCode: 'no_active_device' }
   }
 
-  if (!pushProviderState().configured) {
+  const deliverableDevices = devices.filter((device) => device.platform === 'ios'
+    ? apnsProviderState().configured
+    : pushProviderState().configured)
+  const unconfiguredDevices = devices.length - deliverableDevices.length
+  if (!deliverableDevices.length) {
     await setPushState(notification.id, { push_status: 'pending_configuration', push_error_code: 'provider_not_configured' }).catch(() => undefined)
     return { status: 'pending_configuration' as const, errorCode: 'provider_not_configured' }
   }
 
-  const results = await Promise.allSettled(devices.map((device) => sendPushNotification({
-    token: device.firebase_token,
-    title: notification.title,
-    body: notification.body,
-    data: Object.fromEntries(
-      Object.entries(notification.data ?? {}).filter((entry): entry is [string, string | number | boolean | null | undefined] =>
-        entry[1] === null || entry[1] === undefined || ['string', 'number', 'boolean'].includes(typeof entry[1]),
+  const results = await Promise.allSettled(deliverableDevices.map((device) => {
+    const message = {
+      token: device.firebase_token,
+      title: notification.title,
+      body: notification.body,
+      data: Object.fromEntries(
+        Object.entries(notification.data ?? {}).filter((entry): entry is [string, string | number | boolean | null | undefined] =>
+          entry[1] === null || entry[1] === undefined || ['string', 'number', 'boolean'].includes(typeof entry[1]),
+        ),
       ),
-    ),
-  })))
+    }
+    return device.platform === 'ios' ? sendApplePushNotification(message) : sendPushNotification(message)
+  }))
   const sent = results.filter((result) => result.status === 'fulfilled').length
   const rejected = results
-    .map((result, index) => result.status === 'rejected' ? { result, device: devices[index] } : null)
+    .map((result, index) => result.status === 'rejected' ? { result, device: deliverableDevices[index] } : null)
     .filter((entry): entry is { result: PromiseRejectedResult; device: NotificationDeviceRow } => Boolean(entry?.device))
 
   await Promise.all(rejected.map(async ({ result, device }) => {
     const code = errorCode(result.reason)
-    if (!['UNREGISTERED', 'INVALID_ARGUMENT', 'SENDER_ID_MISMATCH'].includes(code)) return
+    if (!['UNREGISTERED', 'INVALID_ARGUMENT', 'SENDER_ID_MISMATCH', 'Unregistered', 'BadDeviceToken', 'DeviceTokenNotForTopic'].includes(code)) return
     await supabaseAdminClient
       .from('notification_devices')
       .update({ active: false, updated_at: new Date().toISOString() })
@@ -146,11 +154,11 @@ async function deliverCustomerPush(
         sent_at: new Date().toISOString(),
         push_status: 'sent',
         push_sent_at: new Date().toISOString(),
-        push_error_code: rejected.length ? 'partial_delivery' : null,
+        push_error_code: rejected.length || unconfiguredDevices ? 'partial_delivery' : null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', notification.id)
-    return { status: 'sent' as const, errorCode: rejected.length ? 'partial_delivery' : null }
+    return { status: 'sent' as const, errorCode: rejected.length || unconfiguredDevices ? 'partial_delivery' : null }
   }
 
   await setPushState(notification.id, {

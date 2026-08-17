@@ -23,6 +23,21 @@ describe('centro unificado de disponibilidad y reservaciones', () => {
     expect(router).toContain('to="/control/disponibilidad?view=hospedaje"')
   })
 
+  it('centraliza restaurantes y sus horarios de app dentro de Disponibilidad', () => {
+    const availability = readFileSync(resolve(__dirname, '../app/pages/control/AvailabilityPage.tsx'), 'utf8')
+    const restaurants = readFileSync(resolve(__dirname, '../app/pages/control/RestaurantAvailabilityPanel.tsx'), 'utf8')
+    const layout = readFileSync(resolve(__dirname, '../app/layout/ControlLayout.tsx'), 'utf8')
+
+    expect(layout).toContain("label: t('control.availability')")
+    expect(layout).not.toContain("t('control.availability')} /")
+    expect(availability).toContain("'restaurantes'")
+    expect(availability).toContain('<RestaurantAvailabilityPanel token={token} writable={writable} />')
+    expect(restaurants).toContain('Horarios disponibles en la app')
+    expect(restaurants).toContain("adminCommercialCatalogClient.update(token, 'restaurants'")
+    expect(restaurants).toContain("metadata: { ...item.metadata, reservationTimes")
+    expect(restaurants).toContain('Cada cambio se guarda en Supabase y la app lo consulta')
+  })
+
   it('presenta un expediente distinto para hospedaje y evita cupo u horario de experiencia', () => {
     const reservations = readFileSync(resolve(__dirname, '../app/pages/control/ReservationsPage.tsx'), 'utf8')
 

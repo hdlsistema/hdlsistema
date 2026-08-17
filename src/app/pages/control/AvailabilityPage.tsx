@@ -3,6 +3,7 @@ import {
   Ban,
   BarChart3,
   BedDouble,
+  Building2,
   CalendarDays,
   Check,
   Clock3,
@@ -30,6 +31,9 @@ import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { ControlConfirmDialog } from '../../components/control/ControlConfirmDialog'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { LodgingPage } from './LodgingPage'
+import { RestaurantAvailabilityPanel } from './RestaurantAvailabilityPanel'
+
+type AvailabilityMode = 'experiencias' | 'restaurantes' | 'hospedaje'
 
 type SlotForm = {
   id?: string
@@ -132,7 +136,12 @@ export function AvailabilityPage() {
   const [duplicateDate, setDuplicateDate] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingAvailabilityAction | null>(null)
   const [searchParams, setSearchParams] = useSearchParams()
-  const availabilityMode = ['hospedaje', 'hotel', 'cabanas'].includes(searchParams.get('view') ?? '') ? 'hospedaje' : 'experiencias'
+  const requestedMode = searchParams.get('view') ?? ''
+  const availabilityMode: AvailabilityMode = ['hospedaje', 'hotel', 'cabanas'].includes(requestedMode)
+    ? 'hospedaje'
+    : requestedMode === 'restaurantes'
+      ? 'restaurantes'
+      : 'experiencias'
 
   const token = session?.access_token
 
@@ -176,9 +185,10 @@ export function AvailabilityPage() {
     [slots],
   )
 
-  const selectMode = (mode: 'experiencias' | 'hospedaje') => {
+  const selectMode = (mode: AvailabilityMode) => {
     const next = new URLSearchParams(searchParams)
     if (mode === 'hospedaje') next.set('view', 'hospedaje')
+    else if (mode === 'restaurantes') next.set('view', 'restaurantes')
     else next.delete('view')
     setSearchParams(next, { replace: true })
   }
@@ -314,11 +324,25 @@ export function AvailabilityPage() {
       <div className="min-w-0 space-y-5">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
-          title={isEnglish ? 'Availability control' : 'Control de disponibilidad'}
+          title={isEnglish ? 'Availability' : 'Disponibilidad'}
           subtitle={isEnglish ? 'Inventory, sellable capacity and operational blocks by business line.' : 'Inventario vendible, ocupación y bloqueos por línea de negocio.'}
         />
         <AvailabilityModeSwitch mode={availabilityMode} onChange={selectMode} />
         <LodgingPage embedded />
+      </div>
+    )
+  }
+
+  if (availabilityMode === 'restaurantes') {
+    return (
+      <div className="min-w-0 space-y-5">
+        <SectionTitle
+          eyebrow={isEnglish ? 'Operations' : 'Operación'}
+          title={isEnglish ? 'Availability' : 'Disponibilidad'}
+          subtitle={isEnglish ? 'Schedules and bookable capacity by business line.' : 'Horarios y capacidad reservable por línea de negocio.'}
+        />
+        <AvailabilityModeSwitch mode={availabilityMode} onChange={selectMode} />
+        <RestaurantAvailabilityPanel token={token} writable={writable} />
       </div>
     )
   }
@@ -328,7 +352,7 @@ export function AvailabilityPage() {
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <SectionTitle
           eyebrow={isEnglish ? 'Operations' : 'Operación'}
-          title={isEnglish ? 'Availability control' : 'Control de disponibilidad'}
+          title={isEnglish ? 'Availability' : 'Disponibilidad'}
           subtitle={isEnglish ? 'Inventory, sellable capacity and operational blocks by business line.' : 'Inventario vendible, ocupación y bloqueos por línea de negocio.'}
         />
         <div className="flex flex-wrap gap-3">
@@ -584,11 +608,14 @@ export function AvailabilityPage() {
   )
 }
 
-function AvailabilityModeSwitch({ mode, onChange }: { mode: 'experiencias' | 'hospedaje'; onChange: (mode: 'experiencias' | 'hospedaje') => void }) {
+function AvailabilityModeSwitch({ mode, onChange }: { mode: AvailabilityMode; onChange: (mode: AvailabilityMode) => void }) {
   return (
-    <section aria-label="Tipo de disponibilidad" className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-2 shadow-[var(--shadow-card)] sm:grid-cols-2">
+    <section aria-label="Tipo de disponibilidad" className="grid gap-2 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-2 shadow-[var(--shadow-card)] md:grid-cols-3">
       <button type="button" onClick={() => onChange('experiencias')} className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-left transition ${mode === 'experiencias' ? 'bg-[var(--color-burgundy)] text-white shadow-md' : 'text-[var(--color-ink)] hover:bg-[var(--color-soft)]'}`}>
         <CalendarDays size={19} /><span><strong className="block text-sm">Experiencias y eventos</strong><small className={`block text-[10px] ${mode === 'experiencias' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Horarios, cupos y bloqueos</small></span>
+      </button>
+      <button type="button" onClick={() => onChange('restaurantes')} className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-left transition ${mode === 'restaurantes' ? 'bg-[var(--color-burgundy)] text-white shadow-md' : 'text-[var(--color-ink)] hover:bg-[var(--color-soft)]'}`}>
+        <Building2 size={19} /><span><strong className="block text-sm">Restaurantes</strong><small className={`block text-[10px] ${mode === 'restaurantes' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Horarios disponibles para solicitar mesa</small></span>
       </button>
       <button type="button" onClick={() => onChange('hospedaje')} className={`flex min-h-14 items-center gap-3 rounded-xl px-4 text-left transition ${mode === 'hospedaje' ? 'bg-[var(--color-burgundy)] text-white shadow-md' : 'text-[var(--color-ink)] hover:bg-[var(--color-soft)]'}`}>
         <BedDouble size={19} /><span><strong className="block text-sm">Cabañas</strong><small className={`block text-[10px] ${mode === 'hospedaje' ? 'text-white/70' : 'text-[var(--color-muted)]'}`}>Noches, unidades, ocupación y recepción</small></span>

@@ -29,6 +29,18 @@ export function MobilePushRegistration() {
         const permission = await PushNotifications.requestPermissions()
         if (permission.receive !== 'granted') return
 
+        if (Capacitor.getPlatform() === 'android') {
+          await PushNotifications.createChannel({
+            id: 'orders',
+            name: 'Reservaciones y pedidos',
+            description: 'Confirmaciones, cambios y avisos importantes de Hacienda de Letras.',
+            importance: 5,
+            visibility: 1,
+            sound: 'default',
+            vibration: true,
+          })
+        }
+
         await PushNotifications.removeAllListeners()
         await PushNotifications.addListener('registration', (token) => {
           if (!active || !token.value || registeredToken.current === token.value) return

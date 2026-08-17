@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express'
 import { env } from '../../config/env'
 import { checkSupabaseReachable } from '../../config/supabase'
+import { apnsProviderState, pushProviderState } from '../notifications/push-provider.service'
 
 /**
  * GET /api/health
@@ -24,5 +25,9 @@ export async function getHealth(_req: Request, res: Response): Promise<void> {
     environment: env.NODE_ENV,
     timestamp: new Date().toISOString(),
     supabase: { configured, ...supabase },
+    push: {
+      android: pushProviderState(),
+      ios: apnsProviderState(),
+    },
   })
 }

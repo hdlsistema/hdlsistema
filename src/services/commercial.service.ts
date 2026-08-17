@@ -40,6 +40,9 @@ export type PublicCommercialItem = {
   dimensions?: string | null
   location?: string | null
   address?: string | null
+  city?: string | null
+  state?: string | null
+  phone?: string | null
   alias?: string | null
   hours?: Record<string, unknown>
   reservationEnabled?: boolean

@@ -299,6 +299,10 @@ describe('GET /api/health', () => {
     expect(typeof res.body.supabase?.reachable).toBe('boolean')
     expect(typeof res.body.supabase?.healthy).toBe('boolean')
     expect(typeof res.body.supabase?.status).toBe('string')
+    expect(res.body.push?.android?.provider).toBe('firebase')
+    expect(typeof res.body.push?.android?.configured).toBe('boolean')
+    expect(res.body.push?.ios?.provider).toBe('apns')
+    expect(typeof res.body.push?.ios?.configured).toBe('boolean')
   })
 
   it('reporta Supabase ok cuando la consulta técnica no devuelve error', async () => {
