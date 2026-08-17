@@ -17,6 +17,7 @@ import type {
   IssueAccessPassPayload,
   RegisterCheckinPayload,
 } from './checkin.schemas'
+import { publicAccessUrl } from './accessPassIssuer'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer']
 const checkinRoles = ['super_admin', 'admin', 'operations']
@@ -223,7 +224,7 @@ export async function issueAccessPass(payload: IssueAccessPassPayload, user: Use
   })
   if (result.error) normalizeDatabaseError(result.error)
   const pass = await getAccessPass(String(result.data), user)
-  return { data: { ...pass.data, qrToken: token } }
+  return { data: { ...pass.data, qrToken: token, qrPayload: publicAccessUrl(token) } }
 }
 
 export async function revokeAccessPass(id: string, reason: string | null | undefined, user: UserContext) {

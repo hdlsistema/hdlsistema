@@ -48,7 +48,9 @@ describe('flujo mobile de reservaciones y boletos', () => {
     const paymentStatus = readFileSync(resolve(__dirname, '../app/pages/mobile/PaymentStatusScreen.tsx'), 'utf8')
 
     expect(reservations).toContain('customerClient.accessPasses(token)')
-    expect(reservations).toContain("pass.accessType === 'event_ticket'")
+    expect(reservations).toContain('accessPasses.filter((pass) => !pass.reservationId)')
+    expect(reservations).toContain('downloadAccessCredentialPdf')
+    expect(reservations).toContain('shareAccessCredential')
     expect(reservations).toContain('slot.experienceId === reservation.experienceId')
     expect(reservations).toContain("reservation.reservationType === 'experience'")
     expect(restaurants).toContain('selectedRestaurantRecord?.metadata?.reservationTimes')
@@ -56,6 +58,19 @@ describe('flujo mobile de reservaciones y boletos', () => {
     expect(catalog).toContain('Horarios de solicitud (uno por línea, HH:mm)')
     expect(paymentStatus).toContain("appPath('/reservacion')}#boletos")
     expect(paymentStatus).toContain('Ver boletos y códigos QR')
+  })
+
+  it('abre un boleto HTTPS público sin consumirlo hasta confirmación autorizada', () => {
+    const publicPass = readFileSync(resolve(__dirname, '../app/pages/public/AccessPassPage.tsx'), 'utf8')
+    const routes = readFileSync(resolve(__dirname, '../app/routes/AppRouter.tsx'), 'utf8')
+    const pdf = readFileSync(resolve(__dirname, '../app/utils/accessCredentialPdf.ts'), 'utf8')
+
+    expect(routes).toContain('path="/acceso/:token"')
+    expect(publicPass).toContain('publicAccessPassClient.get(token)')
+    expect(publicPass).toContain('accessPassClient.validate(session.access_token, token)')
+    expect(publicPass).toContain('checkinsClient.register(session.access_token')
+    expect(pdf).toContain("margin: 4")
+    expect(pdf).toContain("type: 'application/pdf'")
   })
 
   it('muestra campana conectada y crea el canal nativo de notificaciones', () => {

@@ -3,6 +3,7 @@ import { authenticate } from '../../middleware/authenticate'
 import { authorize } from '../../middleware/authorize'
 import { rateLimit } from '../../middleware/rateLimit'
 import {
+  getPublicAccessPass,
   getAccessPassAdmin,
   getAccessPassesAdmin,
   getCheckinAdmin,
@@ -16,10 +17,13 @@ import {
 } from './checkin.controller'
 
 const router = Router()
+const publicRouter = Router()
 const checkinRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer']
 const protectedCheckin = [authenticate, authorize(checkinRoles)]
 
 router.use(rateLimit(240, 60_000))
+publicRouter.use(rateLimit(120, 60_000))
+publicRouter.get('/access/:token', getPublicAccessPass)
 router.get('/checkins/export', ...protectedCheckin, getCheckinsExportAdmin)
 router.get('/access-passes', ...protectedCheckin, getAccessPassesAdmin)
 router.post('/access-passes', ...protectedCheckin, postAccessPassAdmin)
@@ -31,4 +35,4 @@ router.post('/checkins', ...protectedCheckin, postCheckinAdmin)
 router.get('/checkins/:id', ...protectedCheckin, getCheckinAdmin)
 router.post('/checkins/:id/reverse', ...protectedCheckin, postReverseCheckinAdmin)
 
-export { router as adminCheckinRouter }
+export { router as adminCheckinRouter, publicRouter as publicAccessPassRouter }

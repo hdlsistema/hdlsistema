@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { CalendarDays, Check, ChevronDown, Clock3, Minus, Plus, QrCode, RefreshCw, Ticket, Users, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, Clock3, Download, Minus, Plus, QrCode, RefreshCw, Share2, Ticket, Users, X } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { AppSelect } from '../../components/mobile/AppSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -10,6 +10,7 @@ import { contentRouteId, formatCurrency, imageField, numberField, textField } fr
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerAccessPass, type CustomerAvailabilitySlot, type CustomerReservation } from '../../../services/customer.service'
 import { appPath } from '../../utils/appRoutes'
+import { downloadAccessCredentialPdf, shareAccessCredential } from '../../utils/accessCredentialPdf'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
   return {
@@ -183,6 +184,14 @@ function TicketSheet({
           <div className="flex justify-between gap-3"><span>{pass.accessType === 'event_ticket' ? t('app.premium.events.ticket') : t('app.premium.reservation.guests')}</span><strong className="text-right text-[var(--color-ink)]">{pass.ticketTypeName ?? pass.peopleCount ?? t('common.toBeConfirmed')}</strong></div>
           <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.status', 'Estado')}</span><strong className="text-right text-[var(--color-ink)]">{pass.usedAt ? t('app.premium.ticket.used', 'Utilizado') : pass.status}</strong></div>
         </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={() => void downloadAccessCredentialPdf({ ...pass, state: pass.usedAt ? 'used' : pass.revokedAt ? 'cancelled' : 'valid' }, locale)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-[var(--color-burgundy)]">
+            <Download size={15} />{t('app.premium.ticket.download', 'Descargar PDF')}
+          </button>
+          <button type="button" onClick={() => void shareAccessCredential({ ...pass, state: pass.usedAt ? 'used' : pass.revokedAt ? 'cancelled' : 'valid' }, locale)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
+            <Share2 size={15} />{t('app.premium.ticket.share', 'Compartir')}
+          </button>
+        </div>
       </section>
     </div>
   )
@@ -249,13 +258,27 @@ export function ReservationScreen() {
       ])
       setReservations(reservationResponse.data)
       setAccessPasses(passResponse.data)
+      try {
+        localStorage.setItem(`hdl_access_cache_${session?.user.id ?? 'customer'}`, JSON.stringify({
+          reservations: reservationResponse.data,
+          accessPasses: passResponse.data,
+        }))
+      } catch {
+        // La app sigue funcionando aunque el dispositivo no permita almacenamiento local.
+      }
     } catch {
-      setReservations([])
-      setAccessPasses([])
+      try {
+        const cached = JSON.parse(localStorage.getItem(`hdl_access_cache_${session?.user.id ?? 'customer'}`) ?? 'null') as { reservations?: CustomerReservation[]; accessPasses?: CustomerAccessPass[] } | null
+        setReservations(cached?.reservations ?? [])
+        setAccessPasses(cached?.accessPasses ?? [])
+      } catch {
+        setReservations([])
+        setAccessPasses([])
+      }
     } finally {
       setLoadingReservations(false)
     }
-  }, [token])
+  }, [session?.user.id, token])
 
   useEffect(() => {
     void loadSlots()
@@ -275,8 +298,8 @@ export function ReservationScreen() {
     [selectedExperienceId, slots],
   )
 
-  const eventPasses = useMemo(
-    () => accessPasses.filter((pass) => pass.accessType === 'event_ticket'),
+  const standalonePasses = useMemo(
+    () => accessPasses.filter((pass) => !pass.reservationId),
     [accessPasses],
   )
 
@@ -473,13 +496,13 @@ export function ReservationScreen() {
 
       <section id="boletos" className="scroll-mt-6 space-y-3">
         <SectionHeading eyebrow={t('app.premium.events.ticket', 'Boletos')} title={t('app.premium.ticket.myAccesses', 'Mis boletos y accesos')} />
-        {eventPasses.length === 0 ? (
+        {standalonePasses.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
             {t('app.premium.ticket.noEventPasses', 'Los boletos pagados aparecerán aquí con su código QR de entrada.')}
           </div>
         ) : (
           <div className="grid gap-3">
-            {eventPasses.map((pass) => (
+            {standalonePasses.map((pass) => (
               <article key={pass.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{pass.orderNumber ?? pass.passNumber}</p>
                 <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{pass.title ?? t('app.premium.events.ticket')}</h3>

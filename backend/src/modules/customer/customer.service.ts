@@ -245,15 +245,17 @@ function mapReservation(row: ReservationRow) {
 }
 
 async function withReservationAccessPass(reservation: CustomerReservationData) {
-  if (reservation.reservationType !== 'experience') {
-    return { ...reservation, accessPass: null }
-  }
   const accessPass = await ensureReservationAccessPass({
     id: reservation.id,
     status: reservation.status,
+    reservationType: reservation.reservationType,
     peopleCount: reservation.peopleCount,
     startAt: reservation.startAt,
     endAt: reservation.endAt,
+    reservationDate: reservation.reservationDate,
+    reservationTime: reservation.reservationTime,
+    checkIn: reservation.checkIn,
+    checkOut: reservation.checkOut,
   })
   return { ...reservation, accessPass }
 }

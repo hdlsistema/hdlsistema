@@ -100,6 +100,7 @@ export type CustomerAccessPass = {
   qrPayload: string
   status: string
   accessType: 'reservation' | 'event_ticket' | string
+  customerName?: string | null
   reservationId?: string | null
   reservationNumber?: string | null
   reservationStatus?: string | null

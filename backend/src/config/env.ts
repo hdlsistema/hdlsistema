@@ -33,6 +33,10 @@ export const env = {
 
   // CORS
   FRONTEND_URL: optionalEnv('FRONTEND_URL', 'http://localhost:5173'),
+  PUBLIC_ACCESS_BASE_URL: optionalEnv(
+    'PUBLIC_ACCESS_BASE_URL',
+    'https://admhaciendadeletras.com/acceso',
+  ),
   ALLOWED_ORIGINS: optionalEnv(
     'ALLOWED_ORIGINS',
     'http://localhost:5173,https://admhaciendadeletras.com,https://www.admhaciendadeletras.com',

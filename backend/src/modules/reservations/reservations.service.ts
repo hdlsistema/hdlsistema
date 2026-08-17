@@ -16,6 +16,7 @@ import type {
   ReservationListQuery,
 } from './reservations.schemas'
 import { createCustomerNotification } from '../notifications/notifications.service'
+import { ensureReservationAccessPass, revokeReservationAccessPasses } from '../checkin/accessPassIssuer'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 const writeRoles = ['super_admin', 'admin', 'operations']
@@ -243,6 +244,21 @@ function queueReservationStatusPush(
   }).catch(() => undefined)
 }
 
+async function syncReservationAccessPass(reservation: ReturnType<typeof mapReservation>) {
+  return ensureReservationAccessPass({
+    id: reservation.id,
+    status: reservation.status,
+    reservationType: reservation.reservationType,
+    peopleCount: reservation.peopleCount,
+    startAt: reservation.startAt,
+    endAt: reservation.endAt,
+    reservationDate: reservation.reservationDate,
+    reservationTime: reservation.reservationTime,
+    checkIn: reservation.checkIn,
+    checkOut: reservation.checkOut,
+  })
+}
+
 function matchesSearch(row: ReservationRow, search?: string) {
   if (!search) return true
   const target = normalizeText(search)
@@ -321,6 +337,7 @@ export async function createReservation(payload: CreateReservationPayload, user:
   })
   if (result.error) normalizeDatabaseError(result.error)
   const response = await getReservation(String(result.data), user)
+  await syncReservationAccessPass(response.data)
   queueReservationStatusPush(response.data, 'created')
   return response
 }
@@ -362,6 +379,7 @@ export async function confirmReservation(id: string, user: UserContext) {
     throw httpError(409, 'La reservación se confirma automáticamente cuando la orden queda pagada')
   }
   const response = await runReservationRpc('confirm_reservation', {}, id, user)
+  await syncReservationAccessPass(response.data)
   queueReservationStatusPush(response.data, 'confirmed')
   return response
 }
@@ -374,6 +392,7 @@ export async function cancelReservation(id: string, reason: string | null | unde
       : 'Cancela la reservación pendiente desde la App para liberar el apartado de pago')
   }
   const response = await runReservationRpc('cancel_reservation', { p_reason: reason ?? null }, id, user)
+  await revokeReservationAccessPasses(id, reason ?? 'reservation_cancelled')
   queueReservationStatusPush(response.data, 'cancelled')
   return response
 }
@@ -384,6 +403,7 @@ export async function rescheduleReservation(id: string, newSlotId: string, user:
     throw httpError(409, 'Reprograma la reservación pagada desde la App para mantener orden, cupo y acceso sincronizados')
   }
   const response = await runReservationRpc('reschedule_reservation', { p_new_slot_id: newSlotId }, id, user)
+  await syncReservationAccessPass(response.data)
   queueReservationStatusPush(response.data, 'rescheduled')
   return response
 }
@@ -394,6 +414,7 @@ export async function changeReservationPartySize(id: string, peopleCount: number
     throw httpError(409, 'El número de personas no puede cambiar sin recalcular la orden de pago')
   }
   const response = await runReservationRpc('update_reservation_people', { p_people_count: peopleCount }, id, user)
+  await syncReservationAccessPass(response.data)
   queueReservationStatusPush(response.data, 'updated')
   return response
 }

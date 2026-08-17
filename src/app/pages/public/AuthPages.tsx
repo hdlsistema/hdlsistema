@@ -81,6 +81,7 @@ export function LoginPage() {
     if (!appMode && roles.length && isAdmin) return '/control/dashboard'
     return '/app/home'
   }, [appMode, isAdmin, location.state, roles.length])
+  const hasRequestedDestination = Boolean((location.state as { from?: string } | null)?.from)
 
   if (isAuthenticated && roles.length) return <Navigate to={destination} replace />
 
@@ -93,7 +94,7 @@ export function LoginPage() {
     try {
       const nextRoles = await signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''))
       const adminRole = nextRoles.some((role) => role !== 'customer')
-      navigate(!appMode && adminRole ? '/control/dashboard' : destination, { replace: true })
+      navigate(hasRequestedDestination ? destination : (!appMode && adminRole ? '/control/dashboard' : destination), { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))
     } finally {

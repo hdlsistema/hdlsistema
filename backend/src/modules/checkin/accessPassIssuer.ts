@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'crypto'
 import { supabaseAdminClient } from '../../config/supabase'
+import { env } from '../../config/env'
 import { assertNoError } from '../operations/operationErrors'
 
 type Relation<T> = T | T[] | null
@@ -7,9 +8,14 @@ type Relation<T> = T | T[] | null
 type ReservationAccessSource = {
   id: string
   status: string
+  reservationType?: string | null
   peopleCount?: number | null
   startAt?: string | null
   endAt?: string | null
+  reservationDate?: string | null
+  reservationTime?: string | null
+  checkIn?: string | null
+  checkOut?: string | null
 }
 
 type AccessPassRow = {
@@ -30,11 +36,19 @@ type AccessPassRow = {
   metadata?: Record<string, unknown> | null
   reservations?: Relation<{
     reservation_number?: string | null
+    reservation_type?: string | null
     people_count?: number | null
     status?: string | null
+    reservation_date?: string | null
+    reservation_time?: string | null
+    check_in?: string | null
+    check_out?: string | null
+    customers?: Relation<{ display_name?: string | null; first_name?: string | null; last_name?: string | null }>
     experience_slots?: Relation<{ start_at?: string | null; end_at?: string | null }>
     experiences?: Relation<{ title?: string | null }>
     events?: Relation<{ title?: string | null; start_at?: string | null; end_at?: string | null }>
+    cabin_packages?: Relation<{ name?: string | null }>
+    restaurant_locations?: Relation<{ name?: string | null }>
   }>
   orders?: Relation<{ order_number?: string | null; status?: string | null }>
   event_ticket_types?: Relation<{
@@ -63,7 +77,9 @@ type OrderItemRow = {
 const passSelect = `
   id,reservation_id,order_id,event_ticket_type_id,pass_number,qr_token_hash,status,valid_from,valid_until,
   used_at,issued_at,revoked_at,revocation_reason,created_at,metadata,
-  reservations(reservation_number,people_count,status,experience_slots(start_at,end_at),experiences(title),events(title,start_at,end_at)),
+  reservations(reservation_number,reservation_type,people_count,status,reservation_date,reservation_time,check_in,check_out,
+    customers(display_name,first_name,last_name),experience_slots(start_at,end_at),experiences(title),events(title,start_at,end_at),
+    cabin_packages(name),restaurant_locations(name)),
   orders(order_number,status),
   event_ticket_types(name,events(title,start_at,end_at))
 `
@@ -80,43 +96,139 @@ function passToken(id: string) {
   return `hdl_pass_${id.replace(/-/g, '')}`
 }
 
+export function publicAccessUrl(token: string) {
+  return `${env.PUBLIC_ACCESS_BASE_URL.replace(/\/+$/, '')}/${encodeURIComponent(token)}`
+}
+
 function passNumber() {
   return `PASS-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`
 }
 
-function mapAccessPass(row: AccessPassRow) {
+function customerName(reservation: NonNullable<AccessPassRow['reservations']>) {
+  const normalized = first(reservation)
+  const customer = first(normalized?.customers)
+  return customer?.display_name
+    || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+    || null
+}
+
+function restaurantDateTime(date?: string | null, time?: string | null) {
+  if (!date) return null
+  return `${date}T${time?.slice(0, 5) || '00:00'}:00-06:00`
+}
+
+function cabinDate(date?: string | null) {
+  return date ? `${date}T12:00:00-06:00` : null
+}
+
+function numericMetadata(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+}
+
+function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
   const reservation = first(row.reservations)
   const slot = first(reservation?.experience_slots)
   const reservationExperience = first(reservation?.experiences)
   const reservationEvent = first(reservation?.events)
+  const cabin = first(reservation?.cabin_packages)
+  const restaurant = first(reservation?.restaurant_locations)
   const ticketType = first(row.event_ticket_types)
   const ticketEvent = first(ticketType?.events)
-  const token = passToken(row.id)
+  const token = presentedToken ?? passToken(row.id)
+  const metadataAccessType = typeof row.metadata?.accessType === 'string' ? row.metadata.accessType : null
+  const reservationType = reservation?.reservation_type ?? null
+  const accessType = row.event_ticket_type_id
+    ? 'event_ticket'
+    : reservationType || metadataAccessType || (row.order_id ? 'wine_order' : 'reservation')
+  const title = cabin?.name
+    ?? restaurant?.name
+    ?? reservationExperience?.title
+    ?? reservationEvent?.title
+    ?? ticketEvent?.title
+    ?? (typeof row.metadata?.title === 'string' ? row.metadata.title : null)
+    ?? (accessType === 'wine_order' ? 'Compra de vinos' : null)
+  const startsAt = reservationType === 'restaurant'
+    ? restaurantDateTime(reservation?.reservation_date, reservation?.reservation_time)
+    : reservationType === 'cabin'
+      ? cabinDate(reservation?.check_in)
+      : slot?.start_at ?? reservationEvent?.start_at ?? ticketEvent?.start_at ?? row.valid_from ?? null
+  const endsAt = reservationType === 'cabin'
+    ? cabinDate(reservation?.check_out)
+    : slot?.end_at ?? reservationEvent?.end_at ?? ticketEvent?.end_at ?? row.valid_until ?? null
 
   return {
     id: row.id,
     passNumber: row.pass_number ?? null,
     qrToken: token,
-    qrPayload: token,
+    qrPayload: publicAccessUrl(token),
     status: row.status,
-    accessType: row.reservation_id ? 'reservation' : 'event_ticket',
+    accessType,
+    customerName: row.reservation_id ? customerName(row.reservations as NonNullable<AccessPassRow['reservations']>) : null,
     reservationId: row.reservation_id ?? null,
     reservationNumber: reservation?.reservation_number ?? null,
     reservationStatus: reservation?.status ?? null,
     orderId: row.order_id ?? null,
     orderNumber: first(row.orders)?.order_number ?? null,
+    orderStatus: first(row.orders)?.status ?? null,
     eventTicketTypeId: row.event_ticket_type_id ?? null,
     ticketTypeName: ticketType?.name ?? null,
-    title: reservationExperience?.title ?? reservationEvent?.title ?? ticketEvent?.title ?? null,
-    startsAt: slot?.start_at ?? reservationEvent?.start_at ?? ticketEvent?.start_at ?? row.valid_from ?? null,
-    endsAt: slot?.end_at ?? reservationEvent?.end_at ?? ticketEvent?.end_at ?? row.valid_until ?? null,
-    peopleCount: reservation?.people_count ?? row.metadata?.peopleCount ?? null,
+    title,
+    startsAt,
+    endsAt,
+    peopleCount: reservation?.people_count
+      ?? numericMetadata(row.metadata?.peopleCount)
+      ?? numericMetadata(row.metadata?.itemCount),
     validFrom: row.valid_from ?? null,
     validUntil: row.valid_until ?? null,
     usedAt: row.used_at ?? null,
     issuedAt: row.issued_at ?? row.created_at,
     revokedAt: row.revoked_at ?? null,
     revocationReason: row.revocation_reason ?? null,
+  }
+}
+
+function publicPassState(pass: ReturnType<typeof mapAccessPass>) {
+  if (['cancelled', 'no_show'].includes(pass.reservationStatus ?? '')) return { valid: false, state: 'cancelled' }
+  if (['cancelled', 'refunded'].includes(pass.orderStatus ?? '')) return { valid: false, state: 'cancelled' }
+  if (pass.revokedAt || pass.status !== 'published') return { valid: false, state: 'cancelled' }
+  if (pass.usedAt) return { valid: false, state: 'used' }
+  const now = Date.now()
+  if (pass.validFrom && new Date(pass.validFrom).getTime() > now) return { valid: false, state: 'not_yet_valid' }
+  if (pass.validUntil && new Date(pass.validUntil).getTime() < now) return { valid: false, state: 'expired' }
+  return { valid: true, state: 'valid' }
+}
+
+export async function getPublicAccessPassByToken(token: string) {
+  const normalized = token.trim()
+  if (!/^hdl_(?:pass_)?[A-Za-z0-9_-]{12,160}$/.test(normalized)) return null
+  const result = await supabaseAdminClient
+    .from('access_passes')
+    .select(passSelect)
+    .eq('qr_token_hash', hashCode(normalized))
+    .maybeSingle()
+  const row = assertNoError<AccessPassRow | null>(result).data
+  if (!row) return null
+  const pass = mapAccessPass(row, normalized)
+  const state = publicPassState(pass)
+  return {
+    id: pass.id,
+    passNumber: pass.passNumber,
+    reservationNumber: pass.reservationNumber,
+    orderNumber: pass.orderNumber,
+    accessType: pass.accessType,
+    title: pass.title,
+    startsAt: pass.startsAt,
+    endsAt: pass.endsAt,
+    peopleCount: pass.peopleCount,
+    customerName: pass.customerName,
+    status: pass.status,
+    usedAt: pass.usedAt,
+    validFrom: pass.validFrom,
+    validUntil: pass.validUntil,
+    qrPayload: pass.qrPayload,
+    valid: state.valid,
+    state: state.state,
   }
 }
 
@@ -145,10 +257,13 @@ async function upsertAccessPass(payload: {
 
   if (payload.reservationId) {
     existingRequest = existingRequest.eq('reservation_id', payload.reservationId)
-  } else if (payload.orderId && payload.eventTicketTypeId) {
-    existingRequest = existingRequest
-      .eq('order_id', payload.orderId)
-      .eq('event_ticket_type_id', payload.eventTicketTypeId)
+  } else if (payload.orderId) {
+    existingRequest = existingRequest.eq('order_id', payload.orderId)
+    if (payload.eventTicketTypeId) {
+      existingRequest = existingRequest.eq('event_ticket_type_id', payload.eventTicketTypeId)
+    } else {
+      existingRequest = existingRequest.is('event_ticket_type_id', null)
+    }
   } else {
     return null
   }
@@ -206,11 +321,11 @@ export async function ensureReservationAccessPass(reservation: ReservationAccess
   if (!['confirmed', 'completed'].includes(reservation.status)) return null
   return upsertAccessPass({
     reservationId: reservation.id,
-    validFrom: reservation.startAt ?? null,
-    validUntil: reservation.endAt ?? null,
+    validFrom: reservation.startAt ?? cabinDate(reservation.checkIn) ?? restaurantDateTime(reservation.reservationDate, reservation.reservationTime),
+    validUntil: reservation.endAt ?? cabinDate(reservation.checkOut) ?? null,
     idempotencyKey: `reservation-access:${reservation.id}`,
     metadata: {
-      accessType: 'experience_reservation',
+      accessType: reservation.reservationType ?? 'experience',
       peopleCount: reservation.peopleCount ?? null,
     },
   })
@@ -297,13 +412,18 @@ export async function ensureReservationAccessPassForPaidOrder(orderId: string) {
 
   const reservationResult = await supabaseAdminClient
     .from('reservations')
-    .select('id,status,people_count,experience_slots(start_at,end_at)')
+    .select('id,status,reservation_type,people_count,reservation_date,reservation_time,check_in,check_out,experience_slots(start_at,end_at)')
     .eq('id', order.reservation_id)
     .maybeSingle()
   const reservation = assertNoError<{
     id: string
     status: string
+    reservation_type?: string | null
     people_count: number
+    reservation_date?: string | null
+    reservation_time?: string | null
+    check_in?: string | null
+    check_out?: string | null
     experience_slots?: Relation<{ start_at?: string | null; end_at?: string | null }>
   } | null>(reservationResult).data
   if (!reservation) return null
@@ -311,10 +431,67 @@ export async function ensureReservationAccessPassForPaidOrder(orderId: string) {
   return ensureReservationAccessPass({
     id: reservation.id,
     status: reservation.status,
+    reservationType: reservation.reservation_type,
     peopleCount: reservation.people_count,
     startAt: slot?.start_at ?? null,
     endAt: slot?.end_at ?? null,
+    reservationDate: reservation.reservation_date,
+    reservationTime: reservation.reservation_time,
+    checkIn: reservation.check_in,
+    checkOut: reservation.check_out,
   })
+}
+
+export async function ensurePaidOrderCredentialForPaidOrder(orderId: string) {
+  const orderResult = await supabaseAdminClient
+    .from('orders')
+    .select('id,status,reservation_id')
+    .eq('id', orderId)
+    .maybeSingle()
+  const order = assertNoError<{ id: string; status: string; reservation_id?: string | null } | null>(orderResult).data
+  if (!order || !['paid', 'fulfilled'].includes(order.status)) return null
+
+  const itemsResult = await supabaseAdminClient
+    .from('order_items')
+    .select('item_type,quantity,name_snapshot')
+    .eq('order_id', order.id)
+  const items = assertNoError<Array<{ item_type: string; quantity: number; name_snapshot?: string | null }>>(itemsResult).data ?? []
+  const wineItems = items.filter((item) => item.item_type === 'wine')
+  const credentialItems = wineItems.length
+    ? wineItems
+    : items.filter((item) => !['event_ticket', 'experience'].includes(item.item_type))
+  if (!credentialItems.length || (order.reservation_id && !wineItems.length)) return null
+  const itemCount = credentialItems.reduce((total, item) => total + Number(item.quantity ?? 0), 0)
+  const accessType = wineItems.length ? 'wine_order' : 'paid_order'
+  const title = wineItems.length
+    ? 'Compra de vinos'
+    : credentialItems.length === 1
+      ? credentialItems[0].name_snapshot || 'Comprobante de compra'
+      : 'Comprobante de compra'
+
+  return upsertAccessPass({
+    orderId: order.id,
+    idempotencyKey: `paid-order-access:${order.id}`,
+    metadata: {
+      accessType,
+      title,
+      itemCount,
+      fulfillmentMode: 'purchase_credential',
+    },
+  })
+}
+
+export async function ensureUniversalAccessPassesForPaidOrder(orderId: string) {
+  const [eventPasses, reservationPass, orderCredential] = await Promise.all([
+    ensureEventTicketAccessPassesForPaidOrder(orderId),
+    ensureReservationAccessPassForPaidOrder(orderId),
+    ensurePaidOrderCredentialForPaidOrder(orderId),
+  ])
+  return {
+    eventPasses,
+    reservationPass,
+    orderCredential,
+  }
 }
 
 export async function listCustomerAccessPasses(customerId: string, userId: string) {
@@ -336,5 +513,5 @@ export async function listCustomerAccessPasses(customerId: string, userId: strin
     request = request.in('order_id', orderIds)
   }
   const result = await request.order('created_at', { ascending: false })
-  return { data: (assertNoError<AccessPassRow[]>(result).data ?? []).map(mapAccessPass) }
+  return { data: (assertNoError<AccessPassRow[]>(result).data ?? []).map((row) => mapAccessPass(row)) }
 }

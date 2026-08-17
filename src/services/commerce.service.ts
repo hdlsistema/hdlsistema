@@ -116,6 +116,7 @@ export type AccessPassRecord = {
   revokedAt?: string | null
   revocationReason?: string | null
   qrToken?: string
+  qrPayload?: string
 }
 
 export type CheckinRecord = {
@@ -137,11 +138,14 @@ export type AccessPassValidation = {
   accessPassId: string
   passNumber?: string | null
   reservationNumber?: string | null
+  orderNumber?: string | null
+  accessType?: string | null
   guestName?: string | null
   peopleCount?: number | null
   status?: string | null
   reservationStatus?: string | null
   experienceTitle?: string | null
+  ticketTypeName?: string | null
   usedAt?: string | null
 }
 

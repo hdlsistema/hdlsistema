@@ -10,8 +10,7 @@ import { enqueueAndProcessTransactionalEmail } from '../communications/communica
 import { recordBusinessActivity } from '../activity/activity.service'
 import type { AppEventName } from '../activity/activity.schemas'
 import {
-  ensureEventTicketAccessPassesForPaidOrder,
-  ensureReservationAccessPassForPaidOrder,
+  ensureUniversalAccessPassesForPaidOrder,
   revokeOrderAccessPasses,
   revokeReservationAccessPasses,
 } from '../checkin/accessPassIssuer'
@@ -541,8 +540,7 @@ export async function recordManualPayment(payload: ManualPaymentPayload, user: U
   const payment = await getPayment(String(result.data), user)
   const order = await getOrderById(payload.orderId)
   if (order && ['paid', 'fulfilled'].includes(order.status)) {
-    await ensureEventTicketAccessPassesForPaidOrder(order.id)
-    await ensureReservationAccessPassForPaidOrder(order.id)
+    await ensureUniversalAccessPassesForPaidOrder(order.id)
     if (order.requires_shipping) await ensureOrderShippingAfterPayment(order.id)
     await queueOrderPaidEmail(order)
   }
@@ -820,8 +818,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
         updated_at: now,
       })
       .eq('id', order.id)
-    await ensureEventTicketAccessPassesForPaidOrder(order.id)
-    await ensureReservationAccessPassForPaidOrder(order.id)
+    await ensureUniversalAccessPassesForPaidOrder(order.id)
     if (order.requires_shipping) await ensureOrderShippingAfterPayment(order.id)
     await queueOrderPaidEmail(order)
     await recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')

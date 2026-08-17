@@ -27,6 +27,7 @@ import { LandingPage } from '../pages/public/LandingPage'
 import { LegalPage } from '../pages/public/LegalPage'
 import { AccountDeletionPage } from '../pages/public/AccountDeletionPage'
 import { ContentPreviewPage } from '../pages/public/ContentPreviewPage'
+import { AccessPassPage } from '../pages/public/AccessPassPage'
 import {
   AppAuthCallbackPage,
   LoginPage,
@@ -82,6 +83,8 @@ export function AppRouter() {
       <Route path="/terminos-y-condiciones" element={<LegalPage type="terms" />} />
       <Route path="/eliminar-cuenta" element={<AccountDeletionPage />} />
       <Route path="/vista-previa/:token" element={<ContentPreviewPage />} />
+      <Route path="/acceso/:token" element={<AccessPassPage />} />
+      <Route path="/acceso" element={<AccessPassPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/registro" element={<Navigate to="/login" replace />} />
       <Route path="/recuperar" element={<RecoverPage />} />

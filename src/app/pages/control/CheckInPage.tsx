@@ -71,6 +71,13 @@ function passStatusLabel(pass: AccessPassRecord) {
   return labels[pass.status] ?? pass.status.replaceAll('_', ' ')
 }
 
+function confirmationLabel(type?: string | null) {
+  if (type === 'restaurant') return 'Confirmar llegada'
+  if (type === 'cabin') return 'Confirmar check-in'
+  if (type === 'wine_order' || type === 'paid_order') return 'Confirmar entrega'
+  return 'Confirmar acceso'
+}
+
 export function CheckInPage() {
   const { session, roles } = useAuth()
   const token = session?.access_token
@@ -275,15 +282,16 @@ export function CheckInPage() {
   const registerValidatedCheckin = async () => {
     if (!validation?.valid || saving) return
     setPendingAction({
-      title: 'Registrar check-in',
-      message: 'Se registrará el acceso y se evitará un segundo uso del mismo pase.',
-      confirmLabel: 'Registrar',
-      success: 'Check-in registrado.',
+      title: confirmationLabel(validation.accessType),
+      message: 'La lectura todavía no consume el QR. Al confirmar se registrará la operación y se evitará un segundo uso.',
+      confirmLabel: 'Confirmar',
+      success: `${confirmationLabel(validation.accessType)} registrado.`,
       action: async () => {
         await checkinsClient.register(token, {
           accessPassId: validation.accessPassId,
           requestId: crypto.randomUUID(),
           notes: 'Check-in desde Centro de Control',
+          metadata: { accessType: validation.accessType ?? 'access', source: 'control_checkin' },
         })
         setCode('')
         setValidation(null)
@@ -387,11 +395,11 @@ export function CheckInPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-ink)]">{validation.passNumber} · {validation.guestName ?? 'Invitado'}</p>
-                <p className="mt-1 text-xs text-[var(--color-muted)]">{validation.experienceTitle ?? 'Acceso'} · {validation.peopleCount ?? 1} personas</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">{validation.experienceTitle ?? validation.ticketTypeName ?? 'Acceso'} · {validation.peopleCount ?? 1} {['wine_order', 'paid_order'].includes(validation.accessType ?? '') ? 'artículos' : 'personas'}</p>
               </div>
               <StatusBadge label={validation.valid ? 'Válido' : validation.reason ?? 'No válido'} />
             </div>
-            <button type="button" onClick={registerValidatedCheckin} disabled={!validation.valid || saving} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-50"><Check size={14} />Registrar check-in</button>
+            <button type="button" onClick={registerValidatedCheckin} disabled={!validation.valid || saving} className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-50"><Check size={14} />{confirmationLabel(validation.accessType)}</button>
           </div>
         ) : null}
       </section>

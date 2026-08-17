@@ -21,12 +21,26 @@ import {
   revokeAccessPass,
   validateAccessPass,
 } from './checkin.service'
+import { getPublicAccessPassByToken } from './accessPassIssuer'
 
 function userContext(req: Request) {
   return {
     userId: req.authUser?.id,
     accessToken: req.authToken,
     roles: req.authRoles,
+  }
+}
+
+export async function getPublicAccessPass(req: Request, res: Response): Promise<void> {
+  try {
+    const data = await getPublicAccessPassByToken(String(req.params.token ?? ''))
+    if (!data) {
+      res.status(404).json({ ok: false, error: { code: 'PASS_NOT_FOUND', message: 'Acceso no encontrado' } })
+      return
+    }
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendOperationError(res, error)
   }
 }
 

@@ -10,6 +10,7 @@ describe('check-in QR parser', () => {
 
   it('extrae el token de URL o payload estructurado sin alterarlo', () => {
     expect(normalizeAccessQrCode(`https://www.haciendadeletras.com/acceso?token=${passToken}`)).toBe(passToken)
+    expect(normalizeAccessQrCode(`https://admhaciendadeletras.com/acceso/${passToken}`)).toBe(passToken)
     expect(normalizeAccessQrCode(JSON.stringify({ qrToken: passToken }))).toBe(passToken)
   })
 

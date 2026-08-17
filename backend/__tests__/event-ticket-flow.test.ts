@@ -73,7 +73,22 @@ describe('flujo punta a punta de boletos y horarios comerciales', () => {
     expect(paidReservations).toContain('sync_paid_experience_reservation_after_order')
     expect(paidReservations).toContain("set status = 'confirmed'")
     expect(paidReservations).toContain('confirmed_count = confirmed_count + v_reservation.people_count')
-    expect(paymentService).toContain('ensureReservationAccessPassForPaidOrder(order.id)')
+    expect(paymentService).toContain('ensureUniversalAccessPassesForPaidOrder(order.id)')
     expect(reservationService).toContain('paymentOrderId')
+  })
+
+  it('emite una credencial HTTPS para toda compra pagada y conserva consumo protegido', () => {
+    const issuer = readFileSync(resolve(__dirname, '../src/modules/checkin/accessPassIssuer.ts'), 'utf8')
+    const universal = readFileSync(resolve(__dirname, '../migrations/056_universal_access_credentials.sql'), 'utf8')
+    const routes = readFileSync(resolve(__dirname, '../src/modules/checkin/checkin.routes.ts'), 'utf8')
+
+    expect(issuer).toContain('ensurePaidOrderCredentialForPaidOrder')
+    expect(issuer).toContain("accessType = wineItems.length ? 'wine_order' : 'paid_order'")
+    expect(issuer).toContain('qrPayload: publicAccessUrl(token)')
+    expect(routes).toContain("publicRouter.get('/access/:token'")
+    expect(universal).toContain("v_reservation_type = 'cabin'")
+    expect(universal).toContain("v_reservation_type = 'restaurant'")
+    expect(universal).toContain('PASS_ALREADY_USED')
+    expect(universal).toContain("current_transaction_operator(array['super_admin','admin','operations'])")
   })
 })

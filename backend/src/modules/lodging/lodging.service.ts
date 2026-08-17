@@ -7,6 +7,7 @@ import {
   type UserContext,
 } from '../operations/operationErrors'
 import { getReservation } from '../reservations/reservations.service'
+import { ensureReservationAccessPass } from '../checkin/accessPassIssuer'
 import type {
   LodgingBlockPayload,
   LodgingCalendarQuery,
@@ -267,7 +268,16 @@ export async function createLodgingReservation(payload: LodgingReservationPayloa
     p_metadata: payload.metadata ?? {},
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return getReservation(String(result.data), user)
+  const response = await getReservation(String(result.data), user)
+  await ensureReservationAccessPass({
+    id: response.data.id,
+    status: response.data.status,
+    reservationType: response.data.reservationType,
+    peopleCount: response.data.peopleCount,
+    checkIn: response.data.checkIn,
+    checkOut: response.data.checkOut,
+  })
+  return response
 }
 
 export async function rescheduleLodging(reservationId: string, payload: LodgingReschedulePayload, user: UserContext) {
@@ -279,6 +289,15 @@ export async function rescheduleLodging(reservationId: string, payload: LodgingR
     p_unit_id: payload.unitId ?? null,
   })
   if (result.error) normalizeDatabaseError(result.error)
+  const reservation = await getReservation(reservationId, user)
+  await ensureReservationAccessPass({
+    id: reservation.data.id,
+    status: reservation.data.status,
+    reservationType: reservation.data.reservationType,
+    peopleCount: reservation.data.peopleCount,
+    checkIn: reservation.data.checkIn,
+    checkOut: reservation.data.checkOut,
+  })
   const stay = await supabaseAdminClient.from('lodging_stays').select(staySelect).eq('id', result.data).single()
   return { data: mapStay(assertNoError<StayRow>(stay).data) }
 }
