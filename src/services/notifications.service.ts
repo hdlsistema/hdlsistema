@@ -19,13 +19,19 @@ export type AdminNotification = {
 }
 
 export const notificationsClient = {
-  list(token: string | null | undefined, limit = 8) {
+  list(token: string | null | undefined, limit = 30) {
     return apiFetch<{
       ok: true
       data: AdminNotification[]
       unreadCount: number
       pagination: { total: number; limit: number }
     }>(`/api/admin/notifications?limit=${limit}`, {
+      headers: headers(token),
+    })
+  },
+  read(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: AdminNotification }>(`/api/admin/notifications/${encodeURIComponent(id)}/read`, {
+      method: 'POST',
       headers: headers(token),
     })
   },

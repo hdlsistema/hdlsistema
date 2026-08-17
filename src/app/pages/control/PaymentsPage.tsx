@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Banknote, Download, ExternalLink, FileText, Plus, RefreshCw, RotateCcw, Search, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { ordersClient, paymentsClient, type OrderRecord, type PaymentRecord } from '../../../services/commerce.service'
@@ -50,6 +51,8 @@ function paymentMethodLabel(payment: PaymentRecord) {
 }
 
 export function PaymentsPage() {
+  const [searchParams] = useSearchParams()
+  const requestedPaymentId = searchParams.get('paymentId')
   const { session, roles } = useAuth()
   const token = session?.access_token
   const writable = canFinance(roles)
@@ -79,13 +82,16 @@ export function PaymentsPage() {
     try {
       const response = await paymentsClient.list(token, { search: search || undefined, status: status || undefined, perPage: 100 })
       setPayments(response.data)
-      setSelectedId((current) => current ?? response.data[0]?.id ?? null)
+      setSelectedId((current) => {
+        if (requestedPaymentId && response.data.some((payment) => payment.id === requestedPaymentId)) return requestedPaymentId
+        return current ?? response.data[0]?.id ?? null
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible cargar pagos.')
     } finally {
       setLoading(false)
     }
-  }, [search, status, token])
+  }, [requestedPaymentId, search, status, token])
 
   useEffect(() => {
     void loadPayments()

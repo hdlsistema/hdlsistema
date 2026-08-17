@@ -28,7 +28,7 @@ describe('notificationsClient', () => {
 
     expect(result.unreadCount).toBe(1)
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/admin/notifications?limit=8'),
+      expect.stringContaining('/api/admin/notifications?limit=30'),
       expect.objectContaining({ headers: { Authorization: 'Bearer admin-token' } }),
     )
     expect(JSON.stringify(result)).not.toContain('Catas del sábado')
@@ -37,5 +37,21 @@ describe('notificationsClient', () => {
 
   it('requiere sesión para consultar notificaciones administrativas', () => {
     expect(() => notificationsClient.list(null)).toThrow('Sesión requerida')
+  })
+
+  it('marca una alerta administrativa como leída', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      ok: true,
+      data: { id: 'notification-1', channel: 'control', title: 'Nueva reservación', body: 'Detalle', status: 'read', readAt: '2026-08-16T10:00:00.000Z' },
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const response = await notificationsClient.read('admin-token', 'notification-1')
+
+    expect(response.data.status).toBe('read')
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/admin/notifications/notification-1/read'),
+      expect.objectContaining({ method: 'POST', headers: { Authorization: 'Bearer admin-token' } }),
+    )
   })
 })

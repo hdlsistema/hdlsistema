@@ -1,5 +1,6 @@
 import { CheckCircle2, Clock3, FileClock, Loader2, RefreshCw, Save, Search, ShieldAlert, Smartphone, UserCheck, Webhook } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { adminPrivacyClient, type AccountDeletionRecord, type AccountDeletionStatus } from '../../../services/privacy.service'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
@@ -54,6 +55,8 @@ function canWrite(roles: string[]) {
 }
 
 export function AccountDeletionRequestsPage() {
+  const [searchParams] = useSearchParams()
+  const requestedId = searchParams.get('requestId')
   const { session, roles } = useAuth()
   const token = session?.access_token
   const writable = canWrite(roles)
@@ -97,7 +100,7 @@ export function AccountDeletionRequestsPage() {
         perPage: 100,
       })
       setItems(response.data)
-      const id = preferredId ?? selected?.id ?? response.data[0]?.id
+      const id = preferredId ?? requestedId ?? selected?.id ?? response.data[0]?.id
       if (id && response.data.some((item) => item.id === id)) await loadDetail(id)
       else syncSelected(null)
     } catch {
@@ -107,7 +110,7 @@ export function AccountDeletionRequestsPage() {
     } finally {
       setLoading(false)
     }
-  }, [loadDetail, search, selected?.id, source, status, syncSelected, token])
+  }, [loadDetail, requestedId, search, selected?.id, source, status, syncSelected, token])
 
   useEffect(() => { void load() }, [load])
 

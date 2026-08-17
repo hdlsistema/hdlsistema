@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Activity, RefreshCw } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { appActivityAdminClient, type AppActivityRecord } from '../../../services/appActivityAdmin.service'
@@ -34,10 +34,11 @@ function entityHref(record: AppActivityRecord) {
 }
 
 export function AppActivityPage() {
+  const [searchParams] = useSearchParams()
   const { session } = useAuth()
   const [records, setRecords] = useState<AppActivityRecord[]>([])
   const [module, setModule] = useState('')
-  const [eventName, setEventName] = useState('')
+  const [eventName, setEventName] = useState(searchParams.get('eventName') ?? '')
   const [customer, setCustomer] = useState('')
   const [result, setResult] = useState('')
   const [from, setFrom] = useState('')
@@ -94,6 +95,7 @@ export function AppActivityPage() {
             <option value="order_created">Orden creada</option>
             <option value="payment_succeeded">Pago confirmado</option>
             <option value="payment_failed">Pago fallido</option>
+            <option value="reservation_failed">Incidencia al reservar</option>
             <option value="reservation_submitted">Reservación solicitada</option>
           </CrystalSelect>
         </label>

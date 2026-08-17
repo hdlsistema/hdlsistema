@@ -537,7 +537,7 @@ export async function createCabinReservation(payload: CreateCabinReservationPayl
     .single()
   const reservation = mapReservation(assertNoError<ReservationRow>(result).data)
 
-  void recordBusinessActivity({
+  await recordBusinessActivity({
     sessionId: `customer-${customer.id}`,
     eventName: 'cabin_reservation_submitted',
     entityType: 'reservation',
@@ -604,7 +604,7 @@ export async function createRestaurantReservation(payload: CreateRestaurantReser
     .single()
   const reservation = mapReservation(assertNoError<ReservationRow>(result).data)
 
-  void recordBusinessActivity({
+  await recordBusinessActivity({
     sessionId: `customer-${customer.id}`,
     eventName: 'restaurant_reservation_submitted',
     entityType: 'reservation',
@@ -722,7 +722,7 @@ export async function createQuoteRequest(payload: CreateQuoteRequestPayload, use
     idempotencyKey: `quote.request.created:${quote.id}:${quote.contactEmail}`,
   }).catch(() => undefined)
 
-  void recordBusinessActivity({
+  await recordBusinessActivity({
     sessionId: `customer-${customer.id}`,
     eventName: 'quote_submitted',
     entityType: 'quote_request',

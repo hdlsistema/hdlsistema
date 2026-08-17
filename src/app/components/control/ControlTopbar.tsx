@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CircleCheck,
@@ -115,7 +115,38 @@ export function ControlTopbar() {
 
   useEffect(() => {
     void loadAlerts()
+    const timer = window.setInterval(() => void loadAlerts(), 30000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadAlerts()
+    }
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+    window.addEventListener('focus', refreshWhenVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      window.removeEventListener('focus', refreshWhenVisible)
+    }
   }, [loadAlerts])
+
+  const openAlert = useCallback(async (item: AdminNotification) => {
+    const unread = item.status !== 'read' && !item.readAt
+    if (unread) {
+      const readAt = new Date().toISOString()
+      setAlerts((current) => current.map((entry) => entry.id === item.id
+        ? { ...entry, status: 'read', readAt }
+        : entry))
+      setUnreadCount((current) => Math.max(0, current - 1))
+      try {
+        await notificationsClient.read(session?.access_token, item.id)
+      } catch {
+        void loadAlerts()
+      }
+    }
+    if (item.deepLink) {
+      setShowAlerts(false)
+      navigate(item.deepLink)
+    }
+  }, [loadAlerts, navigate, session?.access_token])
 
   return (
     <>
@@ -158,7 +189,10 @@ export function ControlTopbar() {
 
             <button
               type="button"
-              onClick={() => setShowAlerts(true)}
+              onClick={() => {
+                setShowAlerts(true)
+                void loadAlerts()
+              }}
               className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/55 bg-white/38 text-[var(--color-muted)]"
             >
               <Bell size={16} />
@@ -230,7 +264,7 @@ export function ControlTopbar() {
               </button>
             </div>
 
-            <div className="space-y-3 p-5">
+            <div className="max-h-[min(70dvh,680px)] space-y-3 overflow-y-auto p-5">
               {alertsLoading ? (
                 <div className="rounded-[1.1rem] border border-[rgba(200,171,136,0.36)] bg-[rgba(255,255,255,0.48)] px-4 py-8 text-center text-sm text-[var(--color-muted-strong)]">
                   {t('control.notificationsLoading')}
@@ -280,22 +314,20 @@ export function ControlTopbar() {
                     </div>
                   </div>
                 )
-                return item.deepLink ? (
-                  <Link
+                const unread = item.status !== 'read' && !item.readAt
+                return (
+                  <button
                     key={item.id}
-                    to={item.deepLink}
-                    onClick={() => setShowAlerts(false)}
-                    className="block rounded-[1.1rem] border border-[rgba(200,171,136,0.36)] bg-[rgba(255,255,255,0.48)] p-4"
+                    type="button"
+                    onClick={() => void openAlert(item)}
+                    className={`block w-full rounded-[1.1rem] border p-4 text-left transition hover:-translate-y-0.5 hover:bg-white/70 ${
+                      unread
+                        ? 'border-[rgba(104,17,38,0.28)] bg-[rgba(255,255,255,0.68)] shadow-[0_10px_24px_rgba(104,17,38,0.08)]'
+                        : 'border-[rgba(200,171,136,0.28)] bg-[rgba(255,255,255,0.38)] opacity-80'
+                    }`}
                   >
                     {content}
-                  </Link>
-                ) : (
-                  <article
-                    key={item.id}
-                    className="rounded-[1.1rem] border border-[rgba(200,171,136,0.36)] bg-[rgba(255,255,255,0.48)] p-4"
-                  >
-                    {content}
-                  </article>
+                  </button>
                 )
               }) : null}
             </div>

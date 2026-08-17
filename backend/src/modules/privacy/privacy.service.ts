@@ -6,6 +6,7 @@ import {
   requireOperationRole,
   type UserContext,
 } from '../operations/operationErrors'
+import { createControlNotification } from '../notifications/notifications.service'
 import type {
   AccountDeletionListQuery,
   AccountDeletionStatus,
@@ -233,6 +234,14 @@ export async function createAuthenticatedAccountDeletionRequest(
     requestId,
   })
   if (!row) throw httpError(500, 'No fue posible registrar la solicitud')
+  await createControlNotification({
+    type: 'account_deletion_requested',
+    title: 'Nueva solicitud de eliminación de cuenta',
+    body: `${payload.name || user.displayName || fallbackName || 'Un cliente'} envió una solicitud desde la app.`,
+    deepLink: `/control/eliminacion-cuentas?requestId=${encodeURIComponent(row.id)}`,
+    idempotencyKey: `account_deletion:${row.id}`,
+    data: { requestId: row.id, customerId: row.customer_id ?? null, source: 'mobile_app' },
+  }).catch(() => undefined)
   return { data: mapRequest(row), duplicate: false }
 }
 

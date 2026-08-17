@@ -31,6 +31,15 @@ type CampaignNotificationInput = CustomerNotificationInput & {
   sendPush: boolean
 }
 
+type ControlNotificationInput = {
+  type: string
+  title: string
+  body: string
+  deepLink: string
+  idempotencyKey: string
+  data?: Record<string, unknown>
+}
+
 type NotificationDeviceRow = {
   id: string
   firebase_token: string
@@ -230,6 +239,36 @@ export async function createCustomerCampaignNotification(input: CampaignNotifica
   return { data: mapNotification(notification), delivery }
 }
 
+export async function createControlNotification(input: ControlNotificationInput) {
+  const existing = await supabaseAdminClient
+    .from('notifications')
+    .select('id')
+    .eq('channel', 'control')
+    .contains('data', { idempotencyKey: input.idempotencyKey })
+    .maybeSingle()
+  const prior = assertNoError<{ id: string } | null>(existing).data
+  if (prior) return { data: { id: prior.id }, duplicate: true }
+
+  const result = await supabaseAdminClient
+    .from('notifications')
+    .insert({
+      channel: 'control',
+      title: input.title,
+      body: input.body,
+      data: {
+        ...input.data,
+        type: input.type,
+        deepLink: input.deepLink,
+        idempotencyKey: input.idempotencyKey,
+      },
+      status: 'pending',
+    })
+    .select('id,channel,title,body,status,data,sent_at,read_at,created_at')
+    .single()
+  const notification = assertNoError<NotificationRow>(result).data
+  return { data: mapNotification(notification), duplicate: false }
+}
+
 export async function listCustomerNotifications(user: UserContext, limit = 40) {
   if (!user.userId) throw httpError(401, 'Sesión requerida')
   const customerResult = await supabaseAdminClient
@@ -315,4 +354,24 @@ export async function listAdminNotifications(query: NotificationListQuery, user:
     unreadCount,
     count: result.count ?? rows.length,
   }
+}
+
+export async function markAdminNotificationRead(id: string, user: UserContext) {
+  requireOperationRole(user, notificationReadRoles)
+  const updateResult = await supabaseAdminClient
+    .from('notifications')
+    .update({ status: 'read', read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('channel', 'control')
+  assertNoError(updateResult)
+
+  const result = await supabaseAdminClient
+    .from('notifications')
+    .select('id,channel,title,body,status,data,sent_at,read_at,created_at')
+    .eq('id', id)
+    .eq('channel', 'control')
+    .maybeSingle()
+  const row = assertNoError<NotificationRow | null>(result).data
+  if (!row) throw httpError(404, 'Notificación no encontrada')
+  return { data: mapNotification(row) }
 }

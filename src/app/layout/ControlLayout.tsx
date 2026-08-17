@@ -23,8 +23,8 @@ import {
   Wine,
   WalletCards,
   UserRoundX,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Outlet } from 'react-router-dom'
@@ -243,7 +243,7 @@ export function ControlLayout() {
             ? (isEnglish ? 'Collapse navigation' : 'Ocultar navegación')
             : (isEnglish ? 'Open navigation' : 'Abrir navegación')}
         >
-          {sidebarOpen ? <PanelLeftClose size={17} /> : <PanelLeftOpen size={17} />}
+          {sidebarOpen ? <ChevronLeft size={15} strokeWidth={2} /> : <ChevronRight size={15} strokeWidth={2} />}
         </button>
         <ControlSidebar groups={sidebarGroups} onNavigate={closeSidebarOnCompactView} />
         <main className="control-main min-w-0">

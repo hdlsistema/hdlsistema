@@ -398,7 +398,7 @@ function recordCustomerOperation(
   eventKey: string,
   metadata: Record<string, unknown> = {},
 ) {
-  void recordBusinessActivity({
+  return recordBusinessActivity({
     sessionId: `customer-${customer.id}`,
     eventName,
     entityType,
@@ -665,10 +665,10 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
       const order = await getCustomerOrder(response.data.paymentOrderId, user)
       queueOrderEmails(order.data, customer, user, payload.language)
     }
-    recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
+    await recordCustomerOperation(customer, user, 'reservation_created', 'reservation', response.data.id, `reservation-created-${response.data.id}`)
     return { data: await withReservationAccessPass(response.data) }
   } catch (error) {
-    recordCustomerOperation(customer, user, 'reservation_failed', 'customer', customer.id, `reservation-failed-${payload.idempotencyKey}`, { result: 'failed' })
+    await recordCustomerOperation(customer, user, 'reservation_failed', 'customer', customer.id, `reservation-failed-${payload.idempotencyKey}`, { result: 'failed' })
     throw error
   }
 }
@@ -685,7 +685,7 @@ export async function cancelCustomerReservation(id: string, payload: CancelCusto
   await revokeReservationAccessPasses(response.data.id, 'customer_reservation_cancelled')
   queueReservationEmail('reservation.cancelled', response.data, customer, user)
   queueReservationPush('reservation.cancelled', response.data, customer, user)
-  recordCustomerOperation(customer, user, 'reservation_cancelled', 'reservation', response.data.id, `reservation-cancelled-${response.data.id}-${response.data.updatedAt}`)
+  await recordCustomerOperation(customer, user, 'reservation_cancelled', 'reservation', response.data.id, `reservation-cancelled-${response.data.id}-${response.data.updatedAt}`)
   return response
 }
 
@@ -706,7 +706,7 @@ export async function rescheduleCustomerReservation(id: string, payload: Resched
   const data = await withReservationAccessPass(response.data)
   queueReservationEmail('reservation.rescheduled', response.data, customer, user)
   queueReservationPush('reservation.rescheduled', response.data, customer, user)
-  recordCustomerOperation(customer, user, 'reservation_rescheduled', 'reservation', response.data.id, `reservation-rescheduled-${response.data.id}-${response.data.rescheduledAt ?? response.data.updatedAt}`)
+  await recordCustomerOperation(customer, user, 'reservation_rescheduled', 'reservation', response.data.id, `reservation-rescheduled-${response.data.id}-${response.data.rescheduledAt ?? response.data.updatedAt}`)
   return { data }
 }
 
@@ -964,7 +964,7 @@ export async function createCustomerOrder(payload: CreateCustomerOrderPayload, u
   const orderId = String(result.data)
   const response = await getCustomerOrder(orderId, user)
   queueOrderEmails(response.data, customer, user, payload.language)
-  recordCustomerOperation(customer, user, 'checkout_started', 'order', String((response.data as Record<string, unknown>).id ?? result.data), `checkout-started-${String((response.data as Record<string, unknown>).id ?? result.data)}`)
+  await recordCustomerOperation(customer, user, 'checkout_started', 'order', String((response.data as Record<string, unknown>).id ?? result.data), `checkout-started-${String((response.data as Record<string, unknown>).id ?? result.data)}`)
   return response
 }
 

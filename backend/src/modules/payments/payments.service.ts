@@ -218,7 +218,7 @@ function customerName(customer: CustomerRow | null) {
 }
 
 function recordPaymentActivity(eventName: AppEventName, order: CustomerOrderRow, paymentId: string, eventKey: string, result: 'succeeded' | 'failed' | 'cancelled' | 'processing') {
-  void recordBusinessActivity({
+  return recordBusinessActivity({
     sessionId: `payment-${order.id}`,
     eventName,
     entityType: 'payment',
@@ -824,7 +824,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
     await ensureReservationAccessPassForPaidOrder(order.id)
     if (order.requires_shipping) await ensureOrderShippingAfterPayment(order.id)
     await queueOrderPaidEmail(order)
-    recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')
+    await recordPaymentActivity('payment_succeeded', order, payment.id, `payment-succeeded-${intent.id}`, 'succeeded')
     return
   }
 
@@ -833,7 +833,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       .from('orders')
       .update({ status: 'processing', updated_at: now })
       .eq('id', order.id)
-    recordPaymentActivity('payment_processing', order, payment.id, `payment-processing-${intent.id}`, 'processing')
+    await recordPaymentActivity('payment_processing', order, payment.id, `payment-processing-${intent.id}`, 'processing')
     return
   }
 
@@ -851,7 +851,7 @@ async function persistIntentFromWebhook(intent: Stripe.PaymentIntent) {
       .from('orders')
       .update({ status: 'pending_payment', updated_at: now })
       .eq('id', order.id)
-    recordPaymentActivity(paymentStatus === 'failed' ? 'payment_failed' : 'payment_cancelled', order, payment.id, `payment-${paymentStatus}-${intent.id}`, paymentStatus)
+    await recordPaymentActivity(paymentStatus === 'failed' ? 'payment_failed' : 'payment_cancelled', order, payment.id, `payment-${paymentStatus}-${intent.id}`, paymentStatus)
   }
 }
 
@@ -908,7 +908,7 @@ async function persistRefundFromWebhook(charge: Stripe.Charge) {
     .eq('id', payment.order_id)
     .maybeSingle()
   const order = assertNoError<CustomerOrderRow | null>(orderResult).data
-  if (order) recordPaymentActivity('payment_refunded', order, payment.id, `payment-refunded-${charge.id}`, 'succeeded')
+  if (order) await recordPaymentActivity('payment_refunded', order, payment.id, `payment-refunded-${charge.id}`, 'succeeded')
 }
 
 async function handleStripeEvent(event: Stripe.Event) {

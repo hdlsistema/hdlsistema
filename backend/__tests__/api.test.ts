@@ -81,6 +81,7 @@ vi.mock('@supabase/supabase-js', () => ({
         filters: [] as Array<{ column: string; value: unknown }>,
         nullFilters: [] as string[],
         inFilters: [] as Array<{ column: string; values: unknown[] }>,
+        containsFilters: [] as Array<{ column: string; value: Record<string, unknown> }>,
         operation: 'select' as 'select' | 'insert' | 'update' | 'delete' | 'upsert',
         payload: null as unknown,
       }
@@ -93,7 +94,11 @@ vi.mock('@supabase/supabase-js', () => ({
           const record = row as Record<string, unknown>
           return state.filters.every((filter) => record[filter.column] === filter.value) &&
             state.nullFilters.every((column) => record[column] === null || record[column] === undefined) &&
-            state.inFilters.every((filter) => filter.values.includes(record[filter.column]))
+            state.inFilters.every((filter) => filter.values.includes(record[filter.column])) &&
+            state.containsFilters.every((filter) => {
+              const candidate = record[filter.column]
+              return Boolean(candidate && typeof candidate === 'object' && Object.entries(filter.value).every(([key, value]) => (candidate as Record<string, unknown>)[key] === value))
+            })
         })
         return { data, error: null, count: data.length }
       }
@@ -168,6 +173,10 @@ vi.mock('@supabase/supabase-js', () => ({
         }),
         in: vi.fn((column: string, values: unknown[]) => {
           state.inFilters.push({ column, values })
+          return builder
+        }),
+        contains: vi.fn((column: string, value: Record<string, unknown>) => {
+          state.containsFilters.push({ column, value })
           return builder
         }),
         lte: vi.fn(() => builder),
@@ -712,6 +721,29 @@ describe('Notificaciones administrativas reales', () => {
     expect(res.body.unreadCount).toBe(1)
     expect(JSON.stringify(res.body)).not.toContain('Campaña de cena romántica')
   })
+
+  it('marca la notificación operativa como leída', async () => {
+    signInAs('admin')
+    const notificationId = '00000000-0000-0000-0000-000000000047'
+    supabaseMock.tableData.notifications = [{
+      id: notificationId,
+      channel: 'control',
+      title: 'Nueva reservación desde la app',
+      body: 'Cliente Real creó una reservación.',
+      status: 'pending',
+      data: { deepLink: '/control/reservaciones?reservationId=reservation-real' },
+      read_at: null,
+      created_at: '2026-08-16T10:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .post(`/api/admin/notifications/${notificationId}/read`)
+      .set('Authorization', 'Bearer admin-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toMatchObject({ id: notificationId, status: 'read' })
+    expect(supabaseMock.tableData.notifications[0]).toMatchObject({ status: 'read' })
+  })
 })
 
 describe('Trazabilidad App a Centro de Control', () => {
@@ -778,6 +810,42 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(admin.status).toBe(200)
     expect(admin.body.data).toHaveLength(1)
     expect(admin.body.data[0]).toMatchObject({ eventName: 'cart_item_added', module: 'cart' })
+  })
+
+  it('convierte una reservación de la app en alerta accionable del Centro de Control', async () => {
+    authenticateAs('customer')
+    supabaseMock.tableData.customers = [{ id: customerId, user_id: customerUser.id, display_name: 'Cliente Trace' }]
+
+    const created = await request(app)
+      .post('/api/customer/activity')
+      .set('Authorization', 'Bearer customer-token')
+      .send({
+        sessionId: 'app-reservation-session',
+        eventName: 'reservation_created',
+        entityType: 'reservation',
+        entityId: 'reservation-trace-1',
+        eventKey: 'app-reservation-session:reservation:create:1',
+        metadata: { result: 'succeeded' },
+      })
+
+    expect(created.status).toBe(202)
+    expect(supabaseMock.tableData.notifications).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        channel: 'control',
+        title: 'Nueva reservación desde la app',
+        status: 'pending',
+        data: expect.objectContaining({
+          eventName: 'reservation_created',
+          entityId: 'reservation-trace-1',
+          deepLink: '/control/reservaciones?reservationId=reservation-trace-1',
+        }),
+      }),
+    ]))
+
+    authenticateAs('admin')
+    const alerts = await request(app).get('/api/admin/notifications').set('Authorization', 'Bearer admin-token')
+    expect(alerts.status).toBe(200)
+    expect(alerts.body.data[0].deepLink).toBe('/control/reservaciones?reservationId=reservation-trace-1')
   })
 
   it('deriva estados de carrito desde registros reales y conserva el umbral comercial sin inventarlo', async () => {

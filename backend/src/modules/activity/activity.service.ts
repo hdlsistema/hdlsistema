@@ -1,5 +1,6 @@
 import { supabaseAdminClient } from '../../config/supabase'
 import { assertNoError, httpError, requireOperationRole, type UserContext } from '../operations/operationErrors'
+import { createControlNotification } from '../notifications/notifications.service'
 import type { ActivityListQuery, AppActivityEventPayload, AppEventName, CartsListQuery } from './activity.schemas'
 
 const activityReadRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
@@ -94,6 +95,107 @@ function safeMetadata(metadata: AppActivityEventPayload['metadata']) {
   return Object.fromEntries(Object.entries(metadata).filter(([, value]) => value !== undefined && value !== null))
 }
 
+function controlActivityDefinition(eventName: AppEventName, entityId?: string | null) {
+  const encodedId = entityId ? encodeURIComponent(entityId) : ''
+  const definitions: Partial<Record<AppEventName, { title: string; body: string; deepLink: string }>> = {
+    reservation_created: {
+      title: 'Nueva reservación desde la app',
+      body: 'creó una reservación de experiencia que requiere seguimiento operativo.',
+      deepLink: `/control/reservaciones?reservationId=${encodedId}`,
+    },
+    cabin_reservation_submitted: {
+      title: 'Nueva solicitud de cabaña',
+      body: 'envió una solicitud de hospedaje desde la app.',
+      deepLink: `/control/reservaciones?reservationId=${encodedId}`,
+    },
+    restaurant_reservation_submitted: {
+      title: 'Nueva solicitud de restaurante',
+      body: 'solicitó una mesa desde la app.',
+      deepLink: `/control/reservaciones?reservationId=${encodedId}`,
+    },
+    reservation_rescheduled: {
+      title: 'Reservación reprogramada',
+      body: 'cambió la fecha u horario de una reservación.',
+      deepLink: `/control/reservaciones?reservationId=${encodedId}`,
+    },
+    reservation_cancelled: {
+      title: 'Reservación cancelada',
+      body: 'canceló una reservación desde la app.',
+      deepLink: `/control/reservaciones?reservationId=${encodedId}`,
+    },
+    reservation_failed: {
+      title: 'Incidencia al reservar',
+      body: 'intentó reservar y la operación no pudo completarse.',
+      deepLink: '/control/actividad?eventName=reservation_failed',
+    },
+    checkout_started: {
+      title: 'Nueva orden desde la app',
+      body: 'convirtió su carrito en una orden.',
+      deepLink: `/control/ordenes?orderId=${encodedId}`,
+    },
+    payment_processing: {
+      title: 'Pago en procesamiento',
+      body: 'tiene un pago que continúa en procesamiento.',
+      deepLink: `/control/pagos?paymentId=${encodedId}`,
+    },
+    payment_succeeded: {
+      title: 'Pago confirmado',
+      body: 'completó un pago desde la app.',
+      deepLink: `/control/pagos?paymentId=${encodedId}`,
+    },
+    payment_failed: {
+      title: 'Pago no completado',
+      body: 'tuvo un intento de pago fallido.',
+      deepLink: `/control/pagos?paymentId=${encodedId}`,
+    },
+    payment_cancelled: {
+      title: 'Pago cancelado',
+      body: 'canceló un proceso de pago.',
+      deepLink: `/control/pagos?paymentId=${encodedId}`,
+    },
+    payment_refunded: {
+      title: 'Pago reembolsado',
+      body: 'tiene un pago con reembolso registrado.',
+      deepLink: `/control/pagos?paymentId=${encodedId}`,
+    },
+  }
+  return definitions[eventName] ?? null
+}
+
+async function createControlNotificationForActivity(
+  activityId: string,
+  payload: AppActivityEventPayload,
+  customerId: string | null,
+) {
+  const definition = controlActivityDefinition(payload.eventName, payload.entityId)
+  if (!definition) return
+
+  let label = 'Un cliente'
+  if (customerId) {
+    const result = await supabaseAdminClient
+      .from('customers')
+      .select('id,display_name,first_name,last_name,email')
+      .eq('id', customerId)
+      .maybeSingle()
+    if (!result.error) label = customerName((result.data as CustomerRow | null) ?? null) ?? label
+  }
+
+  await createControlNotification({
+    type: `app_${payload.eventName}`,
+    title: definition.title,
+    body: `${label} ${definition.body}`,
+    deepLink: definition.deepLink,
+    idempotencyKey: `app_event:${activityId}`,
+    data: {
+      appEventId: activityId,
+      eventName: payload.eventName,
+      entityType: payload.entityType ?? null,
+      entityId: payload.entityId ?? null,
+      customerId,
+    },
+  })
+}
+
 async function customerIdForUser(userId?: string) {
   if (!userId) return null
   const result = await supabaseAdminClient
@@ -133,7 +235,10 @@ export async function recordAppActivity(
     .eq('idempotency_key', payload.eventKey)
     .maybeSingle()
   const prior = assertNoError<{ id: string } | null>(existing).data
-  if (prior) return { accepted: true, duplicate: true, id: prior.id }
+  if (prior) {
+    await createControlNotificationForActivity(prior.id, payload, customerId).catch(() => undefined)
+    return { accepted: true, duplicate: true, id: prior.id }
+  }
 
   const result = await supabaseAdminClient
     .from('customer_app_events')
@@ -141,6 +246,7 @@ export async function recordAppActivity(
     .select('id')
     .single()
   const inserted = assertNoError<{ id: string }>(result).data
+  await createControlNotificationForActivity(inserted.id, payload, customerId).catch(() => undefined)
   return { accepted: true, duplicate: false, id: inserted.id }
 }
 
