@@ -209,6 +209,44 @@ export async function resetPassword(email: string, redirectPath = '/reset-passwo
   }
 }
 
+function clearRecoveryCredentialsFromAddressBar() {
+  if (typeof window === 'undefined') return
+  const cleanUrl = `${window.location.pathname}${window.location.search}`
+  window.history.replaceState(window.history.state, document.title, cleanUrl)
+}
+
+export async function establishPasswordRecoverySession() {
+  try {
+    const hash = typeof window === 'undefined' ? '' : window.location.hash.replace(/^#/, '')
+    const recovery = new URLSearchParams(hash)
+    const recoveryError = recovery.get('error_description') || recovery.get('error')
+    if (recoveryError) throw new Error(recoveryError)
+
+    const accessToken = recovery.get('access_token')
+    const refreshToken = recovery.get('refresh_token')
+    const recoveryType = recovery.get('type')
+
+    if (accessToken || refreshToken) {
+      if (recoveryType !== 'recovery' || !accessToken || !refreshToken) {
+        throw new Error('El enlace de recuperación no es válido')
+      }
+      const { data, error } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+      if (error || !data.session) throw error ?? new Error('No fue posible activar el enlace de recuperación')
+      clearRecoveryCredentialsFromAddressBar()
+      return data.session
+    }
+
+    const { data, error } = await supabase.auth.getSession()
+    if (error || !data.session) throw error ?? new Error('El enlace de recuperación no está activo')
+    return data.session
+  } catch (error) {
+    throw normalizeError(error)
+  }
+}
+
 export async function updatePassword(password: string) {
   try {
     const { data, error } = await supabase.auth.updateUser({ password })

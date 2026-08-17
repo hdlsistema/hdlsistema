@@ -97,12 +97,21 @@ textarea {
 }
 
 button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+a:focus-visible {
   outline: 2px solid var(--color-focus);
   outline-offset: 3px;
+}
+
+/*
+ * Los campos web ya comunican el foco desde su borde o contenedor. Evita el
+ * segundo rectángulo interior que dibujaba el outline global del navegador.
+ * La app nativa conserva su tratamiento independiente.
+ */
+html:not(.hdl-mobile-app) input:focus-visible,
+html:not(.hdl-mobile-app) select:focus-visible,
+html:not(.hdl-mobile-app) textarea:focus-visible {
+  outline: none;
+  outline-offset: 0;
 }
 
 .app-scrollbar-none {
@@ -1694,6 +1703,15 @@ html.hdl-mobile-app .crystal-date-popover__day {
   height: var(--control-input-height);
   border-radius: var(--control-radius-sm);
   box-shadow: none;
+}
+
+.control-shell input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):focus-visible,
+.control-shell textarea:focus-visible,
+.control-shell select:focus-visible,
+.control-main .control-select:focus-visible,
+.control-main .control-date-trigger:focus-visible {
+  border-color: var(--color-line-strong) !important;
+  box-shadow: 0 0 0 3px rgba(170, 125, 67, 0.12) !important;
 }
 
 .control-main .control-date-trigger > span,

@@ -5,6 +5,7 @@ const signInWithPasswordMock = vi.fn()
 const signOutMock = vi.fn()
 const resetPasswordForEmailMock = vi.fn()
 const updateUserMock = vi.fn()
+const setSessionMock = vi.fn()
 const resendMock = vi.fn()
 const apiFetchMock = vi.fn()
 
@@ -21,6 +22,7 @@ vi.mock('@supabase/supabase-js', () => ({
       signOut: signOutMock,
       resetPasswordForEmail: resetPasswordForEmailMock,
       updateUser: updateUserMock,
+      setSession: setSessionMock,
       resend: resendMock,
       getSession: vi.fn(),
       getUser: vi.fn(),
@@ -86,6 +88,34 @@ describe('auth.service security', () => {
     expect(resetPasswordForEmailMock.mock.calls[0][1].redirectTo).toBe(
       'http://localhost:5173/reset-password',
     )
+  })
+
+  it('activa una sesión recovery recibida por enlace antes de permitir el cambio', async () => {
+    const replaceState = vi.fn()
+    vi.stubGlobal('window', {
+      location: {
+        hash: '#access_token=recovery-access&refresh_token=recovery-refresh&type=recovery',
+        pathname: '/reset-password',
+        search: '',
+      },
+      history: { state: null, replaceState },
+    })
+    vi.stubGlobal('document', { title: 'Hacienda de Letras' })
+    setSessionMock.mockResolvedValueOnce({
+      data: { session: { access_token: 'active-recovery-session' } },
+      error: null,
+    })
+    const { establishPasswordRecoverySession } = await import('../services/auth.service')
+
+    const session = await establishPasswordRecoverySession()
+
+    expect(setSessionMock).toHaveBeenCalledWith({
+      access_token: 'recovery-access',
+      refresh_token: 'recovery-refresh',
+    })
+    expect(session.access_token).toBe('active-recovery-session')
+    expect(replaceState).toHaveBeenCalledWith(null, 'Hacienda de Letras', '/reset-password')
+    vi.unstubAllGlobals()
   })
 
   it('updatePassword vuelve a autenticar con la nueva contraseña antes de confirmar', async () => {

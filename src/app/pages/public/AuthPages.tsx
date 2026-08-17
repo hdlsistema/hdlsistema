@@ -1,9 +1,10 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   resetPassword,
+  establishPasswordRecoverySession,
   signUpCustomer,
   updatePassword,
   type AuthServiceError,
@@ -200,7 +201,7 @@ function ControlField({
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/64">{label}</span>
-      <span className="flex min-h-[54px] w-full min-w-0 max-w-full items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24">
+      <span className="flex min-h-[54px] w-full min-w-0 max-w-full items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24 focus-within:shadow-[0_0_0_3px_rgba(231,193,138,0.10)]">
         <span className="text-[#dfbd8e]">{icon}</span>
         <input required name={name} type={type} autoComplete={autoComplete} className="control-login-input w-full min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none placeholder:text-white/30" />
       </span>
@@ -213,7 +214,7 @@ function ControlPasswordField({ show, setShow }: { show: boolean; setShow: (valu
   return (
     <label className="block">
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.15em] text-white/64">{t('auth.password')}</span>
-      <span className="flex min-h-[54px] w-full min-w-0 max-w-full items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24">
+      <span className="flex min-h-[54px] w-full min-w-0 max-w-full items-center gap-3 rounded-2xl border border-white/18 bg-black/18 px-4 shadow-inner transition focus-within:border-[#e7c18a]/70 focus-within:bg-black/24 focus-within:shadow-[0_0_0_3px_rgba(231,193,138,0.10)]">
         <LockKeyhole size={17} className="text-[#dfbd8e]" />
         <input required name="password" type={show ? 'text' : 'password'} autoComplete="current-password" className="control-login-input w-full min-w-0 flex-1 bg-transparent text-[14px] text-white outline-none" />
         <button type="button" onClick={() => setShow(!show)} className="text-white/62 transition hover:text-white" aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}>
@@ -341,11 +342,25 @@ export function RecoverPage() {
 export function ResetPasswordPage() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth()
   const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [recoveryState, setRecoveryState] = useState<'validating' | 'ready' | 'invalid'>('validating')
   const appMode = location.pathname.startsWith('/app/')
+
+  useEffect(() => {
+    let active = true
+    void establishPasswordRecoverySession()
+      .then(() => {
+        if (active) setRecoveryState('ready')
+      })
+      .catch(() => {
+        if (active) setRecoveryState('invalid')
+      })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -361,19 +376,19 @@ export function ResetPasswordPage() {
       setError(t('auth.passwordsMismatch'))
       return
     }
-    if (!isAuthenticated) {
+    if (recoveryState !== 'ready') {
       setError('El enlace seguro no está activo. Solicita uno nuevo para cambiar tu contraseña.')
       return
     }
     try {
       await updatePassword(password)
-      navigate(appMode || !isAdmin ? '/app/home' : '/control/dashboard', { replace: true })
+      navigate(appMode ? '/app/home' : '/control/dashboard', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))
     }
   }
 
-  if (authLoading) {
+  if (recoveryState === 'validating') {
     return <AuthShell eyebrow={t('auth.newPassword')} title={t('auth.validatingSession')} note={t('auth.oneMoment')}><span className="mobile-launch-screen__loader" aria-label="Cargando" /></AuthShell>
   }
 
@@ -383,12 +398,12 @@ export function ResetPasswordPage() {
       title={t('auth.definePassword')}
       note={t('auth.resetNote')}
     >
-      {!isAuthenticated ? <p className="mt-7 rounded-[1rem] border border-[#e0b7ad] bg-[#fff5f1] p-4 text-[13px] text-[#8d352b]">El enlace de recuperación no está activo o ya venció. <Link className="font-bold underline" to={appMode ? '/app/recuperar' : '/recuperar'}>Solicita un enlace nuevo.</Link></p> : null}
+      {recoveryState === 'invalid' ? <p className="mt-7 rounded-[1rem] border border-[#e0b7ad] bg-[#fff5f1] p-4 text-[13px] text-[#8d352b]">El enlace de recuperación no está activo o ya venció. <Link className="font-bold underline" to={appMode ? '/app/recuperar' : '/recuperar'}>Solicita un enlace nuevo.</Link></p> : null}
       <form className="mt-7 space-y-4" onSubmit={submit}>
         <PasswordField show={showPassword} setShow={setShowPassword} />
         <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
-        <SubmitButton loading={!isAuthenticated}>{t('auth.updatePassword')}</SubmitButton>
+        <SubmitButton loading={recoveryState !== 'ready'}>{t('auth.updatePassword')}</SubmitButton>
       </form>
     </AuthShell>
   )
@@ -431,7 +446,7 @@ function Field({
       <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
         {label}
       </span>
-	      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
+	      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4 transition focus-within:border-[#bd9b75] focus-within:shadow-[0_0_0_3px_rgba(170,125,67,0.10)]">
         <span className="text-[#8a6c59]">{icon}</span>
         <input
           required={required}
@@ -457,7 +472,7 @@ function PasswordField({
       <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.1em] text-[#5f463a]">
         {t('auth.password')}
       </span>
-	      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4">
+	      <div className="flex min-w-0 items-center gap-3 rounded-[1rem] border border-[#dccab5] bg-white px-4 transition focus-within:border-[#bd9b75] focus-within:shadow-[0_0_0_3px_rgba(170,125,67,0.10)]">
         <LockKeyhole size={17} className="text-[#8a6c59]" />
         <input
           required
