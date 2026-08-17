@@ -1,8 +1,8 @@
 # Acta de entrega técnica para inicio de validación — Hacienda de Letras
 
 **Producto presentado para validación:** Centro de Control y aplicación móvil Hacienda de Letras
-**Aplicación Android:** versión 1.0.9, compilación 15
-**Aplicación iOS:** versión 1.0, compilación 12
+**Aplicación Android:** versión 1.0.9, compilación 16
+**Aplicación iOS:** versión 1.0, compilación 13
 **Fecha del documento:** 16 de agosto de 2026
 **Periodo formal de validación:** del lunes 17 al domingo 30 de agosto de 2026
 **Fecha límite objetivo de publicación en tiendas:** 3 de septiembre de 2026
@@ -26,6 +26,15 @@ El flujo general es el siguiente:
 
 **Hacienda prepara y publica información en el Centro de Control → la app muestra únicamente lo que está activo y disponible → el cliente compra, reserva o solicita → la operación regresa al Centro de Control → el equipo de Hacienda la atiende → el cliente consulta el resultado y, cuando corresponde, recibe su acceso con código QR.**
 
+En lenguaje sencillo, la conexión funciona así:
+
+1. El personal guarda información desde el Centro de Control.
+2. El servicio central verifica permisos y reglas antes de aceptar el cambio.
+3. La información se conserva en la base central de Supabase, no únicamente en la computadora o navegador de quien la capturó.
+4. Las aplicaciones Android e iOS consultan esa misma información mediante el servicio central.
+5. Cuando el cliente reserva, compra, paga o envía una solicitud, la app registra la operación en la misma base y genera la alerta correspondiente para el equipo.
+6. Cuando Hacienda atiende la operación, el nuevo estado vuelve a la app y, cuando corresponde, genera un aviso para el cliente.
+
 ### Regla importante: guardar no siempre significa publicar
 
 El Centro de Control permite preparar información antes de hacerla visible. Un vino, experiencia, evento o servicio puede estar guardado, pero no aparecerá en la app hasta que esté **publicado, activo y dentro de sus fechas de publicación**.
@@ -45,35 +54,35 @@ La propuesta autorizada definió una Versión 1.0 formada por **10 módulos admi
 
 ### 3.1 Centro de Control contratado
 
-| Módulo contratado | Para qué sirve | Funciones disponibles en el proyecto real |
-|---|---|---|
-| **Dashboard** | Ofrece una lectura rápida del negocio y señala qué requiere atención. | Presenta clientes, reservaciones, cobros, órdenes pendientes, carritos, inicios de pago, sesiones de la app, ocupación, conversión, puntos del mapa, próximos horarios y movimientos recientes. |
-| **Reservaciones** | Reúne y administra las reservaciones recibidas. | Permite buscar, filtrar, crear manualmente, descargar, confirmar, cancelar, cambiar fecha, cambiar número de personas, agregar notas y consultar historial. |
-| **Experiencias** | Administra catas, recorridos y demás actividades ofrecidas por Hacienda. | Permite capturar descripción, fotografías, duración, precio, capacidad, estado, visibilidad, fechas de publicación, vista previa e historial de versiones. |
-| **Disponibilidad** | Define cuándo puede reservar un cliente y cuántos lugares existen. | Crea horarios, cupos y precios; permite bloquear, desbloquear, cerrar o duplicar espacios y consultar ocupación. |
-| **Eventos** | Administra la cartelera y controla cuándo se publica un evento. | Permite capturar fecha, sede, imágenes, capacidad, estado, visibilidad y opciones de boleto con precio, cupo y periodo de venta. |
-| **Clientes / CRM** | Conserva una visión completa de cada cliente y su relación con Hacienda. | Reúne perfil, contacto, compras, reservaciones, membresía, gasto, notas, etiquetas, historial y descarga de información. |
-| **Promociones** | Crea beneficios u ofertas con reglas y vigencia definidas. | Permite configurar tipo y valor del descuento, fechas, límites, segmento, visibilidad y publicación en la app. |
-| **Campañas** | Prepara comunicaciones para grupos específicos de clientes. | Permite formar audiencias por perfil y comportamiento, revisar destinatarios con consentimiento, redactar contenido, programar y enviar campañas por correo. Los canales adicionales se identifican en la sección de condiciones por cerrar. |
-| **Configuración** | Centraliza datos administrativos, idioma y preferencias generales. | Incluye operación en español/inglés, preferencias y controles administrativos de acceso. |
-| **Vista de la App** | Permite al equipo conocer la experiencia que verá el cliente. | Ofrece una referencia navegable de la aplicación y accesos a sus recorridos principales. |
+| Módulo contratado | Para qué sirve | Funciones disponibles | Cómo se conecta con la app |
+|---|---|---|---|
+| **Dashboard** | Ofrece una lectura rápida del negocio y señala qué requiere atención. | Presenta clientes, reservaciones, cobros, órdenes pendientes, carritos, sesiones, ocupación y próximos horarios. | Resume la actividad real enviada por la app y abre directamente la reservación, orden o área que necesita seguimiento. |
+| **Reservaciones** | Reúne y administra las reservaciones recibidas. | Permite buscar, filtrar, crear, confirmar, cancelar, reprogramar, cambiar personas, agregar notas y consultar historial. | Recibe solicitudes de experiencias, restaurantes y cabañas. Cuando el equipo cambia su estado, el cliente ve el resultado actualizado y recibe un aviso en la app. |
+| **Experiencias** | Administra catas, recorridos y demás actividades ofrecidas por Hacienda. | Captura descripción, fotografías, duración, precio, capacidad, estado, visibilidad, publicación, vista previa e historial. | Lo publicado forma el catálogo de Experiencias; sus horarios se completan en Disponibilidad antes de que el cliente pueda reservar. |
+| **Disponibilidad** | Define cuándo puede reservar un cliente y cuántos lugares existen. | Administra experiencias, restaurantes y cabañas desde una sola área: horarios, cupos, precios, bloqueos y ocupación. | La app consulta esta información al elegir fecha y hora. Cada reservación ocupa el cupo o unidad correspondiente y una cancelación lo libera. |
+| **Eventos** | Administra la cartelera y controla cuándo se publica un evento. | Captura fecha, sede, imágenes, capacidad, estado, visibilidad y tipos de boleto con precio, cupo y periodo de venta. | Los eventos publicados aparecen en la app; una compra aprobada genera el boleto y QR que después valida Check-in. |
+| **Clientes / CRM** | Conserva una visión completa de cada cliente y su relación con Hacienda. | Reúne perfil, contacto, compras, reservaciones, membresía, gasto, notas, etiquetas, historial y descarga de información. | Una cuenta creada en la app alimenta un único perfil central; compras, reservaciones y membresía se relacionan con ese mismo cliente. |
+| **Promociones** | Crea beneficios u ofertas con reglas y vigencia definidas. | Configura descuento, fechas, límites, segmento, visibilidad y publicación. | Las promociones vigentes se muestran o aplican en la experiencia de compra según sus reglas, sin duplicar la captura en Android e iOS. |
+| **Campañas** | Prepara comunicaciones para grupos específicos de clientes. | Forma audiencias, revisa consentimiento, redacta, programa y envía campañas por correo. | Utiliza los perfiles y preferencias registrados en la app. Los canales remotos adicionales se habilitan según la configuración indicada en este documento. |
+| **Configuración** | Centraliza datos administrativos, idioma, accesos y preferencias generales. | Incluye operación en español/inglés, permisos por responsabilidad y preferencias administrativas. | Protege quién puede consultar o cambiar información que después consumen las dos aplicaciones móviles. |
+| **Vista de la App** | Permite al equipo conocer la experiencia que verá el cliente. | Ofrece una referencia navegable de los recorridos principales. | Abre la experiencia de cliente sin mezclarla con la sesión administrativa y ayuda a comprobar lo que fue publicado. |
 
 ### 3.2 Aplicación móvil contratada
 
-| Pantalla contratada | Para qué sirve | Funciones disponibles en el proyecto real |
-|---|---|---|
-| **Inicio** | Presenta la marca y dirige al visitante hacia los servicios principales. | Incluye contenido destacado y accesos a vinos, experiencias, eventos, servicios, Wine Club, mapa y Sommelier. |
-| **Tienda de vinos** | Permite conocer y buscar el catálogo. | Ofrece catálogo, búsqueda, filtros, fotografías, precios y acceso a cada producto. |
-| **Detalle de vino** | Ayuda al cliente a decidir y comprar un vino. | Presenta ficha, imágenes, precio, información del vino, cantidad y agregado al carrito. |
-| **Experiencias** | Muestra las actividades disponibles para reservar. | Presenta categorías, descripción, duración, precio, capacidad, detalle, galería y horarios reales. |
-| **Eventos** | Comunica la cartelera y las opciones de acceso. | Presenta listado, categorías, información, fechas, disponibilidad, boletos y acceso al QR. |
-| **Detalle de evento** | Reúne la información necesaria para comprar una entrada. | Muestra fecha, horario, sede, descripción, fotografías, precio, tipos de boleto, cupo y cantidades. |
-| **Reservaciones** | Permite elegir una experiencia, horario y número de personas. | Crea la reservación, muestra su estado y permite consultar, cambiar o cancelar cuando las reglas lo permiten. |
-| **Mapa interactivo** | Ayuda al visitante a ubicarse y encontrar servicios. | Incluye mapa satelital, terreno y edificios 3D, puntos de interés, búsqueda, ubicación y trazado de ruta. |
-| **Wine Club** | Permite al socio conocer su relación con el club. | Presenta plan o nivel, puntos, beneficios, historial y próximos beneficios publicados. |
-| **Carrito / Pago** | Reúne lo seleccionado y permite completar una compra. | Administra productos y boletos, cantidades, promociones, envío, domicilio, total, pago seguro, referencia, reintento y estado de la transacción. |
-| **Perfil** | Centraliza la información y actividad del cliente. | Incluye datos personales, fotografía, idioma, preferencias, domicilios, notificaciones, membresía, reservaciones, órdenes, pagos pendientes, historial y privacidad. |
-| **Sommelier ALQIA** | Orienta al visitante con recomendaciones de vino. | Cuenta con interfaz de conversación, sesiones, límites de uso y servicio preparado para responder con información autorizada. Su activación externa se señala más adelante. |
+| Pantalla contratada | Para qué sirve | Funciones disponibles | De dónde se alimenta y qué devuelve |
+|---|---|---|---|
+| **Inicio** | Presenta la marca y dirige al visitante hacia los servicios principales. | Incluye contenido destacado y accesos a vinos, experiencias, eventos, servicios, Wine Club, mapa y Sommelier. | Lee contenido publicado por Hacienda y registra actividad de navegación para el tablero y Actividad App. |
+| **Tienda de vinos** | Permite conocer y buscar el catálogo. | Ofrece catálogo, búsqueda, filtros, fotografías, precios y acceso a cada producto. | Lee Vinos e Inventario comercial; lo agregado se guarda en Carritos y posteriormente se convierte en una Orden. |
+| **Detalle de vino** | Ayuda al cliente a decidir y comprar un vino. | Presenta ficha, imágenes, precio, información del vino, cantidad y agregado al carrito. | Usa la ficha publicada en Vinos y devuelve selección, cantidad e intención de compra al carrito central. |
+| **Experiencias** | Muestra las actividades disponibles para reservar. | Presenta categorías, descripción, duración, precio, capacidad, galería y horarios reales. | Lee Experiencias y Disponibilidad; una solicitud crea una Reservación y alerta al Centro de Control. |
+| **Eventos** | Comunica la cartelera y las opciones de acceso. | Presenta listado, información, fechas, disponibilidad, boletos y acceso al QR. | Lee Eventos y tipos de boleto; la compra crea Orden y Pago, y al aprobarse muestra el acceso en Mis boletos. |
+| **Detalle de evento** | Reúne la información necesaria para comprar una entrada. | Muestra fecha, horario, sede, descripción, fotografías, precio, tipos de boleto, cupo y cantidades. | Consulta el cupo central antes de vender y devuelve la selección al carrito para evitar vender accesos inexistentes. |
+| **Reservaciones** | Permite elegir servicio, horario y número de personas. | Crea la reservación, muestra su estado y permite consultar, cambiar o cancelar cuando las reglas lo permiten. | Lee Disponibilidad y escribe en Reservaciones. Los cambios hechos por Hacienda regresan a esta pantalla y generan aviso al cliente. |
+| **Mapa interactivo** | Ayuda al visitante a ubicarse y encontrar servicios. | Incluye mapa satelital, terreno y edificios 3D, puntos de interés, búsqueda, ubicación y trazado de ruta. | Lee los puntos publicados en el Centro de Control; las consultas de mapa se registran como actividad, no como alerta operativa. |
+| **Wine Club** | Permite al socio conocer su relación con el club. | Presenta plan, puntos, beneficios, historial y próximos beneficios. | Lee Membresías y Wine Club; los ajustes autorizados por Hacienda se reflejan en el perfil del socio. |
+| **Carrito / Pago** | Reúne lo seleccionado y permite completar una compra. | Administra productos y boletos, cantidades, promociones, domicilio, total, pago seguro, reintento y estado. | Escribe en Carritos, Órdenes y Pagos. El Centro de Control recibe alertas de orden y pago y el cliente conserva su comprobación dentro de la app. |
+| **Perfil** | Centraliza la información y actividad del cliente. | Incluye datos, fotografía, idioma, preferencias, domicilios, notificaciones, membresía, reservaciones, órdenes, historial y privacidad. | Lee y actualiza el perfil único de Clientes; los cambios se conservan en la base central y se comparten entre Android e iOS. |
+| **Sommelier ALQIA** | Orienta al visitante con recomendaciones de vino. | Cuenta con conversación, sesiones, límites de uso y servicio preparado para información autorizada. | Usa el catálogo de vinos como contexto; la respuesta inteligente depende de la activación del proveedor externo indicada más adelante. |
 
 ### 3.3 Página pública e integraciones contratadas
 
@@ -85,8 +94,36 @@ La propuesta autorizada definió una Versión 1.0 formada por **10 módulos admi
 | **Mapbox** | Proporciona mapa, marcadores, ubicación y rutas. | Se encuentra integrado en la experiencia móvil con presentación 3D. |
 | **Códigos QR** | Emite boletos y permite comprobarlos al ingresar. | Existen generación de accesos, visualización del QR y validación desde Check-in. Su prueba completa requiere la publicación central y datos descritos más adelante. |
 | **Resend / correo** | Envía correos de operación y campañas. | Existen plantillas elegantes, preparación, envío, reintento y registro del resultado. Se validaron en producción el correo de bienvenida y la recuperación de acceso, con lenguaje neutral, logotipo oficial y enlaces hacia **www.haciendadeletras.com**. |
-| **Notificaciones** | Informa al cliente sobre movimientos relevantes. | Existe bandeja dentro de la app y la preparación para enviar avisos automáticos al teléfono; el servicio externo de envío requiere activación. |
-| **Distribución en tiendas** | Prepara la aplicación para iOS y Android. | Android cuenta con APK y AAB Release firmados. iOS cuenta con Archive Release y el build 12 fue cargado mediante App Store Connect, no como “TestFlight Internal Only”. |
+| **Notificaciones** | Informa al cliente y al equipo sobre movimientos relevantes. | La app cuenta con bandeja de avisos y acceso a la operación relacionada. El Centro de Control recibe alertas en su campana para reservaciones, órdenes, pagos, cotizaciones y solicitudes de privacidad, con acceso directo al registro. Los avisos remotos Android están configurados; iOS requiere completar la credencial APNs del servidor. |
+| **Distribución en tiendas** | Prepara la aplicación para iOS y Android. | Android cuenta con AAB Release 1.0.9 (16) firmado para Google Play. iOS cuenta con Archive Release 1.0 (13) cargado mediante **App Store Connect**, no como “TestFlight Internal Only”. |
+
+### 3.4 Notificaciones de cada evento operativo
+
+La solución distingue dos tipos de aviso:
+
+- **Campana del Centro de Control:** alerta al personal cuando una acción del cliente requiere atención. Al seleccionar el aviso abre directamente la reservación, orden, pago, cotización o solicitud correspondiente.
+- **Notificaciones del cliente:** aparecen en la bandeja de la app y llevan al cliente a sus reservaciones, órdenes o avisos. Android también cuenta con envío remoto configurado. En iOS la aplicación ya incorpora la función, pero el envío remoto quedará activo cuando se configure la llave APNs del servidor.
+
+| Evento | Aviso para el equipo de Hacienda | Aviso o resultado para el cliente | Destino directo |
+|---|---|---|---|
+| **Nueva reservación de experiencia** | “Nueva reservación desde la app”. | “Reservación recibida” con su folio y estado. | Equipo: Reservaciones. Cliente: Mis reservaciones. |
+| **Nueva solicitud de restaurante** | “Nueva solicitud de restaurante”. | “Solicitud de reservación recibida”; queda sujeta a confirmación. | Equipo: reservación exacta. Cliente: Mis reservaciones. |
+| **Nueva solicitud de cabaña** | “Nueva solicitud de cabaña”. | “Solicitud de reservación recibida”; muestra fechas y estado. | Equipo: reservación exacta. Cliente: Mis reservaciones. |
+| **Reservación confirmada por Hacienda** | No duplica una alerta al mismo equipo que realizó la acción. | “Reservación confirmada”. | Cliente: Mis reservaciones. |
+| **Reservación actualizada o reprogramada** | Si el cambio nace en la app, alerta “Reservación reprogramada”. | “Reservación actualizada” o “Reservación reprogramada”. | Reservación exacta en ambos lados. |
+| **Reservación cancelada** | Si el cliente cancela, alerta “Reservación cancelada”. | La app muestra el estado cancelado y devuelve el cupo o unidad cuando corresponde. | Reservación exacta en ambos lados. |
+| **Intento de reservación fallido** | “Incidencia al reservar”. | La app informa que no se completó y evita presentar una reservación inexistente. | Equipo: Actividad App filtrada por incidencia. |
+| **Carrito convertido en orden** | “Nueva orden desde la app”. | La orden queda visible en Perfil con su estado. | Equipo: orden exacta. Cliente: Mis órdenes. |
+| **Pago en procesamiento** | “Pago en procesamiento”. | La app mantiene el estado pendiente sin duplicar el cobro. | Equipo: pago exacto. Cliente: estado de pago. |
+| **Pago confirmado** | “Pago confirmado”. | La app confirma la compra; si corresponde, habilita boleto y QR o prepara la entrega. | Equipo: pago exacto. Cliente: compra, orden o boleto. |
+| **Pago fallido o cancelado** | “Pago no completado” o “Pago cancelado”. | La app permite revisar el resultado y reintentar cuando corresponde. | Equipo: pago exacto. Cliente: estado de pago. |
+| **Pago reembolsado** | “Pago reembolsado”. | El nuevo estado queda relacionado con la orden del cliente. | Equipo: pago exacto. Cliente: orden relacionada. |
+| **Pedido en preparación** | El cambio queda registrado en Órdenes y Logística. | “Pedido en preparación”. | Cliente: orden exacta. |
+| **Guía asignada, pedido enviado o entregado** | El estado se sincroniza entre Órdenes y Logística. | “Guía asignada”, “Pedido enviado” o “Pedido entregado”. | Cliente: orden exacta y seguimiento. |
+| **Solicitud de cotización desde Celebra** | “Nueva solicitud de cotización”. | La solicitud conserva su folio para seguimiento. | Equipo: cotización exacta. |
+| **Solicitud de eliminación de cuenta** | “Nueva solicitud de eliminación de cuenta”. | La app confirma que la solicitud fue recibida. | Equipo: expediente exacto de privacidad. |
+
+Las visitas a Inicio, vinos, mapas o fichas se registran en **Actividad App** para análisis, pero no saturan la campana. La campana se reserva para hechos que requieren seguimiento operativo. Los avisos usan identificadores únicos para evitar duplicarse si el teléfono reintenta una operación.
 
 ## 4. Servicios, módulos y funciones adicionales incorporados por ALQIA
 
@@ -96,23 +133,23 @@ Estos elementos se presentan como **valor adicional**, sin confundirlos con func
 
 ### 4.1 Módulos adicionales del Centro de Control
 
-| Módulo adicional | Para qué le sirve a Hacienda | Funciones incorporadas |
-|---|---|---|
-| **Cotizaciones** | Evita perder solicitudes de bodas, celebraciones o eventos empresariales. | Recibe solicitudes desde “Celebra”, genera folio, permite seguimiento, notas, estados y envío de propuesta por correo. |
-| **Órdenes** | Controla cada compra desde su recepción hasta su cierre. | Consulta productos, cliente, pago, domicilio e historial; permite preparar, cancelar, completar, asignar guía, enviar y entregar. |
-| **Pagos** | Centraliza los cobros y facilita la atención de incidencias. | Consulta pagos y comprobantes, registra pagos manuales autorizados y permite gestionar devoluciones. |
-| **Vinos** | Permite que Hacienda administre directamente lo que aparece en la tienda. | Publica fichas, precios, fotografías, existencias comerciales, visibilidad y fechas de publicación. |
-| **Servicios y sedes** | Reúne la oferta adicional de Hacienda en un solo lugar. | Administra cabañas, restaurantes y espacios para celebraciones que alimentan la app. |
-| **Membresías** | Permite definir los planes que consulta el visitante. | Administra nombre, precio, periodicidad, beneficios, límites y publicación de planes. |
-| **Carritos** | Ayuda a conocer intención de compra y posibles abandonos. | Muestra cliente, productos, cantidad, valor, estado y última actividad. |
-| **Wine Club administrativo** | Facilita la atención y seguimiento de socios. | Administra miembros, planes, estado, beneficios, puntos, ajustes e historial. |
-| **Check-in** | Agiliza la entrada y reduce el uso repetido de boletos. | Valida el QR, registra el acceso, identifica códigos usados o cancelados y permite revertir un registro autorizado. |
-| **Actividad App** | Permite entender cómo utilizan los clientes la aplicación. | Registra sesiones y acciones relevantes para detectar interés, uso y abandono. |
-| **Eliminación de cuentas** | Ayuda a atender formalmente solicitudes de privacidad. | Recibe solicitudes, conserva seguimiento y permite administrar su atención. |
-| **Inventario** | Controla existencias físicas y alerta sobre faltantes. | Administra ubicaciones, lotes, disponible, reservado, mínimos y movimientos de entrada, ajuste o transferencia. |
-| **Logística** | Conecta la compra con la preparación y entrega del producto. | Administra envíos, guías, estados, incidencias, despacho y entrega. |
-| **Distribuidores** | Abre una operación comercial adicional al canal directo. | Registra distribuidores y permite dar seguimiento a pedidos comerciales. |
-| **Reportes operativos** | Ofrece una primera lectura gerencial de la operación. | Presenta consultas y resultados básicos. No se comunica como inteligencia ejecutiva avanzada. |
+| Módulo adicional | Para qué le sirve a Hacienda | Funciones incorporadas | Conexión con la app |
+|---|---|---|---|
+| **Cotizaciones** | Evita perder solicitudes de bodas o eventos empresariales. | Recibe solicitudes desde Celebra, genera folio, permite seguimiento, notas, estados y envío de propuesta. | Cada formulario enviado por el cliente crea una cotización central y una alerta que abre exactamente ese folio. |
+| **Órdenes** | Controla cada compra desde su recepción hasta su cierre. | Consulta productos, cliente, pago, domicilio e historial; permite preparar, cancelar, completar, enviar y entregar. | Recibe compras de vinos y boletos. Sus cambios se reflejan en Perfil y alimentan Pagos, Inventario y Logística. |
+| **Pagos** | Centraliza cobros e incidencias. | Consulta pagos y comprobantes, registra pagos manuales autorizados y gestiona devoluciones. | Recibe el resultado del checkout; cada cambio relevante genera alerta al equipo y actualiza el estado que ve el cliente. |
+| **Vinos** | Permite administrar directamente la tienda. | Publica fichas, precios, fotografías, existencias comerciales, visibilidad y fechas. | Es la fuente del catálogo móvil; las selecciones del cliente vuelven por Carritos y Órdenes. |
+| **Servicios y sedes** | Reúne la oferta adicional de Hacienda. | Administra cabañas, restaurantes y espacios para celebraciones. | Alimenta Cabañas, Restaurantes y Celebra; las solicitudes regresan a Reservaciones o Cotizaciones. |
+| **Membresías** | Define los planes que consulta el visitante. | Administra nombre, precio, periodicidad, beneficios, límites y publicación. | Los planes publicados aparecen en Wine Club y Perfil; la relación del socio vuelve al módulo administrativo. |
+| **Carritos** | Permite conocer intención de compra y posibles abandonos. | Muestra cliente, productos, cantidad, valor, estado y última actividad. | Recibe en tiempo real la selección del cliente y se relaciona con la orden cuando inicia el checkout. |
+| **Wine Club administrativo** | Facilita la atención de socios. | Administra miembros, planes, estado, beneficios, puntos, ajustes e historial. | Todo ajuste autorizado se refleja en la vista Wine Club del cliente. |
+| **Check-in** | Agiliza la entrada y evita reutilizar boletos. | Valida QR, registra acceso, identifica códigos usados o cancelados y permite revertir un registro autorizado. | Lee el QR mostrado en Mis boletos; el primer uso queda registrado y el segundo se rechaza. |
+| **Actividad App** | Ayuda a entender el uso de la aplicación. | Registra sesiones, vistas y acciones relevantes. | Recibe navegación y resultados operativos desde Android e iOS; permite abrir la entidad relacionada cuando existe. |
+| **Eliminación de cuentas** | Permite atender formalmente solicitudes de privacidad. | Recibe solicitudes, conserva seguimiento y administra su resolución. | La petición nace en Perfil, genera alerta y abre el expediente correspondiente para el personal autorizado. |
+| **Inventario** | Controla existencias físicas y faltantes. | Administra ubicaciones, lotes, disponible, reservado, mínimos y movimientos. | Se relaciona con los vinos y órdenes; una venta y su preparación conservan trazabilidad de existencia. |
+| **Logística** | Conecta la compra con su entrega. | Administra envíos, guías, estados, incidencias, despacho y entrega. | Comparte estado con Órdenes y envía al cliente avisos de guía, envío y entrega. |
+| **Distribuidores** | Abre un canal comercial adicional. | Registra distribuidores y pedidos comerciales. | Opera sobre el mismo catálogo e inventario, aunque no es una pantalla destinada al cliente final. |
+| **Reportes operativos** | Ofrece una lectura gerencial inicial. | Presenta consultas y resultados básicos. | Consolida información producida por app y Centro de Control; no modifica operaciones del cliente. |
 
 Inventario, Logística y Distribuidores estaban señalados como crecimiento futuro no incluido en la Versión 1.0 original. Su presencia funcional dentro del proyecto representa una ampliación directa del alcance recibido.
 
@@ -129,18 +166,18 @@ Inventario, Logística y Distribuidores estaban señalados como crecimiento futu
 
 ### 4.3 Vistas y recorridos adicionales en la aplicación
 
-| Vista o recorrido adicional | Para qué le sirve al cliente | Funciones incorporadas |
-|---|---|---|
-| **Detalle de experiencia** | Le permite comprender una actividad antes de reservar. | Galería, descripción, duración, lugar, precio, capacidad y horarios reales. |
-| **Cabañas** | Permite conocer paquetes de hospedaje y solicitar una estancia. | Fechas, huéspedes, paquete, observaciones y consulta posterior de la reservación. |
-| **Restaurantes** | Permite solicitar una mesa con información real. | Selección de sede, fecha, horario, personas y solicitud especial. |
-| **Celebra** | Facilita solicitar atención para bodas y eventos. | Tipo de evento, espacio, fecha, asistentes, datos de contacto, notas y folio de cotización. |
-| **Mis boletos y accesos** | Permite presentar el acceso directamente desde el teléfono. | Folio, estado, tipo de boleto y código QR. |
-| **Estados de pago** | Informa claramente qué ocurrió con una transacción. | Pantallas de procesamiento, aprobación, rechazo, consulta y reintento. |
-| **Domicilios de entrega** | Evita volver a escribir la dirección en cada compra. | Alta, edición, eliminación y selección de domicilio principal con validación de campos completos. |
-| **Notificaciones dentro de la app** | Reúne avisos importantes sin depender únicamente del correo. | Bandeja, estado leído/no leído y acceso a la operación relacionada. |
-| **Privacidad y cuenta** | Da control al usuario sobre sus datos. | Preferencias, política de privacidad y solicitud de eliminación de cuenta. |
-| **Pantallas legales** | Mantiene términos y políticas disponibles dentro de la app. | Consulta de términos y condiciones y política de privacidad. |
+| Vista o recorrido adicional | Para qué le sirve al cliente | Funciones incorporadas | Conexión con el Centro de Control |
+|---|---|---|---|
+| **Detalle de experiencia** | Permite comprender una actividad antes de reservar. | Galería, descripción, duración, lugar, precio, capacidad y horarios reales. | Lee Experiencias y Disponibilidad; la selección crea una reservación. |
+| **Cabañas** | Permite conocer paquetes y solicitar una estancia. | Fechas, huéspedes, paquete, observaciones y consulta posterior. | Lee Servicios y Disponibilidad; la solicitud llega a Reservaciones y al calendario de hospedaje. |
+| **Restaurantes** | Permite solicitar una mesa con información real. | Sede, fecha, horario, personas y solicitud especial. | Lee Servicios y horarios de restaurante; la solicitud llega a Reservaciones y activa la campana. |
+| **Celebra** | Facilita solicitar atención para bodas y eventos. | Tipo de evento, espacio, fecha, asistentes, contacto, notas y folio. | Crea una Cotización y alerta al equipo comercial con acceso al folio exacto. |
+| **Mis boletos y accesos** | Permite presentar el acceso desde el teléfono. | Folio, estado, tipo de boleto y QR. | Lee accesos emitidos después del pago; Check-in valida el mismo registro central. |
+| **Estados de pago** | Informa qué ocurrió con una transacción. | Procesamiento, aprobación, rechazo, consulta y reintento. | Lee Pagos y Órdenes; cada estado relevante activa una alerta operativa en el Centro de Control. |
+| **Domicilios de entrega** | Evita volver a escribir la dirección. | Alta, edición, eliminación y domicilio principal con campos obligatorios. | Guarda en el perfil central y entrega una copia de la dirección a la Orden para conservar el destino de esa compra. |
+| **Notificaciones dentro de la app** | Reúne avisos importantes. | Bandeja, leído/no leído y acceso a la operación relacionada. | Recibe cambios de Reservaciones, Órdenes, Logística y campañas autorizadas. |
+| **Privacidad y cuenta** | Da control sobre los datos personales. | Preferencias, política y solicitud de eliminación. | Actualiza Clientes y crea un expediente en Eliminación de cuentas cuando el usuario lo solicita. |
+| **Pantallas legales** | Mantiene términos y políticas disponibles. | Consulta de términos, condiciones y privacidad. | Lee los documentos públicos vigentes; no expone el Centro de Control. |
 
 ## 5. Flujos completos que deben demostrarse
 
@@ -233,7 +270,7 @@ El producto cuenta con los módulos y conexiones descritos. Para comprobar todos
 | Horarios de restaurantes | Cargados para prueba en los dos restaurantes: 11:00 a 17:30 cada 30 minutos | La selección ya está habilitada; Hacienda debe confirmar o reemplazar estos mocks por sus horarios operativos definitivos. |
 | Unidades físicas activas de cabaña | Pendiente de carga | No puede validarse disponibilidad real ni protección contra doble reservación. |
 | Asistencia avanzada de Sommelier | Falta confirmar la activación del proveedor externo en producción | Debe validarse después de confirmar la cuenta del proveedor. |
-| Avisos automáticos al teléfono | Falta confirmar la activación del proveedor externo en producción | La bandeja interna funciona; el aviso automático al teléfono se valida después de configurar el proveedor. |
+| Avisos automáticos al teléfono | Android/Firebase configurado. iOS/APNs pendiente de credencial del servidor | La bandeja interna funciona en ambas plataformas. Android puede validar push remoto; en iOS el build ya incluye la función, pero el aviso remoto requiere la llave APNs existente. |
 | Campañas por avisos al teléfono, mensajes dentro de la app y sugerencias automáticas | El flujo actual está concentrado en segmentación y correo | Esos canales y sus métricas completas deben habilitarse o aclararse antes de declarar cubierto ese punto específico. |
 | Cobros reales de producción | El recorrido se valida con el ambiente de pago autorizado para pruebas | Antes de cobrar dinero real debe confirmarse el cambio formal de la pasarela al ambiente productivo. |
 | Métricas especializadas de promociones, campañas y eventos | Existen indicadores generales y seguimiento operativo | Los reportes especializados deben validarse o completarse si se requieren con el detalle descrito en la propuesta. |
@@ -245,8 +282,8 @@ Los horarios de experiencias y restaurantes fueron cargados exclusivamente como 
 | Material | Identificación y estado |
 |---|---|
 | **Centro de Control** | Plataforma administrativa conectada a la información central, con 25 accesos funcionales organizados por Operación, Comercial, Contenido y Administración. |
-| **Aplicación Android** | Versión 1.0.9, compilación 15; archivos APK y AAB Release firmados y preparados para instalación y distribución mediante Google Play. |
-| **Aplicación iOS** | Versión 1.0, compilación 12; Archive Release generado y build cargado mediante App Store Connect para su procesamiento y posterior selección en tienda. |
+| **Aplicación Android** | Versión 1.0.9, compilación 16; AAB Release firmado, verificado y preparado para distribución mediante Google Play. |
+| **Aplicación iOS** | Versión 1.0, compilación 13; Archive Release generado y build cargado mediante App Store Connect para su procesamiento y posterior selección en tienda. |
 | **Servicios centrales** | API, base de información, autenticación, correo transaccional y conexiones operativas utilizadas por el Centro de Control y la app. |
 | **Documentación funcional** | Este documento de entrega técnica y el anexo comparativo de alcance contratado frente al proyecto real. |
 | **Documentación de pruebas** | Plan diario de prueba cerrada de Android y validación interna paralela de iOS, con criterios, evidencias y formato de incidencias. |
@@ -257,11 +294,11 @@ La recepción de estos materiales autoriza el inicio de la etapa de validación.
 
 ### 7.1 Control de calidad y seguridad previo a la entrega
 
-- **Aplicación y Centro de Control:** 148 pruebas aprobadas de 148.
-- **Servicios centrales:** 144 pruebas aprobadas de 144.
+- **Aplicación y Centro de Control:** 154 pruebas aprobadas de 154.
+- **Servicios centrales:** 146 pruebas aprobadas de 146.
 - **Compilaciones:** Centro de Control, servicios centrales, Android Release e iOS Release completados correctamente.
 - **Android:** APK y AAB firmados con la firma existente y verificados antes de su entrega.
-- **iOS:** Archive validado para tienda y build 12 aceptado por App Store Connect mediante el método de distribución para App Store; apertura y pantalla inicial comprobadas en simulador iPhone.
+- **iOS:** Archive validado para tienda y build 13 aceptado por App Store Connect mediante el método de distribución **App Store Connect**, no como build interno exclusivo.
 - **Conexión central:** servicio productivo disponible y base de información conectada.
 - **Protección de credenciales:** no se detectaron contraseñas, llaves privadas, tokens administrativos ni claves privilegiadas dentro del código, el historial o los paquetes entregables. Los identificadores públicos indispensables para el funcionamiento de mapas y acceso anónimo están limitados al cliente y no conceden permisos administrativos.
 

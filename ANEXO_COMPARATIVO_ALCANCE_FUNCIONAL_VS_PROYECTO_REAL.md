@@ -75,8 +75,8 @@ La conclusión correcta para presentar al cliente es:
 | **QR para boletos y validación** | Existen emisión de accesos, visualización del QR y módulo de Check-in para validar, rechazar duplicados, cancelar y revertir registros. | **Entregado y conectado.** La demostración completa requiere datos de un evento real. |
 | **Sommelier con IA** | La pantalla y el servicio existen. | **Condicionado.** Falta habilitar el proveedor de inteligencia artificial en el ambiente revisado. |
 | **Resend y correos** | Existe preparación, envío, reintento, plantillas e historial técnico. Se validaron en producción los correos de bienvenida y recuperación, con lenguaje neutral, identidad visual y enlaces al sitio institucional. | **Entregado y validado para correo.** |
-| **Notificaciones** | Existe bandeja dentro de la app, preferencias y servicio para notificaciones al teléfono. | **Entregado parcialmente.** La bandeja interna funciona; el proveedor para avisos Push no está configurado en el ambiente revisado. |
-| **App Store y Google Play** | Existen compilaciones de distribución para ambas plataformas y se inició el proceso de tiendas. | **En proceso de validación.** Periodo del 17 al 30 de agosto y fecha límite de publicación: 3 de septiembre de 2026. |
+| **Notificaciones** | Existe bandeja dentro de la app, preferencias, alertas operativas en la campana del Centro de Control y acceso directo a cada reservación, orden, pago, cotización o solicitud. | **Entregado con una activación externa pendiente.** Android/Firebase está configurado; iOS requiere la credencial APNs del servidor para recibir avisos remotos fuera de la app. |
+| **App Store y Google Play** | Android 1.0.9 (16) cuenta con AAB firmado. iOS 1.0 (13) fue cargado mediante App Store Connect y no como “TestFlight Internal Only”. | **En proceso de validación.** Periodo del 17 al 30 de agosto y fecha límite de publicación: 3 de septiembre de 2026. |
 
 ## 6. Módulos adicionales entregados en el Centro de Control
 
@@ -130,7 +130,7 @@ El valor adicional no elimina la obligación de identificar los puntos que todav
 
 1. **Campañas:** el flujo real está centrado en correo. Push, In-App, sugerencias automáticas y métricas completas todavía no equivalen al alcance descrito.
 2. **Sommelier ALQIA:** la pantalla y el servicio existen, pero falta habilitar el proveedor de IA en el ambiente revisado.
-3. **Notificaciones Push:** la bandeja interna existe; los avisos automáticos al teléfono requieren configurar su proveedor.
+3. **Notificaciones Push:** la bandeja y la conexión de alertas operativas están desarrolladas; Android/Firebase está configurado y iOS/APNs requiere completar la credencial del servidor.
 4. **Cobros reales:** los recorridos están conectados; la pasarela debe pasar formalmente del ambiente autorizado para pruebas al ambiente productivo antes de cobrar dinero real.
 5. **Eventos, boletos y QR:** la conexión central ya está publicada; requiere datos reales y una prueba completa durante la validación.
 6. **Métricas especializadas:** Dashboard ofrece indicadores generales, pero algunas métricas específicas descritas para promociones, campañas y eventos requieren comprobarse o completarse como reportes dedicados.

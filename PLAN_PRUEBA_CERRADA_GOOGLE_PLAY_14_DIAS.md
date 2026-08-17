@@ -1,7 +1,7 @@
 # Plan de prueba cerrada de Google Play — 14 días
 
 **Aplicación:** Hacienda de Letras
-**Versión Android a validar:** 1.0.9, compilación 15
+**Versión Android a validar:** 1.0.9, compilación 16
 **Periodo de prueba:** lunes 17 al domingo 30 de agosto de 2026
 **Fecha límite de publicación en tiendas:** 3 de septiembre de 2026
 **Objetivo:** comprobar con personas reales que la app Android y el Centro de Control completan los procesos principales y, en paralelo, que el equipo interno de ALQIA valide la versión iOS antes de continuar la publicación en tiendas.
