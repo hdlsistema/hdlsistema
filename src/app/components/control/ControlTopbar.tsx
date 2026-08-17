@@ -24,7 +24,17 @@ function notificationChannel(channel: string, isEnglish: boolean) {
 }
 
 function notificationContent(item: AdminNotification, isEnglish: boolean) {
-  if (!isEnglish || item.data?.type !== 'quote_request_created') {
+  if (!isEnglish) {
+    return { title: item.title, body: item.body }
+  }
+  if (item.data?.type === 'customer_registered') {
+    const customerName = typeof item.data.customerName === 'string' ? item.data.customerName : 'A new customer'
+    return {
+      title: 'New customer in the app',
+      body: `${customerName} created a Hacienda de Letras account.`,
+    }
+  }
+  if (item.data?.type !== 'quote_request_created') {
     return { title: item.title, body: item.body }
   }
   const customerName = typeof item.data.customerName === 'string' ? item.data.customerName : 'A customer'

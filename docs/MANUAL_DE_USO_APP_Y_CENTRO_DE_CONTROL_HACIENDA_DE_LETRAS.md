@@ -553,6 +553,22 @@ Es la vista ejecutiva del día. Resume clientes, reservaciones, cobros, órdenes
 | **CRM de clientes** | Abre Clientes. |
 | **Ver todas** | Abre la lista completa de reservaciones u órdenes. |
 | **Registro reciente** | Abre directamente esa reservación u orden. |
+| **Abrir conversación — Mi asistente** | Abre la lectura ejecutiva privada de la operación. Sólo está disponible para las identidades de dirección expresamente autorizadas. |
+
+### Mi asistente
+
+Mi asistente ayuda a la Dirección a comprender el estado actual de la Hacienda con información agregada del Centro de Control: clientes activos, reservaciones, cobros, órdenes, ocupación, hospedaje, inventario, logística, membresías, campañas, cotizaciones y actividad de la app.
+
+| Botón o control | Qué hace |
+|---|---|
+| **Pregunta escrita / Enviar** | Consulta el resumen operativo actualizado y devuelve una respuesta ejecutiva. |
+| **Pregunta sugerida** | Inicia una consulta frecuente sobre atención prioritaria, panorama comercial o riesgos operativos. |
+| **Iniciar conversación** | Solicita acceso al micrófono y comienza una conversación por voz en ambas direcciones. |
+| **Detener** | Cierra el micrófono y la sesión de voz. |
+| **Silenciar respuesta / Escuchar respuesta** | Desactiva o reactiva el audio de la asistente sin cerrar la conversación. |
+| **Cerrar** | Cierra el espacio de conversación. |
+
+La lectura se actualiza al iniciar cada consulta o sesión de voz. Es exclusivamente informativa y de sólo consulta: no crea, modifica, confirma, cancela ni elimina registros. Utiliza indicadores agregados y no envía al modelo nombres, correos, teléfonos, direcciones, notas privadas, folios ni registros individuales.
 
 Recomendación: comenzar cada turno revisando Dashboard y Campana.
 

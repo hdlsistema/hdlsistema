@@ -1,21 +1,23 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
+  ArrowUpRight,
   CalendarDays,
-  Activity,
   ChevronRight,
   CircleDollarSign,
-	  Clock3,
-	  MapPin,
-	  RefreshCw,
+  Clock3,
+  FileText,
+  RefreshCw,
   ShoppingBag,
+  Sparkles,
   Users,
+  WalletCards,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { dashboardClient, type DashboardSummary } from '../../../services/dashboard.service'
-import { SectionTitle } from '../../components/shared/SectionTitle'
 import { dateTime, money, statusLabel as safeStatusLabel } from './controlCopy'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { ExecutiveAssistant } from '../../components/control/ExecutiveAssistant'
 
 function formatMoney(value: number, currency: string, locale: string) {
   return money(value, currency, locale)
@@ -29,38 +31,57 @@ function statusLabel(status: string | null | undefined, locale: string) {
   return safeStatusLabel(status, locale)
 }
 
-function Metric({
+function clampPercent(value: number) {
+  return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
+}
+
+type Tone = 'wine' | 'gold' | 'forest' | 'clay'
+
+function ExecutiveMetric({
   label,
   value,
   detail,
   icon: Icon,
+  tone,
 }: {
   label: string
   value: string
   detail: string
   icon: typeof Users
+  tone: Tone
 }) {
   return (
-    <section className="control-metric rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--color-muted)]">{label}</p>
-          <p className="control-metric__value font-semibold leading-none text-[var(--color-ink)]">{value}</p>
-          <p className="control-metric__detail text-[var(--color-muted)]">{detail}</p>
-        </div>
-        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]">
-          <Icon size={20} />
-        </span>
+    <article className={`control-executive-metric control-executive-metric--${tone}`}>
+      <div className="control-executive-metric__heading">
+        <span className="control-executive-metric__icon"><Icon size={17} strokeWidth={1.7} /></span>
+        <p>{label}</p>
       </div>
-    </section>
+      <p className="control-executive-metric__value">{value}</p>
+      <p className="control-executive-metric__detail">{detail}</p>
+    </article>
   )
 }
 
-function Panel({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+function DashboardPanel({
+  eyebrow,
+  title,
+  children,
+  action,
+  className = '',
+}: {
+  eyebrow?: string
+  title: string
+  children: ReactNode
+  action?: ReactNode
+  className?: string
+}) {
   return (
-    <section className="control-panel rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-      <header className="flex items-center justify-between gap-4 border-b border-[var(--color-line)] px-5 py-4">
-        <h2 className="text-xl font-normal text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{title}</h2>
+    <section className={`control-dashboard-panel ${className}`}>
+      <header className="control-dashboard-panel__header">
+        <div>
+          {eyebrow ? <p>{eyebrow}</p> : null}
+          <h2>{title}</h2>
+        </div>
         {action}
       </header>
       {children}
@@ -68,8 +89,25 @@ function Panel({ title, children, action }: { title: string; children: ReactNode
   )
 }
 
+function RadialGauge({ label, value, tone }: { label: string; value: number; tone: 'wine' | 'forest' }) {
+  const percentage = clampPercent(value)
+  const color = tone === 'forest' ? '#466b52' : '#6b142d'
+  return (
+    <div className="control-radial-gauge">
+      <div
+        className="control-radial-gauge__ring"
+        style={{ background: `conic-gradient(${color} 0 ${percentage}%, rgba(122, 91, 72, 0.12) ${percentage}% 100%)` }}
+        aria-label={`${label}: ${percentage}%`}
+      >
+        <span>{Math.round(percentage)}%</span>
+      </div>
+      <p>{label}</p>
+    </div>
+  )
+}
+
 function Empty({ children }: { children: ReactNode }) {
-  return <p className="px-5 py-8 text-sm text-[var(--color-muted)]">{children}</p>
+  return <p className="control-dashboard-empty">{children}</p>
 }
 
 export function DashboardPage() {
@@ -94,199 +132,213 @@ export function DashboardPage() {
   }, [isEnglish, session?.access_token])
 
   const copy = isEnglish ? {
-    eyebrow: 'Command center', title: 'Operations', subtitle: 'Pending work, collections and daily follow-up for Hacienda de Letras.',
-    refresh: 'Refresh', retry: 'Try again', customers: 'Registered customers', customerDetail: 'Non-archived customer profiles',
-    reservations: 'Active bookings', loading: 'Loading...', confirmed: 'confirmed', pending: 'pending',
+    eyebrow: 'Executive command center', title: 'Today at the estate', subtitle: 'A clear reading of sales, bookings and the customer journey.',
+    live: 'Live operation', refresh: 'Refresh', retry: 'Try again', customers: 'Registered customers', customerDetail: 'Available customer profiles',
+    reservations: 'Active bookings', loading: 'Loading...', confirmed: 'confirmed', pending: 'pending', other: 'other',
     collected: 'Recorded collections', paymentsConfirmed: 'confirmed payments', ordersDue: 'Orders awaiting payment', ordersDueDetail: 'Orders pending payment',
-    activeCustomers: 'Active customers · 30 days', activeCustomersDetail: 'Identified customers with recorded activity',
-    activeCarts: 'Active carts', converted: 'converted', checkouts: 'Checkouts · 30 days', checkoutsDetail: 'Checkout starts recorded by the app',
-    appSessions: 'App sessions · 30 days', appSessionsDetail: 'Unique sessions recorded', occupancy: 'Experience occupancy', occupancyDetail: 'Confirmed capacity in future sellable slots',
-    conversion: 'Cart conversion', conversionDetail: 'Converted carts over recorded carts', map: 'Map locations', mapDetail: 'Published locations visible in the app',
-    upcoming: 'Upcoming schedules', viewAvailability: 'View availability', loadingSlots: 'Loading operating schedules...',
+    overview: 'Commercial overview', bookingMix: 'Booking mix', bookingMixDetail: 'Current operational status',
+    customerJourney: 'Customer journey', customerJourneyDetail: 'Recorded activity, not a projection', carts: 'Active carts', checkouts: 'Checkout starts', converted: 'Converted carts',
+    performance: 'Operational performance', performanceDetail: 'Capacity and digital response', occupancy: 'Future occupancy', conversion: 'Cart conversion',
+    activeCustomers: 'Active customers', appSessions: 'App sessions', map: 'Published map points', last30Days: 'Last 30 days',
+    upcoming: 'Upcoming experiences', upcomingEyebrow: 'Operating agenda', viewAvailability: 'View availability', loadingSlots: 'Loading operating schedules...',
     noSlots: 'There are no future schedules. Create and publish availability to start receiving bookings.', people: 'guests', available: 'available',
-    actions: 'Operating actions', actionRows: ['New booking / follow-up', 'New quote / follow-up', 'Orders and deliveries', 'Collections and incidents', 'Customer CRM'],
-    recentReservations: 'Recent bookings', viewAll: 'View all', loadingReservations: 'Loading bookings...', noReservations: 'No bookings have been recorded yet.',
-    recentOrders: 'Recent orders', loadingOrders: 'Loading orders...', noOrders: 'No orders have been recorded yet.', updated: 'Data updated',
+    actions: 'Priority routes', actionsEyebrow: 'Quick access', actionRows: [
+      { label: 'Bookings', detail: 'Confirm and follow up', to: '/control/reservaciones', icon: CalendarDays },
+      { label: 'Quotes', detail: 'Attend new requests', to: '/control/cotizaciones', icon: FileText },
+      { label: 'Orders', detail: 'Prepare and deliver', to: '/control/ordenes', icon: ShoppingBag },
+      { label: 'Payments', detail: 'Review collections', to: '/control/pagos', icon: WalletCards },
+    ],
+    recent: 'Latest movements', recentEyebrow: 'Customer activity', recentReservations: 'Bookings', recentOrders: 'Orders', viewAll: 'View all',
+    loadingReservations: 'Loading bookings...', noReservations: 'No bookings have been recorded yet.', loadingOrders: 'Loading orders...', noOrders: 'No orders have been recorded yet.', updated: 'Data updated',
   } : {
-    eyebrow: 'Centro de Control', title: 'Operación', subtitle: 'Pendientes, cobros y seguimiento diario de Hacienda de Letras.',
-    refresh: 'Actualizar', retry: 'Reintentar', customers: 'Clientes registrados', customerDetail: 'Perfiles de cliente no archivados',
-    reservations: 'Reservaciones activas', loading: 'Cargando...', confirmed: 'confirmadas', pending: 'pendientes',
+    eyebrow: 'Centro ejecutivo de operación', title: 'Hoy en la Hacienda', subtitle: 'Una lectura clara de ventas, reservaciones y experiencia del cliente.',
+    live: 'Operación en línea', refresh: 'Actualizar', retry: 'Reintentar', customers: 'Clientes registrados', customerDetail: 'Perfiles disponibles para atención',
+    reservations: 'Reservaciones activas', loading: 'Cargando...', confirmed: 'confirmadas', pending: 'pendientes', other: 'otros estados',
     collected: 'Cobrado registrado', paymentsConfirmed: 'pagos confirmados', ordersDue: 'Órdenes por cobrar', ordersDueDetail: 'Órdenes pendientes de pago',
-    activeCustomers: 'Clientes activos · 30 días', activeCustomersDetail: 'Clientes identificados con actividad registrada',
-    activeCarts: 'Carritos activos', converted: 'convertidos', checkouts: 'Checkouts · 30 días', checkoutsDetail: 'Inicios de pago registrados por la app',
-    appSessions: 'Sesiones App · 30 días', appSessionsDetail: 'Sesiones únicas registradas', occupancy: 'Ocupación de experiencias', occupancyDetail: 'Cupo confirmado en horarios futuros vendibles',
-    conversion: 'Conversión de carritos', conversionDetail: 'Carritos convertidos sobre carritos registrados', map: 'Puntos del mapa', mapDetail: 'Ubicaciones publicadas y visibles en la app',
-    upcoming: 'Próximos horarios', viewAvailability: 'Ver disponibilidad', loadingSlots: 'Cargando horarios operativos...',
+    overview: 'Panorama comercial', bookingMix: 'Composición de reservaciones', bookingMixDetail: 'Estado operativo actual',
+    customerJourney: 'Recorrido del cliente', customerJourneyDetail: 'Actividad registrada, no una proyección', carts: 'Carritos activos', checkouts: 'Inicios de checkout', converted: 'Carritos convertidos',
+    performance: 'Rendimiento operativo', performanceDetail: 'Capacidad y respuesta digital', occupancy: 'Ocupación futura', conversion: 'Conversión de carritos',
+    activeCustomers: 'Clientes activos', appSessions: 'Sesiones en app', map: 'Puntos publicados', last30Days: 'Últimos 30 días',
+    upcoming: 'Próximas experiencias', upcomingEyebrow: 'Agenda operativa', viewAvailability: 'Ver disponibilidad', loadingSlots: 'Cargando horarios operativos...',
     noSlots: 'No hay horarios futuros registrados. Crea y publica disponibilidad para empezar a recibir reservaciones.', people: 'personas', available: 'disponibles',
-    actions: 'Acciones operativas', actionRows: ['Nueva reservación / seguimiento', 'Nueva cotización / seguimiento', 'Pedidos y entregas', 'Cobros e incidencias', 'CRM de clientes'],
-    recentReservations: 'Reservaciones recientes', viewAll: 'Ver todas', loadingReservations: 'Cargando reservaciones...', noReservations: 'Aún no hay reservaciones registradas.',
-    recentOrders: 'Órdenes recientes', loadingOrders: 'Cargando órdenes...', noOrders: 'Aún no hay órdenes registradas.', updated: 'Datos actualizados',
+    actions: 'Rutas prioritarias', actionsEyebrow: 'Acceso inmediato', actionRows: [
+      { label: 'Reservaciones', detail: 'Confirmar y dar seguimiento', to: '/control/reservaciones', icon: CalendarDays },
+      { label: 'Cotizaciones', detail: 'Atender nuevas solicitudes', to: '/control/cotizaciones', icon: FileText },
+      { label: 'Órdenes', detail: 'Preparar y entregar', to: '/control/ordenes', icon: ShoppingBag },
+      { label: 'Pagos', detail: 'Revisar cobros', to: '/control/pagos', icon: WalletCards },
+    ],
+    recent: 'Últimos movimientos', recentEyebrow: 'Actividad de clientes', recentReservations: 'Reservaciones', recentOrders: 'Órdenes', viewAll: 'Ver todo',
+    loadingReservations: 'Cargando reservaciones...', noReservations: 'Aún no hay reservaciones registradas.', loadingOrders: 'Cargando órdenes...', noOrders: 'Aún no hay órdenes registradas.', updated: 'Datos actualizados',
   }
 
   useEffect(() => {
     void load()
   }, [load])
 
-  const collected = summary?.metrics.collected ?? []
+  const metrics = summary?.metrics
+  const collected = metrics?.collected ?? []
   const collectedValue = collected.length
     ? collected.map((item) => formatMoney(item.amount, item.currency, locale)).join(' · ')
     : formatMoney(0, 'MXN', locale)
+  const activeReservations = metrics?.activeReservations ?? 0
+  const confirmedReservations = metrics?.confirmedReservations ?? 0
+  const pendingReservations = metrics?.pendingReservations ?? 0
+  const otherReservations = Math.max(0, activeReservations - confirmedReservations - pendingReservations)
+
+  const bookingMix = useMemo(() => {
+    const total = Math.max(activeReservations, confirmedReservations + pendingReservations + otherReservations, 1)
+    const confirmedStop = clampPercent((confirmedReservations / total) * 100)
+    const pendingStop = clampPercent(((confirmedReservations + pendingReservations) / total) * 100)
+    return {
+      background: `conic-gradient(#681126 0 ${confirmedStop}%, #bd8c47 ${confirmedStop}% ${pendingStop}%, #d9cbbc ${pendingStop}% 100%)`,
+    }
+  }, [activeReservations, confirmedReservations, otherReservations, pendingReservations])
+
+  const journey = [
+    { label: copy.carts, value: metrics?.activeCarts ?? 0, tone: 'wine' },
+    { label: copy.checkouts, value: metrics?.checkoutStarted ?? 0, tone: 'gold' },
+    { label: copy.converted, value: metrics?.convertedCarts ?? 0, tone: 'forest' },
+  ]
+  const journeyMax = Math.max(1, ...journey.map((item) => item.value))
 
   return (
-    <div className="control-page control-page--dashboard space-y-6">
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <SectionTitle
-          eyebrow={copy.eyebrow}
-	          title={copy.title}
-	          subtitle={copy.subtitle}
-        />
-        <button
-          type="button"
-          onClick={() => void load()}
-          disabled={loading}
-          className="inline-flex min-h-10 items-center justify-center gap-2 self-start rounded-full border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-medium text-[var(--color-ink)] transition hover:border-[var(--color-burgundy)] disabled:cursor-wait disabled:opacity-60"
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          {copy.refresh}
-        </button>
-      </div>
-
-      {error ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#c87d6e] bg-[#fff7f3] px-5 py-4 text-sm text-[#7b3026]">
-          <span>{error}</span>
-          <button type="button" onClick={() => void load()} className="font-medium underline">{copy.retry}</button>
+    <div className="control-page control-page--dashboard control-dashboard-editorial">
+      <section className="control-dashboard-hero">
+        <div className="control-dashboard-hero__ornament" aria-hidden="true" />
+        <div className="control-dashboard-hero__header">
+          <div>
+            <div className="control-dashboard-hero__eyebrow"><Sparkles size={13} /><span>{copy.eyebrow}</span></div>
+            <h1>{copy.title}</h1>
+            <p>{copy.subtitle}</p>
+          </div>
+          <div className="control-dashboard-hero__actions">
+            <span className="control-dashboard-live"><i />{copy.live}</span>
+            <button type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={15} className={loading ? 'animate-spin' : ''} />{copy.refresh}</button>
+          </div>
         </div>
-      ) : null}
 
-      <div className="control-metrics-primary grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          label={copy.customers}
-          value={loading ? '—' : String(summary?.metrics.customers ?? 0)}
-          detail={copy.customerDetail}
-          icon={Users}
-        />
-        <Metric
-          label={copy.reservations}
-          value={loading ? '—' : String(summary?.metrics.activeReservations ?? 0)}
-          detail={loading ? copy.loading : `${summary?.metrics.confirmedReservations ?? 0} ${copy.confirmed} · ${summary?.metrics.pendingReservations ?? 0} ${copy.pending}`}
-          icon={CalendarDays}
-        />
-        <Metric
-          label={copy.collected}
-          value={loading ? '—' : collectedValue}
-          detail={loading ? copy.loading : `${summary?.metrics.confirmedPayments ?? 0} ${copy.paymentsConfirmed}`}
-          icon={CircleDollarSign}
-        />
-        <Metric
-          label={copy.ordersDue}
-          value={loading ? '—' : String(summary?.metrics.pendingPaymentOrders ?? 0)}
-          detail={copy.ordersDueDetail}
-          icon={ShoppingBag}
-        />
+        {error ? <div className="control-dashboard-error"><span>{error}</span><button type="button" onClick={() => void load()}>{copy.retry}</button></div> : null}
+
+        <div className="control-dashboard-hero__metrics">
+          <ExecutiveMetric label={copy.customers} value={loading ? '—' : String(metrics?.customers ?? 0)} detail={copy.customerDetail} icon={Users} tone="gold" />
+          <ExecutiveMetric label={copy.reservations} value={loading ? '—' : String(activeReservations)} detail={loading ? copy.loading : `${confirmedReservations} ${copy.confirmed} · ${pendingReservations} ${copy.pending}`} icon={CalendarDays} tone="wine" />
+          <ExecutiveMetric label={copy.collected} value={loading ? '—' : collectedValue} detail={loading ? copy.loading : `${metrics?.confirmedPayments ?? 0} ${copy.paymentsConfirmed}`} icon={CircleDollarSign} tone="forest" />
+          <ExecutiveMetric label={copy.ordersDue} value={loading ? '—' : String(metrics?.pendingPaymentOrders ?? 0)} detail={copy.ordersDueDetail} icon={ShoppingBag} tone="clay" />
+        </div>
+      </section>
+
+      <ExecutiveAssistant />
+
+      <div className="control-dashboard-section-heading"><div><span>{copy.overview}</span><i /></div></div>
+
+      <div className="control-dashboard-analytics">
+        <DashboardPanel eyebrow={copy.bookingMixDetail} title={copy.bookingMix} className="control-dashboard-panel--booking">
+          <div className="control-booking-mix">
+            <div className="control-booking-mix__chart" style={bookingMix}><div><strong>{loading ? '—' : activeReservations}</strong><span>{copy.reservations}</span></div></div>
+            <div className="control-booking-mix__legend">
+              {[
+                { label: copy.confirmed, value: confirmedReservations, color: '#681126' },
+                { label: copy.pending, value: pendingReservations, color: '#bd8c47' },
+                { label: copy.other, value: otherReservations, color: '#d9cbbc' },
+              ].map((item) => <div key={item.label}><i style={{ background: item.color }} /><span>{item.label}</span><strong>{loading ? '—' : item.value}</strong></div>)}
+            </div>
+          </div>
+        </DashboardPanel>
+
+        <DashboardPanel eyebrow={copy.customerJourneyDetail} title={copy.customerJourney} className="control-dashboard-panel--journey">
+          <div className="control-journey-bars">
+            {journey.map((item) => (
+              <div key={item.label} className="control-journey-bars__row">
+                <div><span>{item.label}</span><strong>{loading ? '—' : item.value}</strong></div>
+                <div className="control-journey-bars__track"><i className={`is-${item.tone}`} style={{ width: loading ? '8%' : `${Math.max(7, (item.value / journeyMax) * 100)}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </DashboardPanel>
+
+        <DashboardPanel eyebrow={copy.performanceDetail} title={copy.performance} className="control-dashboard-panel--performance">
+          <div className="control-performance-grid">
+            <RadialGauge label={copy.occupancy} value={loading ? 0 : metrics?.occupancyRate ?? 0} tone="forest" />
+            <RadialGauge label={copy.conversion} value={loading ? 0 : metrics?.conversionRate ?? 0} tone="wine" />
+          </div>
+          <div className="control-digital-reach">
+            <div><span>{copy.activeCustomers}</span><strong>{loading ? '—' : metrics?.activeCustomersRecent ?? 0}</strong><small>{copy.last30Days}</small></div>
+            <div><span>{copy.appSessions}</span><strong>{loading ? '—' : metrics?.visitorsRecent ?? 0}</strong><small>{copy.last30Days}</small></div>
+            <div><span>{copy.map}</span><strong>{loading ? '—' : metrics?.publishedMapPois ?? 0}</strong><small>{copy.live}</small></div>
+          </div>
+        </DashboardPanel>
       </div>
 
-
-      <div className="control-metrics-secondary grid gap-4">
-		        <Metric label={copy.activeCustomers} value={loading ? '—' : String(summary?.metrics.activeCustomersRecent ?? 0)} detail={copy.activeCustomersDetail} icon={Users} />
-	        <Metric label={copy.activeCarts} value={loading ? '—' : String(summary?.metrics.activeCarts ?? 0)} detail={loading ? copy.loading : `${summary?.metrics.convertedCarts ?? 0} ${copy.converted}`} icon={ShoppingBag} />
-		        <Metric label={copy.checkouts} value={loading ? '—' : String(summary?.metrics.checkoutStarted ?? 0)} detail={copy.checkoutsDetail} icon={Activity} />
-			        <Metric label={copy.appSessions} value={loading ? '—' : String(summary?.metrics.visitorsRecent ?? 0)} detail={copy.appSessionsDetail} icon={Users} />
-	        <Metric label={copy.occupancy} value={loading ? '—' : `${summary?.metrics.occupancyRate ?? 0}%`} detail={copy.occupancyDetail} icon={CalendarDays} />
-		        <Metric label={copy.conversion} value={loading ? '—' : `${summary?.metrics.conversionRate ?? 0}%`} detail={copy.conversionDetail} icon={Activity} />
-		        <Metric label={copy.map} value={loading ? '—' : String(summary?.metrics.publishedMapPois ?? 0)} detail={copy.mapDetail} icon={MapPin} />
-	      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <Panel title={copy.upcoming} action={<Link to="/control/disponibilidad" className="text-sm font-medium text-[var(--color-burgundy)]">{copy.viewAvailability}</Link>}>
+      <div className="control-dashboard-operational-grid">
+        <DashboardPanel eyebrow={copy.upcomingEyebrow} title={copy.upcoming} action={<Link to="/control/disponibilidad" className="control-dashboard-text-link">{copy.viewAvailability}<ArrowUpRight size={14} /></Link>} className="control-dashboard-panel--agenda">
           {loading ? <Empty>{copy.loadingSlots}</Empty> : null}
-          {!loading && summary?.upcomingSlots.length === 0 ? (
-            <Empty>{copy.noSlots}</Empty>
-          ) : null}
+          {!loading && summary?.upcomingSlots.length === 0 ? <Empty>{copy.noSlots}</Empty> : null}
           {!loading && summary?.upcomingSlots.length ? (
-            <div className="divide-y divide-[var(--color-line)]">
-              {summary.upcomingSlots.map((slot) => (
-                <div key={slot.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-                  <div>
-                    <p className="text-base font-medium text-[var(--color-ink)]">{slot.experienceTitle}</p>
-                    <p className="mt-1 text-sm text-[var(--color-muted)]">{formatDate(slot.startAt, locale)}</p>
+            <div className="control-dashboard-agenda">
+              {summary.upcomingSlots.slice(0, 6).map((slot, index) => {
+                const occupancy = slot.capacity > 0 ? clampPercent((slot.reserved / slot.capacity) * 100) : 0
+                return (
+                  <div key={slot.id} className="control-dashboard-agenda__row">
+                    <span className="control-dashboard-agenda__index">{String(index + 1).padStart(2, '0')}</span>
+                    <div className="control-dashboard-agenda__content">
+                      <div><strong>{slot.experienceTitle}</strong><span>{formatDate(slot.startAt, locale)}</span></div>
+                      <div className="control-dashboard-agenda__capacity">
+                        <div><span>{slot.reserved}/{slot.capacity} {copy.people}</span><strong>{slot.available} {copy.available}</strong></div>
+                        <div className="control-dashboard-agenda__track"><i style={{ width: `${occupancy}%` }} /></div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right text-sm">
-                    <p className="font-medium text-[var(--color-ink)]">{slot.reserved}/{slot.capacity} {copy.people}</p>
-                    <p className="mt-1 text-[var(--color-muted)]">{slot.available} {copy.available} · {statusLabel(slot.operationalStatus, locale)}</p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : null}
-        </Panel>
+        </DashboardPanel>
 
-        <Panel title={copy.actions}>
-          <div className="divide-y divide-[var(--color-line)] px-5">
-            {[
-	              ['/control/reservaciones', copy.actionRows[0]],
-	              ['/control/cotizaciones', copy.actionRows[1]],
-	              ['/control/ordenes', copy.actionRows[2]],
-	              ['/control/pagos', copy.actionRows[3]],
-	              ['/control/clientes', copy.actionRows[4]],
-            ].map(([to, label]) => (
-              <Link key={to} className="flex items-center justify-between py-4 text-sm text-[var(--color-ink)] transition hover:text-[var(--color-burgundy)]" to={to}>
-                <span>{label}</span>
-                <ChevronRight size={17} strokeWidth={1.5} />
+        <DashboardPanel eyebrow={copy.actionsEyebrow} title={copy.actions} className="control-dashboard-panel--actions">
+          <div className="control-dashboard-actions">
+            {copy.actionRows.map(({ to, label, detail, icon: Icon }, index) => (
+              <Link key={to} to={to} className={`control-dashboard-action control-dashboard-action--${index + 1}`}>
+                <span><Icon size={17} strokeWidth={1.65} /></span><div><strong>{label}</strong><small>{detail}</small></div><ChevronRight size={15} />
               </Link>
             ))}
           </div>
-        </Panel>
+        </DashboardPanel>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        <Panel title={copy.recentReservations} action={<Link to="/control/reservaciones" className="text-sm font-medium text-[var(--color-burgundy)]">{copy.viewAll}</Link>}>
-          {loading ? <Empty>{copy.loadingReservations}</Empty> : null}
-          {!loading && summary?.recentReservations.length === 0 ? <Empty>{copy.noReservations}</Empty> : null}
-          {!loading && summary?.recentReservations.length ? (
-            <div className="divide-y divide-[var(--color-line)]">
-              {summary.recentReservations.map((item) => (
-                <Link
-                  to={`/control/reservaciones?reservationId=${encodeURIComponent(item.id)}`}
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 px-5 py-4 text-sm transition hover:bg-[var(--color-soft)]"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-[var(--color-ink)]">{item.reservationNumber}</p>
-                    <p className="mt-1 text-[var(--color-muted)]">{item.peopleCount} {copy.people} · {statusLabel(item.status, locale)}</p>
-                  </div>
-                  <span className="shrink-0 text-[var(--color-muted)]">{formatDate(item.createdAt, locale)}</span>
-                </Link>
-              ))}
-            </div>
-          ) : null}
-        </Panel>
+      <DashboardPanel eyebrow={copy.recentEyebrow} title={copy.recent} className="control-dashboard-panel--recent">
+        <div className="control-dashboard-recent">
+          <section>
+            <header><h3>{copy.recentReservations}</h3><Link to="/control/reservaciones">{copy.viewAll}</Link></header>
+            {loading ? <Empty>{copy.loadingReservations}</Empty> : null}
+            {!loading && summary?.recentReservations.length === 0 ? <Empty>{copy.noReservations}</Empty> : null}
+            {!loading && summary?.recentReservations.length ? (
+              <div className="control-dashboard-recent__list">
+                {summary.recentReservations.slice(0, 5).map((item) => (
+                  <Link to={`/control/reservaciones?reservationId=${encodeURIComponent(item.id)}`} key={item.id}>
+                    <div><strong>{item.reservationNumber}</strong><span>{item.peopleCount} {copy.people} · {statusLabel(item.status, locale)}</span></div><time>{formatDate(item.createdAt, locale)}</time>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
+          <section>
+            <header><h3>{copy.recentOrders}</h3><Link to="/control/ordenes">{copy.viewAll}</Link></header>
+            {loading ? <Empty>{copy.loadingOrders}</Empty> : null}
+            {!loading && summary?.recentOrders.length === 0 ? <Empty>{copy.noOrders}</Empty> : null}
+            {!loading && summary?.recentOrders.length ? (
+              <div className="control-dashboard-recent__list">
+                {summary.recentOrders.slice(0, 5).map((item) => (
+                  <Link to={`/control/ordenes?orderId=${encodeURIComponent(item.id)}`} key={item.id}>
+                    <div><strong>{item.orderNumber}</strong><span>{statusLabel(item.status, locale)} · {formatDate(item.createdAt, locale)}</span></div><b>{formatMoney(item.total, item.currency, locale)}</b>
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        </div>
+      </DashboardPanel>
 
-        <Panel title={copy.recentOrders} action={<Link to="/control/ordenes" className="text-sm font-medium text-[var(--color-burgundy)]">{copy.viewAll}</Link>}>
-          {loading ? <Empty>{copy.loadingOrders}</Empty> : null}
-          {!loading && summary?.recentOrders.length === 0 ? <Empty>{copy.noOrders}</Empty> : null}
-          {!loading && summary?.recentOrders.length ? (
-            <div className="divide-y divide-[var(--color-line)]">
-              {summary.recentOrders.map((item) => (
-                <Link
-                  to={`/control/ordenes?orderId=${encodeURIComponent(item.id)}`}
-                  key={item.id}
-                  className="flex items-center justify-between gap-3 px-5 py-4 text-sm transition hover:bg-[var(--color-soft)]"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-[var(--color-ink)]">{item.orderNumber}</p>
-                    <p className="mt-1 text-[var(--color-muted)]">{statusLabel(item.status, locale)} · {formatDate(item.createdAt, locale)}</p>
-                  </div>
-                  <span className="shrink-0 font-medium text-[var(--color-ink)]">{formatMoney(item.total, item.currency, locale)}</span>
-                </Link>
-              ))}
-            </div>
-          ) : null}
-        </Panel>
-      </div>
-
-      {!loading && summary ? (
-        <p className="flex items-center gap-2 text-xs text-[var(--color-muted)]"><Clock3 size={14} /> {copy.updated}: {formatDate(summary.generatedAt, locale)}.</p>
-      ) : null}
+      {!loading && summary ? <p className="control-dashboard-updated"><Clock3 size={13} /> {copy.updated}: {formatDate(summary.generatedAt, locale)}.</p> : null}
     </div>
   )
 }

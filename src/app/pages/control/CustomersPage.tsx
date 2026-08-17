@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Archive,
   BadgeCheck,
@@ -212,6 +212,8 @@ function Metric({ label, value, icon: Icon }: { label: string; value: string; ic
 export function CustomersPage() {
   const { isEnglish } = useAppPreferences()
   const { session, roles } = useAuth()
+  const [searchParams] = useSearchParams()
+  const linkedCustomerId = searchParams.get('customerId')
   const token = session?.access_token
   const writable = canWrite(roles)
   const tagWritable = canManageTags(roles)
@@ -297,6 +299,10 @@ export function CustomersPage() {
     const timer = window.setTimeout(() => void loadCustomers(), 300)
     return () => window.clearTimeout(timer)
   }, [loadCustomers])
+
+  useEffect(() => {
+    if (linkedCustomerId) setSelectedId(linkedCustomerId)
+  }, [linkedCustomerId])
 
   useEffect(() => {
     if (!selectedId) {

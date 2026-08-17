@@ -11,6 +11,7 @@ import { adminCustomersRouter } from '../modules/customers/customers.routes'
 import { customerRouter } from '../modules/customer/customer.routes'
 import { adminDistributorsRouter } from '../modules/distributors/distributors.routes'
 import { adminDashboardRouter } from '../modules/dashboard/dashboard.routes'
+import { adminExecutiveAssistantRouter } from '../modules/executiveAssistant/executiveAssistant.routes'
 import { adminActivityRouter, customerActivityRouter } from '../modules/activity/activity.routes'
 import { adminInventoryRouter } from '../modules/inventory/inventory.routes'
 import { adminLodgingRouter } from '../modules/lodging/lodging.routes'
@@ -58,6 +59,7 @@ router.use('/customer', customerCommercialRouter)
 router.use('/customer', customerPrivacyRouter)
 router.use('/admin', adminUsersRouter)
 router.use('/admin', adminDashboardRouter)
+router.use('/admin', adminExecutiveAssistantRouter)
 router.use('/admin', adminActivityRouter)
 router.use('/admin', adminAvailabilityRouter)
 router.use('/admin', adminReservationsRouter)

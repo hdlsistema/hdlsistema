@@ -23,6 +23,8 @@ type KnowledgeRow = {
   title: string
   content: string
   namespace: string
+  source_type?: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 type PublicWineRow = {
@@ -203,7 +205,7 @@ async function getKnowledgeContext() {
   ] = await Promise.all([
     supabaseAdminClient
       .from('sommelier_knowledge')
-      .select('namespace,title,content')
+      .select('namespace,title,content,source_type,metadata')
       .eq('active', true)
       .order('updated_at', { ascending: false })
       .limit(8),
@@ -257,14 +259,25 @@ async function getKnowledgeContext() {
   const promotions = assertNoError<PublicPromotionRow[]>(promotionsResult).data ?? []
   const membershipPlans = assertNoError<PublicMembershipPlanRow[]>(membershipPlansResult).data ?? []
 
-  return [
-    ...knowledge.map((item) => `${item.namespace}: ${item.title}\n${item.content}`),
+  const operationalContext = [
     ...wines.map((wine) => `Vino publicado: ${wine.name ?? 'Sin nombre'} | Uva: ${wine.grape_variety ?? 'N/D'} | Precio: ${wine.price ?? 'por confirmar'} | ${wine.description ?? ''}`),
     ...experiences.map((experience) => `Experiencia publicada: ${experience.title ?? 'Sin título'} | Precio base: ${experience.base_price ?? 'por confirmar'} | Duración: ${experience.duration_minutes ?? 'por confirmar'} min | Lugar: ${experience.location ?? 'por confirmar'} | ${experience.short_description ?? ''}`),
     ...events.map((event) => `Evento publicado: ${event.title ?? 'Sin título'} | Inicio: ${event.start_at ?? 'por confirmar'} | Fin: ${event.end_at ?? 'por confirmar'} | Lugar: ${event.venue ?? 'por confirmar'} | Cupo: ${event.capacity ?? 'por confirmar'} | Vendidos: ${event.sold_count ?? 0}`),
     ...promotions.map((promotion) => `Promoción publicada: ${promotion.name ?? 'Sin nombre'} | Tipo: ${promotion.promotion_type ?? 'N/D'} | Vigencia: ${promotion.starts_at ?? 'sin inicio'} a ${promotion.ends_at ?? 'sin cierre'} | ${promotion.description ?? ''}`),
     ...membershipPlans.map((plan) => `Plan Wine Club publicado: ${plan.name ?? 'Sin nombre'} | Precio: ${plan.price ?? 'por confirmar'} | Periodo: ${plan.billing_period ?? 'por confirmar'} | Beneficios: ${JSON.stringify(plan.benefits ?? [])} | ${plan.description ?? ''}`),
-  ].join('\n\n').slice(0, 9000)
+  ]
+  const referenceContext = knowledge.map((item) => {
+    const sourceUrl = typeof item.metadata?.source_url === 'string' ? item.metadata.source_url : 'sin URL registrada'
+    const validation = item.metadata?.requires_client_validation === true ? 'requiere validación de Hacienda' : 'referencia verificada'
+    return `Referencia ${item.namespace}: ${item.title} | Fuente: ${item.source_type ?? 'no especificada'} | ${validation} | ${sourceUrl}\n${item.content}`
+  })
+
+  return [
+    'DATOS OPERATIVOS ACTUALES DEL BACKEND (prioridad máxima):',
+    ...operationalContext,
+    'REFERENCIAS PÚBLICAS E HISTÓRICAS (no sustituyen operación):',
+    ...referenceContext,
+  ].join('\n\n').slice(0, 15000)
 }
 
 async function callOpenAi(payload: SommelierMessagePayload, customer: CustomerRow | null, context: string) {
@@ -287,11 +300,15 @@ async function callOpenAi(payload: SommelierMessagePayload, customer: CustomerRo
           role: 'system',
           content: [
             `Eres el Sommelier IA de Hacienda de Letras. Usa ${language} como idioma predeterminado.`,
+            'Eres conocedor, cálido, elegante sin ser pretencioso y explicas el vino con claridad incluso a quien no sabe nada. Vendes la experiencia, no sólo la botella.',
             'Si la persona pide explícitamente inglés, español u otro idioma, responde íntegramente en el idioma solicitado desde esa misma respuesta.',
             'Nunca mezcles idiomas salvo que la persona pida una traducción o comparación lingüística.',
-            'Usa únicamente contenido comercial disponible en backend o conocimiento operativo de Hacienda.',
+            'Jerarquía obligatoria de verdad: datos actuales del backend, documentos oficiales de Hacienda, sitio oficial, fuentes históricas verificables.',
+            'Disponibilidad, inventario, precios, horarios, eventos, cupos, promociones y reservas se responden únicamente con datos actuales del backend; una referencia web jamás los sustituye.',
+            'Distingue siempre historia de operación actual y avisa cuando una referencia requiere validación del cliente.',
             'Si no hay dato real, dilo con elegancia y ofrece consultar disponibilidad o vinos publicados.',
             'No inventes precios, promociones, horarios, beneficios ni disponibilidad.',
+            'Nunca inventes parentescos, romances, homenajes, fundadores, premios ni el origen de nombres o etiquetas. Si no está documentado, di claramente que Hacienda aún no ha proporcionado el origen oficial.',
             'No solicites datos sensibles ni recomiendes consumo a menores.',
           ].join(' '),
         },
