@@ -151,12 +151,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadIdentity, session])
 
   const completeInitialPasswordChange = useCallback(async (password: string) => {
-    if (!session?.access_token || !user?.id) throw new Error('Sesión requerida')
-    await completeInitialPasswordChangeService(session.access_token, password)
+    if (!session?.access_token || !user?.id || !user.email) throw new Error('Sesión requerida')
+    const result = await completeInitialPasswordChangeService(session.access_token, user.email, password)
     setPasswordChangeCompletedFor(user.id)
-    const { data } = await supabase.auth.refreshSession()
-    if (data.session) await loadIdentity(data.session)
-  }, [loadIdentity, session?.access_token, user?.id])
+    await loadIdentity(result.session)
+  }, [loadIdentity, session?.access_token, user?.email, user?.id])
 
   const hasRole = useCallback(
     (role: UserRole | UserRole[]) => {

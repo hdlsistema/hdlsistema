@@ -341,6 +341,7 @@ export function RecoverPage() {
 export function ResetPasswordPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { isAuthenticated, isLoading: authLoading, isAdmin } = useAuth()
   const { t, language } = useAppPreferences()
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -360,12 +361,20 @@ export function ResetPasswordPage() {
       setError(t('auth.passwordsMismatch'))
       return
     }
+    if (!isAuthenticated) {
+      setError('El enlace seguro no está activo. Solicita uno nuevo para cambiar tu contraseña.')
+      return
+    }
     try {
       await updatePassword(password)
-      navigate(appMode ? '/app/login' : '/login', { replace: true })
+      navigate(appMode || !isAdmin ? '/app/home' : '/control/dashboard', { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))
     }
+  }
+
+  if (authLoading) {
+    return <AuthShell eyebrow={t('auth.newPassword')} title={t('auth.validatingSession')} note={t('auth.oneMoment')}><span className="mobile-launch-screen__loader" aria-label="Cargando" /></AuthShell>
   }
 
   return (
@@ -374,11 +383,12 @@ export function ResetPasswordPage() {
       title={t('auth.definePassword')}
       note={t('auth.resetNote')}
     >
+      {!isAuthenticated ? <p className="mt-7 rounded-[1rem] border border-[#e0b7ad] bg-[#fff5f1] p-4 text-[13px] text-[#8d352b]">El enlace de recuperación no está activo o ya venció. <Link className="font-bold underline" to={appMode ? '/app/recuperar' : '/recuperar'}>Solicita un enlace nuevo.</Link></p> : null}
       <form className="mt-7 space-y-4" onSubmit={submit}>
         <PasswordField show={showPassword} setShow={setShowPassword} />
         <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
-        <SubmitButton>{t('auth.updatePassword')}</SubmitButton>
+        <SubmitButton loading={!isAuthenticated}>{t('auth.updatePassword')}</SubmitButton>
       </form>
     </AuthShell>
   )

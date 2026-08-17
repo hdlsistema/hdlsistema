@@ -211,16 +211,24 @@ export async function resetPassword(email: string, redirectPath = '/reset-passwo
 
 export async function updatePassword(password: string) {
   try {
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) throw error
+    const { data, error } = await supabase.auth.updateUser({ password })
+    if (error || !data.user?.email) throw error ?? new Error('No fue posible confirmar la cuenta actualizada')
+    const { data: verified, error: verificationError } = await supabase.auth.signInWithPassword({
+      email: data.user.email,
+      password,
+    })
+    if (verificationError || !verified.session) {
+      throw verificationError ?? new Error('No fue posible confirmar la contraseña actualizada')
+    }
+    return verified
   } catch (error) {
     throw normalizeError(error)
   }
 }
 
-export async function completeInitialPasswordChange(token: string, password: string) {
+export async function completeInitialPasswordChange(token: string, email: string, password: string) {
   try {
-    return await apiFetch<{
+    const response = await apiFetch<{
       ok: true
       data: { changedAt: string; mustChangePassword: false }
     }>('/api/auth/initial-password', {
@@ -231,6 +239,12 @@ export async function completeInitialPasswordChange(token: string, password: str
       },
       body: JSON.stringify({ password }),
     })
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    })
+    if (error || !data.session) throw error ?? new Error('No fue posible confirmar la nueva contraseña')
+    return { ...response, session: data.session }
   } catch (error) {
     throw normalizeError(error)
   }

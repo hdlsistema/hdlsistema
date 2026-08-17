@@ -114,6 +114,10 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     email,
     password,
     email_confirm: Boolean(req.body.emailConfirmed),
+    app_metadata: {
+      must_change_password: true,
+      temporary_credentials_issued_at: new Date().toISOString(),
+    },
     user_metadata: {
       first_name: firstName,
       last_name: lastName,

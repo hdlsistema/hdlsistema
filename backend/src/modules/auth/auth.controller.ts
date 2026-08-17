@@ -99,7 +99,7 @@ export async function changeInitialPassword(req: Request, res: Response): Promis
 
     const { password } = initialPasswordSchema.parse(req.body)
     const changedAt = new Date().toISOString()
-    const { error } = await supabaseAdminClient.auth.admin.updateUserById(user.id, {
+    const { data, error } = await supabaseAdminClient.auth.admin.updateUserById(user.id, {
       password,
       app_metadata: {
         ...(user.app_metadata ?? {}),
@@ -107,7 +107,13 @@ export async function changeInitialPassword(req: Request, res: Response): Promis
         password_changed_at: changedAt,
       },
     })
-    if (error) throw error
+    if (error || !data.user) throw error ?? httpError(500, 'No fue posible confirmar el cambio de contraseña')
+    if (
+      data.user.app_metadata?.must_change_password !== false
+      || data.user.app_metadata?.password_changed_at !== changedAt
+    ) {
+      throw httpError(500, 'No fue posible confirmar el cambio de contraseña')
+    }
 
     await supabaseAdminClient.from('audit_logs').insert({
       actor_user_id: user.id,

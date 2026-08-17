@@ -87,4 +87,45 @@ describe('auth.service security', () => {
       'http://localhost:5173/reset-password',
     )
   })
+
+  it('updatePassword vuelve a autenticar con la nueva contraseña antes de confirmar', async () => {
+    updateUserMock.mockResolvedValueOnce({
+      data: { user: { id: 'admin-1', email: 'admin@example.com' } },
+      error: null,
+    })
+    signInWithPasswordMock.mockResolvedValueOnce({
+      data: { user: { id: 'admin-1' }, session: { access_token: 'verified-session' } },
+      error: null,
+    })
+    const { updatePassword } = await import('../services/auth.service')
+
+    const result = await updatePassword('NuevaClave2026!Segura')
+
+    expect(updateUserMock).toHaveBeenCalledWith({ password: 'NuevaClave2026!Segura' })
+    expect(signInWithPasswordMock).toHaveBeenCalledWith({
+      email: 'admin@example.com',
+      password: 'NuevaClave2026!Segura',
+    })
+    expect(result.session.access_token).toBe('verified-session')
+  })
+
+  it('completeInitialPasswordChange sólo confirma después de reautenticar', async () => {
+    apiFetchMock.mockResolvedValueOnce({
+      ok: true,
+      data: { changedAt: '2026-08-17T02:00:00.000Z', mustChangePassword: false },
+    })
+    signInWithPasswordMock.mockResolvedValueOnce({
+      data: { user: { id: 'admin-2' }, session: { access_token: 'new-session' } },
+      error: null,
+    })
+    const { completeInitialPasswordChange } = await import('../services/auth.service')
+
+    const result = await completeInitialPasswordChange('current-session', 'ADMIN@example.com', 'NuevaClave2026!Segura')
+
+    expect(signInWithPasswordMock).toHaveBeenCalledWith({
+      email: 'admin@example.com',
+      password: 'NuevaClave2026!Segura',
+    })
+    expect(result.session.access_token).toBe('new-session')
+  })
 })

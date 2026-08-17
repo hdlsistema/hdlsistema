@@ -26,6 +26,7 @@ const supabaseMock = vi.hoisted(() => ({
   authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null; app_metadata?: Record<string, unknown> } | null,
   createdAuthUser: null as { id: string; email: string } | null,
   createUserPayload: null as Record<string, unknown> | null,
+  updateUserPayload: null as Record<string, unknown> | null,
   tableData: {} as Record<string, unknown[]>,
   selectQueries: [] as string[],
 }))
@@ -58,7 +59,20 @@ vi.mock('@supabase/supabase-js', () => ({
             ? { data: { user: supabaseMock.createdAuthUser }, error: null }
             : { data: { user: null }, error: new Error('blocked') }
         }),
-        updateUserById: vi.fn(async () => ({ data: { user: null }, error: null })),
+        updateUserById: vi.fn(async (_id: string, payload: Record<string, unknown>) => {
+          supabaseMock.updateUserPayload = payload
+          const nextUser = supabaseMock.authUser
+            ? {
+                ...supabaseMock.authUser,
+                app_metadata: {
+                  ...(supabaseMock.authUser.app_metadata ?? {}),
+                  ...((payload.app_metadata as Record<string, unknown> | undefined) ?? {}),
+                },
+              }
+            : null
+          if (nextUser) supabaseMock.authUser = nextUser
+          return { data: { user: nextUser }, error: null }
+        }),
       },
     },
     from: vi.fn((table: string) => {
@@ -247,6 +261,7 @@ beforeEach(() => {
   supabaseMock.authUser = null
   supabaseMock.createdAuthUser = null
   supabaseMock.createUserPayload = null
+  supabaseMock.updateUserPayload = null
   supabaseMock.tableData = {}
   supabaseMock.selectQueries = []
   stripeMock.paymentIntentsCreate.mockReset()
@@ -518,6 +533,14 @@ describe('Fase 3 auth API', () => {
     expect(weak.status).toBe(422)
     expect(changed.status).toBe(200)
     expect(changed.body.data.mustChangePassword).toBe(false)
+    expect(supabaseMock.updateUserPayload).toMatchObject({
+      password: 'Hacienda2026!Segura',
+      app_metadata: expect.objectContaining({
+        must_change_password: false,
+        password_changed_at: expect.any(String),
+      }),
+    })
+    expect(supabaseMock.authUser?.app_metadata?.must_change_password).toBe(false)
     expect(supabaseMock.tableData.audit_logs).toEqual(expect.arrayContaining([
       expect.objectContaining({ action: 'initial_password_changed', entity_id: supabaseMock.authUser.id }),
     ]))
