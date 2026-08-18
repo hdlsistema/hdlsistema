@@ -16,7 +16,6 @@ import {
   QrCode,
   ShoppingBag,
   ShoppingCart,
-  Smartphone,
   Tickets,
   Users,
   Truck,
@@ -198,11 +197,6 @@ export function ControlLayout() {
           to: '/control/actividad',
           label: isEnglish ? 'App activity' : 'Actividad App',
           icon: Activity,
-        },
-        {
-          to: '/control/app',
-          label: t('control.appView'),
-          icon: Smartphone,
         },
         {
           to: '/control/eliminacion-cuentas',

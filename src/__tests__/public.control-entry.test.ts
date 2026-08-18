@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 const landing = readFileSync(new URL('../app/pages/public/LandingPage.tsx', import.meta.url), 'utf8')
 const auth = readFileSync(new URL('../app/pages/public/AuthPages.tsx', import.meta.url), 'utf8')
 const router = readFileSync(new URL('../app/routes/AppRouter.tsx', import.meta.url), 'utf8')
+const controlLayout = readFileSync(new URL('../app/layout/ControlLayout.tsx', import.meta.url), 'utf8')
 const html = readFileSync(new URL('../../index.html', import.meta.url), 'utf8')
 
 describe('entrada pública al Centro de Control', () => {
@@ -28,5 +29,10 @@ describe('entrada pública al Centro de Control', () => {
     expect(html).toContain('href="/ICONO%20APP%20HDL.png"')
     expect(landing).toContain("document.title = 'Hacienda de Letras'")
     expect(landing).not.toContain("document.title = 'Hacienda de Letras · Centro de Control'")
+  })
+
+  it('no muestra la vista cliente de la App en el menú administrativo', () => {
+    expect(controlLayout).not.toContain("to: '/control/app'")
+    expect(controlLayout).not.toContain("t('control.appView')")
   })
 })
