@@ -11,6 +11,7 @@ node_modules
 dist
 dist-mobile
 dist-ssr
+ios/build/
 public/qa/
 .env
 .env.local

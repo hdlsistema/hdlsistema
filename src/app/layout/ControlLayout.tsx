@@ -41,6 +41,26 @@ export function ControlLayout() {
   ))
 
   useEffect(() => {
+    const controlFavicon = '/favicon-control-center.png'
+    const iconLinks = Array.from(
+      document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]'),
+    )
+    const previousHrefs = iconLinks.map((link) => ({
+      link,
+      href: link.getAttribute('href'),
+    }))
+
+    iconLinks.forEach((link) => link.setAttribute('href', controlFavicon))
+
+    return () => {
+      previousHrefs.forEach(({ link, href }) => {
+        if (href === null) link.removeAttribute('href')
+        else link.setAttribute('href', href)
+      })
+    }
+  }, [])
+
+  useEffect(() => {
     const closeWithEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSidebarOpen(false)
     }
