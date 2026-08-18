@@ -80,6 +80,7 @@ vi.mock('@supabase/supabase-js', () => ({
         table,
         filters: [] as Array<{ column: string; value: unknown }>,
         nullFilters: [] as string[],
+        neqFilters: [] as Array<{ column: string; value: unknown }>,
         inFilters: [] as Array<{ column: string; values: unknown[] }>,
         containsFilters: [] as Array<{ column: string; value: Record<string, unknown> }>,
         operation: 'select' as 'select' | 'insert' | 'update' | 'delete' | 'upsert',
@@ -94,6 +95,7 @@ vi.mock('@supabase/supabase-js', () => ({
           const record = row as Record<string, unknown>
           return state.filters.every((filter) => record[filter.column] === filter.value) &&
             state.nullFilters.every((column) => record[column] === null || record[column] === undefined) &&
+            state.neqFilters.every((filter) => record[filter.column] !== filter.value) &&
             state.inFilters.every((filter) => filter.values.includes(record[filter.column])) &&
             state.containsFilters.every((filter) => {
               const candidate = record[filter.column]
@@ -165,6 +167,10 @@ vi.mock('@supabase/supabase-js', () => ({
         }),
         eq: vi.fn((column: string, value: unknown) => {
           state.filters.push({ column, value })
+          return builder
+        }),
+        neq: vi.fn((column: string, value: unknown) => {
+          state.neqFilters.push({ column, value })
           return builder
         }),
         is: vi.fn((column: string, value: unknown) => {

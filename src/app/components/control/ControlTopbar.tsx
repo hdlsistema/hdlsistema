@@ -112,7 +112,8 @@ export function ControlTopbar() {
     setAlertsError('')
     try {
       const response = await notificationsClient.list(session.access_token)
-      setAlerts(response.data)
+      // Defensive filter: never show a read notification even if backend sends one
+      setAlerts(response.data.filter((n) => n.status !== 'read' && !n.readAt))
       setUnreadCount(response.unreadCount)
     } catch {
       setAlerts([])
@@ -141,10 +142,8 @@ export function ControlTopbar() {
   const openAlert = useCallback(async (item: AdminNotification) => {
     const unread = item.status !== 'read' && !item.readAt
     if (unread) {
-      const readAt = new Date().toISOString()
-      setAlerts((current) => current.map((entry) => entry.id === item.id
-        ? { ...entry, status: 'read', readAt }
-        : entry))
+      // Remove immediately from bandeja; polling will not bring it back
+      setAlerts((current) => current.filter((entry) => entry.id !== item.id))
       setUnreadCount((current) => Math.max(0, current - 1))
       try {
         await notificationsClient.read(session?.access_token, item.id)

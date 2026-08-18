@@ -341,11 +341,17 @@ export async function listAdminNotifications(query: NotificationListQuery, user:
     .order('created_at', { ascending: false })
     .limit(query.limit)
 
-  if (query.status) request = request.eq('status', query.status)
+  if (query.status) {
+    request = request.eq('status', query.status)
+  } else {
+    // Bell shows only unread; never resurface a read notification via polling
+    request = request.neq('status', 'read').is('read_at', null)
+  }
 
   const result = await request
   const rows = assertNoError<NotificationRow[]>(result).data ?? []
-  const unreadCount = rows.filter((row) => row.status !== 'read' && !row.read_at).length
+  // Use the DB-level total count (before limit) as the accurate badge number
+  const unreadCount = result.count ?? rows.filter((row) => row.status !== 'read' && !row.read_at).length
 
   return {
     data: rows.map(mapNotification),
