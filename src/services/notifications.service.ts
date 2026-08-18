@@ -19,7 +19,7 @@ export type AdminNotification = {
 }
 
 export const notificationsClient = {
-  list(token: string | null | undefined, limit = 30) {
+  list(token: string | null | undefined, limit = 20) {
     return apiFetch<{
       ok: true
       data: AdminNotification[]

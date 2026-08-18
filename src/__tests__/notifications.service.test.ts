@@ -28,7 +28,7 @@ describe('notificationsClient', () => {
 
     expect(result.unreadCount).toBe(1)
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/admin/notifications?limit=30'),
+      expect.stringContaining('/api/admin/notifications?limit=20'),
       expect.objectContaining({ headers: { Authorization: 'Bearer admin-token' } }),
     )
     expect(JSON.stringify(result)).not.toContain('Catas del sábado')
