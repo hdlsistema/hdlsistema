@@ -23,6 +23,14 @@ export interface ApiFetchError extends Error {
   body?: unknown
 }
 
+function apiErrorMessage(body: unknown): string | null {
+  if (!body || typeof body !== 'object' || !('error' in body)) return null
+  const payload = (body as { error?: unknown }).error
+  if (!payload || typeof payload !== 'object' || !('message' in payload)) return null
+  const message = (payload as { message?: unknown }).message
+  return typeof message === 'string' && message.trim() ? message.trim() : null
+}
+
 /**
  * Wrapper sobre fetch que:
  * - Construye la URL completa a partir de API_BASE
@@ -67,7 +75,7 @@ export async function apiFetch<T = unknown>(
       // Respuesta sin cuerpo válido: body queda null.
     }
     const error: ApiFetchError = new Error(
-      `HTTP ${response.status}: ${response.statusText}`,
+      apiErrorMessage(body) ?? `HTTP ${response.status}: ${response.statusText}`,
     )
     error.status = response.status
     error.body = body

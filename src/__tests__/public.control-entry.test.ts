@@ -26,7 +26,7 @@ describe('entrada pública al Centro de Control', () => {
   it('mantiene la identidad pública compatible con OAuth como Hacienda de Letras', () => {
     expect(html).toContain('<title>Hacienda de Letras</title>')
     expect(html).toContain('name="application-name" content="Hacienda de Letras"')
-    expect(html).toContain('href="/ICONO%20APP%20HDL.png"')
+    expect(html).toContain('href="/favicon-control-center.png?v=20260818"')
     expect(landing).toContain("document.title = 'Hacienda de Letras'")
     expect(landing).not.toContain("document.title = 'Hacienda de Letras · Centro de Control'")
   })

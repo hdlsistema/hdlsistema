@@ -79,6 +79,22 @@ describe('apiFetch — respuestas HTTP de error', () => {
 
     await expect(apiFetch('/api/no-existe')).rejects.toMatchObject({
       status: 404,
+      message: 'Ruta no encontrada',
+    })
+  })
+
+  it('muestra el mensaje operativo del backend en lugar de sólo HTTP 422', async () => {
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({ ok: false, error: { code: 'UNPROCESSABLE', message: 'Transición de estado inválida' } }),
+        { status: 422, statusText: 'Unprocessable Entity' },
+      ),
+    )
+    vi.stubGlobal('fetch', mockFetch)
+
+    await expect(apiFetch('/api/admin/shipments/shipment-1/deliver')).rejects.toMatchObject({
+      status: 422,
+      message: 'Transición de estado inválida',
     })
   })
 

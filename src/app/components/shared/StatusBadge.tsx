@@ -26,8 +26,8 @@ const ES_TO_EN: Record<string, string> = {
   Reembolsada: 'Refunded',
 }
 
-const positiveLabels = new Set(['Confirmada', 'Publicado', 'Activa', 'Stock medio', 'Pagada', 'Pago confirmado'])
-const warningLabels = new Set(['Pendiente', 'Borrador', 'Limitada', 'Stock bajo', 'Programada', 'Pendiente de pago', 'En proceso'])
+const positiveLabels = new Set(['Confirmada', 'Publicado', 'Activa', 'Stock medio', 'Pagada', 'Pago confirmado', 'Entregado'])
+const warningLabels = new Set(['Pendiente', 'Por preparar', 'Preparando', 'Lista para salida', 'Guía pendiente', 'Guía asignada', 'Enviado', 'En tránsito', 'Borrador', 'Limitada', 'Stock bajo', 'Programada', 'Pendiente de pago', 'En proceso'])
 
 export function StatusBadge({ label }: StatusBadgeProps) {
   const { isEnglish } = useAppPreferences()

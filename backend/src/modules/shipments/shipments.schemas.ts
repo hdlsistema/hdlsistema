@@ -2,7 +2,21 @@ import { z } from 'zod'
 
 const uuid = z.string().uuid()
 
-export const shipmentStatusSchema = z.enum(['pending', 'preparing', 'ready', 'shipped', 'in_transit', 'delivered', 'failed', 'returned', 'cancelled'])
+export const shipmentStatusSchema = z.enum([
+  'pending',
+  'pending_preparation',
+  'preparing',
+  'ready',
+  'awaiting_tracking',
+  'tracking_assigned',
+  'shipped',
+  'in_transit',
+  'delivered',
+  'failed',
+  'returned',
+  'cancelled',
+  'not_required',
+])
 
 export const shipmentListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
