@@ -4,12 +4,11 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { executiveAssistantClient, type ExecutiveAssistantMessage } from '../../../services/executiveAssistant.service'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 
-const executiveUserIds = new Set([
-  '5d816bfe-1ff3-40ae-ab45-5f0e7ef9a62b',
-  '26f0de80-f99d-4f16-b071-c5d5199f100e',
-])
-
 type VoiceState = 'idle' | 'connecting' | 'listening' | 'thinking' | 'speaking' | 'error'
+
+type AssistantConversationMessage = ExecutiveAssistantMessage & {
+  createdAt: string
+}
 
 type BrowserSpeechResult = {
   isFinal: boolean
@@ -35,11 +34,12 @@ export function ExecutiveAssistant() {
   const { isEnglish } = useAppPreferences()
   const [open, setOpen] = useState(false)
   const [message, setMessage] = useState('')
-  const [messages, setMessages] = useState<ExecutiveAssistantMessage[]>([])
+  const [messages, setMessages] = useState<AssistantConversationMessage[]>([])
   const [sending, setSending] = useState(false)
   const [voiceState, setVoiceState] = useState<VoiceState>('idle')
   const [muted, setMuted] = useState(false)
   const [error, setError] = useState('')
+  const [enabled, setEnabled] = useState(false)
   const peerRef = useRef<RTCPeerConnection | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -49,9 +49,7 @@ export function ExecutiveAssistant() {
   const browserVoiceRef = useRef(false)
   const voiceAwaitingRef = useRef(false)
   const mutedRef = useRef(false)
-
-  const userId = session?.user?.id
-  const enabled = Boolean(userId && executiveUserIds.has(userId))
+  const messagesRef = useRef<HTMLDivElement | null>(null)
 
   function stopVoice() {
     voiceActiveRef.current = false
@@ -69,12 +67,54 @@ export function ExecutiveAssistant() {
 
   useEffect(() => stopVoice, [])
   useEffect(() => {
+    let active = true
+    if (!session?.access_token) {
+      setEnabled(false)
+      return () => { active = false }
+    }
+    executiveAssistantClient.status(session.access_token)
+      .then((response) => { if (active) setEnabled(response.data.enabled && response.data.readOnly) })
+      .catch(() => { if (active) setEnabled(false) })
+    return () => { active = false }
+  }, [session?.access_token])
+  useEffect(() => {
     mutedRef.current = muted
     if (audioRef.current) audioRef.current.muted = muted
     if (muted) window.speechSynthesis?.cancel()
   }, [muted])
+  useEffect(() => {
+    if (!open) return
+    const frame = window.requestAnimationFrame(() => {
+      const container = messagesRef.current
+      if (container) container.scrollTop = container.scrollHeight
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [messages, open, sending])
 
   if (!enabled) return null
+
+  const renderMessageText = (content: string) => {
+    const normalized = content.replace(/__([^_]+)__/g, '**$1**').replace(/`([^`]+)`/g, '$1')
+    return normalized.split(/(\*\*[^*]+\*\*)/g).map((part, index) => {
+      const isStrong = part.startsWith('**') && part.endsWith('**')
+      const text = isStrong ? part.slice(2, -2) : part.replace(/\*/g, '')
+      return isStrong ? <strong key={`${index}-${text}`}>{text}</strong> : text
+    })
+  }
+
+  const speechText = (content: string) => content
+    .replace(/\*|__/g, '')
+    .replace(/`/g, '')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/\n{2,}/g, '. ')
+    .replace(/\n/g, ' ')
+
+  const messageTimestamp = (createdAt: string) => new Intl.DateTimeFormat(isEnglish ? 'en-US' : 'es-MX', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(createdAt))
 
   const copy = isEnglish ? {
     eyebrow: 'PRIVATE EXECUTIVE READING', title: 'My assistant', intro: 'A direct reading of the estate operation, refreshed from the Control Center.',
@@ -97,16 +137,16 @@ export function ExecutiveAssistant() {
   async function sendText(text = message, voiceReply = false) {
     const clean = text.trim()
     if (!clean || sending) return
-    const history = messages.slice(-8)
-    setMessages((current) => [...current, { role: 'user', content: clean }])
+    const history = messages.slice(-8).map(({ role, content }) => ({ role, content }))
+    setMessages((current) => [...current, { role: 'user', content: clean, createdAt: new Date().toISOString() }])
     setMessage('')
     setSending(true)
     setError('')
     try {
       const response = await executiveAssistantClient.message(session?.access_token, clean, history)
-      setMessages((current) => [...current, { role: 'assistant', content: response.data.answer }])
+      setMessages((current) => [...current, { role: 'assistant', content: response.data.answer, createdAt: new Date().toISOString() }])
       if (voiceReply && browserVoiceRef.current) {
-        speakBrowserAnswer(response.data.answer)
+        speakBrowserAnswer(speechText(response.data.answer))
       }
     } catch (requestError) {
       const status = typeof requestError === 'object' && requestError && 'status' in requestError
@@ -219,14 +259,14 @@ export function ExecutiveAssistant() {
       if (payload.type === 'input_audio_buffer.speech_stopped') setVoiceState('thinking')
       if (payload.type === 'response.output_audio.started') setVoiceState('speaking')
       if (payload.type === 'conversation.item.input_audio_transcription.completed' && payload.transcript?.trim()) {
-        setMessages((current) => [...current, { role: 'user', content: payload.transcript!.trim() }])
+        setMessages((current) => [...current, { role: 'user', content: payload.transcript!.trim(), createdAt: new Date().toISOString() }])
       }
       if (['response.output_audio_transcript.delta', 'response.audio_transcript.delta', 'response.output_text.delta'].includes(payload.type ?? '') && payload.delta) {
         assistantDraftRef.current += payload.delta
       }
       if (payload.type === 'response.done') {
         const answer = assistantDraftRef.current.trim()
-        if (answer) setMessages((current) => [...current, { role: 'assistant', content: answer }])
+        if (answer) setMessages((current) => [...current, { role: 'assistant', content: answer, createdAt: new Date().toISOString() }])
         assistantDraftRef.current = ''
         setVoiceState('listening')
       }
@@ -316,13 +356,19 @@ export function ExecutiveAssistant() {
                 </div>
               </aside>
               <main>
-                <div className="control-assistant-messages" aria-live="polite">
+                <div ref={messagesRef} className="control-assistant-messages" aria-live="polite">
                   {messages.length === 0 ? (
                     <div className="control-assistant-welcome"><span>Mi asistente</span><p>{copy.welcome}</p><div>{copy.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => void sendText(prompt)}>{prompt}</button>)}</div></div>
                   ) : messages.map((item, index) => (
-                    <article key={`${item.role}-${index}`} className={`is-${item.role}`}><span>{item.role === 'assistant' ? copy.title : (isEnglish ? 'You' : 'Tú')}</span><p>{item.content}</p></article>
+                    <article key={`${item.role}-${item.createdAt}-${index}`} className={`is-${item.role}`}>
+                      <span>
+                        <b>{item.role === 'assistant' ? copy.title : (isEnglish ? 'You' : 'Tú')}</b>
+                        <time dateTime={item.createdAt}>{messageTimestamp(item.createdAt)}</time>
+                      </span>
+                      <p>{item.role === 'assistant' ? renderMessageText(item.content) : item.content}</p>
+                    </article>
                   ))}
-                  {sending ? <article className="is-assistant is-loading"><span>{copy.title}</span><p>{copy.states.thinking}</p></article> : null}
+                  {sending ? <article className="is-assistant is-loading"><span><b>{copy.title}</b></span><p>{copy.states.thinking}</p></article> : null}
                 </div>
                 {error ? <p className="control-assistant-error" role="alert">{error}</p> : null}
                 <form onSubmit={(event) => { event.preventDefault(); void sendText() }}>

@@ -90,7 +90,7 @@ export function CrystalDateField({
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const popoverRef = useRef<HTMLDivElement | null>(null)
   const [visibleMonth, setVisibleMonth] = useState(() => toDate(value) ?? new Date())
-  const floatingMenu = useFloatingControlMenu(triggerRef, open, 390, 320)
+  const floatingMenu = useFloatingControlMenu(triggerRef, open, 430, 336, popoverRef)
 
   useEffect(() => {
     const nextDate = toDate(value)

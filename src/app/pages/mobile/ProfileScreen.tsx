@@ -470,23 +470,36 @@ export function ProfileScreen() {
           <div className="overflow-hidden rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
             {group.items.map((item, index) => {
               const Icon = item.icon
-              return (
-	                <Link
-	                  key={item.label}
-	                  to={item.to}
-	                  className={`flex w-full items-center gap-3 px-4 py-4 text-left ${index > 0 ? 'border-t border-[rgba(220,202,181,0.52)]' : ''}`}
-	                >
+              const isHash = item.to.startsWith('#')
+              const rowClass = `flex w-full items-center gap-3 px-4 py-4 text-left ${index > 0 ? 'border-t border-[rgba(220,202,181,0.52)]' : ''}`
+              const rowContent = (
+                <>
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8eee5] text-[var(--color-burgundy)]">
                     <Icon size={18} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-[13px] font-semibold text-[var(--color-ink)]">{item.label}</span>
                     <span className="mt-1 block overflow-wrap-anywhere text-[11px] text-[var(--color-muted)]" style={{ overflowWrap: 'anywhere' }}>{item.detail}</span>
-	                  </span>
-	                  <ChevronRight size={16} className="shrink-0 text-[var(--color-muted)]" />
-	                </Link>
-	              )
-	            })}
+                  </span>
+                  <ChevronRight size={16} className="shrink-0 text-[var(--color-muted)]" />
+                </>
+              )
+              // Hash targets don't scroll in Capacitor WebView via React Router Link
+              return isHash ? (
+                <button
+                  key={item.label}
+                  type="button"
+                  className={rowClass}
+                  onClick={() => document.getElementById(item.to.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                >
+                  {rowContent}
+                </button>
+              ) : (
+                <Link key={item.label} to={item.to} className={rowClass}>
+                  {rowContent}
+                </Link>
+              )
+            })}
           </div>
         </section>
       ))}

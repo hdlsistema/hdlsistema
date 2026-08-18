@@ -2650,7 +2650,9 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-assistant-dialog {
   display: grid;
   width: min(62rem, 100%);
+  height: min(47rem, calc(100dvh - 2rem));
   max-height: min(47rem, calc(100dvh - 2rem));
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid rgba(216, 178, 119, 0.48);
   border-radius: 1.35rem;
@@ -2662,7 +2664,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-assistant-dialog > header p { color: #9d7136; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.18em; }
 .control-main .control-assistant-dialog > header h2 { color: #5f1024; font-family: var(--font-display); font-size: 1.55rem; font-weight: 400; }
 .control-assistant-dialog > header button { padding: 0.5rem 0.7rem; border: 1px solid rgba(108, 17, 42, 0.24); border-radius: 999px; color: #661127; font-size: 0.58rem; font-weight: 700; }
-.control-assistant-dialog__body { display: grid; grid-template-columns: 15rem minmax(0, 1fr); min-height: 31rem; overflow: hidden; }
+.control-assistant-dialog__body { display: grid; height: 100%; grid-template-columns: 15rem minmax(0, 1fr); min-height: 0; overflow: hidden; }
 .control-assistant-dialog__body > aside { display: flex; flex-direction: column; gap: 1rem; padding: 1.2rem; background: linear-gradient(165deg, #3b0917, #681127); color: #fff8ed; }
 .control-assistant-identity { display: grid; gap: 0.18rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(230, 190, 127, 0.26); }
 .control-assistant-identity span { color: #dcb26d; font-family: var(--font-display); font-size: 1.05rem; }
@@ -2682,8 +2684,8 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-assistant-voice button.is-secondary { border: 1px solid rgba(255, 247, 234, 0.28); background: transparent; color: #fff8ed; }
 @keyframes control-assistant-pulse { 50% { box-shadow: 0 0 0 6px rgba(169, 216, 176, 0.1); } }
 
-.control-assistant-dialog__body > main { display: grid; min-width: 0; min-height: 0; grid-template-rows: minmax(0, 1fr) auto auto; padding: 1.05rem; }
-.control-assistant-messages { display: flex; min-height: 0; overflow-y: auto; flex-direction: column; gap: 0.7rem; padding: 0.25rem 0.35rem 1rem; }
+.control-assistant-dialog__body > main { display: flex; height: 100%; min-width: 0; min-height: 0; overflow: hidden; flex-direction: column; padding: 1.05rem; }
+.control-assistant-messages { display: flex; min-height: 0; flex: 1 1 0; overscroll-behavior: contain; overflow-x: hidden; overflow-y: auto; flex-direction: column; gap: 0.7rem; padding: 0.25rem 0.35rem 1rem; scrollbar-gutter: stable; }
 .control-assistant-welcome { display: grid; max-width: 31rem; margin: auto; gap: 0.8rem; text-align: center; }
 .control-assistant-welcome > span { color: #a2773d; font-size: 0.52rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
 .control-assistant-welcome > p { color: #341b20; font-family: var(--font-display); font-size: 1.8rem; line-height: 1.15; }
@@ -2691,12 +2693,16 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-assistant-welcome button { padding: 0.55rem 0.7rem; border: 1px solid rgba(176, 130, 67, 0.35); border-radius: 999px; background: #fff; color: #5f1024; font-size: 0.56rem; }
 .control-assistant-messages article { display: grid; align-self: flex-start; max-width: 82%; gap: 0.18rem; padding: 0.65rem 0.75rem; border: 1px solid rgba(178, 139, 89, 0.22); border-radius: 0.85rem; background: #fff; }
 .control-assistant-messages article.is-user { align-self: flex-end; background: #681127; color: #fff8ed; }
-.control-assistant-messages article > span { color: #a4773c; font-size: 0.48rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.control-assistant-messages article > span { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; color: #a4773c; font-size: 0.48rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.control-assistant-messages article > span b { font: inherit; }
+.control-assistant-messages article > span time { color: inherit; font-weight: 600; letter-spacing: 0.03em; opacity: 0.76; text-transform: none; }
 .control-assistant-messages article.is-user > span { color: #e1be86; }
 .control-assistant-messages article > p { font-size: 0.64rem; line-height: 1.55; white-space: pre-wrap; }
+.control-assistant-messages article > p strong { color: #681127; font-weight: 700; }
+.control-assistant-messages article.is-user > p strong { color: inherit; }
 .control-assistant-messages article.is-loading p { opacity: 0.62; }
-.control-assistant-error { margin: 0.2rem 0 0.55rem; color: #9a3f35; font-size: 0.57rem; }
-.control-assistant-dialog form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.55rem; padding-top: 0.75rem; border-top: 1px solid rgba(182, 143, 91, 0.25); }
+.control-assistant-error { flex: 0 0 auto; margin: 0.2rem 0 0.55rem; color: #9a3f35; font-size: 0.57rem; }
+.control-assistant-dialog form { position: relative; z-index: 2; display: grid; flex: 0 0 auto; grid-template-columns: minmax(0, 1fr) auto; gap: 0.55rem; padding-top: 0.75rem; border-top: 1px solid rgba(182, 143, 91, 0.25); background: #fffaf2; }
 .control-assistant-dialog textarea { width: 100%; min-height: 3.4rem; resize: none; border: 1px solid rgba(137, 91, 61, 0.3); border-radius: 0.8rem; background: #fff; padding: 0.7rem; color: #321c20; font-size: 0.62rem; outline: 0; }
 .control-assistant-dialog textarea:focus { border-color: #b48745; box-shadow: 0 0 0 3px rgba(180, 135, 69, 0.12); }
 .control-assistant-dialog form button { display: inline-flex; align-self: stretch; min-width: 5.5rem; align-items: center; justify-content: center; gap: 0.4rem; border-radius: 0.8rem; background: #681127; color: #fff8ed; font-size: 0.61rem; font-weight: 700; }
@@ -2779,9 +2785,27 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 .control-detail-pane article {
+  position: relative;
+  overflow: hidden;
   padding: 0.8rem;
   border-radius: var(--control-radius-lg);
-  box-shadow: 0 4px 12px rgba(69, 34, 19, 0.045);
+  background:
+    linear-gradient(145deg, rgba(255, 253, 249, 0.94), rgba(249, 241, 230, 0.72)) !important;
+  box-shadow:
+    inset 0 2px 0 rgba(181, 135, 73, 0.28),
+    0 9px 24px rgba(69, 34, 19, 0.055);
+}
+
+.control-detail-pane article:nth-child(3n + 2) {
+  box-shadow:
+    inset 0 2px 0 rgba(108, 16, 42, 0.24),
+    0 9px 24px rgba(69, 34, 19, 0.055);
+}
+
+.control-detail-pane article:nth-child(3n) {
+  box-shadow:
+    inset 0 2px 0 rgba(63, 116, 78, 0.24),
+    0 9px 24px rgba(69, 34, 19, 0.055);
 }
 
 .control-detail-pane h3 {
@@ -2797,6 +2821,8 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-page--orders .control-detail-pane {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: row dense;
+  align-items: start;
   gap: var(--control-space-md);
 }
 
@@ -2842,6 +2868,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 .control-editorial-form {
+  container-type: inline-size;
   padding: 0.875rem;
 }
 
@@ -2852,12 +2879,43 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-editorial-sections {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 var(--control-space-lg);
+  align-items: start;
+  gap: var(--control-space-md);
 }
 
 .control-editorial-section {
+  position: relative;
   align-self: start;
   min-width: 0;
+  padding: 0.9rem !important;
+  overflow: hidden;
+  border: 1px solid rgba(202, 169, 129, 0.48) !important;
+  border-radius: var(--control-radius-md);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(207, 166, 104, 0.13), transparent 14rem),
+    linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(249, 241, 230, 0.76));
+  box-shadow: 0 8px 24px rgba(69, 34, 19, 0.045);
+}
+
+.control-editorial-section:nth-child(4n + 2) {
+  border-color: rgba(108, 16, 42, 0.22) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(108, 16, 42, 0.075), transparent 14rem),
+    linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(249, 239, 238, 0.74));
+}
+
+.control-editorial-section:nth-child(4n + 3) {
+  border-color: rgba(181, 135, 73, 0.32) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(216, 177, 112, 0.16), transparent 14rem),
+    linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(250, 244, 229, 0.78));
+}
+
+.control-editorial-section:nth-child(4n) {
+  border-color: rgba(63, 116, 78, 0.22) !important;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(63, 116, 78, 0.09), transparent 14rem),
+    linear-gradient(145deg, rgba(255, 253, 249, 0.96), rgba(240, 246, 239, 0.7));
 }
 
 .control-editorial-fields,
@@ -2872,8 +2930,38 @@ html.hdl-mobile-app .crystal-date-popover__day {
   display: block;
 }
 
+.control-editorial-workspace {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.control-editorial-workspace .control-master-list > div:last-child {
+  max-height: min(24rem, 42vh);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.control-editorial-workspace .control-master-list > div:last-child > div:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-panel);
+}
+
+@container (max-width: 62rem) {
+  .control-editorial-sections {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container (max-width: 42rem) {
+  .control-editorial-fields {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 .control-editorial-section summary {
   position: relative;
+  min-height: 2.7rem;
 }
 
 .control-editorial-section summary::after {
@@ -2919,6 +3007,12 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
   .control-editorial-sections {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1535px) {
+  .control-master-detail:not(.control-editorial-workspace) {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
 

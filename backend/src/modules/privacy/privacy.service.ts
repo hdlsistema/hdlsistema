@@ -197,7 +197,7 @@ export async function createPublicAccountDeletionRequest(
   const existing = await activeRequestByEmail(email)
   if (!existing) {
     const customer = await findCustomerByEmail(email)
-    await insertRequest({
+    const row = await insertRequest({
       email,
       name: payload.name,
       source: 'public_web',
@@ -206,6 +206,16 @@ export async function createPublicAccountDeletionRequest(
       locale: payload.locale,
       requestId,
     })
+    if (row) {
+      void createControlNotification({
+        type: 'account_deletion_requested',
+        title: 'Solicitud de eliminación de cuenta',
+        body: `Solicitud recibida desde la web pública para ${email}.`,
+        deepLink: `/control/eliminacion-cuentas?requestId=${encodeURIComponent(row.id)}`,
+        idempotencyKey: `account_deletion:${row.id}`,
+        data: { requestId: row.id, source: 'public_web' },
+      }).catch(() => undefined)
+    }
   }
 
   // La respuesta pública es deliberadamente neutra para no revelar si existe una cuenta.

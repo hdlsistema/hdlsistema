@@ -1,7 +1,7 @@
 import { supabaseAdminClient } from '../../config/supabase'
 import { assertNoError, httpError, requireOperationRole, type UserContext } from '../operations/operationErrors'
 import type { NotificationListQuery } from './notifications.schemas'
-import { apnsProviderState, pushProviderState, sendApplePushNotification, sendPushNotification } from './push-provider.service'
+import { pushProviderState, sendPushNotification } from './push-provider.service'
 
 const notificationReadRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 
@@ -119,9 +119,7 @@ async function deliverCustomerPush(
     return { status: 'skipped' as const, errorCode: 'no_active_device' }
   }
 
-  const deliverableDevices = devices.filter((device) => device.platform === 'ios'
-    ? apnsProviderState().configured
-    : pushProviderState().configured)
+  const deliverableDevices = devices.filter(() => pushProviderState().configured)
   const unconfiguredDevices = devices.length - deliverableDevices.length
   if (!deliverableDevices.length) {
     await setPushState(notification.id, { push_status: 'pending_configuration', push_error_code: 'provider_not_configured' }).catch(() => undefined)
@@ -139,7 +137,7 @@ async function deliverCustomerPush(
         ),
       ),
     }
-    return device.platform === 'ios' ? sendApplePushNotification(message) : sendPushNotification(message)
+    return sendPushNotification(message)
   }))
   const sent = results.filter((result) => result.status === 'fulfilled').length
   const rejected = results

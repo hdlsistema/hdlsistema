@@ -677,7 +677,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         </button>
       </div>
 
-      <div className="control-master-detail grid gap-5 xl:grid-cols-[minmax(340px,0.38fr)_minmax(0,0.62fr)]">
+      <div className="control-master-detail control-editorial-workspace grid gap-5">
         <div className="control-master-list space-y-4">
           <div className="rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">

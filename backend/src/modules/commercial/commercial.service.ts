@@ -859,6 +859,28 @@ export async function updateQuoteRequest(id: string, payload: PatchQuoteRequestP
   const patch: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   }
+  if ('customerId' in payload) patch.customer_id = payload.customerId ?? null
+  if ('eventCategory' in payload) patch.event_category = payload.eventCategory
+  if ('eventType' in payload) patch.event_type = payload.eventType
+  if ('preferredDate' in payload) patch.preferred_date = payload.preferredDate ?? null
+  if ('alternativeDate' in payload) patch.alternative_date = payload.alternativeDate ?? null
+  if ('preferredStartTime' in payload) patch.preferred_start_time = payload.preferredStartTime ?? null
+  if ('preferredEndTime' in payload) patch.preferred_end_time = payload.preferredEndTime ?? null
+  if ('guestCount' in payload) patch.guest_count = payload.guestCount
+  if ('venueSpaceId' in payload) patch.venue_space_id = payload.venueSpaceId ?? null
+  if ('venueSpaceName' in payload) patch.venue_space_name = payload.venueSpaceName ?? null
+  if ('foodRequired' in payload) patch.food_required = payload.foodRequired
+  if ('foodType' in payload) patch.food_type = payload.foodType ?? null
+  if ('wineRequired' in payload) patch.wine_required = payload.wineRequired
+  if ('wineOption' in payload) patch.wine_option = payload.wineOption ?? null
+  if ('requestedServices' in payload) patch.requested_services = payload.requestedServices ?? []
+  if ('contactFirstName' in payload) patch.contact_first_name = payload.contactFirstName
+  if ('contactLastName' in payload) patch.contact_last_name = payload.contactLastName
+  if ('contactEmail' in payload) patch.contact_email = payload.contactEmail
+  if ('contactPhone' in payload) patch.contact_phone = payload.contactPhone
+  if ('companyName' in payload) patch.company_name = payload.companyName ?? null
+  if ('notes' in payload) patch.notes = payload.notes ?? null
+  if ('source' in payload) patch.source = payload.source
   if (payload.status) {
     patch.status = payload.status
     if (payload.status === 'contacted') patch.contacted_at = new Date().toISOString()

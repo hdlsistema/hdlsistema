@@ -44,7 +44,7 @@ export function ControlEntityPicker({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const anchorRef = useRef<HTMLSpanElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const floatingMenu = useFloatingControlMenu(anchorRef, open)
+  const floatingMenu = useFloatingControlMenu(anchorRef, open, 360, 280, menuRef)
   const selected = options.find((option) => option.id === value) ?? null
   const visible = useMemo(() => {
     const term = normalized(query.trim())

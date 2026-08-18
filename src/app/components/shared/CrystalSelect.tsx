@@ -52,7 +52,7 @@ export function CrystalSelect({
   const menuRef = useRef<HTMLDivElement | null>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const listboxId = useId()
-  const floatingMenu = useFloatingControlMenu(triggerRef, open)
+  const floatingMenu = useFloatingControlMenu(triggerRef, open, 304, 220, menuRef)
 
   const childOptions = useMemo(() => {
     return Children.toArray(children).flatMap((child) => {

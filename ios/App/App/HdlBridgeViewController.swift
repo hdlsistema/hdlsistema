@@ -110,5 +110,6 @@ class HdlBridgeViewController: CAPBridgeViewController {
     override open func capacitorDidLoad() {
         super.capacitorDidLoad()
         bridge?.registerPluginInstance(NativeAppleAuthPlugin())
+        bridge?.registerPluginInstance(NativeFcmTokenPlugin())
     }
 }

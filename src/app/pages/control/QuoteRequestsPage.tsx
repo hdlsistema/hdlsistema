@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import {
   Loader2,
   Mail,
+  PencilLine,
   Phone,
   Plus,
   RefreshCw,
@@ -11,7 +12,12 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
-import { quoteRequestsClient, type QuoteRequestRecord } from '../../../services/commercial.service'
+import {
+  adminCommercialCatalogClient,
+  quoteRequestsClient,
+  type PublicCommercialItem,
+  type QuoteRequestRecord,
+} from '../../../services/commercial.service'
 import { customersClient, type CustomerRecord } from '../../../services/customers.service'
 import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
 import { QuickCustomerDialog } from '../../components/control/QuickCustomerDialog'
@@ -30,10 +36,90 @@ const statuses = [
   { value: 'cancelled', label: 'Cancelada' },
 ] as const
 
-const emptyNewQuote = {
-  customerId: '', eventCategory: 'social', eventType: '', preferredDate: '', guestCount: '2',
-  venueSpaceName: '', requestedServices: '', contactFirstName: '', contactLastName: '',
-  contactEmail: '', contactPhone: '', companyName: '', notes: '', source: 'Centro de control', adminNotes: '',
+type QuoteDraft = {
+  customerId: string
+  status: QuoteRequestRecord['status']
+  eventCategory: string
+  eventType: string
+  preferredDate: string
+  alternativeDate: string
+  preferredStartTime: string
+  preferredEndTime: string
+  guestCount: string
+  venueSpaceId: string
+  venueSpaceName: string
+  foodRequired: QuoteRequestRecord['foodRequired']
+  foodType: string
+  wineRequired: QuoteRequestRecord['wineRequired']
+  wineOption: string
+  requestedServices: string
+  contactFirstName: string
+  contactLastName: string
+  contactEmail: string
+  contactPhone: string
+  companyName: string
+  notes: string
+  source: string
+  adminNotes: string
+}
+
+const emptyQuoteDraft: QuoteDraft = {
+  customerId: '', status: 'new', eventCategory: 'social', eventType: '', preferredDate: '', alternativeDate: '',
+  preferredStartTime: '', preferredEndTime: '', guestCount: '2', venueSpaceId: '', venueSpaceName: '',
+  foodRequired: 'advice', foodType: '', wineRequired: 'advice', wineOption: '', requestedServices: '',
+  contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '', companyName: '', notes: '',
+  source: 'Centro de control', adminNotes: '',
+}
+
+const sourceOptions = [
+  { value: 'Centro de control', label: 'Centro de Control' },
+  { value: 'mobile_app', label: 'App móvil' },
+  { value: 'Teléfono', label: 'Teléfono' },
+  { value: 'WhatsApp', label: 'WhatsApp' },
+  { value: 'Mostrador', label: 'Mostrador' },
+  { value: 'Agencia', label: 'Agencia' },
+  { value: 'Evento', label: 'Evento' },
+  { value: 'Web', label: 'Sitio web' },
+  { value: 'Otro', label: 'Otro' },
+] as const
+
+function sourceLabel(source?: string | null) {
+  if (!source) return 'Sin origen'
+  if (['mobile_app', 'app', 'App'].includes(source)) return 'App móvil'
+  return sourceOptions.find((item) => item.value === source)?.label ?? source
+}
+
+function isAppQuote(quote: QuoteRequestRecord) {
+  return ['mobile_app', 'app', 'App'].includes(quote.source)
+}
+
+function draftFromQuote(quote: QuoteRequestRecord, pendingAdminNotes?: string): QuoteDraft {
+  return {
+    customerId: quote.customerId ?? '',
+    status: quote.status,
+    eventCategory: quote.eventCategory,
+    eventType: quote.eventType,
+    preferredDate: quote.preferredDate ?? '',
+    alternativeDate: quote.alternativeDate ?? '',
+    preferredStartTime: quote.preferredStartTime?.slice(0, 5) ?? '',
+    preferredEndTime: quote.preferredEndTime?.slice(0, 5) ?? '',
+    guestCount: String(quote.guestCount),
+    venueSpaceId: quote.venueSpaceId ?? '',
+    venueSpaceName: quote.venueSpaceName ?? '',
+    foodRequired: quote.foodRequired,
+    foodType: quote.foodType ?? '',
+    wineRequired: quote.wineRequired,
+    wineOption: quote.wineOption ?? '',
+    requestedServices: quote.requestedServices?.join(', ') ?? '',
+    contactFirstName: quote.contactFirstName ?? '',
+    contactLastName: quote.contactLastName ?? '',
+    contactEmail: quote.contactEmail,
+    contactPhone: quote.contactPhone,
+    companyName: quote.companyName ?? '',
+    notes: quote.notes ?? '',
+    source: quote.source,
+    adminNotes: pendingAdminNotes ?? quote.adminNotes ?? '',
+  }
 }
 
 function canWrite(roles: string[]) {
@@ -75,6 +161,15 @@ function emailStatusLabel(status?: string | null) {
   return labels[status] ?? safeStatusLabel(status)
 }
 
+function requirementLabel(value: QuoteRequestRecord['foodRequired'] | QuoteRequestRecord['wineRequired']) {
+  return value === 'yes' ? 'Sí' : value === 'no' ? 'No' : 'Requiere asesoría'
+}
+
+function timeRange(start?: string | null, end?: string | null) {
+  const values = [start?.slice(0, 5), end?.slice(0, 5)].filter(Boolean)
+  return values.length ? values.join(' a ') : 'Por definir'
+}
+
 function defaultSubject(quote: QuoteRequestRecord | null) {
   return quote ? `Cotización ${quote.quoteNumber} · Hacienda de Letras` : 'Cotización Hacienda de Letras'
 }
@@ -112,9 +207,10 @@ export function QuoteRequestsPage() {
     validUntil: '',
   })
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
-  const [createOpen, setCreateOpen] = useState(false)
+  const [venues, setVenues] = useState<PublicCommercialItem[]>([])
+  const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
-  const [newQuote, setNewQuote] = useState(emptyNewQuote)
+  const [quoteDraft, setQuoteDraft] = useState<QuoteDraft>(emptyQuoteDraft)
 
   const syncSelected = useCallback((quote: QuoteRequestRecord | null) => {
     setSelected(quote)
@@ -137,7 +233,15 @@ export function QuoteRequestsPage() {
         perPage: 50,
       })
       setItems(response.data)
-      const preferred = quoteId ? response.data.find((item) => item.id === quoteId) : null
+      let preferred = quoteId ? response.data.find((item) => item.id === quoteId) : null
+      if (quoteId && !preferred) {
+        try {
+          preferred = (await quoteRequestsClient.get(token, quoteId)).data
+          setItems((current) => current.some((item) => item.id === preferred?.id) ? current : [preferred!, ...current])
+        } catch {
+          preferred = null
+        }
+      }
       syncSelected(preferred ?? response.data[0] ?? null)
     } catch {
       setItems([])
@@ -153,17 +257,21 @@ export function QuoteRequestsPage() {
   }, [load])
 
   useEffect(() => {
-    if (!createOpen) return
-    customersClient.list(token, { perPage: 100, status: 'published' })
-      .then((response) => setCustomers(response.data))
-      .catch(() => setError('No fue posible cargar clientes.'))
-  }, [createOpen, token])
+    if (!formMode) return
+    Promise.all([
+      customersClient.list(token, { perPage: 100, status: 'published' }),
+      adminCommercialCatalogClient.list(token),
+    ]).then(([customerResponse, catalogResponse]) => {
+      setCustomers(customerResponse.data)
+      setVenues(catalogResponse.data.venueSpaces)
+    }).catch(() => setError('No fue posible cargar todos los catálogos del formulario.'))
+  }, [formMode, token])
 
   const counts = useMemo(() => ({
     total: items.length,
-    new: items.filter((item) => item.status === 'new').length,
+    app: items.filter(isAppQuote).length,
+    manual: items.filter((item) => !isAppQuote(item)).length,
     inProgress: items.filter((item) => item.status === 'contacted' || item.status === 'in_progress').length,
-    won: items.filter((item) => item.status === 'won').length,
   }), [items])
 
   const replaceItem = (quote: QuoteRequestRecord) => {
@@ -226,47 +334,67 @@ export function QuoteRequestsPage() {
     }
   }
 
-  const submitNewQuote = async (event: FormEvent<HTMLFormElement>) => {
+  const openCreateForm = () => {
+    setQuoteDraft(emptyQuoteDraft)
+    setFormMode('create')
+  }
+
+  const openEditForm = () => {
+    if (!selected) return
+    setQuoteDraft(draftFromQuote(selected, adminNotes))
+    setFormMode('edit')
+  }
+
+  const submitQuoteForm = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!writable || saving) return
-    setSaving('create')
+    const mode = formMode
+    if (!mode) return
+    setSaving(mode)
     setError('')
     setSuccess('')
     try {
-      const response = await quoteRequestsClient.create(token, {
-        customerId: newQuote.customerId || null,
-        eventCategory: newQuote.eventCategory,
-        eventType: newQuote.eventType,
-        preferredDate: newQuote.preferredDate || null,
-        alternativeDate: null,
-        preferredStartTime: null,
-        preferredEndTime: null,
-        guestCount: Number(newQuote.guestCount),
-        venueSpaceId: null,
-        venueSpaceName: newQuote.venueSpaceName || null,
-        foodRequired: 'advice',
-        foodType: null,
-        wineRequired: 'advice',
-        wineOption: null,
-        requestedServices: newQuote.requestedServices.split(',').map((item) => item.trim()).filter(Boolean),
-        contactFirstName: newQuote.contactFirstName,
-        contactLastName: newQuote.contactLastName,
-        contactEmail: newQuote.contactEmail,
-        contactPhone: newQuote.contactPhone,
-        companyName: newQuote.companyName || null,
-        notes: newQuote.notes || null,
-        language: 'es',
-        source: newQuote.source,
-        adminNotes: newQuote.adminNotes || null,
-        idempotencyKey: crypto.randomUUID(),
-      })
-      setNewQuote(emptyNewQuote)
-      setCreateOpen(false)
-      setSuccess('Cotización interna creada.')
-      await load()
-      syncSelected(response.data)
+      const editablePayload = {
+        customerId: quoteDraft.customerId || null,
+        eventCategory: quoteDraft.eventCategory,
+        eventType: quoteDraft.eventType,
+        preferredDate: quoteDraft.preferredDate || null,
+        alternativeDate: quoteDraft.alternativeDate || null,
+        preferredStartTime: quoteDraft.preferredStartTime || null,
+        preferredEndTime: quoteDraft.preferredEndTime || null,
+        guestCount: Number(quoteDraft.guestCount),
+        venueSpaceId: quoteDraft.venueSpaceId || null,
+        venueSpaceName: quoteDraft.venueSpaceName || null,
+        foodRequired: quoteDraft.foodRequired,
+        foodType: quoteDraft.foodType || null,
+        wineRequired: quoteDraft.wineRequired,
+        wineOption: quoteDraft.wineOption || null,
+        requestedServices: quoteDraft.requestedServices.split(',').map((item) => item.trim()).filter(Boolean),
+        contactFirstName: quoteDraft.contactFirstName,
+        contactLastName: quoteDraft.contactLastName,
+        contactEmail: quoteDraft.contactEmail,
+        contactPhone: quoteDraft.contactPhone,
+        companyName: quoteDraft.companyName || null,
+        notes: quoteDraft.notes || null,
+        source: quoteDraft.source,
+        adminNotes: quoteDraft.adminNotes || null,
+      }
+      const response = mode === 'create'
+        ? await quoteRequestsClient.create(token, {
+            ...editablePayload,
+            language: 'es',
+            idempotencyKey: crypto.randomUUID(),
+          })
+        : await quoteRequestsClient.update(token, selected!.id, {
+            ...editablePayload,
+            status: quoteDraft.status,
+          })
+      setQuoteDraft(emptyQuoteDraft)
+      setFormMode(null)
+      replaceItem(response.data)
+      setSuccess(mode === 'create' ? 'Cotización manual creada.' : 'Cotización actualizada con todos sus datos.')
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'No fue posible crear la cotización.')
+      setError(createError instanceof Error ? createError.message : 'No fue posible guardar la cotización.')
     } finally {
       setSaving('')
     }
@@ -278,16 +406,16 @@ export function QuoteRequestsPage() {
 	        <div>
 	          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-muted)]">Operación comercial</p>
 	          <h1 className="mt-2 text-[34px] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>Cotizaciones</h1>
-	          <p className="mt-2 text-[var(--color-muted-strong)]">Solicitudes con seguimiento, propuesta y envío por correo.</p>
+	          <p className="mt-2 text-[var(--color-muted-strong)]">Solicitudes recibidas desde la app y cotizaciones manuales, con expediente editable y envío.</p>
 	        </div>
-        <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(200,171,136,0.55)] bg-white/50 px-5 text-sm font-medium text-[var(--color-burgundy)] backdrop-blur-xl"><RefreshCw size={16} /> Actualizar</button><button type="button" disabled={!writable} onClick={() => setCreateOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Nueva cotización</button></div>
+        <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void load()} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(200,171,136,0.55)] bg-white/50 px-5 text-sm font-medium text-[var(--color-burgundy)] backdrop-blur-xl"><RefreshCw size={16} /> Actualizar</button><button type="button" disabled={!writable} onClick={openCreateForm} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Nueva manual</button></div>
       </header>
 
       <section className="control-metrics-strip grid gap-4 md:grid-cols-4">
         <Metric label="Solicitudes" value={counts.total} />
-        <Metric label="Nuevas" value={counts.new} />
+        <Metric label="Recibidas desde app" value={counts.app} />
+        <Metric label="Manuales" value={counts.manual} />
         <Metric label="Seguimiento" value={counts.inProgress} />
-        <Metric label="Ganadas" value={counts.won} />
       </section>
 
       <section className="control-master-detail grid gap-6 xl:grid-cols-[minmax(360px,0.4fr)_minmax(0,0.6fr)]">
@@ -317,6 +445,7 @@ export function QuoteRequestsPage() {
                     <span>
                       <span className="block text-sm font-semibold text-[var(--color-ink)]">{item.quoteNumber} · {item.customerName}</span>
                       <span className="mt-1 block text-[12px] text-[var(--color-muted-strong)]">{item.eventType} · {item.guestCount} personas · <span className="whitespace-nowrap">{dateLabel(item.preferredDate)}</span></span>
+                      <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-gold)]">{sourceLabel(item.source)}</span>
                     </span>
                     <span className="inline-flex h-8 items-center justify-center rounded-full bg-white/70 px-3 text-xs font-semibold text-[var(--color-burgundy)]">{statusLabel(item.status)}</span>
                   </button>
@@ -335,20 +464,26 @@ export function QuoteRequestsPage() {
                   <h2 className="mt-2 text-2xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.eventType}</h2>
                   <p className="mt-1 text-sm text-[var(--color-muted-strong)]">{selected.customerName}</p>
                 </div>
-                <span className="rounded-full bg-[rgba(138,31,45,0.09)] px-4 py-2 text-sm font-semibold text-[var(--color-burgundy)]">{statusLabel(selected.status)}</span>
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="rounded-full border border-[rgba(181,135,73,0.28)] bg-white/70 px-3 py-2 text-xs font-semibold text-[var(--color-gold)]">{sourceLabel(selected.source)}</span>
+                  <span className="rounded-full bg-[rgba(138,31,45,0.09)] px-4 py-2 text-sm font-semibold text-[var(--color-burgundy)]">{statusLabel(selected.status)}</span>
+                  <button type="button" disabled={!writable} onClick={openEditForm} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[rgba(138,31,45,0.2)] bg-white/80 px-4 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><PencilLine size={14} /> Editar expediente</button>
+                </div>
               </div>
 
               <section className="grid gap-3 md:grid-cols-2">
                 <Detail icon={<UserRound size={16} />} label="Cliente" value={`${selected.contactFirstName ?? ''} ${selected.contactLastName ?? ''}`.trim() || selected.customerName} />
                 <Detail icon={<Phone size={16} />} label="Teléfono" value={selected.contactPhone || 'Sin teléfono'} />
                 <Detail icon={<Mail size={16} />} label="Correo" value={selected.contactEmail || 'Sin correo'} />
+                <Detail label="Empresa" value={selected.companyName || 'Sin empresa'} />
                 <Detail label="Fecha solicitada" value={dateLabel(selected.preferredDate)} />
+                <Detail label="Fecha alternativa" value={dateLabel(selected.alternativeDate)} />
+                <Detail label="Horario" value={timeRange(selected.preferredStartTime, selected.preferredEndTime)} />
                 <Detail label="Personas" value={String(selected.guestCount)} />
                 <Detail label="Espacio" value={selected.venueSpaceName || 'Por definir'} />
-                <Detail label="Comida" value={selected.foodPreference || 'Sin preferencia'} />
-                <Detail label="Vino" value={selected.winePreference || 'Sin preferencia'} />
+                <Detail label="Comida" value={`${requirementLabel(selected.foodRequired)}${selected.foodType ? ` · ${selected.foodType}` : ''}`} />
+                <Detail label="Vino" value={`${requirementLabel(selected.wineRequired)}${selected.wineOption ? ` · ${selected.wineOption}` : ''}`} />
                 <Detail label="Servicios" value={selected.requestedServices?.length ? selected.requestedServices.join(', ') : 'Sin servicios capturados'} wide />
-                <Detail label="Presupuesto" value={selected.budgetRange || 'No indicado'} />
                 <Detail label="Notas del cliente" value={selected.notes || 'Sin notas'} wide />
               </section>
 
@@ -442,34 +577,43 @@ export function QuoteRequestsPage() {
         </aside>
       </section>
 
-      {createOpen ? (
+      {formMode ? (
         <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
-          <button type="button" aria-label="Cerrar" onClick={() => setCreateOpen(false)} className="absolute inset-0" />
-          <form onSubmit={submitNewQuote} className="control-form-surface relative z-10 max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Nueva cotización">
-            <header className="control-form-header mb-5 flex items-center justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Captura multicanal</p><h2 className="mt-1 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>Nueva cotización</h2></div><button type="button" onClick={() => setCreateOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white" aria-label="Cerrar"><X size={17} /></button></header>
-            <div className="grid gap-4 md:grid-cols-2">
-              <ControlEntityPicker label="Cliente relacionado (opcional)" value={newQuote.customerId} options={customers.map((customer) => ({ id: customer.id, label: customer.displayName, description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber }))} onChange={(customerId) => { const customer = customers.find((item) => item.id === customerId); const names = customer?.displayName.trim().split(/\s+/) ?? []; setNewQuote((current) => ({ ...current, customerId, contactFirstName: customer ? names[0] ?? '' : current.contactFirstName, contactLastName: customer ? names.slice(1).join(' ') || '-' : current.contactLastName, contactEmail: customer?.email ?? current.contactEmail, contactPhone: customer?.phone ?? current.contactPhone })) }} actionLabel="Crear cliente nuevo" onAction={() => setCustomerDialogOpen(true)} />
-              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Canal</span><CrystalSelect value={newQuote.source} onChange={(source) => setNewQuote({ ...newQuote, source })}><option>Centro de control</option><option>Teléfono</option><option>WhatsApp</option><option>Mostrador</option><option>Agencia</option><option>Evento</option><option>Web</option><option>App</option><option>Otro</option></CrystalSelect></label>
-              <QuoteInput label="Nombre" value={newQuote.contactFirstName} onChange={(contactFirstName) => setNewQuote({ ...newQuote, contactFirstName })} required />
-              <QuoteInput label="Apellidos" value={newQuote.contactLastName} onChange={(contactLastName) => setNewQuote({ ...newQuote, contactLastName })} required />
-              <QuoteInput label="Correo" type="email" value={newQuote.contactEmail} onChange={(contactEmail) => setNewQuote({ ...newQuote, contactEmail })} required />
-              <QuoteInput label="Teléfono" value={newQuote.contactPhone} onChange={(contactPhone) => setNewQuote({ ...newQuote, contactPhone })} required />
-              <QuoteInput label="Empresa (opcional)" value={newQuote.companyName} onChange={(companyName) => setNewQuote({ ...newQuote, companyName })} />
-              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Categoría</span><CrystalSelect value={newQuote.eventCategory} onChange={(eventCategory) => setNewQuote({ ...newQuote, eventCategory })}><option value="social">Social</option><option value="business">Empresarial</option></CrystalSelect></label>
-              <QuoteInput label="Tipo de evento o servicio" value={newQuote.eventType} onChange={(eventType) => setNewQuote({ ...newQuote, eventType })} required />
-              <QuoteInput label="Personas" type="number" value={newQuote.guestCount} onChange={(guestCount) => setNewQuote({ ...newQuote, guestCount })} required />
-              <CrystalDateField value={newQuote.preferredDate} onChange={(preferredDate) => setNewQuote({ ...newQuote, preferredDate })} label="Fecha preferida" />
-              <QuoteInput label="Espacio o sede" value={newQuote.venueSpaceName} onChange={(venueSpaceName) => setNewQuote({ ...newQuote, venueSpaceName })} />
-              <QuoteInput label="Servicios solicitados (separados por coma)" value={newQuote.requestedServices} onChange={(requestedServices) => setNewQuote({ ...newQuote, requestedServices })} wide />
-              <QuoteTextArea label="Notas del cliente" value={newQuote.notes} onChange={(notes) => setNewQuote({ ...newQuote, notes })} />
-              <QuoteTextArea label="Notas internas" value={newQuote.adminNotes} onChange={(adminNotes) => setNewQuote({ ...newQuote, adminNotes })} />
+          <button type="button" aria-label="Cerrar" onClick={() => setFormMode(null)} className="absolute inset-0" />
+          <form onSubmit={submitQuoteForm} className="control-form-surface relative z-10 max-h-[92vh] w-full max-w-6xl overflow-y-auto rounded-2xl border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label={formMode === 'create' ? 'Nueva cotización manual' : 'Editar cotización'}>
+            <header className="control-form-header mb-5 flex items-center justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Expediente comercial completo</p><h2 className="mt-1 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{formMode === 'create' ? 'Nueva cotización manual' : `Editar ${selected?.quoteNumber ?? 'cotización'}`}</h2><p className="mt-1 text-xs text-[var(--color-muted)]">Los registros de la app y los capturados manualmente conservan el mismo nivel de edición.</p></div><button type="button" onClick={() => setFormMode(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white" aria-label="Cerrar"><X size={17} /></button></header>
+            <div className="control-form-grid grid gap-4 md:grid-cols-2">
+              <ControlEntityPicker label="Cliente relacionado (opcional)" value={quoteDraft.customerId} options={customers.map((customer) => ({ id: customer.id, label: customer.displayName, description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber }))} onChange={(customerId) => { const customer = customers.find((item) => item.id === customerId); const names = customer?.displayName.trim().split(/\s+/) ?? []; setQuoteDraft((current) => ({ ...current, customerId, contactFirstName: customer ? names[0] ?? '' : current.contactFirstName, contactLastName: customer ? names.slice(1).join(' ') || '-' : current.contactLastName, contactEmail: customer?.email ?? current.contactEmail, contactPhone: customer?.phone ?? current.contactPhone })) }} actionLabel="Crear cliente nuevo" onAction={() => setCustomerDialogOpen(true)} />
+              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Canal de origen</span><CrystalSelect value={quoteDraft.source} onChange={(source) => setQuoteDraft({ ...quoteDraft, source })} options={sourceOptions.map((item) => ({ ...item }))} /></label>
+              {formMode === 'edit' ? <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Estado</span><CrystalSelect value={quoteDraft.status} onChange={(statusValue) => setQuoteDraft({ ...quoteDraft, status: statusValue as QuoteRequestRecord['status'] })}>{statuses.filter((item) => item.value).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</CrystalSelect></label> : null}
+              <QuoteInput label="Nombre" value={quoteDraft.contactFirstName} onChange={(contactFirstName) => setQuoteDraft({ ...quoteDraft, contactFirstName })} required />
+              <QuoteInput label="Apellidos" value={quoteDraft.contactLastName} onChange={(contactLastName) => setQuoteDraft({ ...quoteDraft, contactLastName })} required />
+              <QuoteInput label="Correo" type="email" value={quoteDraft.contactEmail} onChange={(contactEmail) => setQuoteDraft({ ...quoteDraft, contactEmail })} required />
+              <QuoteInput label="Teléfono" value={quoteDraft.contactPhone} onChange={(contactPhone) => setQuoteDraft({ ...quoteDraft, contactPhone })} required />
+              <QuoteInput label="Empresa (opcional)" value={quoteDraft.companyName} onChange={(companyName) => setQuoteDraft({ ...quoteDraft, companyName })} />
+              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Categoría</span><CrystalSelect value={quoteDraft.eventCategory} onChange={(eventCategory) => setQuoteDraft({ ...quoteDraft, eventCategory })}><option value="social">Social</option><option value="business">Empresarial</option></CrystalSelect></label>
+              <QuoteInput label="Tipo de evento o servicio" value={quoteDraft.eventType} onChange={(eventType) => setQuoteDraft({ ...quoteDraft, eventType })} required />
+              <QuoteInput label="Personas" type="number" value={quoteDraft.guestCount} onChange={(guestCount) => setQuoteDraft({ ...quoteDraft, guestCount })} required />
+              <CrystalDateField value={quoteDraft.preferredDate} onChange={(preferredDate) => setQuoteDraft({ ...quoteDraft, preferredDate })} label="Fecha preferida" />
+              <CrystalDateField value={quoteDraft.alternativeDate} onChange={(alternativeDate) => setQuoteDraft({ ...quoteDraft, alternativeDate })} label="Fecha alternativa" />
+              <QuoteInput label="Hora de inicio" type="time" value={quoteDraft.preferredStartTime} onChange={(preferredStartTime) => setQuoteDraft({ ...quoteDraft, preferredStartTime })} />
+              <QuoteInput label="Hora de término" type="time" value={quoteDraft.preferredEndTime} onChange={(preferredEndTime) => setQuoteDraft({ ...quoteDraft, preferredEndTime })} />
+              <ControlEntityPicker label="Espacio publicado (opcional)" value={quoteDraft.venueSpaceId} options={venues.map((venue) => ({ id: venue.id, label: venue.name, description: [venue.capacity ? `${venue.capacity} personas` : '', venue.dimensions].filter(Boolean).join(' · ') }))} onChange={(venueSpaceId) => { const venue = venues.find((item) => item.id === venueSpaceId); setQuoteDraft((current) => ({ ...current, venueSpaceId, venueSpaceName: venue?.name ?? current.venueSpaceName })) }} />
+              <QuoteInput label="Espacio o sede descrita" value={quoteDraft.venueSpaceName} onChange={(venueSpaceName) => setQuoteDraft({ ...quoteDraft, venueSpaceName })} />
+              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">¿Requiere comida?</span><CrystalSelect value={quoteDraft.foodRequired} onChange={(foodRequired) => setQuoteDraft({ ...quoteDraft, foodRequired: foodRequired as QuoteRequestRecord['foodRequired'] })}><option value="advice">Requiere asesoría</option><option value="yes">Sí</option><option value="no">No</option></CrystalSelect></label>
+              <QuoteInput label="Tipo de comida o menú" value={quoteDraft.foodType} onChange={(foodType) => setQuoteDraft({ ...quoteDraft, foodType })} />
+              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">¿Requiere vino?</span><CrystalSelect value={quoteDraft.wineRequired} onChange={(wineRequired) => setQuoteDraft({ ...quoteDraft, wineRequired: wineRequired as QuoteRequestRecord['wineRequired'] })}><option value="advice">Requiere asesoría</option><option value="yes">Sí</option><option value="no">No</option></CrystalSelect></label>
+              <QuoteInput label="Vino o propuesta solicitada" value={quoteDraft.wineOption} onChange={(wineOption) => setQuoteDraft({ ...quoteDraft, wineOption })} />
+              <QuoteInput label="Servicios solicitados (separados por coma)" value={quoteDraft.requestedServices} onChange={(requestedServices) => setQuoteDraft({ ...quoteDraft, requestedServices })} wide />
+              <QuoteTextArea label="Notas del cliente" value={quoteDraft.notes} onChange={(notes) => setQuoteDraft({ ...quoteDraft, notes })} />
+              <QuoteTextArea label="Notas internas" value={quoteDraft.adminNotes} onChange={(adminNotesValue) => setQuoteDraft({ ...quoteDraft, adminNotes: adminNotesValue })} />
             </div>
-            <footer className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setCreateOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold">Cancelar</button><button type="submit" disabled={saving === 'create'} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-55">{saving === 'create' ? 'Creando...' : 'Crear cotización'}</button></footer>
+            <footer className="sticky bottom-0 mt-6 flex justify-end gap-3 border-t border-[var(--color-line)] bg-[rgba(249,242,232,0.96)] py-4"><button type="button" onClick={() => setFormMode(null)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold">Cancelar</button><button type="submit" disabled={saving === formMode} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-55">{saving === formMode ? 'Guardando...' : formMode === 'create' ? 'Crear cotización' : 'Guardar expediente'}</button></footer>
           </form>
         </div>
       ) : null}
 
-      <QuickCustomerDialog open={customerDialogOpen} token={token} onClose={() => setCustomerDialogOpen(false)} onCreated={(customer) => { setCustomers((current) => [customer, ...current]); const names = customer.displayName.trim().split(/\s+/); setNewQuote((current) => ({ ...current, customerId: customer.id, contactFirstName: names[0] ?? '', contactLastName: names.slice(1).join(' ') || '-', contactEmail: customer.email ?? '', contactPhone: customer.phone ?? '' })) }} />
+      <QuickCustomerDialog open={customerDialogOpen} token={token} onClose={() => setCustomerDialogOpen(false)} onCreated={(customer) => { setCustomers((current) => [customer, ...current]); const names = customer.displayName.trim().split(/\s+/); setQuoteDraft((current) => ({ ...current, customerId: customer.id, contactFirstName: names[0] ?? '', contactLastName: names.slice(1).join(' ') || '-', contactEmail: customer.email ?? '', contactPhone: customer.phone ?? '' })) }} />
     </div>
   )
 }

@@ -310,7 +310,7 @@ describe('GET /api/health', () => {
     expect(typeof res.body.supabase?.status).toBe('string')
     expect(res.body.push?.android?.provider).toBe('firebase')
     expect(typeof res.body.push?.android?.configured).toBe('boolean')
-    expect(res.body.push?.ios?.provider).toBe('apns')
+    expect(res.body.push?.ios?.provider).toBe('firebase')
     expect(typeof res.body.push?.ios?.configured).toBe('boolean')
   })
 
@@ -941,6 +941,121 @@ describe('Trazabilidad App a Centro de Control', () => {
       status: 'pending_configuration',
     })
     expect(supabaseMock.tableData.audit_logs[0]).toMatchObject({ action: 'quote_email_sent' })
+  })
+
+  it('crea una cotización manual completa y permite editar el mismo expediente', async () => {
+    authenticateAs('marketing')
+    supabaseMock.tableData.quote_requests = []
+
+    const create = await request(app)
+      .post('/api/admin/quote-requests')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({
+        customerId: null,
+        eventCategory: 'business',
+        eventType: 'Cena empresarial',
+        preferredDate: '2026-10-12',
+        alternativeDate: '2026-10-19',
+        preferredStartTime: '18:30',
+        preferredEndTime: '23:00',
+        guestCount: 120,
+        venueSpaceId: null,
+        venueSpaceName: 'Jardín Central',
+        foodRequired: 'yes',
+        foodType: 'Menú de tres tiempos',
+        wineRequired: 'yes',
+        wineOption: 'Maridaje Hacienda',
+        requestedServices: ['Mobiliario', 'Música'],
+        contactFirstName: 'Cliente',
+        contactLastName: 'Manual',
+        contactEmail: 'cliente.manual@example.com',
+        contactPhone: '4490000000',
+        companyName: 'Empresa Demo',
+        notes: 'Primera versión',
+        language: 'es',
+        source: 'Centro de control',
+        adminNotes: 'Captura manual',
+        idempotencyKey: 'quote-manual-complete-2026',
+      })
+
+    expect(create.status).toBe(201)
+    expect(create.body.data).toMatchObject({
+      eventType: 'Cena empresarial',
+      alternativeDate: '2026-10-19',
+      preferredStartTime: '18:30',
+      preferredEndTime: '23:00',
+      foodRequired: 'yes',
+      wineRequired: 'yes',
+      source: 'Centro de control',
+    })
+
+    const edit = await request(app)
+      .patch(`/api/admin/quote-requests/${create.body.data.id}`)
+      .set('Authorization', 'Bearer marketing-token')
+      .send({
+        eventType: 'Cena de aniversario empresarial',
+        guestCount: 135,
+        venueSpaceName: 'Jardín Nogales',
+        requestedServices: ['Mobiliario', 'Música', 'Fotografía'],
+        source: 'mobile_app',
+        status: 'in_progress',
+        adminNotes: 'Expediente corregido desde Cotizaciones',
+      })
+
+    expect(edit.status).toBe(200)
+    expect(edit.body.data).toMatchObject({
+      eventType: 'Cena de aniversario empresarial',
+      guestCount: 135,
+      venueSpaceName: 'Jardín Nogales',
+      requestedServices: ['Mobiliario', 'Música', 'Fotografía'],
+      source: 'mobile_app',
+      status: 'in_progress',
+      adminNotes: 'Expediente corregido desde Cotizaciones',
+    })
+  })
+
+  it('responde la IA ejecutiva sólo con permiso real y cifras operativas actuales', async () => {
+    authenticateAs('admin')
+    supabaseMock.tableData.executive_ai_access = [{
+      user_id: customerUser.id,
+      feature_code: 'executive_ai_assistant',
+      active: true,
+    }]
+    supabaseMock.tableData.executive_ai_queries = []
+    supabaseMock.tableData.customers = [{ id: customerId }]
+    supabaseMock.tableData.reservations = []
+    supabaseMock.tableData.orders = []
+    supabaseMock.tableData.payments = []
+    supabaseMock.tableData.order_items = [{ item_type: 'wine', name_snapshot: 'El Greco', quantity: 4, subtotal: 2400, created_at: new Date().toISOString() }]
+    supabaseMock.tableData.experiences = []
+    supabaseMock.tableData.events = []
+    supabaseMock.tableData.lodging_stays = []
+    supabaseMock.tableData.lodging_units = []
+    supabaseMock.tableData.shipments = []
+    supabaseMock.tableData.campaigns = []
+    supabaseMock.tableData.promotions = []
+    supabaseMock.tableData.memberships = []
+    supabaseMock.tableData.quote_requests = [{ status: 'new', event_category: 'social', source: 'mobile_app', guest_count: 80, created_at: new Date().toISOString() }]
+    supabaseMock.tableData.customer_app_events = []
+    supabaseMock.tableData.inventory_items = []
+    supabaseMock.tableData.experience_slots = []
+    supabaseMock.tableData.carts = []
+    supabaseMock.tableData.map_pois = []
+
+    const status = await request(app)
+      .get('/api/admin/executive-assistant/status')
+      .set('Authorization', 'Bearer admin-token')
+    const response = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ message: '¿Cuántas cotizaciones hay?', history: [] })
+
+    expect(status.status).toBe(200)
+    expect(status.body.data).toMatchObject({ enabled: true, readOnly: true })
+    expect(response.status).toBe(200)
+    expect(response.body.data.answer).toContain('1 solicitudes de cotización')
+    expect(response.body.data.answer).toContain('mobile_app')
+    expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
   })
 })
 

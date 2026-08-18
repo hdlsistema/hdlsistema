@@ -72,17 +72,23 @@ export type QuoteRequestRecord = {
   eventCategory: string
   eventType: string
   preferredDate?: string | null
+  alternativeDate?: string | null
+  preferredStartTime?: string | null
+  preferredEndTime?: string | null
   guestCount: number
   venueSpaceId?: string | null
   venueSpaceName?: string | null
-  foodPreference?: string | null
-  winePreference?: string | null
+  foodRequired: 'yes' | 'no' | 'advice'
+  foodType?: string | null
+  wineRequired: 'yes' | 'no' | 'advice'
+  wineOption?: string | null
   requestedServices?: string[]
-  budgetRange?: string | null
+  companyName?: string | null
   notes?: string | null
   status: 'new' | 'contacted' | 'in_progress' | 'quoted' | 'won' | 'lost' | 'cancelled'
   contactEmail: string
   contactPhone: string
+  source: string
   assignedTo?: string | null
   adminNotes?: string | null
   contactedAt?: string | null

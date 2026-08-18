@@ -15,6 +15,7 @@ export function useFloatingControlMenu(
   open: boolean,
   preferredMaxHeight = DEFAULT_MAX_HEIGHT,
   preferredMinWidth = 220,
+  floatingRef?: RefObject<HTMLElement | null>,
 ) {
   const [position, setPosition] = useState<FloatingMenuPosition>({
     style: { visibility: 'hidden' },
@@ -30,17 +31,20 @@ export function useFloatingControlMenu(
       if (!anchor) return
 
       const rect = anchor.getBoundingClientRect()
-      const availableBelow = window.innerHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+      const availableBelow = viewportHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN
       const availableAbove = rect.top - MENU_GAP - VIEWPORT_MARGIN
-      const placement = availableBelow >= preferredMaxHeight
+      const measuredHeight = floatingRef?.current?.scrollHeight ?? preferredMaxHeight
+      const desiredHeight = Math.min(preferredMaxHeight, measuredHeight)
+      const placement = availableBelow >= desiredHeight
         ? 'bottom'
-        : availableAbove >= preferredMaxHeight
+        : availableAbove >= desiredHeight
           ? 'top'
           : availableBelow >= availableAbove
             ? 'bottom'
             : 'top'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const maxHeight = Math.max(0, Math.min(preferredMaxHeight, availableHeight))
+      const maxHeight = Math.max(0, Math.min(desiredHeight, availableHeight))
       const width = Math.min(
         Math.max(rect.width, preferredMinWidth),
         window.innerWidth - (VIEWPORT_MARGIN * 2),
@@ -59,9 +63,10 @@ export function useFloatingControlMenu(
           left,
           width,
           maxHeight,
+          boxSizing: 'border-box',
           ...(placement === 'bottom'
             ? { top: rect.bottom + MENU_GAP }
-            : { bottom: window.innerHeight - rect.top + MENU_GAP }),
+            : { bottom: viewportHeight - rect.top + MENU_GAP }),
         },
       })
     }
@@ -69,6 +74,7 @@ export function useFloatingControlMenu(
     updatePosition()
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePosition)
     observer?.observe(anchorRef.current)
+    if (floatingRef?.current) observer?.observe(floatingRef.current)
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition, true)
 
@@ -77,7 +83,7 @@ export function useFloatingControlMenu(
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [anchorRef, open, preferredMaxHeight, preferredMinWidth])
+  }, [anchorRef, floatingRef, open, preferredMaxHeight, preferredMinWidth])
 
   return position
 }

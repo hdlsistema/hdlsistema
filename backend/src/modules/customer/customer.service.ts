@@ -17,7 +17,7 @@ import {
 } from '../operations/operationErrors'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import { recordBusinessActivity } from '../activity/activity.service'
-import { createCustomerNotification } from '../notifications/notifications.service'
+import { createCustomerNotification, createControlNotification } from '../notifications/notifications.service'
 import type { AppEventName } from '../activity/activity.schemas'
 import type {
   CancelCustomerReservationPayload,
@@ -663,6 +663,14 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
     const response = await getCustomerReservation(String(result.data), user)
     queueReservationEmail('reservation.created', response.data, customer, user, payload.language)
     queueReservationPush('reservation.created', response.data, customer, user)
+    void createControlNotification({
+      type: 'reservation_created',
+      title: 'Nueva reservación',
+      body: `${customerDisplayName(customer)} reservó para ${response.data.peopleCount} personas.`,
+      deepLink: `/control/reservaciones/${response.data.id}`,
+      idempotencyKey: `reservation_created:${response.data.id}`,
+      data: { reservationId: response.data.id, reservationNumber: response.data.reservationNumber, customerName: customerDisplayName(customer) },
+    }).catch(() => undefined)
     if (response.data.paymentOrderId) {
       const order = await getCustomerOrder(response.data.paymentOrderId, user)
       queueOrderEmails(order.data, customer, user, payload.language)
@@ -967,6 +975,24 @@ export async function createCustomerOrder(payload: CreateCustomerOrderPayload, u
   const response = await getCustomerOrder(orderId, user)
   queueOrderEmails(response.data, customer, user, payload.language)
   await recordCustomerOperation(customer, user, 'checkout_started', 'order', String((response.data as Record<string, unknown>).id ?? result.data), `checkout-started-${String((response.data as Record<string, unknown>).id ?? result.data)}`)
+  const newOrderId = String((response.data as Record<string, unknown>).id ?? result.data)
+  const newOrderNumber = String((response.data as Record<string, unknown>).orderNumber ?? '')
+  void createCustomerNotification({
+    customerId: customer.id,
+    userId: user.userId ?? null,
+    title: 'Pedido recibido',
+    body: `La orden ${newOrderNumber} fue registrada y está pendiente de pago.`,
+    deepLink: `/app/perfil?orderId=${encodeURIComponent(newOrderId)}#orders`,
+    data: { orderId: newOrderId, orderNumber: newOrderNumber, status: 'pending_payment' },
+  }).catch(() => undefined)
+  void createControlNotification({
+    type: 'order_created',
+    title: 'Nuevo pedido',
+    body: `${customerDisplayName(customer)} realizó el pedido ${newOrderNumber}.`,
+    deepLink: `/control/ordenes/${newOrderId}`,
+    idempotencyKey: `order_created:${newOrderId}`,
+    data: { orderId: newOrderId, orderNumber: newOrderNumber, customerName: customerDisplayName(customer) },
+  }).catch(() => undefined)
   return response
 }
 

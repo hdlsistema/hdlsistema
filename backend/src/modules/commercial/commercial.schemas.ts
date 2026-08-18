@@ -78,10 +78,34 @@ export const quoteRequestListQuerySchema = z.object({
 }).strict()
 
 export const patchQuoteRequestSchema = z.object({
+  customerId: optionalUuid,
+  eventCategory: z.enum(['social', 'business']).optional(),
+  eventType: cleanText(120).optional(),
+  preferredDate: z.string().date().nullable().optional(),
+  alternativeDate: z.string().date().nullable().optional(),
+  preferredStartTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  preferredEndTime: z.string().regex(/^\d{2}:\d{2}$/).nullable().optional(),
+  guestCount: z.coerce.number().int().min(1).max(2500).optional(),
+  venueSpaceId: optionalUuid,
+  venueSpaceName: z.string().trim().max(180).nullable().optional(),
+  foodRequired: z.enum(['yes', 'no', 'advice']).optional(),
+  foodType: z.string().trim().max(160).nullable().optional(),
+  wineRequired: z.enum(['yes', 'no', 'advice']).optional(),
+  wineOption: z.string().trim().max(160).nullable().optional(),
+  requestedServices: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+  contactFirstName: cleanText(80).optional(),
+  contactLastName: cleanText(80).optional(),
+  contactEmail: z.string().trim().email().max(180).optional(),
+  contactPhone: cleanText(40).optional(),
+  companyName: z.string().trim().max(160).nullable().optional(),
+  notes: optionalText(2500),
+  source: z.string().trim().min(1).max(80).optional(),
   status: quoteStatusSchema.optional(),
   assignedTo: optionalUuid,
   adminNotes: optionalText(2500),
-}).strict()
+}).strict().refine((payload) => Object.keys(payload).length > 0, {
+  message: 'Se requiere al menos un cambio',
+})
 
 export const sendQuoteRequestEmailSchema = z.object({
   subject: z.string().trim().min(3).max(180),

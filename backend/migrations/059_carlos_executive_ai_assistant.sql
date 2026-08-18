@@ -43,6 +43,7 @@ using (auth.uid() = user_id);
 insert into public.executive_ai_access (user_id, feature_code, active)
 values
   ('5d816bfe-1ff3-40ae-ab45-5f0e7ef9a62b', 'executive_ai_assistant', true),
+  ('630902da-1ade-4ce1-935d-9a534caaf5cd', 'executive_ai_assistant', true),
   ('26f0de80-f99d-4f16-b071-c5d5199f100e', 'executive_ai_assistant', true)
 on conflict (user_id) do update
 set feature_code = excluded.feature_code,

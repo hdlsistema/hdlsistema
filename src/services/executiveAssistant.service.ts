@@ -8,6 +8,11 @@ function headers(token: string | null | undefined): HeadersInit {
 export type ExecutiveAssistantMessage = { role: 'user' | 'assistant'; content: string }
 
 export const executiveAssistantClient = {
+  status(token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: { enabled: boolean; modes: Array<'text' | 'voice'>; readOnly: boolean } }>('/api/admin/executive-assistant/status', {
+      headers: headers(token), timeoutMs: 12_000,
+    })
+  },
   message(token: string | null | undefined, message: string, history: ExecutiveAssistantMessage[]) {
     return apiFetch<{ ok: true; data: { answer: string; generatedAt: string } }>('/api/admin/executive-assistant/message', {
       method: 'POST', headers: headers(token), body: JSON.stringify({ message, history }), timeoutMs: 35_000,

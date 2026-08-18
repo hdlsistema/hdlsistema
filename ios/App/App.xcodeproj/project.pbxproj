@@ -18,6 +18,10 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		50C8A0032C00000100000001 /* HdlBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C8A0022C00000100000001 /* HdlBridgeViewController.swift */; };
 		50C8A0052C00000100000001 /* NativeAppleAuthPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C8A0042C00000100000001 /* NativeAppleAuthPlugin.swift */; };
+		50F1FC022C00000100000001 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 50F1FC012C00000100000001 /* GoogleService-Info.plist */; };
+		50F1FC042C00000100000001 /* NativeFcmTokenPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F1FC032C00000100000001 /* NativeFcmTokenPlugin.swift */; };
+		50F1FC072C00000100000001 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 50F1FC052C00000100000001 /* FirebaseCore */; };
+		50F1FC082C00000100000001 /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 50F1FC062C00000100000001 /* FirebaseMessaging */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 /* End PBXBuildFile section */
 
@@ -35,6 +39,8 @@
 		50C8A0002C00000100000001 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		50C8A0022C00000100000001 /* HdlBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HdlBridgeViewController.swift; sourceTree = "<group>"; };
 		50C8A0042C00000100000001 /* NativeAppleAuthPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAppleAuthPlugin.swift; sourceTree = "<group>"; };
+		50F1FC012C00000100000001 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		50F1FC032C00000100000001 /* NativeFcmTokenPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFcmTokenPlugin.swift; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -45,6 +51,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				4D22ABE92AF431CB00220026 /* CapApp-SPM in Frameworks */,
+				50F1FC072C00000100000001 /* FirebaseCore in Frameworks */,
+				50F1FC082C00000100000001 /* FirebaseMessaging in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -74,8 +82,10 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				50C8A0022C00000100000001 /* HdlBridgeViewController.swift */,
 				50C8A0042C00000100000001 /* NativeAppleAuthPlugin.swift */,
+				50F1FC032C00000100000001 /* NativeFcmTokenPlugin.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
+				50F1FC012C00000100000001 /* GoogleService-Info.plist */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -106,6 +116,8 @@
 			name = App;
 			packageProductDependencies = (
 				4D22ABE82AF431CB00220026 /* CapApp-SPM */,
+				50F1FC052C00000100000001 /* FirebaseCore */,
+				50F1FC062C00000100000001 /* FirebaseMessaging */,
 			);
 			productName = App;
 			productReference = 504EC3041FED79650016851F /* App.app */;
@@ -146,6 +158,7 @@
 			mainGroup = 504EC2FB1FED79650016851F;
 			packageReferences = (
 				D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */,
+				D4F1FC012C00000100000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			productRefGroup = 504EC3051FED79650016851F /* Products */;
 			projectDirPath = "";
@@ -162,6 +175,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				504EC3121FED79650016851F /* LaunchScreen.storyboard in Resources */,
+				50F1FC022C00000100000001 /* GoogleService-Info.plist in Resources */,
 				50B271D11FEDC1A000F3C39B /* public in Resources */,
 				504EC30F1FED79650016851F /* Assets.xcassets in Resources */,
 				50379B232058CBB4000EE86E /* capacitor.config.json in Resources */,
@@ -181,6 +195,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				50C8A0032C00000100000001 /* HdlBridgeViewController.swift in Sources */,
 				50C8A0052C00000100000001 /* NativeAppleAuthPlugin.swift in Sources */,
+				50F1FC042C00000100000001 /* NativeFcmTokenPlugin.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -323,7 +338,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = XK3A98XNZ3;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Hacienda Letras";
@@ -350,7 +365,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 16;
+				CURRENT_PROJECT_VERSION = 17;
 				DEVELOPMENT_TEAM = XK3A98XNZ3;
 				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Hacienda Letras";
@@ -399,11 +414,32 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		D4F1FC012C00000100000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.17.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		4D22ABE82AF431CB00220026 /* CapApp-SPM */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = D4C12C0A2AAA248700AAC8A2 /* XCLocalSwiftPackageReference "CapApp-SPM" */;
 			productName = "CapApp-SPM";
+		};
+		50F1FC052C00000100000001 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4F1FC012C00000100000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		50F1FC062C00000100000001 /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D4F1FC012C00000100000001 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
