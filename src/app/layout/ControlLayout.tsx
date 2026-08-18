@@ -41,7 +41,7 @@ export function ControlLayout() {
   ))
 
   useEffect(() => {
-    const controlFavicon = '/favicon-control-center.png'
+    const controlFavicon = '/favicon-control-center.png?v=20260818'
     const iconLinks = Array.from(
       document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]'),
     )
