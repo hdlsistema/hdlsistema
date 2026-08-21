@@ -315,9 +315,18 @@ describe('GET /api/health', () => {
     expect(typeof res.body.supabase?.healthy).toBe('boolean')
     expect(typeof res.body.supabase?.status).toBe('string')
     expect(res.body.push?.android?.provider).toBe('firebase')
+    expect(res.body.push?.android?.transport).toBe('fcm_http_v1')
     expect(typeof res.body.push?.android?.configured).toBe('boolean')
     expect(res.body.push?.ios?.provider).toBe('firebase')
+    expect(res.body.push?.ios?.transport).toBe('fcm_on_apns')
     expect(typeof res.body.push?.ios?.configured).toBe('boolean')
+    expect(typeof res.body.push?.ios?.directApnsConfigured).toBe('boolean')
+    expect(res.body.push?.directApns?.provider).toBe('apns')
+    expect(res.body.push?.directApns?.enabled).toBe(false)
+    expect(res.body.payments?.stripe?.provider).toBe('stripe')
+    expect(typeof res.body.payments?.stripe?.configured).toBe('boolean')
+    expect(typeof res.body.payments?.stripe?.webhookConfigured).toBe('boolean')
+    expect(['test', 'live']).toContain(res.body.payments?.stripe?.environment)
   })
 
   it('reporta Supabase ok cuando la consulta técnica no devuelve error', async () => {
@@ -1807,26 +1816,25 @@ describe('Fase 7D orders, payments and check-in API', () => {
     const exported = await request(app).get('/api/admin/orders/export').set('Authorization', 'Bearer viewer-token')
 
     expect(list.status).toBe(200)
-    expect(list.body.data[0]).toMatchObject({ orderNumber: 'ORD-FASE7D', paidAmount: 1200 })
+    expect(list.body.data[0]).toMatchObject({ orderNumber: 'ORD-FASE7D', paidAmount: null, financialRestricted: true })
     expect(items.status).toBe(200)
     expect(items.body.data[0].nameSnapshot).toBe('Cata privada')
-    expect(exported.status).toBe(200)
-    expect(exported.text).toContain('order_number')
-    expect(exported.text).not.toContain(orderId)
+    expect(items.body.data[0].unitPrice).toBeNull()
+    expect(exported.status).toBe(403)
   })
 
   it('crea orden mediante RPC e impide payloads inválidos', async () => {
-    signInAs('operations')
+    signInAs('admin')
     seedOrder()
     supabaseMock.rpcData.create_order_admin = orderId
 
     const invalid = await request(app)
       .post('/api/admin/orders')
-      .set('Authorization', 'Bearer operations-token')
+      .set('Authorization', 'Bearer admin-token')
       .send({ customerId, items: [{ nameSnapshot: 'Sin cantidad', quantity: 0, unitPrice: 100 }] })
     const created = await request(app)
       .post('/api/admin/orders')
-      .set('Authorization', 'Bearer operations-token')
+      .set('Authorization', 'Bearer admin-token')
       .send({
         customerId,
         items: [{ nameSnapshot: 'Cata privada', quantity: 2, unitPrice: 600 }],
@@ -1838,7 +1846,7 @@ describe('Fase 7D orders, payments and check-in API', () => {
   })
 
   it('registra pago manual, reembolso y webhook deshabilitado sin simular cobros', async () => {
-    signInAs('finance')
+    signInAs('admin')
     seedOrder('paid')
     seedPayment()
     supabaseMock.rpcData.record_manual_payment = paymentId
@@ -1846,7 +1854,7 @@ describe('Fase 7D orders, payments and check-in API', () => {
 
     const manual = await request(app)
       .post('/api/admin/payments/manual')
-      .set('Authorization', 'Bearer finance-token')
+      .set('Authorization', 'Bearer admin-token')
       .send({
         orderId,
         amount: 1200,
@@ -1856,7 +1864,7 @@ describe('Fase 7D orders, payments and check-in API', () => {
       })
     const refund = await request(app)
       .post(`/api/admin/payments/${paymentId}/refund`)
-      .set('Authorization', 'Bearer finance-token')
+      .set('Authorization', 'Bearer admin-token')
       .send({ amount: 100, reason: 'Ajuste controlado' })
     const webhook = await request(app)
       .post('/api/webhooks/payments/provider')
@@ -2268,9 +2276,7 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
     expect(list.body.data[0]).toMatchObject({ membershipNumber: 'MBR-FASE7E', pointsBalance: 20 })
     expect(benefits.status).toBe(200)
     expect(loyalty.status).toBe(200)
-    expect(exported.status).toBe(200)
-    expect(exported.text).toContain('membership_number')
-    expect(exported.text).not.toContain(membershipId)
+    expect(exported.status).toBe(403)
   })
 
   it('crea membresía y opera estados/puntos mediante RPC segura', async () => {
@@ -2411,14 +2417,14 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
   })
 
   it('lista distribuidores, contactos, órdenes y exporta sin UUID interno', async () => {
-    signInAs('finance')
+    signInAs('admin')
     seedDistributor()
 
-    const distributors = await request(app).get('/api/admin/distributors').set('Authorization', 'Bearer finance-token')
-    const contacts = await request(app).get(`/api/admin/distributors/${distributorId}/contacts`).set('Authorization', 'Bearer finance-token')
-    const orders = await request(app).get('/api/admin/distributor-orders').set('Authorization', 'Bearer finance-token')
-    const items = await request(app).get(`/api/admin/distributor-orders/${distributorOrderId}/items`).set('Authorization', 'Bearer finance-token')
-    const exported = await request(app).get('/api/admin/distributors/export').set('Authorization', 'Bearer finance-token')
+    const distributors = await request(app).get('/api/admin/distributors').set('Authorization', 'Bearer admin-token')
+    const contacts = await request(app).get(`/api/admin/distributors/${distributorId}/contacts`).set('Authorization', 'Bearer admin-token')
+    const orders = await request(app).get('/api/admin/distributor-orders').set('Authorization', 'Bearer admin-token')
+    const items = await request(app).get(`/api/admin/distributor-orders/${distributorOrderId}/items`).set('Authorization', 'Bearer admin-token')
+    const exported = await request(app).get('/api/admin/distributors/export').set('Authorization', 'Bearer admin-token')
 
     expect(distributors.status).toBe(200)
     expect(distributors.body.data[0]).toMatchObject({ name: 'Distribuidor Fase 7E', status: 'active' })
@@ -2464,10 +2470,10 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
 
     expect(distributor.status).toBe(201)
     expect(contact.status).toBe(201)
-    expect(invalidOrder.status).toBe(422)
-    expect(order.status).toBe(201)
-    expect(approved.status).toBe(200)
-    expect(delivered.status).toBe(200)
+    expect(invalidOrder.status).toBe(403)
+    expect(order.status).toBe(403)
+    expect(approved.status).toBe(403)
+    expect(delivered.status).toBe(403)
   })
 })
 

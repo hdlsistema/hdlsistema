@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from 'react-router-dom'
-import { adminRoles } from '../../contexts/AuthContext'
+import { adminRoles, useAuth } from '../../contexts/AuthContext'
 import { ProtectedRoute } from '../../routes/ProtectedRoute'
+import { PermissionRoute } from '../../routes/PermissionRoute'
 import { RoleRoute } from '../../routes/RoleRoute'
 import { MobileShell } from '../components/mobile/MobileShell'
 import { AppActivityTracker } from '../components/mobile/AppActivityTracker'
@@ -23,6 +24,7 @@ import { PaymentsPage } from '../pages/control/PaymentsPage'
 import { ReservationsPage } from '../pages/control/ReservationsPage'
 import { SettingsPage } from '../pages/control/SettingsPage'
 import { WineClubPage } from '../pages/control/WineClubPage'
+import { UserPermissionsPage } from '../pages/control/UserPermissionsPage'
 import { LandingPage } from '../pages/public/LandingPage'
 import { LegalPage } from '../pages/public/LegalPage'
 import { AccountDeletionPage } from '../pages/public/AccountDeletionPage'
@@ -71,6 +73,28 @@ function RedirectWineDetail() {
 function RedirectEventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
   return <Navigate to={`/app/eventos/${eventId ?? ''}`} replace />
+}
+
+const CONTROL_ENTRY_ROUTES = [
+  { to: 'dashboard', permission: 'dashboard.view' },
+  { to: 'reservaciones', permission: 'reservations.view' },
+  { to: 'cotizaciones', permission: 'quotes.view' },
+  { to: 'ordenes', permission: 'orders.view' },
+  { to: 'disponibilidad', permission: 'availability.view' },
+  { to: 'inventario', permission: 'inventory.view' },
+  { to: 'logistica', permission: 'logistics.view' },
+  { to: 'entradas', permission: 'entries.view' },
+  { to: 'clientes', permission: 'customers.view' },
+  { to: 'pagos', permission: 'payments.view' },
+  { to: 'carritos', permission: 'carts.view' },
+  { to: 'vinos', permission: 'content.wines.manage' },
+  { to: 'usuarios-permisos', permission: 'users.manage' },
+]
+
+function ControlIndexRedirect() {
+  const { hasPermission } = useAuth()
+  const target = CONTROL_ENTRY_ROUTES.find((route) => hasPermission(route.permission))?.to ?? 'dashboard'
+  return <Navigate to={target} replace />
 }
 
 export function AppRouter() {
@@ -206,34 +230,36 @@ export function AppRouter() {
           </RoleRoute>
         }
       >
-        <Route index element={<Navigate to="dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardPage />} />
-        <Route path="reservaciones" element={<ReservationsPage />} />
-        <Route path="cotizaciones" element={<QuoteRequestsPage />} />
-        <Route path="cotizaciones/:quoteId" element={<QuoteRequestsPage />} />
-        <Route path="vinos" element={<EditorialContentPage entity="wines" />} />
-        <Route path="experiencias" element={<EditorialContentPage entity="experiences" />} />
-        <Route path="eventos" element={<EditorialContentPage entity="events" />} />
-        <Route path="servicios" element={<CommercialCatalogPage />} />
-        <Route path="clientes" element={<CustomersPage />} />
-        <Route path="actividad" element={<AppActivityPage />} />
-        <Route path="carritos" element={<CartsPage />} />
-        <Route path="promociones" element={<EditorialContentPage entity="promotions" />} />
-        <Route path="membresias" element={<EditorialContentPage entity="membership-plans" />} />
-        <Route path="campanas" element={<EditorialContentPage entity="campaigns" />} />
-        <Route path="disponibilidad" element={<AvailabilityPage />} />
+        <Route index element={<ControlIndexRedirect />} />
+        <Route path="dashboard" element={<PermissionRoute permission="dashboard.view"><DashboardPage /></PermissionRoute>} />
+        <Route path="reservaciones" element={<PermissionRoute permission="reservations.view"><ReservationsPage /></PermissionRoute>} />
+        <Route path="cotizaciones" element={<PermissionRoute permission="quotes.view"><QuoteRequestsPage /></PermissionRoute>} />
+        <Route path="cotizaciones/:quoteId" element={<PermissionRoute permission="quotes.view"><QuoteRequestsPage /></PermissionRoute>} />
+        <Route path="vinos" element={<PermissionRoute permission="content.wines.manage"><EditorialContentPage entity="wines" /></PermissionRoute>} />
+        <Route path="experiencias" element={<PermissionRoute permission="content.experiences.manage"><EditorialContentPage entity="experiences" /></PermissionRoute>} />
+        <Route path="eventos" element={<PermissionRoute permission="content.events.manage"><EditorialContentPage entity="events" /></PermissionRoute>} />
+        <Route path="servicios" element={<PermissionRoute permission="content.services.manage"><CommercialCatalogPage /></PermissionRoute>} />
+        <Route path="clientes" element={<PermissionRoute permission="customers.view"><CustomersPage /></PermissionRoute>} />
+        <Route path="actividad" element={<PermissionRoute permission="activity.view"><AppActivityPage /></PermissionRoute>} />
+        <Route path="carritos" element={<PermissionRoute permission="carts.view"><CartsPage /></PermissionRoute>} />
+        <Route path="promociones" element={<PermissionRoute permission="content.promotions.manage"><EditorialContentPage entity="promotions" /></PermissionRoute>} />
+        <Route path="membresias" element={<PermissionRoute permission="content.memberships.manage"><EditorialContentPage entity="membership-plans" /></PermissionRoute>} />
+        <Route path="campanas" element={<PermissionRoute permission="content.campaigns.manage"><EditorialContentPage entity="campaigns" /></PermissionRoute>} />
+        <Route path="disponibilidad" element={<PermissionRoute permission="availability.view"><AvailabilityPage /></PermissionRoute>} />
         <Route path="hospedaje" element={<Navigate to="/control/disponibilidad?view=hospedaje" replace />} />
-        <Route path="inventario" element={<InventoryPage />} />
-        <Route path="logistica" element={<LogisticsPage />} />
-        <Route path="ordenes" element={<OrdersPage />} />
-        <Route path="pagos" element={<PaymentsPage />} />
-        <Route path="check-in" element={<CheckInPage />} />
-        <Route path="wine-club" element={<WineClubPage />} />
-        <Route path="distribuidores" element={<DistributorsPage />} />
-        <Route path="reportes" element={<ReportsPage />} />
-        <Route path="eliminacion-cuentas" element={<AccountDeletionRequestsPage />} />
-        <Route path="configuracion" element={<SettingsPage />} />
-        <Route path="app" element={<AppPreviewPage />} />
+        <Route path="inventario" element={<PermissionRoute permission="inventory.view"><InventoryPage /></PermissionRoute>} />
+        <Route path="logistica" element={<PermissionRoute permission="logistics.view"><LogisticsPage /></PermissionRoute>} />
+        <Route path="ordenes" element={<PermissionRoute permission="orders.view"><OrdersPage /></PermissionRoute>} />
+        <Route path="pagos" element={<PermissionRoute permission="payments.view"><PaymentsPage /></PermissionRoute>} />
+        <Route path="check-in" element={<PermissionRoute permission="entries.view"><CheckInPage /></PermissionRoute>} />
+        <Route path="entradas" element={<PermissionRoute permission="entries.view"><CheckInPage /></PermissionRoute>} />
+        <Route path="wine-club" element={<PermissionRoute permission="wineclub.view"><WineClubPage /></PermissionRoute>} />
+        <Route path="distribuidores" element={<PermissionRoute permission="distributors.view"><DistributorsPage /></PermissionRoute>} />
+        <Route path="reportes" element={<PermissionRoute permission="reports.view"><ReportsPage /></PermissionRoute>} />
+        <Route path="eliminacion-cuentas" element={<PermissionRoute permission="privacy.manage"><AccountDeletionRequestsPage /></PermissionRoute>} />
+        <Route path="usuarios-permisos" element={<PermissionRoute permission="users.manage"><UserPermissionsPage /></PermissionRoute>} />
+        <Route path="configuracion" element={<PermissionRoute permission="settings.manage"><SettingsPage /></PermissionRoute>} />
+        <Route path="app" element={<PermissionRoute permission="dashboard.view"><AppPreviewPage /></PermissionRoute>} />
 
         {/* Redirecciones temporales: rutas antiguas /control/app/* → /app/* */}
         <Route path="app/home" element={<Navigate to="/app/home" replace />} />

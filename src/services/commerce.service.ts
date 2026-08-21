@@ -27,12 +27,13 @@ export type OrderRecord = {
   customerName: string
   customerEmail?: string | null
   reservationNumber?: string | null
-  subtotal: number
-  discountTotal: number
-  taxTotal: number
-  shippingTotal: number
-  total: number
-  paidAmount: number
+  subtotal: number | null
+  discountTotal: number | null
+  taxTotal: number | null
+  shippingTotal: number | null
+  total: number | null
+  paidAmount: number | null
+  financialRestricted?: boolean
   currency: string
   status: string
   source: string
@@ -60,6 +61,7 @@ export type OrderRecord = {
     trackingNumber?: string | null
     trackingUrl?: string | null
     status?: string | null
+    shippingCost?: number | null
     shippedAt?: string | null
     deliveredAt?: string | null
   } | null
@@ -73,8 +75,9 @@ export type OrderItemRecord = {
   nameSnapshot: string
   skuSnapshot?: string | null
   quantity: number
-  unitPrice: number
-  subtotal: number
+  unitPrice: number | null
+  subtotal: number | null
+  financialRestricted?: boolean
 }
 
 export type PaymentRecord = {
@@ -102,6 +105,8 @@ export type AccessPassRecord = {
   id: string
   reservationId?: string | null
   orderId?: string | null
+  eventTicketTypeId?: string | null
+  accessType?: string | null
   passNumber?: string | null
   reservationNumber?: string | null
   orderNumber?: string | null

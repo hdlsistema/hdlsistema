@@ -80,7 +80,7 @@ export type ShipmentRecord = {
   trackingUrl?: string | null
   destination?: string | null
   status: string
-  shippingCost: number
+  shippingCost: number | null
   estimatedDeliveryAt?: string | null
   deliveredAt?: string | null
   incidentCount: number

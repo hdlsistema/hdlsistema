@@ -30,8 +30,11 @@ function stateCopy(state: string) {
 function confirmationLabel(type: string) {
   if (type === 'restaurant') return 'Confirmar llegada'
   if (type === 'cabin') return 'Confirmar check-in'
-  if (type === 'wine_order' || type === 'paid_order') return 'Confirmar entrega'
   return 'Confirmar acceso'
+}
+
+function isEntryAccessType(type: string) {
+  return !['wine_order', 'paid_order'].includes(type)
 }
 
 export function AccessPassPage() {
@@ -55,6 +58,11 @@ export function AccessPassPage() {
     }
     try {
       const response = await publicAccessPassClient.get(token)
+      if (!isEntryAccessType(response.data.accessType)) {
+        setPass(null)
+        setError('Este código corresponde a una compra y se consulta desde pedidos o logística.')
+        return
+      }
       setPass(response.data)
       setError('')
     } catch {
@@ -75,6 +83,10 @@ export function AccessPassPage() {
 
   const confirm = async () => {
     if (!pass?.valid || !token || !session?.access_token || !canConfirm || saving) return
+    if (!isEntryAccessType(pass.accessType)) {
+      setError('Este código no corresponde a una entrada o reservación.')
+      return
+    }
     setSaving(true)
     setError('')
     try {
@@ -125,7 +137,7 @@ export function AccessPassPage() {
                 <div className="flex justify-between gap-4"><dt className="text-[#7a665c]">Folio</dt><dd className="text-right font-semibold">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</dd></div>
                 {pass.customerName ? <div className="flex justify-between gap-4"><dt className="text-[#7a665c]">Titular</dt><dd className="text-right font-semibold">{pass.customerName}</dd></div> : null}
                 <div className="flex justify-between gap-4"><dt className="text-[#7a665c]">Fecha</dt><dd className="text-right font-semibold">{dateLabel(pass.startsAt)}</dd></div>
-                <div className="flex justify-between gap-4"><dt className="text-[#7a665c]">{['wine_order', 'paid_order'].includes(pass.accessType) ? 'Artículos' : 'Personas'}</dt><dd className="font-semibold">{pass.peopleCount ?? 1}</dd></div>
+                <div className="flex justify-between gap-4"><dt className="text-[#7a665c]">Personas</dt><dd className="font-semibold">{pass.peopleCount ?? 1}</dd></div>
               </dl>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <button type="button" onClick={() => void downloadAccessCredentialPdf(pass)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[#680D24] px-5 text-sm font-semibold text-[#680D24]"><Download size={17} />Descargar PDF</button>

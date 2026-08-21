@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
 import { authorize } from '../../middleware/authorize'
+import { requireControlPermission } from '../../middleware/controlPermission'
+import { requireFinancialAccess } from '../../middleware/financialAccess'
 import { rateLimit } from '../../middleware/rateLimit'
 import {
   getPaymentAdmin,
@@ -15,7 +17,7 @@ import {
 const adminRouter = Router()
 const webhookRouter = Router()
 const paymentRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer']
-const protectedPayments = [authenticate, authorize(paymentRoles)]
+const protectedPayments = [authenticate, authorize(paymentRoles), requireControlPermission('payments.view'), requireFinancialAccess()]
 
 adminRouter.use(rateLimit(240, 60_000))
 adminRouter.get('/payments/export', ...protectedPayments, getPaymentsExportAdmin)

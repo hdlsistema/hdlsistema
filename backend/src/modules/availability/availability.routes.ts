@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
 import { authorize } from '../../middleware/authorize'
+import { requireControlPermission } from '../../middleware/controlPermission'
 import { rateLimit } from '../../middleware/rateLimit'
 import {
   getAvailability,
@@ -20,19 +21,21 @@ import {
 const router = Router()
 const availabilityRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 const protectedAvailability = [authenticate, authorize(availabilityRoles)]
+const viewAvailability = [...protectedAvailability, requireControlPermission('availability.view')]
+const manageAvailability = [...protectedAvailability, requireControlPermission('availability.manage')]
 
 router.use(rateLimit(240, 60_000))
-router.get('/availability', ...protectedAvailability, getAvailability)
-router.get('/availability/calendar', ...protectedAvailability, getAvailabilityCalendar)
-router.get('/availability/slots', ...protectedAvailability, getSlots)
-router.post('/availability/slots', ...protectedAvailability, postSlot)
-router.patch('/availability/slots/:id', ...protectedAvailability, patchSlot)
-router.post('/availability/slots/:id/block', ...protectedAvailability, postBlockSlot)
-router.post('/availability/slots/:id/unblock', ...protectedAvailability, postUnblockSlot)
-router.get('/availability/blockouts', ...protectedAvailability, getBlockouts)
-router.post('/availability/blockouts', ...protectedAvailability, postBlockout)
-router.patch('/availability/blockouts/:id', ...protectedAvailability, patchBlockout)
-router.delete('/availability/blockouts/:id', ...protectedAvailability, removeBlockout)
-router.post('/availability/duplicate-slots', ...protectedAvailability, postDuplicateSlots)
+router.get('/availability', ...viewAvailability, getAvailability)
+router.get('/availability/calendar', ...viewAvailability, getAvailabilityCalendar)
+router.get('/availability/slots', ...viewAvailability, getSlots)
+router.post('/availability/slots', ...manageAvailability, postSlot)
+router.patch('/availability/slots/:id', ...manageAvailability, patchSlot)
+router.post('/availability/slots/:id/block', ...manageAvailability, postBlockSlot)
+router.post('/availability/slots/:id/unblock', ...manageAvailability, postUnblockSlot)
+router.get('/availability/blockouts', ...viewAvailability, getBlockouts)
+router.post('/availability/blockouts', ...manageAvailability, postBlockout)
+router.patch('/availability/blockouts/:id', ...manageAvailability, patchBlockout)
+router.delete('/availability/blockouts/:id', ...manageAvailability, removeBlockout)
+router.post('/availability/duplicate-slots', ...manageAvailability, postDuplicateSlots)
 
 export { router as adminAvailabilityRouter }

@@ -280,12 +280,12 @@ export function PaymentsPage() {
                 options={orders.map((order) => ({
                   id: order.id,
                   label: order.orderNumber,
-                  description: `${order.customerName} · Pendiente ${money(Math.max(order.total - order.paidAmount, 0), order.currency)}`,
+                  description: `${order.customerName} · Pendiente ${money(Math.max((order.total ?? 0) - (order.paidAmount ?? 0), 0), order.currency)}`,
                   keywords: `${order.customerEmail ?? ''} ${order.source}`,
                 }))}
                 onChange={(orderId) => {
                   const order = orders.find((item) => item.id === orderId)
-                  setForm({ ...form, orderId, amount: order ? String(Math.max(order.total - order.paidAmount, 0)) : form.amount })
+                  setForm({ ...form, orderId, amount: order ? String(Math.max((order.total ?? 0) - (order.paidAmount ?? 0), 0)) : form.amount })
                 }}
                 emptyMessage="No hay órdenes pendientes de pago"
                 required

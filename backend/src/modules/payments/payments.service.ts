@@ -81,6 +81,7 @@ type CustomerOrderRow = {
   order_number: string
   user_id: string | null
   customer_id: string
+  reservation_id?: string | null
   subtotal: number | string
   discount_total: number | string
   tax_total: number | string
@@ -146,6 +147,10 @@ type PaymentStatusData = {
   canRetry: boolean
   paidAt: string | null
   failedAt: string | null
+  requiresShipping: boolean
+  shippingStatus: string
+  hasAccessFulfillment: boolean
+  fulfillmentKind: 'shipping' | 'access' | 'mixed' | 'order'
 }
 
 const paymentSelect = `
@@ -244,7 +249,7 @@ async function getOwnedOrder(orderId: string, user: UserContext) {
   const customer = await getCustomerForPayment(user)
   const result = await supabaseAdminClient
     .from('orders')
-    .select('id,order_number,user_id,customer_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,requires_shipping,shipping_status,metadata')
+    .select('id,order_number,user_id,customer_id,reservation_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,paid_at,requires_shipping,shipping_status,metadata')
     .eq('id', orderId)
     .eq('customer_id', customer.id)
     .eq('user_id', user.userId)
@@ -252,6 +257,17 @@ async function getOwnedOrder(orderId: string, user: UserContext) {
   const order = assertNoError<CustomerOrderRow | null>(result).data
   if (!order) throw httpError(404, 'Orden no encontrada')
   return { customer, order }
+}
+
+async function orderHasAccessFulfillment(order: CustomerOrderRow) {
+  if (order.reservation_id) return true
+  const ticketResult = await supabaseAdminClient
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', order.id)
+    .eq('item_type', 'event_ticket')
+  if (ticketResult.error) normalizeDatabaseError(ticketResult.error)
+  return (ticketResult.count ?? 0) > 0
 }
 
 async function getOrCreateStripeCustomer(customer: CustomerRow, stripe: Stripe) {
@@ -716,6 +732,15 @@ export async function getCustomerStripePaymentStatus(orderId: string, user: User
   const { order } = await getOwnedOrder(orderId, user)
   const payment = await findLatestStripePayment(order.id)
   const status = payment?.status ?? 'pending'
+  const requiresShipping = Boolean(order.requires_shipping)
+  const hasAccessFulfillment = await orderHasAccessFulfillment(order)
+  const fulfillmentKind = requiresShipping && hasAccessFulfillment
+    ? 'mixed'
+    : hasAccessFulfillment
+      ? 'access'
+      : requiresShipping
+        ? 'shipping'
+        : 'order'
   return {
     data: {
       orderId: order.id,
@@ -728,6 +753,10 @@ export async function getCustomerStripePaymentStatus(orderId: string, user: User
       canRetry: order.status === 'pending_payment' && (!payment || ['failed', 'cancelled'].includes(status)),
       paidAt: order.paid_at ?? payment?.paid_at ?? null,
       failedAt: payment?.failed_at ?? null,
+      requiresShipping,
+      shippingStatus: requiresShipping ? order.shipping_status ?? 'pending_preparation' : 'not_required',
+      hasAccessFulfillment,
+      fulfillmentKind,
     },
   }
 }

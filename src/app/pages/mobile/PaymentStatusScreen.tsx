@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Ticket } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, RotateCcw, Ticket, Truck } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -79,6 +79,8 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
 
   const resolvedMode = reconcilePaymentMode(mode, status)
   const canRetry = canRetryPayment(status)
+  const hasStatus = Boolean(status)
+  const hasAccessFulfillment = Boolean(status?.hasAccessFulfillment || status?.fulfillmentKind === 'access' || status?.fulfillmentKind === 'mixed')
   const icon = resolvedMode === 'success'
     ? <CheckCircle2 size={30} className="text-[var(--color-vineyard)]" />
     : resolvedMode === 'failed'
@@ -115,7 +117,7 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
         ) : null}
 
         <div className="mt-5 grid gap-3">
-          {resolvedMode === 'success' ? (
+          {resolvedMode === 'success' && hasAccessFulfillment ? (
             <PrimaryButton to={`${appPath('/reservacion')}#boletos`}>
               <Ticket size={16} />
               {t('app.premium.payment.viewTickets', 'Ver boletos y códigos QR')}
@@ -127,8 +129,11 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
               {t('app.premium.payment.retryPayment')}
             </Link>
           ) : null}
-          <PrimaryButton to={appPath('/perfil')} tone={canRetry || resolvedMode === 'success' ? 'ghost' : 'primary'}>
-            {t('app.premium.payment.viewOrders')}
+          <PrimaryButton to={appPath('/perfil')} tone={canRetry || (resolvedMode === 'success' && hasAccessFulfillment) ? 'ghost' : 'primary'}>
+            {resolvedMode === 'success' && hasStatus && !hasAccessFulfillment ? <Truck size={16} /> : null}
+            {resolvedMode === 'success' && hasStatus && !hasAccessFulfillment
+              ? t('app.premium.payment.viewOrderShipping', 'Ver pedido y envío')
+              : t('app.premium.payment.viewOrders')}
           </PrimaryButton>
         </div>
       </section>

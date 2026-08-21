@@ -11,6 +11,7 @@ import {
   requireOperationRole,
   type UserContext,
 } from '../operations/operationErrors'
+import { userHasFinancialAccess } from '../admin/controlPermissions'
 import type {
   CreateOrderPayload,
   OrderListQuery,
@@ -178,7 +179,7 @@ function mapShippingAddress(row?: OrderShippingAddressRow | null) {
   }
 }
 
-function mapShipment(row?: ShipmentRow | null) {
+function mapShipment(row?: ShipmentRow | null, canSeeMoney = true) {
   if (!row) return null
   return {
     id: row.id,
@@ -187,7 +188,7 @@ function mapShipment(row?: ShipmentRow | null) {
     carrier: row.carrier ?? null,
     trackingNumber: row.tracking_number ?? null,
     trackingUrl: row.tracking_url ?? null,
-    shippingCost: toNumber(row.shipping_cost),
+    shippingCost: canSeeMoney ? toNumber(row.shipping_cost) : null,
     status: row.status_text,
     trackingAssignedAt: row.tracking_assigned_at ?? null,
     handedToCarrierAt: row.handed_to_carrier_at ?? null,
@@ -198,7 +199,12 @@ function mapShipment(row?: ShipmentRow | null) {
   }
 }
 
-function mapOrder(row: OrderRow, payments: PaymentSummaryRow[] = [], shipping?: { address?: OrderShippingAddressRow | null; shipment?: ShipmentRow | null }) {
+function mapOrder(
+  row: OrderRow,
+  payments: PaymentSummaryRow[] = [],
+  shipping?: { address?: OrderShippingAddressRow | null; shipment?: ShipmentRow | null },
+  canSeeMoney = true,
+) {
   const reservation = firstRelation(row.reservations)
   const paidAmount = payments
     .filter((payment) => ['paid', 'partially_refunded', 'refunded'].includes(payment.status))
@@ -212,18 +218,19 @@ function mapOrder(row: OrderRow, payments: PaymentSummaryRow[] = [], shipping?: 
     customerEmail: firstRelation(row.customers)?.email ?? null,
     reservationId: row.reservation_id ?? null,
     reservationNumber: reservation?.reservation_number ?? null,
-    subtotal: toNumber(row.subtotal),
-    discountTotal: toNumber(row.discount_total),
-    taxTotal: toNumber(row.tax_total),
-    shippingTotal: toNumber(row.shipping_total),
-    total: toNumber(row.total),
-    paidAmount,
+    subtotal: canSeeMoney ? toNumber(row.subtotal) : null,
+    discountTotal: canSeeMoney ? toNumber(row.discount_total) : null,
+    taxTotal: canSeeMoney ? toNumber(row.tax_total) : null,
+    shippingTotal: canSeeMoney ? toNumber(row.shipping_total) : null,
+    total: canSeeMoney ? toNumber(row.total) : null,
+    paidAmount: canSeeMoney ? paidAmount : null,
+    financialRestricted: !canSeeMoney,
     currency: row.currency.trim(),
     status: row.status,
     requiresShipping: Boolean(row.requires_shipping),
     shippingStatus: row.requires_shipping ? row.shipping_status ?? 'pending_preparation' : 'not_required',
     shippingAddress: mapShippingAddress(shipping?.address),
-    shipment: mapShipment(shipping?.shipment),
+    shipment: mapShipment(shipping?.shipment, canSeeMoney),
     source: row.source ?? 'Centro de control',
     paidAt: row.paid_at ?? null,
     cancelledAt: row.cancelled_at ?? null,
@@ -234,7 +241,7 @@ function mapOrder(row: OrderRow, payments: PaymentSummaryRow[] = [], shipping?: 
   }
 }
 
-function mapItem(row: OrderItemRow) {
+function mapItem(row: OrderItemRow, canSeeMoney = true) {
   return {
     id: row.id,
     orderId: row.order_id,
@@ -242,8 +249,9 @@ function mapItem(row: OrderItemRow) {
     nameSnapshot: row.name_snapshot,
     skuSnapshot: row.sku_snapshot ?? null,
     quantity: row.quantity,
-    unitPrice: toNumber(row.unit_price),
-    subtotal: toNumber(row.subtotal),
+    unitPrice: canSeeMoney ? toNumber(row.unit_price) : null,
+    subtotal: canSeeMoney ? toNumber(row.subtotal) : null,
+    financialRestricted: !canSeeMoney,
     createdAt: row.created_at,
   }
 }
@@ -320,8 +328,18 @@ async function paymentsForOrders(orderIds: string[]) {
   return map
 }
 
+async function requireFinancialAccessForOrders(user: UserContext) {
+  if (!(await userHasFinancialAccess(user))) {
+    throw httpError(403, 'Acceso financiero restringido')
+  }
+}
+
 export async function listOrders(query: OrderListQuery, user: UserContext) {
   requireOperationRole(user, readRoles)
+  const canSeeMoney = await userHasFinancialAccess(user)
+  if (!canSeeMoney && (query.payment || query.minTotal !== undefined || query.maxTotal !== undefined)) {
+    throw httpError(403, 'Acceso financiero restringido')
+  }
   const from = (query.page - 1) * query.perPage
   const to = from + query.perPage - 1
   const request = applyFilters(
@@ -334,18 +352,19 @@ export async function listOrders(query: OrderListQuery, user: UserContext) {
 
   const result = await request
   let rows = assertNoError<OrderRow[]>(result).data ?? []
-  const payments = await paymentsForOrders(rows.map((row) => row.id))
+  const payments = canSeeMoney ? await paymentsForOrders(rows.map((row) => row.id)) : new Map<string, PaymentSummaryRow[]>()
   const shipping = await shippingForOrders(rows.map((row) => row.id))
   if (query.payment === 'with_payment') rows = rows.filter((row) => (payments.get(row.id) ?? []).length > 0)
   if (query.payment === 'without_payment') rows = rows.filter((row) => (payments.get(row.id) ?? []).length === 0)
   return {
-    data: rows.map((row) => mapOrder(row, payments.get(row.id) ?? [], shipping.get(row.id))),
+    data: rows.map((row) => mapOrder(row, payments.get(row.id) ?? [], shipping.get(row.id), canSeeMoney)),
     count: query.payment ? rows.length : result.count ?? rows.length,
   }
 }
 
 export async function getOrder(id: string, user: UserContext) {
   requireOperationRole(user, readRoles)
+  const canSeeMoney = await userHasFinancialAccess(user)
   const result = await supabaseAdminClient
     .from('orders')
     .select(orderSelect)
@@ -353,13 +372,14 @@ export async function getOrder(id: string, user: UserContext) {
     .maybeSingle()
   const row = assertNoError<OrderRow | null>(result).data
   if (!row) throw httpError(404, 'Orden no encontrada')
-  const payments = await paymentsForOrders([id])
+  const payments = canSeeMoney ? await paymentsForOrders([id]) : new Map<string, PaymentSummaryRow[]>()
   const shipping = await shippingForOrders([id])
-  return { data: mapOrder(row, payments.get(id) ?? [], shipping.get(id)) }
+  return { data: mapOrder(row, payments.get(id) ?? [], shipping.get(id), canSeeMoney) }
 }
 
 export async function createOrder(payload: CreateOrderPayload, user: UserContext) {
   requireOperationRole(user, writeRoles)
+  await requireFinancialAccessForOrders(user)
   const result = await rpcClient(user).rpc('create_order_admin', {
     p_customer_id: payload.customerId,
     p_reservation_id: payload.reservationId ?? null,
@@ -377,6 +397,7 @@ export async function createOrder(payload: CreateOrderPayload, user: UserContext
 
 export async function patchOrder(id: string, payload: PatchOrderPayload, user: UserContext) {
   requireOperationRole(user, writeRoles)
+  await requireFinancialAccessForOrders(user)
   if (payload.status) {
     const result = await rpcClient(user).rpc('update_order_status', {
       p_order_id: id,
@@ -411,17 +432,19 @@ export async function updateOrderStatus(id: string, status: string, reason: stri
 
 export async function listOrderItems(id: string, user: UserContext) {
   requireOperationRole(user, readRoles)
+  const canSeeMoney = await userHasFinancialAccess(user)
   await getOrder(id, user)
   const result = await supabaseAdminClient
     .from('order_items')
     .select('id,order_id,item_type,name_snapshot,sku_snapshot,quantity,unit_price,subtotal,created_at')
     .eq('order_id', id)
     .order('created_at', { ascending: true })
-  return { data: (assertNoError<OrderItemRow[]>(result).data ?? []).map(mapItem) }
+  return { data: (assertNoError<OrderItemRow[]>(result).data ?? []).map((row) => mapItem(row, canSeeMoney)) }
 }
 
 export async function listOrderPayments(id: string, user: UserContext) {
   requireOperationRole(user, readRoles)
+  await requireFinancialAccessForOrders(user)
   await getOrder(id, user)
   const payments = await paymentsForOrders([id])
   return { data: (payments.get(id) ?? []).map(mapPayment) }
@@ -787,6 +810,7 @@ export async function synchronizeOrderFromShipment(
 
 export async function exportOrders(query: OrderListQuery, user: UserContext) {
   requireOperationRole(user, exportRoles)
+  await requireFinancialAccessForOrders(user)
   const { data } = await listOrders({ ...query, page: 1, perPage: 100 }, user)
   const headers = [
     'order_number',

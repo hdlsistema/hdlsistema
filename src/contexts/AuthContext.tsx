@@ -20,6 +20,7 @@ import {
   type AuthProfile,
   type UserRole,
 } from '../services/auth.service'
+import { adminUsersClient } from '../services/adminUsers.service'
 import { appActivityEventKey, trackAppActivity } from '../services/appActivity.service'
 
 const ADMIN_ROLES: UserRole[] = [
@@ -30,17 +31,21 @@ const ADMIN_ROLES: UserRole[] = [
   'finance',
   'viewer',
 ]
+const ELEVATED_ADMIN_ROLES: UserRole[] = ['super_admin', 'admin']
 
 type AuthContextValue = {
   user: User | null
   session: Session | null
   profile: AuthProfile | null
   roles: UserRole[]
+  permissions: string[]
+  financialAccess: boolean
   isAuthenticated: boolean
   isLoading: boolean
   isAdmin: boolean
   mustChangePassword: boolean
   hasRole: (role: UserRole | UserRole[]) => boolean
+  hasPermission: (permission: string | string[]) => boolean
   signIn: (email: string, password: string) => Promise<UserRole[]>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -54,6 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [roles, setRoles] = useState<UserRole[]>([])
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [financialAccess, setFinancialAccess] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [passwordChangeCompletedFor, setPasswordChangeCompletedFor] = useState<string | null>(null)
   const mounted = useRef(true)
@@ -65,6 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!nextSession?.user) {
       setProfile(null)
       setRoles([])
+      setPermissions([])
+      setFinancialAccess(false)
       setPasswordChangeCompletedFor(null)
       return []
     }
@@ -75,9 +84,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ensureCustomerWelcome(nextSession.access_token).catch(() => undefined),
     ])
 
+    const elevatedAdmin = nextRoles.some((role) => ELEVATED_ADMIN_ROLES.includes(role))
+    let nextPermissions: string[] = []
+    let nextFinancialAccess = elevatedAdmin
+    if (nextRoles.some((role) => ADMIN_ROLES.includes(role))) {
+      try {
+        const access = await adminUsersClient.currentAccess(nextSession.access_token)
+        nextPermissions = access.data.permissions
+        nextFinancialAccess = access.data.financialAccess || elevatedAdmin
+      } catch {
+        nextPermissions = []
+        nextFinancialAccess = elevatedAdmin
+      }
+    }
+
     if (mounted.current) {
       setProfile(nextProfile)
       setRoles(nextRoles)
+      setPermissions(nextPermissions)
+      setFinancialAccess(nextFinancialAccess)
     }
     return nextRoles
   }, [])
@@ -144,6 +169,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
     setProfile(null)
     setRoles([])
+    setPermissions([])
+    setFinancialAccess(false)
   }, [session])
 
   const refreshProfile = useCallback(async () => {
@@ -165,23 +192,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [roles],
   )
 
+  const hasPermission = useCallback(
+    (permission: string | string[]) => {
+      if (ELEVATED_ADMIN_ROLES.some((role) => roles.includes(role))) return true
+      const required = Array.isArray(permission) ? permission : [permission]
+      return required.some((item) => permissions.includes(item))
+    },
+    [permissions, roles],
+  )
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       session,
       profile,
       roles,
+      permissions,
+      financialAccess,
       isAuthenticated: Boolean(session),
       isLoading,
       isAdmin: ADMIN_ROLES.some((role) => roles.includes(role)),
       mustChangePassword: Boolean(user?.app_metadata?.must_change_password) && passwordChangeCompletedFor !== user?.id,
       hasRole,
+      hasPermission,
       signIn,
       signOut,
       refreshProfile,
       completeInitialPasswordChange,
     }),
-    [completeInitialPasswordChange, hasRole, isLoading, passwordChangeCompletedFor, profile, roles, session, signIn, signOut, user, refreshProfile],
+    [completeInitialPasswordChange, financialAccess, hasPermission, hasRole, isLoading, passwordChangeCompletedFor, permissions, profile, roles, session, signIn, signOut, user, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

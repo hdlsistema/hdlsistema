@@ -48,7 +48,7 @@ describe('flujo mobile de reservaciones y boletos', () => {
     const paymentStatus = readFileSync(resolve(__dirname, '../app/pages/mobile/PaymentStatusScreen.tsx'), 'utf8')
 
     expect(reservations).toContain('customerClient.accessPasses(token)')
-    expect(reservations).toContain('accessPasses.filter((pass) => !pass.reservationId)')
+    expect(reservations).toContain("pass.accessType === 'event_ticket'")
     expect(reservations).toContain('downloadAccessCredentialPdf')
     expect(reservations).toContain('shareAccessCredential')
     expect(reservations).toContain('slot.experienceId === reservation.experienceId')

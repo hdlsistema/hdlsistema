@@ -18,6 +18,7 @@ import {
   ShoppingCart,
   Tickets,
   Users,
+  UserCog,
   Truck,
   Wine,
   WalletCards,
@@ -35,7 +36,7 @@ import { InitialPasswordChangeModal } from '../components/control/InitialPasswor
 
 export function ControlLayout() {
   const { t, isEnglish } = useAppPreferences()
-  const { mustChangePassword } = useAuth()
+  const { mustChangePassword, hasPermission } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(() => (
     typeof window === 'undefined' ? true : window.matchMedia('(min-width: 1024px)').matches
   ))
@@ -97,41 +98,49 @@ export function ControlLayout() {
           to: '/control/dashboard',
           label: t('control.dashboard'),
           icon: LayoutDashboard,
+          permission: 'dashboard.view',
         },
         {
           to: '/control/reservaciones',
           label: t('control.reservations'),
           icon: CalendarDays,
+          permission: 'reservations.view',
         },
         {
           to: '/control/cotizaciones',
           label: isEnglish ? 'Quotes' : 'Cotizaciones',
           icon: FileText,
+          permission: 'quotes.view',
         },
         {
           to: '/control/ordenes',
           label: t('control.orders'),
           icon: ShoppingBag,
+          permission: 'orders.view',
         },
         {
           to: '/control/disponibilidad',
           label: t('control.availability'),
           icon: CalendarRange,
+          permission: 'availability.view',
         },
         {
           to: '/control/inventario',
           label: isEnglish ? 'Inventory' : 'Inventario',
           icon: Boxes,
+          permission: 'inventory.view',
         },
         {
           to: '/control/logistica',
           label: isEnglish ? 'Logistics' : 'Logística',
           icon: Truck,
+          permission: 'logistics.view',
         },
         {
-          to: '/control/check-in',
-          label: 'Check-in',
+          to: '/control/entradas',
+          label: isEnglish ? 'Entry control' : 'Control de entradas',
           icon: QrCode,
+          permission: 'entries.view',
         },
       ],
     },
@@ -142,26 +151,31 @@ export function ControlLayout() {
           to: '/control/clientes',
           label: t('control.customers'),
           icon: Users,
+          permission: 'customers.view',
         },
         {
           to: '/control/pagos',
           label: t('control.payments'),
           icon: WalletCards,
+          permission: 'payments.view',
         },
         {
           to: '/control/carritos',
           label: isEnglish ? 'Carts' : 'Carritos',
           icon: ShoppingCart,
+          permission: 'carts.view',
         },
         {
           to: '/control/wine-club',
           label: 'Wine Club',
           icon: BadgeCheck,
+          permission: 'wineclub.view',
         },
         {
           to: '/control/distribuidores',
           label: isEnglish ? 'Distributors' : 'Distribuidores',
           icon: Building2,
+          permission: 'distributors.view',
         },
       ],
     },
@@ -172,36 +186,43 @@ export function ControlLayout() {
           to: '/control/vinos',
           label: t('control.wines'),
           icon: Wine,
+          permission: 'content.wines.manage',
         },
         {
           to: '/control/experiencias',
           label: t('control.experiences'),
           icon: Tickets,
+          permission: 'content.experiences.manage',
         },
         {
           to: '/control/eventos',
           label: t('control.events'),
           icon: CalendarDays,
+          permission: 'content.events.manage',
         },
         {
           to: '/control/servicios',
           label: isEnglish ? 'Services and venues' : 'Servicios y sedes',
           icon: MapPinned,
+          permission: 'content.services.manage',
         },
         {
           to: '/control/promociones',
           label: t('control.promotions'),
           icon: Gift,
+          permission: 'content.promotions.manage',
         },
         {
           to: '/control/membresias',
           label: t('control.memberships'),
           icon: IdCard,
+          permission: 'content.memberships.manage',
         },
         {
           to: '/control/campanas',
           label: t('control.campaigns'),
           icon: Megaphone,
+          permission: 'content.campaigns.manage',
         },
       ],
     },
@@ -212,25 +233,42 @@ export function ControlLayout() {
           to: '/control/reportes',
           label: isEnglish ? 'Reports' : 'Reportes',
           icon: BarChart3,
+          permission: 'reports.view',
         },
         {
           to: '/control/actividad',
           label: isEnglish ? 'App activity' : 'Actividad App',
           icon: Activity,
+          permission: 'activity.view',
         },
         {
           to: '/control/eliminacion-cuentas',
           label: isEnglish ? 'Account deletion' : 'Eliminación de cuentas',
           icon: UserRoundX,
+          permission: 'privacy.manage',
+        },
+        {
+          to: '/control/usuarios-permisos',
+          label: isEnglish ? 'Users and permissions' : 'Usuarios y permisos',
+          icon: UserCog,
+          permission: 'users.manage',
         },
         {
           to: '/control/configuracion',
           label: t('control.settings'),
           icon: Cog,
+          permission: 'settings.manage',
         },
       ],
     },
   ]
+
+  const visibleSidebarGroups = sidebarGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.permission || hasPermission(item.permission)),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <div className="control-shell min-h-screen bg-[var(--color-page)] text-[var(--color-ink)]">
@@ -259,7 +297,7 @@ export function ControlLayout() {
         >
           {sidebarOpen ? <ChevronLeft size={15} strokeWidth={2} /> : <ChevronRight size={15} strokeWidth={2} />}
         </button>
-        <ControlSidebar groups={sidebarGroups} onNavigate={closeSidebarOnCompactView} />
+        <ControlSidebar groups={visibleSidebarGroups} onNavigate={closeSidebarOnCompactView} />
         <main className="control-main min-w-0">
           <Outlet />
         </main>

@@ -140,14 +140,14 @@ function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
   const reservationType = reservation?.reservation_type ?? null
   const accessType = row.event_ticket_type_id
     ? 'event_ticket'
-    : reservationType || metadataAccessType || (row.order_id ? 'wine_order' : 'reservation')
+    : reservationType || metadataAccessType || (row.order_id ? 'paid_order' : 'reservation')
   const title = cabin?.name
     ?? restaurant?.name
     ?? reservationExperience?.title
     ?? reservationEvent?.title
     ?? ticketEvent?.title
     ?? (typeof row.metadata?.title === 'string' ? row.metadata.title : null)
-    ?? (accessType === 'wine_order' ? 'Compra de vinos' : null)
+    ?? null
   const startsAt = reservationType === 'restaurant'
     ? restaurantDateTime(reservation?.reservation_date, reservation?.reservation_time)
     : reservationType === 'cabin'
@@ -176,7 +176,9 @@ function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
     title,
     startsAt,
     endsAt,
-    peopleCount: reservation?.people_count
+    peopleCount: row.event_ticket_type_id
+      ? 1
+      : reservation?.people_count
       ?? numericMetadata(row.metadata?.peopleCount)
       ?? numericMetadata(row.metadata?.itemCount),
     validFrom: row.valid_from ?? null,
@@ -186,6 +188,11 @@ function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
     revokedAt: row.revoked_at ?? null,
     revocationReason: row.revocation_reason ?? null,
   }
+}
+
+function isEntryAccessPass(pass: ReturnType<typeof mapAccessPass>) {
+  return !['wine_order', 'paid_order'].includes(pass.accessType)
+    && Boolean(pass.reservationId || pass.eventTicketTypeId)
 }
 
 function publicPassState(pass: ReturnType<typeof mapAccessPass>) {
@@ -210,6 +217,7 @@ export async function getPublicAccessPassByToken(token: string) {
   const row = assertNoError<AccessPassRow | null>(result).data
   if (!row) return null
   const pass = mapAccessPass(row, normalized)
+  if (!isEntryAccessPass(pass)) return null
   const state = publicPassState(pass)
   return {
     id: pass.id,
@@ -389,6 +397,7 @@ export async function ensureEventTicketAccessPassesForPaidOrder(orderId: string)
         metadata: {
           accessType: 'event_ticket',
           ticketSequence: index,
+          ticketTotal: Number(item.quantity ?? 0),
           orderItemId: item.id,
           customerId: order.customer_id,
           userId: order.user_id ?? null,
@@ -442,55 +451,14 @@ export async function ensureReservationAccessPassForPaidOrder(orderId: string) {
   })
 }
 
-export async function ensurePaidOrderCredentialForPaidOrder(orderId: string) {
-  const orderResult = await supabaseAdminClient
-    .from('orders')
-    .select('id,status,reservation_id')
-    .eq('id', orderId)
-    .maybeSingle()
-  const order = assertNoError<{ id: string; status: string; reservation_id?: string | null } | null>(orderResult).data
-  if (!order || !['paid', 'fulfilled'].includes(order.status)) return null
-
-  const itemsResult = await supabaseAdminClient
-    .from('order_items')
-    .select('item_type,quantity,name_snapshot')
-    .eq('order_id', order.id)
-  const items = assertNoError<Array<{ item_type: string; quantity: number; name_snapshot?: string | null }>>(itemsResult).data ?? []
-  const wineItems = items.filter((item) => item.item_type === 'wine')
-  const credentialItems = wineItems.length
-    ? wineItems
-    : items.filter((item) => !['event_ticket', 'experience'].includes(item.item_type))
-  if (!credentialItems.length || (order.reservation_id && !wineItems.length)) return null
-  const itemCount = credentialItems.reduce((total, item) => total + Number(item.quantity ?? 0), 0)
-  const accessType = wineItems.length ? 'wine_order' : 'paid_order'
-  const title = wineItems.length
-    ? 'Compra de vinos'
-    : credentialItems.length === 1
-      ? credentialItems[0].name_snapshot || 'Comprobante de compra'
-      : 'Comprobante de compra'
-
-  return upsertAccessPass({
-    orderId: order.id,
-    idempotencyKey: `paid-order-access:${order.id}`,
-    metadata: {
-      accessType,
-      title,
-      itemCount,
-      fulfillmentMode: 'purchase_credential',
-    },
-  })
-}
-
 export async function ensureUniversalAccessPassesForPaidOrder(orderId: string) {
-  const [eventPasses, reservationPass, orderCredential] = await Promise.all([
+  const [eventPasses, reservationPass] = await Promise.all([
     ensureEventTicketAccessPassesForPaidOrder(orderId),
     ensureReservationAccessPassForPaidOrder(orderId),
-    ensurePaidOrderCredentialForPaidOrder(orderId),
   ])
   return {
     eventPasses,
     reservationPass,
-    orderCredential,
   }
 }
 
@@ -513,5 +481,6 @@ export async function listCustomerAccessPasses(customerId: string, userId: strin
     request = request.in('order_id', orderIds)
   }
   const result = await request.order('created_at', { ascending: false })
-  return { data: (assertNoError<AccessPassRow[]>(result).data ?? []).map((row) => mapAccessPass(row)) }
+  const passes = (assertNoError<AccessPassRow[]>(result).data ?? []).map((row) => mapAccessPass(row))
+  return { data: passes.filter(isEntryAccessPass) }
 }

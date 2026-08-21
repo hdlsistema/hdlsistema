@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express'
 import { env } from '../../config/env'
 import { checkSupabaseReachable } from '../../config/supabase'
-import { pushProviderState } from '../notifications/push-provider.service'
+import { isStripeConfigured, isStripeWebhookConfigured, stripeEnvironment } from '../../config/stripe'
+import { apnsProviderState, pushProviderState } from '../notifications/push-provider.service'
 
 /**
  * GET /api/health
@@ -11,6 +12,8 @@ import { pushProviderState } from '../notifications/push-provider.service'
  */
 export async function getHealth(_req: Request, res: Response): Promise<void> {
   const configured = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY)
+  const firebasePush = pushProviderState()
+  const directApns = apnsProviderState()
   const supabase = configured
     ? await checkSupabaseReachable()
     : {
@@ -26,8 +29,28 @@ export async function getHealth(_req: Request, res: Response): Promise<void> {
     timestamp: new Date().toISOString(),
     supabase: { configured, ...supabase },
     push: {
-      android: pushProviderState(),
-      ios: pushProviderState(),
+      android: {
+        ...firebasePush,
+        transport: 'fcm_http_v1',
+      },
+      ios: {
+        provider: 'firebase',
+        transport: 'fcm_on_apns',
+        configured: firebasePush.configured,
+        directApnsConfigured: directApns.configured,
+      },
+      directApns: {
+        ...directApns,
+        enabled: false,
+      },
+    },
+    payments: {
+      stripe: {
+        provider: 'stripe',
+        configured: isStripeConfigured(),
+        webhookConfigured: isStripeWebhookConfigured(),
+        environment: stripeEnvironment(),
+      },
     },
   })
 }

@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
 import { authorize } from '../../middleware/authorize'
+import { requireControlPermission } from '../../middleware/controlPermission'
 import { rateLimit } from '../../middleware/rateLimit'
 import {
   getCustomerById,
@@ -28,28 +29,30 @@ import {
 const router = Router()
 const customerReadRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 const protectedCustomers = [authenticate, authorize(customerReadRoles)]
+const viewCustomers = [...protectedCustomers, requireControlPermission('customers.view')]
+const manageCustomers = [...protectedCustomers, requireControlPermission('customers.manage')]
 
 router.use(rateLimit(240, 60_000))
 
-router.get('/customers/export', ...protectedCustomers, getCustomersExport)
-router.get('/customers', ...protectedCustomers, getCustomers)
-router.post('/customers', ...protectedCustomers, postCustomer)
-router.get('/customers/:id', ...protectedCustomers, getCustomerById)
-router.patch('/customers/:id', ...protectedCustomers, patchCustomer)
-router.post('/customers/:id/archive', ...protectedCustomers, postArchiveCustomer)
-router.post('/customers/:id/restore', ...protectedCustomers, postRestoreCustomer)
-router.get('/customers/:id/reservations', ...protectedCustomers, getCustomerReservations)
-router.get('/customers/:id/orders', ...protectedCustomers, getCustomerOrders)
-router.get('/customers/:id/memberships', ...protectedCustomers, getCustomerMemberships)
-router.get('/customers/:id/history', ...protectedCustomers, getCustomerHistory)
-router.post('/customers/:id/notes', ...protectedCustomers, postCustomerNote)
-router.patch('/customers/:id/notes/:noteId', ...protectedCustomers, patchCustomerNote)
-router.delete('/customers/:id/notes/:noteId', ...protectedCustomers, removeCustomerNote)
-router.post('/customers/:id/tags', ...protectedCustomers, postCustomerTag)
-router.delete('/customers/:id/tags/:tagId', ...protectedCustomers, removeCustomerTag)
-router.get('/customer-tags', ...protectedCustomers, getCustomerTags)
-router.post('/customer-tags', ...protectedCustomers, postCustomerTagDefinition)
-router.patch('/customer-tags/:id', ...protectedCustomers, patchCustomerTagDefinition)
-router.delete('/customer-tags/:id', ...protectedCustomers, removeCustomerTagDefinition)
+router.get('/customers/export', ...viewCustomers, getCustomersExport)
+router.get('/customers', ...viewCustomers, getCustomers)
+router.post('/customers', ...manageCustomers, postCustomer)
+router.get('/customers/:id', ...viewCustomers, getCustomerById)
+router.patch('/customers/:id', ...manageCustomers, patchCustomer)
+router.post('/customers/:id/archive', ...manageCustomers, postArchiveCustomer)
+router.post('/customers/:id/restore', ...manageCustomers, postRestoreCustomer)
+router.get('/customers/:id/reservations', ...viewCustomers, getCustomerReservations)
+router.get('/customers/:id/orders', ...viewCustomers, getCustomerOrders)
+router.get('/customers/:id/memberships', ...viewCustomers, getCustomerMemberships)
+router.get('/customers/:id/history', ...viewCustomers, getCustomerHistory)
+router.post('/customers/:id/notes', ...manageCustomers, postCustomerNote)
+router.patch('/customers/:id/notes/:noteId', ...manageCustomers, patchCustomerNote)
+router.delete('/customers/:id/notes/:noteId', ...manageCustomers, removeCustomerNote)
+router.post('/customers/:id/tags', ...manageCustomers, postCustomerTag)
+router.delete('/customers/:id/tags/:tagId', ...manageCustomers, removeCustomerTag)
+router.get('/customer-tags', ...viewCustomers, getCustomerTags)
+router.post('/customer-tags', ...manageCustomers, postCustomerTagDefinition)
+router.patch('/customer-tags/:id', ...manageCustomers, patchCustomerTagDefinition)
+router.delete('/customer-tags/:id', ...manageCustomers, removeCustomerTagDefinition)
 
 export { router as adminCustomersRouter }

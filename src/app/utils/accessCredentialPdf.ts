@@ -20,10 +20,12 @@ function typeLabel(type: string) {
     experience: 'Reservación de experiencia',
     restaurant: 'Reservación de restaurante',
     cabin: 'Reservación de hospedaje',
-    wine_order: 'Comprobante de compra de vinos',
-    paid_order: 'Comprobante de compra',
   }
   return labels[type] ?? 'Acceso Hacienda de Letras'
+}
+
+function isEntryAccessType(type: string) {
+  return !['wine_order', 'paid_order'].includes(type)
 }
 
 function safeFileName(pass: AccessCredential) {
@@ -32,6 +34,9 @@ function safeFileName(pass: AccessCredential) {
 }
 
 export async function buildAccessCredentialPdf(pass: AccessCredential, locale = 'es-MX') {
+  if (!isEntryAccessType(pass.accessType)) {
+    throw new Error('Este comprobante no genera QR de entrada.')
+  }
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
   const burgundy = '#680D24'
   const gold = '#B88A4A'
@@ -74,7 +79,7 @@ export async function buildAccessCredentialPdf(pass: AccessCredential, locale = 
     ['Titular', pass.customerName || 'Cliente Hacienda de Letras'],
     ['Fecha', dateLabel(pass.startsAt, locale)],
     ...(pass.endsAt ? [['Finaliza', dateLabel(pass.endsAt, locale)]] : []),
-    [['wine_order', 'paid_order'].includes(pass.accessType) ? 'Artículos' : 'Personas', String(pass.peopleCount ?? 1)],
+    ['Personas', String(pass.peopleCount ?? 1)],
     ['Estado', pass.state === 'valid' ? 'Vigente' : pass.state],
   ]
   rows.forEach(([label, value], index) => {

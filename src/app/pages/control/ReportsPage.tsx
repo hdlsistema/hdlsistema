@@ -45,13 +45,13 @@ export function ReportsPage() {
 
   const metrics = useMemo(() => {
     const paid = payments.filter((item) => ['paid', 'partially_refunded', 'refunded'].includes(item.status)).reduce((sum, item) => sum + item.amount - item.refundedAmount, 0)
-    const receivable = orders.filter((item) => item.status === 'pending_payment').reduce((sum, item) => sum + Math.max(item.total - item.paidAmount, 0), 0)
+    const receivable = orders.filter((item) => item.status === 'pending_payment').reduce((sum, item) => sum + Math.max((item.total ?? 0) - (item.paidAmount ?? 0), 0), 0)
     const activeReservations = reservations.filter((item) => ['pending', 'confirmed'].includes(item.status)).length
     const occupied = stays.filter((item) => item.status === 'checked_in').length
     return { paid, receivable, activeReservations, occupied, lowStock: inventory.filter((item) => item.lowStock).length }
   }, [inventory, orders, payments, reservations, stays])
 
-  const channels = useMemo(() => Object.entries(orders.reduce<Record<string, { count: number; total: number }>>((map, order) => { const key = order.source || 'Sin canal'; const currentValue = map[key] ?? { count: 0, total: 0 }; map[key] = { count: currentValue.count + 1, total: currentValue.total + order.total }; return map }, {})).sort((a, b) => b[1].total - a[1].total), [orders])
+  const channels = useMemo(() => Object.entries(orders.reduce<Record<string, { count: number; total: number }>>((map, order) => { const key = order.source || 'Sin canal'; const currentValue = map[key] ?? { count: 0, total: 0 }; map[key] = { count: currentValue.count + 1, total: currentValue.total + (order.total ?? 0) }; return map }, {})).sort((a, b) => b[1].total - a[1].total), [orders])
   const methods = useMemo(() => Object.entries(payments.reduce<Record<string, number>>((map, payment) => { const key = payment.method || payment.provider || 'Otro'; map[key] = (map[key] ?? 0) + payment.amount - payment.refundedAmount; return map }, {})).sort((a, b) => b[1] - a[1]), [payments])
 
   async function download(kind: 'orders' | 'payments' | 'reservations' | 'inventory') {

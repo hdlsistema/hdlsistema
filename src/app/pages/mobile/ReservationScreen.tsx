@@ -64,6 +64,10 @@ function makeIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
+function isStandaloneTicketPass(pass: CustomerAccessPass) {
+  return !pass.reservationId && pass.accessType === 'event_ticket' && Boolean(pass.eventTicketTypeId)
+}
+
 type ChoiceOption = {
   value: string
   label: string
@@ -299,7 +303,7 @@ export function ReservationScreen() {
   )
 
   const standalonePasses = useMemo(
-    () => accessPasses.filter((pass) => !pass.reservationId),
+    () => accessPasses.filter(isStandaloneTicketPass),
     [accessPasses],
   )
 

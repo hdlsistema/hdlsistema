@@ -83,10 +83,11 @@ type PendingAction = {
 }
 
 export function OrdersPage() {
-  const { session, roles } = useAuth()
+  const { session, roles, financialAccess } = useAuth()
   const [searchParams] = useSearchParams()
   const token = session?.access_token
   const writable = canWrite(roles)
+  const canCreateFinancialOrder = writable && financialAccess
   const [orders, setOrders] = useState<OrderRecord[]>([])
   const [items, setItems] = useState<OrderItemRecord[]>([])
   const [payments, setPayments] = useState<PaymentRecord[]>([])
@@ -177,7 +178,7 @@ export function OrdersPage() {
   const metrics = useMemo(() => ({
     paid: orders.filter((order) => order.status === 'paid').length,
     pending: orders.filter((order) => order.status === 'pending_payment').length,
-    total: orders.reduce((sum, order) => sum + order.total, 0),
+    total: orders.reduce((sum, order) => sum + (order.total ?? 0), 0),
     preparation: orders.filter((order) => ['pending_preparation', 'preparing'].includes(order.shippingStatus || '')).length,
     tracking: orders.filter((order) => ['awaiting_tracking', 'tracking_assigned'].includes(order.shippingStatus || '')).length,
     shipped: orders.filter((order) => order.shippingStatus === 'shipped').length,
@@ -265,6 +266,10 @@ export function OrdersPage() {
   }
 
   const exportCsv = async () => {
+    if (!financialAccess) {
+      setError('Acceso financiero restringido.')
+      return
+    }
     try {
       const response = await ordersClient.exportCsv(token, { search: search || undefined, status: status || undefined, shippingStatus: shippingStatus || undefined })
       if (!response.ok) throw new Error('No fue posible exportar órdenes.')
@@ -286,15 +291,15 @@ export function OrdersPage() {
         <SectionTitle eyebrow="Operación" title="Órdenes" subtitle="Seguimiento de venta, pago, entrega e historial de cada pedido." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadOrders} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
-          <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
-          <button type="button" onClick={() => setFormOpen(true)} disabled={!writable} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Nueva orden</button>
+          <button type="button" onClick={exportCsv} disabled={!financialAccess} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)] disabled:opacity-50"><Download size={16} />Exportar CSV</button>
+          <button type="button" onClick={() => setFormOpen(true)} disabled={!canCreateFinancialOrder} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-50"><Plus size={16} />Nueva orden</button>
         </div>
       </div>
 
       <section className="control-metrics-strip grid gap-4 sm:grid-cols-3 xl:grid-cols-6">
         <Metric icon={ShoppingBag} label="Órdenes" value={String(orders.length)} />
         <Metric icon={CheckCircle2} label="Pagadas" value={String(metrics.paid)} />
-        <Metric icon={PackageCheck} label="Total" value={money(metrics.total)} />
+        <Metric icon={PackageCheck} label="Total" value={financialAccess ? money(metrics.total) : 'Restringido'} />
         <Metric icon={Truck} label="Por preparar" value={String(metrics.preparation)} />
         <Metric icon={Send} label="Guía" value={String(metrics.tracking)} />
         <Metric icon={PackageCheck} label="Enviadas" value={String(metrics.shipped)} />
@@ -345,7 +350,7 @@ export function OrdersPage() {
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{order.customerName || 'Cliente sin nombre'}</p>
                   </div>
                   <p className="text-xs text-[var(--color-muted)]">{order.requiresShipping ? shippingStatusLabel(order.shippingStatus) : order.reservationNumber ?? 'Sin reservación'}</p>
-                  <p className="text-xs font-semibold text-[var(--color-ink)]">{money(order.total, order.currency)}</p>
+                  <p className="text-xs font-semibold text-[var(--color-ink)]">{financialAccess ? money(order.total, order.currency) : 'Sin importes'}</p>
                   <StatusBadge label={statusLabel(order.status)} />
                 </button>
               ))}
@@ -362,7 +367,7 @@ export function OrdersPage() {
                 <Detail label="Cliente" value={selected.customerName || 'Sin nombre'} />
                 <Detail label="Estado de orden" value={statusLabel(selected.status)} />
                 <Detail label="Envío" value={shippingStatusLabel(selected.shippingStatus)} />
-                <Detail label="Pagado" value={`${money(selected.paidAmount, selected.currency)} de ${money(selected.total, selected.currency)}`} />
+                <Detail label="Pagado" value={financialAccess ? `${money(selected.paidAmount, selected.currency)} de ${money(selected.total, selected.currency)}` : 'Acceso restringido'} />
                 <Detail label="Creada" value={dateLabel(selected.createdAt)} />
                 <Detail label="Canal" value={selected.source || 'Centro de Control'} />
                 <Detail label="Correo" value={selected.customerEmail || 'Sin correo'} />
@@ -429,17 +434,19 @@ export function OrdersPage() {
                 ))}
               </div>
             </article>
-            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <h4 className="text-sm font-semibold text-[var(--color-ink)]">Pagos asociados</h4>
-              <div className="mt-4 space-y-3">
-                {payments.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin pagos asociados.</p> : payments.map((payment) => (
-                  <div key={payment.id} className="rounded-xl bg-[var(--color-soft)] p-3 text-sm">
-                    <p className="font-semibold text-[var(--color-ink)]">{paymentReferenceLabel(payment.paymentReference, payment.orderNumber, payment.id)}</p>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">{statusLabel(payment.status)} · {money(payment.amount, payment.currency)} · {dateLabel(payment.paidAt ?? payment.createdAt)}</p>
-                  </div>
-                ))}
-              </div>
-            </article>
+            {financialAccess ? (
+              <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+                <h4 className="text-sm font-semibold text-[var(--color-ink)]">Pagos asociados</h4>
+                <div className="mt-4 space-y-3">
+                  {payments.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin pagos asociados.</p> : payments.map((payment) => (
+                    <div key={payment.id} className="rounded-xl bg-[var(--color-soft)] p-3 text-sm">
+                      <p className="font-semibold text-[var(--color-ink)]">{paymentReferenceLabel(payment.paymentReference, payment.orderNumber, payment.id)}</p>
+                      <p className="mt-1 text-xs text-[var(--color-muted)]">{statusLabel(payment.status)} · {money(payment.amount, payment.currency)} · {dateLabel(payment.paidAt ?? payment.createdAt)}</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ) : null}
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><FileClock size={16} /> Historial</h4>
               <div className="mt-4 space-y-3">

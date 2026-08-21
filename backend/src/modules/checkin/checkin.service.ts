@@ -39,6 +39,7 @@ type PassRow = {
   revoked_at?: string | null
   revocation_reason?: string | null
   created_at: string
+  metadata?: Record<string, unknown> | null
 	  reservations?: Relation<{
 	    reservation_number: string
 	    people_count: number
@@ -73,6 +74,8 @@ type ValidationResult = {
   accessPassId: string
   passNumber?: string | null
   reservationNumber?: string | null
+  orderNumber?: string | null
+  accessType?: string | null
   guestName?: string | null
   peopleCount?: number | null
 	  status?: string | null
@@ -85,7 +88,7 @@ type ValidationResult = {
 
 const passSelect = `
   id,reservation_id,order_id,event_ticket_type_id,pass_number,status,valid_from,valid_until,used_at,
-  issued_at,revoked_at,revocation_reason,created_at,
+  issued_at,revoked_at,revocation_reason,created_at,metadata,
 		  reservations(reservation_number,people_count,status,customers(display_name,first_name,last_name),experiences(title),events(title)),
 	  orders(order_number,status),
 	  event_ticket_types(name,events(title))
@@ -117,11 +120,16 @@ function mapPass(row: PassRow) {
   const customer = firstRelation(reservation?.customers)
   const ticketType = firstRelation(row.event_ticket_types)
   const ticketEvent = firstRelation(ticketType?.events)
+  const metadataAccessType = typeof row.metadata?.accessType === 'string' ? row.metadata.accessType : null
+  const accessType = row.event_ticket_type_id
+    ? 'event_ticket'
+    : metadataAccessType ?? (row.reservation_id ? 'reservation' : 'paid_order')
   return {
     id: row.id,
     reservationId: row.reservation_id ?? null,
     orderId: row.order_id ?? null,
     eventTicketTypeId: row.event_ticket_type_id ?? null,
+    accessType,
     passNumber: row.pass_number ?? null,
     reservationNumber: reservation?.reservation_number ?? null,
     orderNumber: firstRelation(row.orders)?.order_number ?? null,
@@ -138,6 +146,16 @@ function mapPass(row: PassRow) {
     revocationReason: row.revocation_reason ?? null,
     createdAt: row.created_at,
   }
+}
+
+function isEntryPassRow(row: PassRow) {
+  const metadataAccessType = typeof row.metadata?.accessType === 'string' ? row.metadata.accessType : null
+  return !['wine_order', 'paid_order'].includes(metadataAccessType ?? '')
+    && Boolean(row.reservation_id || row.event_ticket_type_id)
+}
+
+function isForbiddenCredentialType(accessType?: string | null) {
+  return accessType === 'wine_order' || accessType === 'paid_order'
 }
 
 function mapCheckin(row: CheckinRow) {
@@ -190,10 +208,11 @@ export async function listAccessPasses(query: AccessPassListQuery, user: UserCon
     supabaseAdminClient
       .from('access_passes')
       .select(passSelect, { count: 'exact' })
+      .or('reservation_id.not.is.null,event_ticket_type_id.not.is.null')
       .order(query.orderBy, { ascending: query.orderDirection === 'asc' }),
     query,
   ).range(from, to)
-  const rows = assertNoError<PassRow[]>(result).data ?? []
+  const rows = (assertNoError<PassRow[]>(result).data ?? []).filter(isEntryPassRow)
   return { data: rows.map(mapPass), count: result.count ?? rows.length }
 }
 
@@ -206,11 +225,15 @@ export async function getAccessPass(id: string, user: UserContext) {
     .maybeSingle()
   const row = assertNoError<PassRow | null>(result).data
   if (!row) throw httpError(404, 'Pase no encontrado')
+  if (!isEntryPassRow(row)) throw httpError(404, 'Pase no encontrado')
   return { data: mapPass(row) }
 }
 
 export async function issueAccessPass(payload: IssueAccessPassPayload, user: UserContext) {
   requireOperationRole(user, checkinRoles)
+  if (!payload.reservationId && !payload.eventTicketTypeId) {
+    throw httpError(422, 'Las compras de vino y comprobantes de pago se gestionan en pedidos y logística; no generan QR de entrada.')
+  }
   const token = makePassToken()
   const result = await rpcClient(user).rpc('issue_access_pass', {
     p_reservation_id: payload.reservationId ?? null,
@@ -243,7 +266,11 @@ export async function validateAccessPass(code: string, user: UserContext) {
     p_qr_token_hash: hashCode(code),
   })
   if (result.error) normalizeDatabaseError(result.error)
-  return { data: result.data as ValidationResult }
+  const validation = result.data as ValidationResult
+  if (isForbiddenCredentialType(validation.accessType)) {
+    throw httpError(422, 'Este QR no corresponde a una entrada o reservación.')
+  }
+  return { data: validation }
 }
 
 export async function listCheckins(query: CheckinListQuery, user: UserContext) {

@@ -5,11 +5,9 @@ import { useAuth } from '../../../contexts/AuthContext'
 import {
   accessPassClient,
   checkinsClient,
-  ordersClient,
   type AccessPassRecord,
   type AccessPassValidation,
   type CheckinRecord,
-  type OrderRecord,
 } from '../../../services/commerce.service'
 import { reservationsClient, type ReservationRecord } from '../../../services/operations.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
@@ -21,7 +19,6 @@ import { normalizeAccessQrCode } from '../../utils/accessQr'
 
 type PassForm = {
   reservationId: string
-  orderId: string
   validFrom: string
   validUntil: string
 }
@@ -38,7 +35,6 @@ type PendingCheckinAction = {
 
 const emptyPassForm: PassForm = {
   reservationId: '',
-  orderId: '',
   validFrom: '',
   validUntil: '',
 }
@@ -74,8 +70,7 @@ function passStatusLabel(pass: AccessPassRecord) {
 function confirmationLabel(type?: string | null) {
   if (type === 'restaurant') return 'Confirmar llegada'
   if (type === 'cabin') return 'Confirmar check-in'
-  if (type === 'wine_order' || type === 'paid_order') return 'Confirmar entrega'
-  return 'Confirmar acceso'
+  return 'Confirmar entrada'
 }
 
 export function CheckInPage() {
@@ -85,7 +80,6 @@ export function CheckInPage() {
   const [passes, setPasses] = useState<AccessPassRecord[]>([])
   const [checkins, setCheckins] = useState<CheckinRecord[]>([])
   const [reservations, setReservations] = useState<ReservationRecord[]>([])
-  const [orders, setOrders] = useState<OrderRecord[]>([])
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [validation, setValidation] = useState<AccessPassValidation | null>(null)
@@ -134,13 +128,9 @@ export function CheckInPage() {
 
   useEffect(() => {
     if (!formOpen) return
-    Promise.all([
-      reservationsClient.list(token, { perPage: 100 }),
-      ordersClient.list(token, { perPage: 100, status: 'paid' }),
-    ]).then(([reservationResponse, orderResponse]) => {
+    reservationsClient.list(token, { perPage: 100 }).then((reservationResponse) => {
       setReservations(reservationResponse.data)
-      setOrders(orderResponse.data)
-    }).catch((err) => setError(err instanceof Error ? err.message : 'No fue posible cargar reservaciones y órdenes.'))
+    }).catch((err) => setError(err instanceof Error ? err.message : 'No fue posible cargar reservaciones.'))
   }, [formOpen, token])
 
   const metrics = useMemo(() => ({
@@ -158,7 +148,6 @@ export function CheckInPage() {
     try {
       const response = await accessPassClient.issue(token, {
         reservationId: form.reservationId || null,
-        orderId: form.orderId || null,
         validFrom: isoOrNull(form.validFrom),
         validUntil: isoOrNull(form.validUntil),
         idempotencyKey: crypto.randomUUID(),
@@ -167,7 +156,7 @@ export function CheckInPage() {
       setSelectedPassId(response.data.id)
       setForm(emptyPassForm)
       setFormOpen(false)
-      setToast('Pase emitido. El código quedó listo para entrega segura.')
+      setToast('Pase emitido. El código quedó listo para acceso.')
       await loadCheckin()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible emitir el pase.')
@@ -367,11 +356,11 @@ export function CheckInPage() {
   return (
     <div className="control-page control-page--checkin min-w-0 space-y-6">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Acceso" title="Check-in" subtitle="Pases seguros, validación y reversión autorizada." />
+        <SectionTitle eyebrow="Acceso" title="Control de entradas" subtitle="Escaneo de boletos QR, asistencia y reversión autorizada." />
         <div className="flex flex-wrap gap-3">
           <button type="button" onClick={loadCheckin} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><RefreshCw size={16} />Reintentar</button>
           <button type="button" onClick={exportCsv} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-sm font-semibold text-[var(--color-ink)]"><Download size={16} />Exportar CSV</button>
-          <button type="button" onClick={() => setFormOpen(true)} disabled={!writable} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-50"><Ticket size={16} />Emitir pase</button>
+          <button type="button" onClick={() => setFormOpen(true)} disabled={!writable} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-50"><Ticket size={16} />Emitir pase manual</button>
         </div>
       </div>
 
@@ -395,7 +384,7 @@ export function CheckInPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-[var(--color-ink)]">{validation.passNumber} · {validation.guestName ?? 'Invitado'}</p>
-                <p className="mt-1 text-xs text-[var(--color-muted)]">{validation.experienceTitle ?? validation.ticketTypeName ?? 'Acceso'} · {validation.peopleCount ?? 1} {['wine_order', 'paid_order'].includes(validation.accessType ?? '') ? 'artículos' : 'personas'}</p>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">{validation.experienceTitle ?? validation.ticketTypeName ?? 'Acceso'} · {validation.peopleCount ?? 1} personas</p>
               </div>
               <StatusBadge label={validation.valid ? 'Válido' : validation.reason ?? 'No válido'} />
             </div>
@@ -407,7 +396,7 @@ export function CheckInPage() {
       {issuedToken ? (
         <section className="rounded-[var(--radius-card)] border border-[#cfddca] bg-white p-4 text-sm text-[#406845] shadow-[var(--shadow-card)]">
           <p className="font-semibold">Pase emitido correctamente</p>
-          <p className="mt-2">El código quedó listo para entrega segura al visitante.</p>
+          <p className="mt-2">El código quedó listo para acceso del visitante.</p>
         </section>
       ) : null}
 
@@ -419,7 +408,7 @@ export function CheckInPage() {
             <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pases de acceso</h3>
             <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{passes.length} registros</span>
           </div>
-          {loading ? <State text="Cargando pases..." /> : passes.length === 0 ? <State title="Sin pases emitidos" text="Emite un pase desde una reservación u orden." /> : (
+          {loading ? <State text="Cargando pases..." /> : passes.length === 0 ? <State title="Sin pases emitidos" text="Los boletos de evento se generan al pagar; los pases manuales se emiten desde una reservación." /> : (
             <div className="divide-y divide-[var(--color-line)]">
               {passes.map((pass) => (
                 <button key={pass.id} type="button" onClick={() => setSelectedPassId(pass.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.8fr_auto]" style={{ backgroundColor: selectedPass?.id === pass.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
@@ -471,7 +460,7 @@ export function CheckInPage() {
       {formOpen ? (
         <div className="control-form-overlay fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
           <button type="button" aria-label="Cerrar" onClick={() => setFormOpen(false)} className="absolute inset-0 cursor-default" />
-          <form onSubmit={submitPass} className="control-form-surface relative z-10 w-full max-w-4xl rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Emitir pase">
+          <form onSubmit={submitPass} className="control-form-surface relative z-10 w-full max-w-2xl rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Emitir pase">
             <div className="control-form-header mb-6 flex items-center justify-between">
               <h2 className="text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>Emitir pase</h2>
               <button type="button" onClick={() => setFormOpen(false)} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]"><X size={18} /></button>
@@ -481,22 +470,15 @@ export function CheckInPage() {
                 label="Reservación vinculada"
                 value={form.reservationId}
                 options={reservations.map((reservation) => ({ id: reservation.id, label: reservation.reservationNumber, description: `${reservation.customerName} · ${reservation.experienceTitle || 'Servicio'}` }))}
-                onChange={(reservationId) => setForm({ ...form, reservationId, orderId: reservationId ? '' : form.orderId })}
+                onChange={(reservationId) => setForm({ ...form, reservationId })}
                 emptyMessage="Sin reservaciones disponibles"
-              />
-              <ControlEntityPicker
-                label="Orden pagada vinculada"
-                value={form.orderId}
-                options={orders.map((order) => ({ id: order.id, label: order.orderNumber, description: `${order.customerName} · ${order.status === 'paid' ? 'Pagada' : order.status}` }))}
-                onChange={(orderId) => setForm({ ...form, orderId, reservationId: orderId ? '' : form.reservationId })}
-                emptyMessage="Sin órdenes pagadas disponibles"
               />
               <Input label="Válido desde" type="datetime" value={form.validFrom} onChange={(value) => setForm({ ...form, validFrom: value })} />
               <Input label="Válido hasta" type="datetime" value={form.validUntil} onChange={(value) => setForm({ ...form, validUntil: value })} />
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
-              <button type="submit" disabled={saving || (!form.reservationId && !form.orderId)} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Emitir pase'}</button>
+              <button type="submit" disabled={saving || !form.reservationId} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Emitir pase'}</button>
             </div>
           </form>
         </div>

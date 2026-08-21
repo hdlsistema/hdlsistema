@@ -62,6 +62,8 @@ export function normalizeDatabaseError(error: unknown): never {
   if (rawMessage.includes('ORDER_NOT_PAID')) throw httpError(409, 'La orden aún no está pagada')
   if (rawMessage.includes('INVALID_QR_TOKEN')) throw httpError(422, 'Código QR inválido')
   if (rawMessage.includes('PASS_OWNER_REQUIRED')) throw httpError(422, 'El pase requiere orden o reservación')
+  if (rawMessage.includes('PASS_NOT_ACCESS')) throw httpError(422, 'Este código no corresponde a una entrada o reservación')
+  if (rawMessage.includes('ORDER_ACCESS_PASS_NOT_ALLOWED')) throw httpError(422, 'Las compras y órdenes de envío no generan QR de entrada')
   if (rawMessage.includes('PASS_ALREADY_USED')) throw httpError(409, 'El pase ya fue utilizado')
   if (rawMessage.includes('PASS_REVOKED')) throw httpError(409, 'El pase está revocado')
   if (rawMessage.includes('PASS_NOT_VALID')) throw httpError(409, 'El pase no está vigente')

@@ -335,6 +335,10 @@ export type CustomerPaymentStatus = {
   canRetry: boolean
   paidAt: string | null
   failedAt: string | null
+  requiresShipping?: boolean
+  shippingStatus?: string
+  hasAccessFulfillment?: boolean
+  fulfillmentKind?: 'shipping' | 'access' | 'mixed' | 'order' | string
 }
 
 export type CustomerSommelierResponse = {

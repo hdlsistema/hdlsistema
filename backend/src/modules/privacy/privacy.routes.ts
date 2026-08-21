@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
 import { authorize } from '../../middleware/authorize'
+import { requireControlPermission } from '../../middleware/controlPermission'
 import { rateLimit } from '../../middleware/rateLimit'
 import {
   createCustomerAccountDeletion,
@@ -31,6 +32,7 @@ adminRouter.get(
   rateLimit(240, 60_000),
   authenticate,
   authorize(privacyReadRoles),
+  requireControlPermission('privacy.manage'),
   listAccountDeletionAdmin,
 )
 adminRouter.get(
@@ -38,6 +40,7 @@ adminRouter.get(
   rateLimit(240, 60_000),
   authenticate,
   authorize(privacyReadRoles),
+  requireControlPermission('privacy.manage'),
   getAccountDeletionAdmin,
 )
 adminRouter.patch(
@@ -45,6 +48,7 @@ adminRouter.patch(
   rateLimit(120, 60_000),
   authenticate,
   authorize(privacyWriteRoles),
+  requireControlPermission('privacy.manage'),
   patchAccountDeletionAdmin,
 )
 
