@@ -71,9 +71,11 @@ export type OrderRecord = {
 
 export type OrderItemRecord = {
   id: string
+  itemId?: string | null
   itemType: string
   nameSnapshot: string
   skuSnapshot?: string | null
+  imageUrl?: string | null
   quantity: number
   unitPrice: number | null
   subtotal: number | null

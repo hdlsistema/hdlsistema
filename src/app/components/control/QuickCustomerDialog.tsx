@@ -61,7 +61,7 @@ export function QuickCustomerDialog({ open, token, onClose, onCreated }: QuickCu
   const inputClass = 'min-h-11 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none focus:border-[var(--color-burgundy)]'
 
   return (
-    <div className="control-form-overlay fixed inset-0 z-[190] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+    <div className="control-form-overlay fixed inset-0 z-[var(--control-z-priority-modal)] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 cursor-default" />
       <form onSubmit={submit} className="control-form-surface control-form-surface--compact relative z-10 w-full max-w-xl rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-page)] p-5 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Crear cliente">
         <div className="control-form-header mb-5 flex items-start justify-between gap-4">
@@ -80,7 +80,7 @@ export function QuickCustomerDialog({ open, token, onClose, onCreated }: QuickCu
           <label className="md:col-span-2"><span className="mb-1 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Canal de origen</span><CrystalSelect value={form.source} onChange={(value) => setForm({ ...form, source: value })}><option value="Centro de control">Centro de Control</option><option value="Teléfono">Teléfono</option><option value="WhatsApp">WhatsApp</option><option value="Mostrador">Mostrador</option><option value="Agencia">Agencia</option><option value="Evento">Evento</option></CrystalSelect></label>
         </div>
         {error ? <p className="mt-3 rounded-lg border border-[#ead8c5] bg-[#fff7ed] px-3 py-2 text-xs text-[#8a4b16]">{error}</p> : null}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="control-form-actions mt-5">
           <button type="button" onClick={onClose} className="min-h-10 rounded-lg border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
           <button type="submit" disabled={saving} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--color-burgundy)] px-4 text-sm font-semibold text-white disabled:opacity-55">{saving ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />} Crear y seleccionar</button>
         </div>

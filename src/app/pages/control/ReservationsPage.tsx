@@ -670,7 +670,7 @@ function ActionButton({ children, disabled, onClick }: { children: ReactNode; di
 
 function Modal({ title, children, onClose }: { title: string; children: ReactNode; onClose: () => void }) {
   return (
-    <div className="control-form-overlay fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+    <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 cursor-default" />
       <div className="control-form-surface relative z-10 max-h-[94vh] w-full max-w-4xl overflow-y-auto rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label={title}>
         <div className="control-form-header mb-6 flex items-center justify-between gap-4">

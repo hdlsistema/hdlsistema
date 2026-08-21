@@ -47,6 +47,16 @@
   --control-radius-sm: 0.375rem;
   --control-radius-md: 0.625rem;
   --control-radius-lg: 0.75rem;
+  --control-z-sidebar-backdrop: 47;
+  --control-z-sidebar: 49;
+  --control-z-sidebar-tab: 51;
+  --control-z-drawer: 120;
+  --control-z-modal: 150;
+  --control-z-alerts: 170;
+  --control-z-confirm: 180;
+  --control-z-priority-modal: 190;
+  --control-z-scanner: 220;
+  --control-z-password: 300;
   background: var(--color-page);
   color: var(--color-ink);
 }

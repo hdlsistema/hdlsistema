@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, KeyRound, Loader2, Save, Search, ShieldCheck, UserPlus, X } from 'lucide-react'
+import { Check, ChevronDown, KeyRound, Loader2, Save, Search, ShieldCheck, UserPlus, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   adminUsersClient,
@@ -8,7 +8,6 @@ import {
   type CreateStaffUserPayload,
 } from '../../../services/adminUsers.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
-import { StatusBadge } from '../../components/shared/StatusBadge'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 
 type Preset = {
@@ -34,6 +33,9 @@ const ROLE_OPTIONS = [
   { value: 'finance', label: 'Administración sin dinero' },
   { value: 'viewer', label: 'Sólo lectura' },
 ]
+
+const STAFF_DIRECTORY_ROLES = new Set(['operations', 'marketing', 'finance', 'viewer'])
+const ADMIN_DIRECTORY_ROLES = new Set(['super_admin', 'admin'])
 
 const PRESETS: Preset[] = [
   {
@@ -130,6 +132,81 @@ function roleLabel(value?: string) {
   return ROLE_OPTIONS.find((option) => option.value === value)?.label ?? value ?? 'Sin rol'
 }
 
+function normalizeIdentity(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function userEmail(user: AdminUserRecord) {
+  return user.email?.trim() ?? ''
+}
+
+function isEmailValue(value: string) {
+  return value.includes('@')
+}
+
+function userFullName(user: AdminUserRecord) {
+  const email = userEmail(user).toLowerCase()
+  const displayName = user.displayName?.trim()
+  if (displayName && displayName.toLowerCase() !== email && !isEmailValue(displayName)) return displayName
+  return [user.firstName, user.lastName]
+    .map((value) => value?.trim() ?? '')
+    .filter((value) => value && value.toLowerCase() !== email && !isEmailValue(value))
+    .join(' ')
+    .trim()
+}
+
+function userDisplayName(user: AdminUserRecord) {
+  return userFullName(user) || userEmail(user) || 'Cuenta sin correo'
+}
+
+function hasStaffRole(user: AdminUserRecord) {
+  return Boolean(user.roles?.some((role) => STAFF_DIRECTORY_ROLES.has(role)))
+}
+
+function hasAdminRole(user: AdminUserRecord) {
+  return Boolean(user.roles?.some((role) => ADMIN_DIRECTORY_ROLES.has(role)))
+}
+
+function isStaffDirectoryUser(user: AdminUserRecord) {
+  if (user.accountType === 'staff' || user.accountType === 'customer_staff') return true
+  if (user.accountType === 'admin') return true
+  if (hasStaffRole(user)) return true
+  if (user.managedPasswordLocked && !user.roles?.every((role) => role === 'customer')) return true
+  return hasAdminRole(user)
+}
+
+function userAccountLabel(user: AdminUserRecord) {
+  if (user.roles?.includes('super_admin')) return 'Super administrador'
+  if (user.accountType === 'customer_staff') return 'Cliente + staff'
+  if (user.accountType === 'admin') return 'Administrador'
+  if (user.accountLabel && user.accountLabel !== 'customer') return user.accountLabel
+  if (user.roles?.includes('customer') && hasStaffRole(user)) return 'Cliente + staff'
+  if (hasAdminRole(user)) return 'Administrador'
+  if (hasStaffRole(user) || user.managedPasswordLocked) return 'Staff'
+  return roleLabel(user.roles?.[0])
+}
+
+function userOptionLabel(user: AdminUserRecord) {
+  return userFullName(user) || userEmail(user) || 'Cuenta sin correo'
+}
+
+function matchesUserSearch(user: AdminUserRecord, search: string) {
+  const normalizedSearch = normalizeIdentity(search.trim())
+  if (!normalizedSearch) return true
+  return normalizeIdentity([
+    userFullName(user),
+    userEmail(user),
+    userAccountLabel(user),
+  ].filter(Boolean).join(' ')).includes(normalizedSearch)
+}
+
+function sortAdminUsers(records: AdminUserRecord[]) {
+  return [...records].sort((a, b) => userOptionLabel(a).localeCompare(userOptionLabel(b), 'es-MX', { sensitivity: 'base' }))
+}
+
 export function UserPermissionsPage() {
   const { session, financialAccess } = useAuth()
   const token = session?.access_token
@@ -166,11 +243,14 @@ export function UserPermissionsPage() {
     try {
       const [catalogResponse, usersResponse] = await Promise.all([
         adminUsersClient.catalog(token),
-        adminUsersClient.list(token, { perPage: 100, search: search || undefined }),
+        adminUsersClient.list(token, { perPage: 100 }),
       ])
       setCatalog(catalogResponse.data)
-      setUsers(usersResponse.users)
-      setSelectedId((current) => current ?? usersResponse.users[0]?.id ?? null)
+      const orderedUsers = sortAdminUsers(usersResponse.users)
+        .filter(isStaffDirectoryUser)
+        .filter((user) => matchesUserSearch(user, search))
+      setUsers(orderedUsers)
+      setSelectedId((current) => current && orderedUsers.some((user) => user.id === current) ? current : orderedUsers[0]?.id ?? null)
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : 'No fue posible cargar usuarios y permisos.')
     } finally {
@@ -234,7 +314,7 @@ export function UserPermissionsPage() {
       }
       const response = await adminUsersClient.create(token, payload)
       setDraft(emptyDraft)
-      setToast('Usuario creado con credenciales administradas.')
+      setToast(response.accountType === 'customer_staff' ? 'Cliente convertido a staff.' : 'Usuario creado con credenciales administradas.')
       await load()
       setSelectedId(response.id)
     } catch (createError) {
@@ -283,176 +363,192 @@ export function UserPermissionsPage() {
   }
 
   return (
-    <div className="control-page control-page--users-permissions min-w-0 space-y-6">
-      <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+    <div className="control-page control-page--users-permissions control-users-page min-w-0 space-y-5">
+      <header className="control-users-hero">
         <SectionTitle eyebrow="Administración" title="Usuarios y permisos" subtitle="Alta de staff, módulos visibles y acceso financiero reservado." />
-        <button type="button" onClick={load} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] px-4 text-xs font-semibold text-[var(--color-burgundy)]">
+        <button type="button" onClick={load} className="control-users-sync">
           {loading ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
           Sincronizar
         </button>
-      </div>
+      </header>
 
       {error ? <div className="rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</div> : null}
 
-      <section className="grid min-w-0 gap-5 2xl:grid-cols-[410px_minmax(0,1fr)]">
-        <div className="space-y-5">
-          <form onSubmit={createUser} className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-            <header className="mb-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Nuevo staff</p>
-                <h2 className="mt-1 text-lg font-semibold text-[var(--color-ink)]">Crear acceso</h2>
-              </div>
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]"><UserPlus size={17} /></span>
-            </header>
+      <section className="control-users-overview" aria-label="Resumen de usuarios y permisos">
+        <Metric label="Staff" value={String(users.length)} />
+        <Metric label="Seleccionado" value={selected ? userDisplayName(selected) : 'Sin cuenta'} />
+        <Metric label="Permisos activos" value={String(selectedPermissionSet.size)} />
+        <Metric label="Finanzas" value={selectedFinancialAccess ? 'Permitido' : 'Restringido'} />
+      </section>
 
-            <div className="grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Nombre" value={draft.firstName} onChange={(firstName) => setDraft((current) => ({ ...current, firstName }))} />
-                <Field label="Apellido" value={draft.lastName} onChange={(lastName) => setDraft((current) => ({ ...current, lastName }))} />
+      <section className="control-users-workspace">
+        <form onSubmit={createUser} className="control-users-card control-users-card--create">
+          <header className="control-users-card-header">
+            <div>
+              <p className="control-users-eyebrow">Nuevo staff</p>
+              <h2>Crear acceso</h2>
+              <span>Credenciales fijas administradas desde el centro de control.</span>
+            </div>
+            <span className="control-users-icon"><UserPlus size={17} /></span>
+          </header>
+
+          <div className="control-users-form-grid">
+            <div className="control-users-two-col">
+              <Field label="Nombre" value={draft.firstName} onChange={(firstName) => setDraft((current) => ({ ...current, firstName }))} />
+              <Field label="Apellido" value={draft.lastName} onChange={(lastName) => setDraft((current) => ({ ...current, lastName }))} />
+            </div>
+            <Field label="Correo" type="email" value={draft.email} onChange={(email) => setDraft((current) => ({ ...current, email }))} required />
+            <div className="control-users-password-row">
+              <Field label="Contraseña" value={draft.password} onChange={(password) => setDraft((current) => ({ ...current, password }))} required />
+              <button type="button" onClick={() => setDraft((current) => ({ ...current, password: generatedPassword() }))} className="control-users-secondary-button">
+                <KeyRound size={14} />
+                Generar
+              </button>
+            </div>
+            <label className="control-users-field">
+              <span className="control-users-label">Rol base</span>
+              <CrystalSelect value={draft.role} onChange={(role) => setDraft((current) => ({ ...current, role }))}>
+                {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+              </CrystalSelect>
+            </label>
+
+            <div>
+              <p className="control-users-label">Plantilla</p>
+              <div className="control-users-preset-grid">
+                {PRESETS.map((preset) => (
+                  <button key={preset.id} type="button" onClick={() => applyPresetToDraft(preset)} className="control-users-preset">
+                    {preset.label}
+                  </button>
+                ))}
               </div>
-              <Field label="Correo" type="email" value={draft.email} onChange={(email) => setDraft((current) => ({ ...current, email }))} required />
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                <Field label="Contraseña" value={draft.password} onChange={(password) => setDraft((current) => ({ ...current, password }))} required />
-                <button type="button" onClick={() => setDraft((current) => ({ ...current, password: generatedPassword() }))} className="mt-5 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]">
-                  <KeyRound size={14} />
-                  Generar
-                </button>
-              </div>
-              <label>
-                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Rol base</span>
-                <CrystalSelect value={draft.role} onChange={(role) => setDraft((current) => ({ ...current, role }))}>
-                  {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                </CrystalSelect>
+            </div>
+
+            {financialAccess ? (
+              <label className="control-users-finance-toggle">
+                <span>
+                  <strong>Acceso financiero</strong>
+                  <small>Sólo para perfiles autorizados.</small>
+                </span>
+                <input type="checkbox" checked={draft.financialAccess} onChange={(event) => setDraft((current) => ({ ...current, financialAccess: event.target.checked }))} className="h-4 w-4 accent-[var(--color-burgundy)]" />
               </label>
+            ) : null}
 
-              <div>
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Plantilla</p>
-                <div className="flex flex-wrap gap-2">
-                  {PRESETS.map((preset) => (
-                    <button key={preset.id} type="button" onClick={() => applyPresetToDraft(preset)} className="rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-[11px] font-semibold text-[var(--color-burgundy)]">
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {financialAccess ? (
-                <label className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-soft)] px-3">
-                  <span className="text-xs font-semibold text-[var(--color-ink)]">Acceso financiero</span>
-                  <input type="checkbox" checked={draft.financialAccess} onChange={(event) => setDraft((current) => ({ ...current, financialAccess: event.target.checked }))} className="h-4 w-4 accent-[var(--color-burgundy)]" />
-                </label>
-              ) : null}
-
+            <details className="control-users-details">
+              <summary>
+                <span>Permisos personalizados</span>
+                <strong>{draft.permissions.length} activos</strong>
+              </summary>
               <PermissionSelector
                 catalog={catalog}
                 selected={draft.permissions}
                 onToggle={(code) => setDraft((current) => ({ ...current, permissions: togglePermission(current.permissions, code) }))}
                 compact
               />
+            </details>
 
-              <button type="submit" disabled={saving || !draft.email || draft.password.length < 8} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-sm font-semibold text-white disabled:opacity-50">
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
-                Crear usuario
-              </button>
-            </div>
-          </form>
+            <button type="submit" disabled={saving || !draft.email || draft.password.length < 8} className="control-users-primary-button">
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+              Crear usuario
+            </button>
+          </div>
+        </form>
 
-          <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-            <div className="border-b border-[var(--color-line)] p-4">
-              <label className="flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-3">
-                <Search size={15} className="text-[var(--color-muted)]" />
-                <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar usuario..." className="min-w-0 flex-1 bg-transparent text-sm outline-none" />
-              </label>
+        <section className="control-users-card control-users-card--selected">
+          <header className="control-users-card-header control-users-selected-header">
+            <div>
+              <p className="control-users-eyebrow">Edición de permisos</p>
+              <h2>{selected ? userDisplayName(selected) : 'Selecciona un usuario'}</h2>
+              <span>{selected ? `${userEmail(selected) || 'Sin correo'} · ${userAccountLabel(selected)} · ${selected.managedPasswordLocked ? 'Credencial administrada' : 'Cuenta administrativa existente'}` : 'Elige una cuenta del listado cristal.'}</span>
             </div>
-            {loading ? <State text="Cargando usuarios..." /> : users.length === 0 ? <State text="Sin usuarios administrativos." /> : (
-              <div className="max-h-[560px] overflow-auto">
+            <button type="button" onClick={saveSelected} disabled={saving || !selected} className="control-users-primary-button control-users-primary-button--inline">
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                Guardar permisos
+            </button>
+          </header>
+
+          <div className="control-users-selector-panel">
+            <label className="control-users-search">
+              <Search size={15} className="text-[var(--color-muted)]" />
+              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Filtrar por nombre o correo..." />
+            </label>
+            <label className="control-users-field">
+              <span className="control-users-label">Usuario para editar</span>
+              <CrystalSelect value={selected?.id ?? ''} onChange={setSelectedId} disabled={loading || users.length === 0}>
+                {users.length === 0 ? <option value="">Sin usuarios disponibles</option> : null}
                 {users.map((user) => (
-                  <button key={user.id} type="button" onClick={() => setSelectedId(user.id)} className={`grid w-full gap-2 border-b border-[var(--color-line)] px-4 py-3 text-left ${selected?.id === user.id ? 'bg-[var(--color-soft)]' : 'bg-transparent'}`}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="min-w-0 truncate text-sm font-semibold text-[var(--color-ink)]">{user.email ?? 'Usuario sin correo'}</p>
-                      {user.financialAccess ? <StatusBadge label="Finanzas" /> : null}
-                    </div>
-                    <p className="text-xs text-[var(--color-muted)]">{(user.roles ?? []).map(roleLabel).join(' · ') || 'Sin rol'}{user.managedPasswordLocked ? ' · Staff' : ''}</p>
-                  </button>
+                  <option key={user.id} value={user.id}>
+                    {userOptionLabel(user)}
+                  </option>
                 ))}
-              </div>
-            )}
-          </section>
-        </div>
+              </CrystalSelect>
+            </label>
+          </div>
 
-        {selected ? (
-          <section className="min-w-0 space-y-5">
-            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <header className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Cuenta seleccionada</p>
-                  <h2 className="mt-1 truncate text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.email ?? 'Usuario sin correo'}</h2>
-                  <p className="mt-1 text-xs text-[var(--color-muted)]">{selected.managedPasswordLocked ? 'Credencial administrada' : 'Cuenta administrativa existente'}</p>
-                </div>
-                <button type="button" onClick={saveSelected} disabled={saving} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-50">
-                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                  Guardar permisos
-                </button>
-              </header>
+          {selected ? (
+            <div className="control-users-selected-grid">
+              <aside className="control-users-side-panel">
+                <label className="control-users-field">
+                  <span className="control-users-label">Rol base</span>
+                  <CrystalSelect value={selectedRoles[0] ?? 'operations'} onChange={(role) => setSelectedRoles([role])} disabled={selectedIsElevatedAdmin}>
+                    {selectedRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
+                  </CrystalSelect>
+                </label>
 
-              <div className="mt-5 grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-                <div className="space-y-4">
-                  <label>
-                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Rol base</span>
-                    <CrystalSelect value={selectedRoles[0] ?? 'operations'} onChange={(role) => setSelectedRoles([role])} disabled={selectedIsElevatedAdmin}>
-                      {selectedRoleOptions.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
-                    </CrystalSelect>
-                  </label>
-                  <div>
-                    <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">Plantillas</p>
-                    <div className="grid gap-2">
-                      {PRESETS.map((preset) => (
-                        <button key={preset.id} type="button" onClick={() => applyPresetToSelected(preset)} className="inline-flex min-h-9 items-center justify-between rounded-lg border border-[var(--color-line)] bg-white px-3 text-left text-xs font-semibold text-[var(--color-burgundy)]">
-                          {preset.label}
-                          <Check size={13} />
-                        </button>
-                      ))}
-                    </div>
+                <div>
+                  <p className="control-users-label">Plantillas</p>
+                  <div className="control-users-selected-presets">
+                    {PRESETS.map((preset) => (
+                      <button key={preset.id} type="button" onClick={() => applyPresetToSelected(preset)} className="control-users-preset">
+                        <span>{preset.label}</span>
+                        <Check size={13} />
+                      </button>
+                    ))}
                   </div>
-                  {financialAccess ? (
-                    <label className="flex min-h-11 items-center justify-between gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-soft)] px-3">
-                      <span className="text-xs font-semibold text-[var(--color-ink)]">Acceso financiero</span>
-                      <input type="checkbox" checked={selectedFinancialAccess} onChange={(event) => setSelectedFinancialAccess(event.target.checked)} className="h-4 w-4 accent-[var(--color-burgundy)]" />
-                    </label>
-                  ) : null}
-                  <form onSubmit={rotatePassword} className="rounded-xl border border-[var(--color-line)] bg-white p-3">
-                    <Field label="Nueva contraseña" value={passwordDraft} onChange={setPasswordDraft} />
-                    <div className="mt-2 flex gap-2">
-                      <button type="button" onClick={() => setPasswordDraft(generatedPassword())} className="inline-flex min-h-9 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]">
-                        <KeyRound size={13} />
-                        Generar
-                      </button>
-                      <button type="submit" disabled={saving || passwordDraft.length < 8} className="inline-flex min-h-9 flex-1 items-center justify-center rounded-lg bg-[var(--color-burgundy)] px-3 text-xs font-semibold text-white disabled:opacity-50">
-                        Actualizar
-                      </button>
-                    </div>
-                  </form>
                 </div>
 
-                <div className="min-w-0">
-                  <PermissionSelector
-                    catalog={catalog}
-                    selected={selectedPermissions}
-                    onToggle={(code) => setSelectedPermissions((current) => togglePermission(current, code))}
-                  />
-                </div>
-              </div>
-            </article>
+                {financialAccess ? (
+                  <label className="control-users-finance-toggle">
+                    <span>
+                      <strong>Acceso financiero</strong>
+                      <small>{selectedFinancialAccess ? 'Permitido' : 'Restringido'}</small>
+                    </span>
+                    <input type="checkbox" checked={selectedFinancialAccess} onChange={(event) => setSelectedFinancialAccess(event.target.checked)} className="h-4 w-4 accent-[var(--color-burgundy)]" />
+                  </label>
+                ) : null}
 
-            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Metric label="Permisos" value={String(selectedPermissionSet.size)} />
-                <Metric label="Rol" value={roleLabel(selectedRoles[0])} />
-                <Metric label="Dinero" value={selectedFinancialAccess ? 'Permitido' : 'Restringido'} />
+                <form onSubmit={rotatePassword} className="control-users-password-card">
+                  <Field label="Nueva contraseña" value={passwordDraft} onChange={setPasswordDraft} />
+                  <div className="control-users-password-actions">
+                    <button type="button" onClick={() => setPasswordDraft(generatedPassword())} className="control-users-secondary-button">
+                      <KeyRound size={13} />
+                      Generar
+                    </button>
+                    <button type="submit" disabled={saving || passwordDraft.length < 8} className="control-users-primary-button control-users-primary-button--small">
+                      Actualizar
+                    </button>
+                  </div>
+                </form>
+              </aside>
+
+              <div className="control-users-permissions-panel">
+                <div className="control-users-permissions-heading">
+                  <div>
+                    <p className="control-users-eyebrow">Módulos y páginas</p>
+                    <h3>Permisos operativos</h3>
+                  </div>
+                  <span>{selectedPermissionSet.size} activos</span>
+                </div>
+                <PermissionSelector
+                  catalog={catalog}
+                  selected={selectedPermissions}
+                  onToggle={(code) => setSelectedPermissions((current) => togglePermission(current, code))}
+                />
               </div>
-            </article>
-          </section>
-        ) : null}
+            </div>
+          ) : (
+            <State text="Selecciona una cuenta para configurar permisos." />
+          )}
+        </section>
       </section>
 
       {toast ? <div className="fixed bottom-6 right-6 z-[180] inline-flex items-center gap-3 rounded-xl border border-[#cfddca] bg-white px-4 py-3 text-sm font-semibold text-[#5f7d63] shadow-xl">{toast}<button type="button" aria-label="Cerrar" onClick={() => setToast('')}><X size={14} /></button></div> : null}
@@ -464,21 +560,33 @@ function PermissionSelector({ catalog, selected, onToggle, compact = false }: { 
   const groups = groupedPermissions(catalog)
   const selectedSet = new Set(selected)
 
+  if (catalog.length === 0) return <State text="Catálogo de permisos pendiente de sincronizar." />
+
   return (
-    <div className={`grid gap-4 ${compact ? '' : 'xl:grid-cols-2'}`}>
-      {Object.entries(groups).map(([module, pages]) => (
-        <section key={module} className="rounded-xl border border-[var(--color-line)] bg-white/70 p-3">
-          <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{module}</h3>
-          <div className="mt-3 space-y-3">
+    <div className={`control-users-permission-grid ${compact ? 'is-compact' : ''}`}>
+      {Object.entries(groups).map(([module, pages]) => {
+        const modulePermissions = Object.values(pages).flat()
+        const activeCount = modulePermissions.filter((permission) => selectedSet.has(permission.code)).length
+        return (
+          <details key={module} className="control-users-permission-module" open={activeCount > 0}>
+            <summary className="control-users-module-header">
+              <span>
+                <h3>{module}</h3>
+                <small>{Object.keys(pages).length} páginas</small>
+              </span>
+              <strong>{activeCount}/{modulePermissions.length}</strong>
+              <ChevronDown size={15} className="control-users-module-chevron" />
+            </summary>
+            <div className="control-users-page-list">
             {Object.entries(pages).map(([page, permissions]) => (
-              <div key={`${module}-${page}`} className="rounded-lg bg-[var(--color-soft)] p-3">
-                <p className="mb-2 text-xs font-semibold text-[var(--color-ink)]">{page}</p>
-                <div className="grid gap-2">
+              <div key={`${module}-${page}`} className="control-users-page-block">
+                <p>{page}</p>
+                <div className="control-users-permission-list">
                   {permissions.map((permission) => (
-                    <label key={permission.code} className="flex min-h-9 items-center justify-between gap-3 rounded-md bg-white px-3">
-                      <span className="min-w-0 text-xs text-[var(--color-muted-strong)]">
+                    <label key={permission.code} className="control-users-permission-row">
+                      <span>
                         {permission.action}
-                        {permission.financial ? <span className="ml-2 text-[10px] font-semibold uppercase text-[var(--color-burgundy)]">Finanzas</span> : null}
+                        {permission.financial ? <em>Finanzas</em> : null}
                       </span>
                       <input type="checkbox" checked={selectedSet.has(permission.code)} onChange={() => onToggle(permission.code)} className="h-4 w-4 accent-[var(--color-burgundy)]" />
                     </label>
@@ -486,31 +594,32 @@ function PermissionSelector({ catalog, selected, onToggle, compact = false }: { 
                 </div>
               </div>
             ))}
-          </div>
-        </section>
-      ))}
+            </div>
+          </details>
+        )
+      })}
     </div>
   )
 }
 
-function Field({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) {
+function Field({ label, value, onChange, type = 'text', required = false, className = '' }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean; className?: string }) {
   return (
-    <label>
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}{required ? ' *' : ''}</span>
-      <input type={type} required={required} value={value} onChange={(event) => onChange(event.target.value)} className="min-h-10 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm outline-none" />
+    <label className={`control-users-field ${className}`}>
+      <span className="control-users-label">{label}{required ? ' *' : ''}</span>
+      <input type={type} required={required} value={value} onChange={(event) => onChange(event.target.value)} className="control-users-input" />
     </label>
   )
 }
 
 function State({ text }: { text: string }) {
-  return <div className="p-8 text-center text-sm text-[var(--color-muted)]">{text}</div>
+  return <div className="control-users-state">{text}</div>
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-[var(--color-soft)] p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</p>
-      <p className="mt-1 truncate text-lg font-semibold text-[var(--color-ink)]">{value}</p>
+    <div className="control-users-metric">
+      <p>{label}</p>
+      <strong>{value}</strong>
     </div>
   )
 }

@@ -266,7 +266,7 @@ export function PaymentsPage() {
       </section>
 
       {formOpen ? (
-        <div className="control-form-overlay fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+        <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
           <button type="button" aria-label="Cerrar" onClick={() => setFormOpen(false)} className="absolute inset-0 cursor-default" />
           <form onSubmit={submitManualPayment} className="control-form-surface relative z-10 w-full max-w-4xl rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Pago manual">
             <div className="control-form-header mb-6 flex items-center justify-between">
@@ -307,7 +307,7 @@ export function PaymentsPage() {
               </div>
               <Input label="Notas" value={form.notes} onChange={(value) => setForm({ ...form, notes: value })} />
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="control-form-actions mt-6">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
               <button type="submit" disabled={saving} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Registrar pago'}</button>
             </div>

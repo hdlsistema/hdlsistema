@@ -21,19 +21,39 @@ const ES_TO_EN: Record<string, string> = {
   'En revisión interna': 'Internal review',
   'Pendiente de pago': 'Pending payment',
   'Pago confirmado': 'Payment confirmed',
+  'Por preparar': 'Preparing',
+  Preparando: 'Preparing',
+  'Lista para salida': 'Ready to ship',
+  'Guía pendiente': 'Tracking pending',
+  'Guía asignada': 'Tracking assigned',
+  Enviado: 'Shipped',
+  Enviada: 'Shipped',
+  Entregado: 'Delivered',
+  Entregada: 'Delivered',
+  'En tránsito': 'In transit',
+  'No requiere envío': 'Shipping not required',
   Pagada: 'Paid',
   'En proceso': 'In progress',
   Reembolsada: 'Refunded',
+  Reembolsado: 'Refunded',
+  Completado: 'Completed',
 }
 
-const positiveLabels = new Set(['Confirmada', 'Publicado', 'Activa', 'Stock medio', 'Pagada', 'Pago confirmado', 'Entregado'])
-const warningLabels = new Set(['Pendiente', 'Por preparar', 'Preparando', 'Lista para salida', 'Guía pendiente', 'Guía asignada', 'Enviado', 'En tránsito', 'Borrador', 'Limitada', 'Stock bajo', 'Programada', 'Pendiente de pago', 'En proceso'])
+const positiveLabels = new Set(['Confirmada', 'Publicado', 'Activa', 'Stock medio', 'Pagada', 'Pago confirmado', 'Completado', 'Entregado', 'Entregada', 'No requiere envío'])
+const warningLabels = new Set(['Pendiente', 'Por preparar', 'Preparando', 'Lista para salida', 'Guía pendiente', 'Guía asignada', 'Enviado', 'Enviada', 'En tránsito', 'Borrador', 'Limitada', 'Stock bajo', 'Programada', 'Pendiente de pago', 'En proceso'])
 
 export function StatusBadge({ label }: StatusBadgeProps) {
   const { isEnglish } = useAppPreferences()
   const legacyBrandToken = String.fromCharCode(65, 76, 81, 73, 65)
   const legacyInternalReviewLabel = ['En revisión', legacyBrandToken].join(' ')
-  const sanitizedLabel = label === legacyInternalReviewLabel ? 'En revisión interna' : statusLabel(label)
+  const mappedLabel = statusLabel(label)
+  const labelLooksDisplayReady = /^[A-ZÁÉÍÓÚÑ]/.test(label) || /[\sáéíóúñ]/i.test(label)
+  const isUnrecognized = mappedLabel === 'Estado no identificado' || mappedLabel === 'Unrecognized status'
+  const sanitizedLabel = label === legacyInternalReviewLabel
+    ? 'En revisión interna'
+    : isUnrecognized && labelLooksDisplayReady
+      ? label
+      : mappedLabel
 
   const tone = positiveLabels.has(sanitizedLabel)
     ? 'border-[rgba(61,122,77,0.25)] bg-[rgba(61,122,77,0.08)] text-[var(--color-positive)]'

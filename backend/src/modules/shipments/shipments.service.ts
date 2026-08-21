@@ -67,6 +67,10 @@ type ShipmentEventRow = {
   occurred_at: string
   created_at: string
 }
+type ShipmentOrderRow = {
+  id: string
+  requires_shipping?: boolean | null
+}
 
 const shipmentSelect = `
   id,shipment_number,order_id,carrier_id,carrier,service_level,tracking_number,tracking_url,tracking_assigned_at,status_text,origin,destination,
@@ -90,6 +94,27 @@ function toNumber(value: number | string | null | undefined) {
 function customerName(row: ShipmentRow) {
   const customer = first(first(row.orders)?.customers)
   return customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+}
+
+async function assertOrderAcceptsShipment(orderId: string) {
+  const orderResult = await supabaseAdminClient
+    .from('orders')
+    .select('id,requires_shipping')
+    .eq('id', orderId)
+    .maybeSingle()
+  const order = assertNoError<ShipmentOrderRow | null>(orderResult).data
+  if (!order) throw httpError(404, 'Orden no encontrada')
+  if (order.requires_shipping) return
+
+  const wineResult = await supabaseAdminClient
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', orderId)
+    .eq('item_type', 'wine')
+  if (wineResult.error) normalizeDatabaseError(wineResult.error)
+  if ((wineResult.count ?? 0) > 0) return
+
+  throw httpError(422, 'Esta orden no requiere envío')
 }
 
 function mapShipment(row: ShipmentRow) {
@@ -177,6 +202,7 @@ export async function getShipment(id: string, user: UserContext) {
 
 export async function createShipment(payload: CreateShipmentPayload, user: UserContext) {
   requireOperationRole(user, writeRoles)
+  await assertOrderAcceptsShipment(payload.orderId)
   const result = await rpcClient(user).rpc('create_shipment', {
     p_order_id: payload.orderId,
     p_carrier_id: payload.carrierId ?? null,

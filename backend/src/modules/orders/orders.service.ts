@@ -70,13 +70,20 @@ type ReservationRow = {
 type OrderItemRow = {
   id: string
   order_id: string
+  item_id?: string | null
   item_type: string
   name_snapshot: string
   sku_snapshot?: string | null
   quantity: number
   unit_price: number | string
   subtotal: number | string
+  metadata?: Record<string, unknown> | null
   created_at: string
+}
+
+type WineImageRow = {
+  id: string
+  cover_image_url?: string | null
 }
 
 type PaymentSummaryRow = {
@@ -152,6 +159,22 @@ function firstRelation<T>(value: Relation<T> | undefined): T | null {
 
 function toNumber(value: number | string | null | undefined) {
   return Number(value ?? 0) || 0
+}
+
+function stringFromMetadata(metadata: Record<string, unknown> | null | undefined, keys: string[]) {
+  if (!metadata) return null
+  for (const key of keys) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+function itemImageUrl(row: OrderItemRow, wineImages: Map<string, string | null>) {
+  const snapshotImage = stringFromMetadata(row.metadata, ['imageUrl', 'image_url', 'coverImageUrl', 'cover_image_url'])
+  if (snapshotImage) return snapshotImage
+  if (row.item_type === 'wine' && row.item_id) return wineImages.get(row.item_id) ?? null
+  return null
 }
 
 function customerName(row: OrderRow) {
@@ -241,13 +264,15 @@ function mapOrder(
   }
 }
 
-function mapItem(row: OrderItemRow, canSeeMoney = true) {
+function mapItem(row: OrderItemRow, canSeeMoney = true, wineImages = new Map<string, string | null>()) {
   return {
     id: row.id,
     orderId: row.order_id,
+    itemId: row.item_id ?? null,
     itemType: row.item_type,
     nameSnapshot: row.name_snapshot,
     skuSnapshot: row.sku_snapshot ?? null,
+    imageUrl: itemImageUrl(row, wineImages),
     quantity: row.quantity,
     unitPrice: canSeeMoney ? toNumber(row.unit_price) : null,
     subtotal: canSeeMoney ? toNumber(row.subtotal) : null,
@@ -326,6 +351,17 @@ async function paymentsForOrders(orderIds: string[]) {
     map.set(row.order_id, [...(map.get(row.order_id) ?? []), row])
   }
   return map
+}
+
+async function wineImagesForItems(items: OrderItemRow[]) {
+  const wineIds = [...new Set(items.filter((item) => item.item_type === 'wine' && item.item_id).map((item) => item.item_id as string))]
+  if (!wineIds.length) return new Map<string, string | null>()
+  const result = await supabaseAdminClient
+    .from('wines')
+    .select('id,cover_image_url')
+    .in('id', wineIds)
+  const rows = assertNoError<WineImageRow[]>(result).data ?? []
+  return new Map(rows.map((row) => [row.id, row.cover_image_url ?? null]))
 }
 
 async function requireFinancialAccessForOrders(user: UserContext) {
@@ -436,10 +472,12 @@ export async function listOrderItems(id: string, user: UserContext) {
   await getOrder(id, user)
   const result = await supabaseAdminClient
     .from('order_items')
-    .select('id,order_id,item_type,name_snapshot,sku_snapshot,quantity,unit_price,subtotal,created_at')
+    .select('id,order_id,item_id,item_type,name_snapshot,sku_snapshot,quantity,unit_price,subtotal,metadata,created_at')
     .eq('order_id', id)
     .order('created_at', { ascending: true })
-  return { data: (assertNoError<OrderItemRow[]>(result).data ?? []).map((row) => mapItem(row, canSeeMoney)) }
+  const rows = assertNoError<OrderItemRow[]>(result).data ?? []
+  const wineImages = await wineImagesForItems(rows)
+  return { data: rows.map((row) => mapItem(row, canSeeMoney, wineImages)) }
 }
 
 export async function listOrderPayments(id: string, user: UserContext) {
@@ -526,6 +564,16 @@ async function getLatestShipment(orderId: string) {
   return assertNoError<ShipmentRow | null>(result).data
 }
 
+async function orderHasWineItem(orderId: string) {
+  const result = await supabaseAdminClient
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('order_id', orderId)
+    .eq('item_type', 'wine')
+  if (result.error) normalizeDatabaseError(result.error)
+  return (result.count ?? 0) > 0
+}
+
 function addressLine(address: OrderShippingAddressRow | null) {
   if (!address) return null
   return [
@@ -571,10 +619,12 @@ export async function ensureOrderShippingAfterPayment(orderId: string) {
   const order = await getOrderRowForShipping(orderId)
   if (!order.requires_shipping) return { data: mapOrder(order) }
   await ensureShipment(order, 'pending_preparation')
-  await supabaseAdminClient
+  assertNoError(await supabaseAdminClient
     .from('orders')
     .update({ shipping_status: 'pending_preparation', updated_at: new Date().toISOString() })
     .eq('id', order.id)
+    .select('id')
+    .single())
   await insertOrderNotification(
     order,
     'Pedido listo para preparar',
@@ -596,8 +646,8 @@ export async function prepareOrderShipment(id: string, _payload: OrderShippingAc
   if (order.status !== 'paid' && order.status !== 'processing') throw httpError(422, 'La orden debe tener pago confirmado')
   const shipment = await ensureShipment(order, 'pending_preparation', user.userId)
   const now = new Date().toISOString()
-  await supabaseAdminClient.from('shipments').update({ status_text: 'preparing', updated_by: user.userId, updated_at: now }).eq('id', shipment.id)
-  await supabaseAdminClient.from('orders').update({ shipping_status: 'preparing', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  assertNoError(await supabaseAdminClient.from('shipments').update({ status_text: 'preparing', updated_by: user.userId, updated_at: now }).eq('id', shipment.id).select('id').single())
+  assertNoError(await supabaseAdminClient.from('orders').update({ shipping_status: 'preparing', updated_by: user.userId, updated_at: now }).eq('id', order.id).select('id').single())
   await insertOrderNotification(order, 'Pedido en preparación', `La orden ${order.order_number} está en preparación.`, 'preparing').catch(() => undefined)
   await writeAudit('order_shipping_preparing', order.id, user.userId)
   return getOrder(order.id, user)
@@ -612,7 +662,7 @@ export async function assignOrderTracking(id: string, payload: OrderTrackingPayl
     || shipment.tracking_number !== payload.trackingNumber
     || (shipment.tracking_url ?? null) !== (payload.trackingUrl ?? null)
   const now = new Date().toISOString()
-  await supabaseAdminClient.from('shipments').update({
+  assertNoError(await supabaseAdminClient.from('shipments').update({
     carrier: payload.carrier,
     tracking_number: payload.trackingNumber,
     tracking_url: payload.trackingUrl ?? null,
@@ -620,8 +670,8 @@ export async function assignOrderTracking(id: string, payload: OrderTrackingPayl
     tracking_assigned_at: now,
     updated_by: user.userId,
     updated_at: now,
-  }).eq('id', shipment.id)
-  await supabaseAdminClient.from('orders').update({ shipping_status: 'tracking_assigned', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  }).eq('id', shipment.id).select('id').single())
+  assertNoError(await supabaseAdminClient.from('orders').update({ shipping_status: 'tracking_assigned', updated_by: user.userId, updated_at: now }).eq('id', order.id).select('id').single())
   if (trackingChanged) {
     await insertOrderNotification(order, 'Guía asignada', `La orden ${order.order_number} ya tiene guía asignada.`, 'tracking_assigned').catch(() => undefined)
     await queueOrderTrackingEmail(order, {
@@ -703,7 +753,7 @@ export async function shipOrder(id: string, payload: OrderShipPayload, user: Use
     .select('id,order_id,shipment_number,carrier,tracking_number,tracking_url,shipping_cost,status_text,tracking_assigned_at,handed_to_carrier_at,shipped_at,delivered_at,created_at,updated_at')
     .single()
   const shipment = assertNoError<ShipmentRow>(result).data
-  await supabaseAdminClient.from('orders').update({ shipping_status: 'shipped', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  assertNoError(await supabaseAdminClient.from('orders').update({ shipping_status: 'shipped', updated_by: user.userId, updated_at: now }).eq('id', order.id).select('id').single())
   await insertOrderNotification(order, 'Pedido enviado', `La orden ${order.order_number} fue marcada como enviada.`, 'shipped').catch(() => undefined)
   await queueOrderShippedEmail(order, shipment)
   await writeAudit('order_shipped', order.id, user.userId)
@@ -715,14 +765,14 @@ export async function deliverOrder(id: string, _payload: OrderShippingActionPayl
   const order = await getOrderRowForShipping(id)
   const current = await ensureShipment(order, 'shipped', user.userId)
   const now = new Date().toISOString()
-  await supabaseAdminClient.from('shipments').update({
+  assertNoError(await supabaseAdminClient.from('shipments').update({
     status_text: 'delivered',
     delivered_at: now,
     delivered_by: user.userId,
     updated_by: user.userId,
     updated_at: now,
-  }).eq('id', current.id)
-  await supabaseAdminClient.from('orders').update({ shipping_status: 'delivered', updated_by: user.userId, updated_at: now }).eq('id', order.id)
+  }).eq('id', current.id).select('id').single())
+  assertNoError(await supabaseAdminClient.from('orders').update({ shipping_status: 'delivered', updated_by: user.userId, updated_at: now }).eq('id', order.id).select('id').single())
   await insertOrderNotification(order, 'Pedido entregado', `La orden ${order.order_number} fue marcada como entregada.`, 'delivered').catch(() => undefined)
   await writeAudit('order_delivered', order.id, user.userId)
   return getOrder(order.id, user)
@@ -747,6 +797,9 @@ export async function synchronizeOrderFromShipment(
   if (!shipment) throw httpError(404, 'Envío no encontrado')
 
   const order = await getOrderRowForShipping(shipment.order_id)
+  if (!order.requires_shipping && !(await orderHasWineItem(order.id))) {
+    throw httpError(422, 'Esta orden no requiere envío')
+  }
   if (!['paid', 'processing', 'fulfilled'].includes(order.status)) return
 
   const statusMap: Record<string, string | null> = {
@@ -771,10 +824,12 @@ export async function synchronizeOrderFromShipment(
 
   const now = new Date().toISOString()
   const previousStatus = order.shipping_status ?? 'not_required'
-  await supabaseAdminClient
+  assertNoError(await supabaseAdminClient
     .from('orders')
     .update({ requires_shipping: true, shipping_status: nextStatus, updated_by: user.userId, updated_at: now })
     .eq('id', order.id)
+    .select('id')
+    .single())
 
   if (shipment.tracking_number && !['tracking_assigned', 'shipped', 'delivered'].includes(previousStatus)) {
     await queueOrderTrackingEmail(order, shipment).catch(() => undefined)

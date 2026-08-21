@@ -608,7 +608,7 @@ export function QuoteRequestsPage() {
               <QuoteTextArea label="Notas del cliente" value={quoteDraft.notes} onChange={(notes) => setQuoteDraft({ ...quoteDraft, notes })} />
               <QuoteTextArea label="Notas internas" value={quoteDraft.adminNotes} onChange={(adminNotesValue) => setQuoteDraft({ ...quoteDraft, adminNotes: adminNotesValue })} />
             </div>
-            <footer className="sticky bottom-0 mt-6 flex justify-end gap-3 border-t border-[var(--color-line)] bg-[rgba(249,242,232,0.96)] py-4"><button type="button" onClick={() => setFormMode(null)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold">Cancelar</button><button type="submit" disabled={saving === formMode} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-55">{saving === formMode ? 'Guardando...' : formMode === 'create' ? 'Crear cotización' : 'Guardar expediente'}</button></footer>
+            <footer className="control-form-actions sticky bottom-0 mt-6 border-t border-[var(--color-line)] bg-[rgba(249,242,232,0.96)] py-4"><button type="button" onClick={() => setFormMode(null)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold">Cancelar</button><button type="submit" disabled={saving === formMode} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-55">{saving === formMode ? 'Guardando...' : formMode === 'create' ? 'Crear cotización' : 'Guardar expediente'}</button></footer>
           </form>
         </div>
       ) : null}

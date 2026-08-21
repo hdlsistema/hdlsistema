@@ -35,12 +35,19 @@ export type ControlPermission = {
 export type AdminUserRecord = {
   id: string
   email: string | null
+  firstName?: string | null
+  lastName?: string | null
+  displayName?: string | null
   emailVerified: boolean
   createdAt: string
   lastSignInAt?: string | null
   roles?: string[]
   financialAccess?: boolean
   managedPasswordLocked?: boolean
+  isCustomer?: boolean
+  isStaff?: boolean
+  accountType?: 'admin' | 'staff' | 'customer_staff'
+  accountLabel?: string
 }
 
 export type ControlAccessResponse = {
@@ -76,7 +83,20 @@ export const adminUsersClient = {
     )
   },
   create(token: string | null | undefined, payload: CreateStaffUserPayload) {
-    return apiFetch<{ id: string; email: string | null; roles: string[]; permissions: string[]; financialAccess: boolean }>(
+    return apiFetch<{
+      id: string
+      email: string | null
+      firstName?: string | null
+      lastName?: string | null
+      displayName?: string | null
+      roles: string[]
+      permissions: string[]
+      financialAccess: boolean
+      isCustomer?: boolean
+      isStaff?: boolean
+      accountType?: AdminUserRecord['accountType']
+      accountLabel?: string
+    }>(
       '/api/admin/users',
       {
         method: 'POST',

@@ -246,7 +246,7 @@ export function ControlTopbar() {
       </header>
 
       {showAlerts ? (
-        <div className="fixed inset-0 z-50 flex items-start justify-end bg-[rgba(33,18,14,0.28)] p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[var(--control-z-alerts)] flex items-start justify-end bg-[rgba(33,18,14,0.28)] p-4 backdrop-blur-sm">
           <div className="mt-16 w-full max-w-[420px] overflow-hidden rounded-[1.5rem] border border-white/40 bg-[rgba(255,250,244,0.76)] shadow-[0_28px_80px_rgba(52,20,18,0.24)] backdrop-blur-2xl">
             <div className="flex items-center justify-between border-b border-[rgba(200,171,136,0.35)] px-5 py-4">
               <div>

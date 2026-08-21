@@ -29,7 +29,7 @@ export function ControlConfirmDialog({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[180] flex items-center justify-center bg-[#210711]/58 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[var(--control-z-confirm)] flex items-center justify-center bg-[#210711]/58 p-4 backdrop-blur-md">
       <button type="button" aria-label="Cerrar" onClick={onCancel} className="absolute inset-0 cursor-default" />
       <section className="relative w-full max-w-md overflow-hidden rounded-[1.35rem] border border-white/40 bg-[rgba(255,250,244,0.86)] p-5 shadow-[0_32px_90px_rgba(35,10,17,0.34)] backdrop-blur-2xl">
         <div className="flex items-start gap-4">
@@ -47,7 +47,7 @@ export function ControlConfirmDialog({
 
         {children ? <div className="mt-5">{children}</div> : null}
 
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="control-form-actions mt-6">
           <button
             type="button"
             onClick={onCancel}

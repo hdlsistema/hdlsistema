@@ -23,7 +23,8 @@ const supabaseMock = vi.hoisted(() => ({
   rpcError: null as unknown,
   rpcData: {} as Record<string, unknown>,
   rpcCalls: [] as Array<{ name: string; args?: Record<string, unknown> }>,
-  authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null; app_metadata?: Record<string, unknown> } | null,
+  authUser: null as { id: string; email: string; created_at: string; email_confirmed_at: string | null; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> } | null,
+  authUsers: [] as Array<{ id: string; email: string; created_at: string; email_confirmed_at: string | null; last_sign_in_at?: string | null; app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> }>,
   createdAuthUser: null as { id: string; email: string } | null,
   createUserPayload: null as Record<string, unknown> | null,
   updateUserPayload: null as Record<string, unknown> | null,
@@ -51,26 +52,37 @@ vi.mock('@supabase/supabase-js', () => ({
         return { data: { user: supabaseMock.authUser }, error: null }
       }),
       admin: {
-        listUsers: vi.fn(async () => ({ data: { users: [] }, error: null })),
-        getUserById: vi.fn(async () => ({ data: { user: null }, error: new Error('not found') })),
+        listUsers: vi.fn(async () => ({ data: { users: supabaseMock.authUsers }, error: null })),
+        getUserById: vi.fn(async (id: string) => {
+          const user = supabaseMock.authUsers.find((candidate) => candidate.id === id) ?? null
+          return user ? { data: { user }, error: null } : { data: { user: null }, error: new Error('not found') }
+        }),
         createUser: vi.fn(async (payload: Record<string, unknown>) => {
           supabaseMock.createUserPayload = payload
           return supabaseMock.createdAuthUser
             ? { data: { user: supabaseMock.createdAuthUser }, error: null }
             : { data: { user: null }, error: new Error('blocked') }
         }),
-        updateUserById: vi.fn(async (_id: string, payload: Record<string, unknown>) => {
+        updateUserById: vi.fn(async (id: string, payload: Record<string, unknown>) => {
           supabaseMock.updateUserPayload = payload
-          const nextUser = supabaseMock.authUser
+          const existingUser = supabaseMock.authUsers.find((candidate) => candidate.id === id) ??
+            (supabaseMock.authUser?.id === id ? supabaseMock.authUser : null)
+          const nextUser = existingUser
             ? {
-                ...supabaseMock.authUser,
+                ...existingUser,
                 app_metadata: {
-                  ...(supabaseMock.authUser.app_metadata ?? {}),
+                  ...(existingUser.app_metadata ?? {}),
                   ...((payload.app_metadata as Record<string, unknown> | undefined) ?? {}),
+                },
+                user_metadata: {
+                  ...(existingUser.user_metadata ?? {}),
+                  ...((payload.user_metadata as Record<string, unknown> | undefined) ?? {}),
                 },
               }
             : null
-          if (nextUser) supabaseMock.authUser = nextUser
+          if (nextUser && supabaseMock.authUser?.id === id) supabaseMock.authUser = nextUser
+          const index = supabaseMock.authUsers.findIndex((candidate) => candidate.id === id)
+          if (nextUser && index >= 0) supabaseMock.authUsers[index] = nextUser
           return { data: { user: nextUser }, error: null }
         }),
       },
@@ -274,6 +286,7 @@ beforeEach(() => {
   supabaseMock.rpcData = {}
   supabaseMock.rpcCalls = []
   supabaseMock.authUser = null
+  supabaseMock.authUsers = []
   supabaseMock.createdAuthUser = null
   supabaseMock.createUserPayload = null
   supabaseMock.updateUserPayload = null
@@ -538,6 +551,172 @@ describe('Fase 3 auth API', () => {
     const res = await request(app).get('/api/admin/users')
     expect(res.status).toBe(401)
     expect(res.body.error.code).toBe('UNAUTHORIZED')
+  })
+
+  it('/api/admin/users lista staff y administradores sin mezclar clientes puros', async () => {
+    const owner = {
+      id: '00000000-0000-0000-0000-000000000101',
+      email: 'pgaribay@alqia.tech',
+      created_at: '2026-08-20T00:00:00.000Z',
+      email_confirmed_at: '2026-08-20T00:00:00.000Z',
+      user_metadata: { name: 'Patricia Garibay' },
+    }
+    supabaseMock.authUser = owner
+    supabaseMock.authUsers = [
+      owner,
+      {
+        id: '00000000-0000-0000-0000-000000000102',
+        email: 'cliente.puro@example.com',
+        created_at: '2026-08-20T00:00:00.000Z',
+        email_confirmed_at: '2026-08-20T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000103',
+        email: 'host.evento@example.com',
+        created_at: '2026-08-20T00:00:00.000Z',
+        email_confirmed_at: '2026-08-20T00:00:00.000Z',
+        app_metadata: { staff_account: true, managed_password_locked: true },
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000104',
+        email: 'carlos.salas@example.com',
+        created_at: '2026-08-20T00:00:00.000Z',
+        email_confirmed_at: '2026-08-20T00:00:00.000Z',
+        user_metadata: { full_name: 'Carlos Salas' },
+      },
+    ]
+    supabaseMock.tableData.user_roles = [
+      { user_id: owner.id, roles: { code: 'super_admin' } },
+      { user_id: '00000000-0000-0000-0000-000000000102', roles: { code: 'customer' } },
+      { user_id: '00000000-0000-0000-0000-000000000103', roles: { code: 'customer' } },
+      { user_id: '00000000-0000-0000-0000-000000000103', roles: { code: 'operations' } },
+      { user_id: '00000000-0000-0000-0000-000000000104', roles: { code: 'super_admin' } },
+    ]
+    supabaseMock.tableData.profiles = [{
+      id: owner.id,
+      first_name: '',
+      last_name: '',
+      display_name: 'pgaribay@alqia.tech',
+    }]
+    supabaseMock.tableData.customers = [
+      {
+        id: '00000000-0000-0000-0000-000000000202',
+        user_id: '00000000-0000-0000-0000-000000000102',
+        first_name: 'Cliente',
+        last_name: 'Puro',
+        display_name: 'Cliente Puro',
+        email: 'cliente.puro@example.com',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000203',
+        user_id: '00000000-0000-0000-0000-000000000103',
+        first_name: 'Host',
+        last_name: 'Evento',
+        display_name: 'Host Evento',
+        email: 'host.evento@example.com',
+      },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/users?perPage=100')
+      .set('Authorization', 'Bearer owner-token')
+
+    expect(res.status).toBe(200)
+    const emails = res.body.users.map((user: { email: string }) => user.email)
+    expect(emails).toContain('pgaribay@alqia.tech')
+    expect(emails).toContain('carlos.salas@example.com')
+    expect(emails).toContain('host.evento@example.com')
+    expect(emails).not.toContain('cliente.puro@example.com')
+    expect(res.body.users).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        email: 'pgaribay@alqia.tech',
+        displayName: 'Patricia Garibay',
+        accountLabel: 'Super administrador',
+        accountType: 'admin',
+      }),
+      expect.objectContaining({
+        email: 'carlos.salas@example.com',
+        displayName: 'Carlos Salas',
+        accountLabel: 'Super administrador',
+        accountType: 'admin',
+      }),
+      expect.objectContaining({
+        email: 'host.evento@example.com',
+        displayName: 'Host Evento',
+        accountLabel: 'Cliente + staff',
+        accountType: 'customer_staff',
+        isCustomer: true,
+      }),
+    ]))
+  })
+
+  it('/api/admin/users convierte un cliente existente a cliente + staff sin quitar su rol customer', async () => {
+    const owner = {
+      id: '00000000-0000-0000-0000-000000000111',
+      email: 'pgaribay@alqia.tech',
+      created_at: '2026-08-20T00:00:00.000Z',
+      email_confirmed_at: '2026-08-20T00:00:00.000Z',
+    }
+    const customer = {
+      id: '00000000-0000-0000-0000-000000000112',
+      email: 'cliente.staff@example.com',
+      created_at: '2026-08-20T00:00:00.000Z',
+      email_confirmed_at: '2026-08-20T00:00:00.000Z',
+    }
+    supabaseMock.authUser = owner
+    supabaseMock.authUsers = [owner, customer]
+    supabaseMock.tableData.roles = [
+      { id: '00000000-0000-0000-0000-000000000301', code: 'customer' },
+      { id: '00000000-0000-0000-0000-000000000302', code: 'operations' },
+    ]
+    supabaseMock.tableData.user_roles = [
+      { user_id: owner.id, roles: { code: 'admin' } },
+      { user_id: customer.id, roles: { code: 'customer' } },
+    ]
+    supabaseMock.tableData.customers = [{
+      id: '00000000-0000-0000-0000-000000000212',
+      user_id: customer.id,
+      first_name: 'Cliente',
+      last_name: 'Staff',
+      display_name: 'Cliente Staff',
+      email: customer.email,
+    }]
+
+    const res = await request(app)
+      .post('/api/admin/users')
+      .set('Authorization', 'Bearer owner-token')
+      .send({
+        email: customer.email,
+        password: 'Hacienda2026!Staff',
+        roles: ['operations'],
+        permissions: ['entries.view', 'entries.scan'],
+        financialAccess: false,
+      })
+
+    expect(res.status).toBe(200)
+    expect(supabaseMock.createUserPayload).toBeNull()
+    expect(supabaseMock.updateUserPayload).toMatchObject({
+      password: 'Hacienda2026!Staff',
+      app_metadata: expect.objectContaining({
+        staff_account: true,
+        managed_password_locked: true,
+        must_change_password: false,
+      }),
+    })
+    expect(res.body).toMatchObject({
+      id: customer.id,
+      email: customer.email,
+      displayName: 'Cliente Staff',
+      roles: expect.arrayContaining(['customer', 'operations']),
+      permissions: expect.arrayContaining(['entries.view', 'entries.scan']),
+      isCustomer: true,
+      isStaff: true,
+      accountType: 'customer_staff',
+      accountLabel: 'Cliente + staff',
+    })
+    expect(supabaseMock.tableData.audit_logs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ action: 'admin_customer_promoted_to_staff', entity_id: customer.id }),
+    ]))
   })
 
   it('obliga una contraseña robusta y registra el cambio de primer acceso', async () => {
@@ -1803,12 +1982,19 @@ describe('Fase 7D orders, payments and check-in API', () => {
     supabaseMock.tableData.order_items = [{
       id: '33333333-3333-4333-8333-333333333077',
       order_id: orderId,
-      item_type: 'manual',
-      name_snapshot: 'Cata privada',
+      item_id: '33333333-3333-4333-8333-333333333078',
+      item_type: 'wine',
+      name_snapshot: 'Precioso Regalo',
+      sku_snapshot: 'PR-750',
       quantity: 2,
       unit_price: 600,
       subtotal: 1200,
+      metadata: {},
       created_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.wines = [{
+      id: '33333333-3333-4333-8333-333333333078',
+      cover_image_url: 'https://cdn.haciendadeletras.test/precioso-regalo.webp',
     }]
 
     const list = await request(app).get('/api/admin/orders').set('Authorization', 'Bearer viewer-token')
@@ -1818,7 +2004,8 @@ describe('Fase 7D orders, payments and check-in API', () => {
     expect(list.status).toBe(200)
     expect(list.body.data[0]).toMatchObject({ orderNumber: 'ORD-FASE7D', paidAmount: null, financialRestricted: true })
     expect(items.status).toBe(200)
-    expect(items.body.data[0].nameSnapshot).toBe('Cata privada')
+    expect(items.body.data[0].nameSnapshot).toBe('Precioso Regalo')
+    expect(items.body.data[0].imageUrl).toBe('https://cdn.haciendadeletras.test/precioso-regalo.webp')
     expect(items.body.data[0].unitPrice).toBeNull()
     expect(exported.status).toBe(403)
   })
@@ -2177,6 +2364,8 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
       id: orderId,
       order_number: 'ORD-FASE7E',
       status: 'paid',
+      requires_shipping: true,
+      shipping_status: 'pending_preparation',
       total: 900,
       customers: { display_name: 'Cliente Wine Club', first_name: 'Cliente', last_name: 'Wine Club' },
     }]
@@ -2414,6 +2603,37 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
     expect(shipped.status).toBe(200)
     expect(incident.status).toBe(201)
     expect(delivered.status).toBe(200)
+  })
+
+  it('rechaza crear logística para órdenes que no requieren envío físico', async () => {
+    signInAs('operations')
+    supabaseMock.tableData.orders = [{
+      id: orderId,
+      order_number: 'ORD-FASE7E-NO-SHIPPING',
+      status: 'paid',
+      requires_shipping: false,
+      shipping_status: 'not_required',
+      total: 600,
+      customers: { display_name: 'Cliente Experiencia', first_name: 'Cliente', last_name: 'Experiencia' },
+    }]
+    supabaseMock.tableData.order_items = [{
+      id: '44444444-4444-4444-8444-444444444090',
+      order_id: orderId,
+      item_type: 'experience_reservation',
+      name_snapshot: 'Cata de vinos',
+      quantity: 2,
+      unit_price: 300,
+      subtotal: 600,
+    }]
+
+    const response = await request(app)
+      .post('/api/admin/shipments')
+      .set('Authorization', 'Bearer operations-token')
+      .send({ orderId, carrier: 'Mensajería controlada', destination: 'Aguascalientes' })
+
+    expect(response.status).toBe(422)
+    expect(response.body.error.message).toBe('Esta orden no requiere envío')
+    expect(supabaseMock.rpcCalls.some((call) => call.name === 'create_shipment')).toBe(false)
   })
 
   it('lista distribuidores, contactos, órdenes y exporta sin UUID interno', async () => {

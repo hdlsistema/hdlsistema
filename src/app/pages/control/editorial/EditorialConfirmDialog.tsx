@@ -21,7 +21,7 @@ export function EditorialConfirmDialog({
   const warning = state.tone === 'warning'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(40,24,18,0.42)] px-4 py-6">
+    <div className="fixed inset-0 z-[var(--control-z-confirm)] flex items-center justify-center bg-[rgba(40,24,18,0.42)] px-4 py-6">
       <div
         role="dialog"
         aria-modal="true"

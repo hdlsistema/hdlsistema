@@ -98,7 +98,7 @@ export function ModalForm({
   children: ReactNode
 }) {
   return (
-    <div className="control-form-overlay fixed inset-0 z-[130] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+    <div className="control-form-overlay fixed inset-0 z-[var(--control-z-modal)] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
       <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 cursor-default" />
       <form onSubmit={onSubmit} className="control-form-surface relative z-10 max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label={title}>
         <div className="control-form-header mb-6 flex items-center justify-between gap-4">
@@ -106,7 +106,7 @@ export function ModalForm({
           <button type="button" onClick={onClose} className="min-h-10 rounded-xl border border-[var(--color-line)] px-4 text-sm font-semibold text-[var(--color-muted-strong)]">Cerrar</button>
         </div>
         <div className="control-form-grid grid gap-4 md:grid-cols-2">{children}</div>
-        <div className="mt-6 flex justify-end gap-3">
+        <div className="control-form-actions mt-6">
           <button type="button" onClick={onClose} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
           <button type="submit" disabled={saving} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Guardar'}</button>
         </div>

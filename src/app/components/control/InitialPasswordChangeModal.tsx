@@ -36,7 +36,7 @@ export function InitialPasswordChangeModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[300] grid min-h-screen place-items-center overflow-y-auto bg-[rgba(39,15,22,.62)] px-4 py-8 backdrop-blur-xl" role="presentation">
+    <div className="fixed inset-0 z-[var(--control-z-password)] grid min-h-screen place-items-center overflow-y-auto bg-[rgba(39,15,22,.62)] px-4 py-8 backdrop-blur-xl" role="presentation">
       <section role="dialog" aria-modal="true" aria-labelledby="initial-password-title" className="w-full max-w-[560px] overflow-hidden rounded-[1.7rem] border border-white/70 bg-[rgba(255,252,247,.96)] shadow-[0_38px_110px_rgba(42,10,20,.38)]">
         <div className="h-1.5 bg-[linear-gradient(90deg,#5d0d24,#8b253c,#c49a52)]" />
         <div className="p-6 sm:p-8">

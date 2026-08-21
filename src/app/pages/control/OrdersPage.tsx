@@ -351,7 +351,7 @@ export function OrdersPage() {
                   </div>
                   <p className="text-xs text-[var(--color-muted)]">{order.requiresShipping ? shippingStatusLabel(order.shippingStatus) : order.reservationNumber ?? 'Sin reservación'}</p>
                   <p className="text-xs font-semibold text-[var(--color-ink)]">{financialAccess ? money(order.total, order.currency) : 'Sin importes'}</p>
-                  <StatusBadge label={statusLabel(order.status)} />
+                  <StatusBadge label={order.status} />
                 </button>
               ))}
             </div>
@@ -385,7 +385,7 @@ export function OrdersPage() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Entrega</p>
                     <h4 className="mt-1 text-lg font-semibold text-[var(--color-ink)]">Seguimiento de pedido</h4>
                   </div>
-                  <StatusBadge label={shippingStatusLabel(selected.shippingStatus)} />
+                  <StatusBadge label={selected.shippingStatus ?? 'not_required'} />
                 </div>
                 {selected.shippingAddress ? (
                   <div className="mt-4 rounded-xl bg-[var(--color-soft)] p-3 text-sm leading-6 text-[var(--color-muted-strong)]">
@@ -422,14 +422,33 @@ export function OrdersPage() {
                   </form>
                 ) : null}
               </article>
-            ) : null}
+            ) : (
+              <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Operación</p>
+                    <h4 className="mt-1 text-lg font-semibold text-[var(--color-ink)]">Sin envío físico</h4>
+                  </div>
+                  <StatusBadge label="not_required" />
+                </div>
+                <div className="mt-4 grid gap-2">
+                  <Detail label="Tipo" value="Reservación, boleto o experiencia" />
+                  <Detail label="Reservación" value={selected.reservationNumber ?? 'Sin reservación'} />
+                  <Detail label="Guía" value="No requiere guía" />
+                </div>
+              </article>
+            )}
             <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
               <h4 className="text-sm font-semibold text-[var(--color-ink)]">Partidas</h4>
               <div className="mt-4 space-y-3">
                 {items.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin partidas cargadas.</p> : items.map((item) => (
-                  <div key={item.id} className="rounded-xl bg-[var(--color-soft)] p-3">
-                    <p className="text-sm font-semibold text-[var(--color-ink)]">{item.nameSnapshot}</p>
-                    <p className="mt-1 text-xs text-[var(--color-muted)]">{item.quantity} x {money(item.unitPrice)} = {money(item.subtotal)}</p>
+                  <div key={item.id} className="grid grid-cols-[76px_minmax(0,1fr)] gap-3 rounded-xl bg-[var(--color-soft)] p-3">
+                    <OrderItemImage item={item} />
+                    <div className="min-w-0 self-center">
+                      <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{item.nameSnapshot}</p>
+                      <p className="mt-1 text-xs text-[var(--color-muted)]">{item.quantity} x {money(item.unitPrice)} = {money(item.subtotal)}</p>
+                      {item.skuSnapshot ? <p className="mt-1 truncate text-[10px] font-semibold uppercase text-[var(--color-gold)]">{item.skuSnapshot}</p> : null}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -463,7 +482,7 @@ export function OrdersPage() {
       </section>
 
       {formOpen ? (
-        <div className="control-form-overlay fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+        <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
           <button type="button" aria-label="Cerrar" onClick={() => setFormOpen(false)} className="absolute inset-0 cursor-default" />
           <form onSubmit={submitOrder} className="control-form-surface relative z-10 max-h-[92vh] w-full max-w-5xl overflow-y-auto rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Nueva orden">
             <div className="control-form-header mb-6 flex items-center justify-between">
@@ -505,7 +524,7 @@ export function OrdersPage() {
               <Input label="Notas internas" value={form.internalNotes} onChange={(internalNotes) => setForm({ ...form, internalNotes })} />
             </div>
             <section className="mt-5 rounded-xl border border-[var(--color-line)] bg-white/60 p-4">
-              <div className="mb-3 flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold text-[var(--color-ink)]">Partidas de la orden</h3><p className="mt-1 text-xs text-[var(--color-muted)]">Agrega vinos, experiencias, hospedaje, alimentos, servicios o conceptos libres.</p></div><button type="button" onClick={() => setForm((current) => ({ ...current, items: [...current.items, { id: crypto.randomUUID(), itemId: '', itemType: 'manual', name: '', sku: '', quantity: '1', unitPrice: '0' }] }))} className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]"><Plus size={14} />Agregar partida</button></div>
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="text-sm font-semibold text-[var(--color-ink)]">Partidas de la orden</h3><p className="mt-1 text-xs text-[var(--color-muted)]">Agrega vinos, experiencias, hospedaje, alimentos, servicios o conceptos libres.</p></div><button type="button" onClick={() => setForm((current) => ({ ...current, items: [...current.items, { id: crypto.randomUUID(), itemId: '', itemType: 'manual', name: '', sku: '', quantity: '1', unitPrice: '0' }] }))} className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)]"><Plus size={14} />Agregar partida</button></div>
               <div className="space-y-3">
                 {form.items.map((line, index) => (
                   <div key={line.id} className="grid gap-3 rounded-xl bg-[var(--color-soft)] p-3 md:grid-cols-[150px_minmax(180px,1fr)_130px_90px_130px_auto]">
@@ -514,13 +533,13 @@ export function OrdersPage() {
                     <Input label="SKU" value={line.sku} onChange={(sku) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, sku } : item) }))} />
                     <Input label="Cant." type="number" min="1" value={line.quantity} onChange={(quantity) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, quantity } : item) }))} required />
                     <Input label="Precio" type="number" min="0" value={line.unitPrice} onChange={(unitPrice) => setForm((current) => ({ ...current, items: current.items.map((item) => item.id === line.id ? { ...item, unitPrice } : item) }))} required />
-                    <button type="button" aria-label="Quitar partida" disabled={form.items.length === 1} onClick={() => setForm((current) => ({ ...current, items: current.items.filter((item) => item.id !== line.id) }))} className="mt-5 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-alert)] disabled:opacity-30"><Trash2 size={15} /></button>
+                    <button type="button" aria-label="Quitar partida" disabled={form.items.length === 1} onClick={() => setForm((current) => ({ ...current, items: current.items.filter((item) => item.id !== line.id) }))} className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-[var(--color-alert)] disabled:opacity-30 md:mt-5"><Trash2 size={15} /></button>
                   </div>
                 ))}
               </div>
               <div className="mt-4 flex justify-end"><div className="rounded-lg bg-white px-4 py-2 text-right"><p className="text-[10px] uppercase text-[var(--color-muted)]">Total de la orden</p><p className="text-xl font-semibold text-[var(--color-burgundy)]">{money(form.items.reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0), 0))}</p></div></div>
             </section>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="control-form-actions mt-6">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
               <button type="submit" disabled={saving} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Crear orden'}</button>
             </div>
@@ -556,6 +575,26 @@ export function OrdersPage() {
 
 function Metric({ icon: Icon, label, value }: { icon: typeof ShoppingBag; label: string; value: string }) {
   return <article className="control-metric rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]"><div className="flex items-center justify-between gap-3"><div><p className="text-[11px] text-[var(--color-muted)]">{label}</p><p className="control-metric__value font-semibold text-[var(--color-ink)]">{value}</p></div><span className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={16} /></span></div></article>
+}
+
+function OrderItemImage({ item }: { item: OrderItemRecord }) {
+  const [failed, setFailed] = useState(false)
+  if (item.imageUrl && !failed) {
+    return (
+      <img
+        src={item.imageUrl}
+        alt={item.nameSnapshot}
+        loading="lazy"
+        onError={() => setFailed(true)}
+        className="h-[76px] w-[76px] rounded-xl border border-white/70 object-cover shadow-[0_12px_24px_rgba(29,5,12,0.12)]"
+      />
+    )
+  }
+  return (
+    <span className="flex h-[76px] w-[76px] items-center justify-center rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] text-[var(--color-burgundy)]">
+      <ShoppingBag size={24} />
+    </span>
+  )
 }
 
 function Detail({ label, value }: { label: string; value: string }) {

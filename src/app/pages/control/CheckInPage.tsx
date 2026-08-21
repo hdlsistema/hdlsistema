@@ -458,7 +458,7 @@ export function CheckInPage() {
       </section>
 
       {formOpen ? (
-        <div className="control-form-overlay fixed inset-0 z-[120] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+        <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
           <button type="button" aria-label="Cerrar" onClick={() => setFormOpen(false)} className="absolute inset-0 cursor-default" />
           <form onSubmit={submitPass} className="control-form-surface relative z-10 w-full max-w-2xl rounded-[1.5rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-[0_35px_90px_rgba(29,5,12,0.38)]" role="dialog" aria-modal="true" aria-label="Emitir pase">
             <div className="control-form-header mb-6 flex items-center justify-between">
@@ -476,7 +476,7 @@ export function CheckInPage() {
               <Input label="Válido desde" type="datetime" value={form.validFrom} onChange={(value) => setForm({ ...form, validFrom: value })} />
               <Input label="Válido hasta" type="datetime" value={form.validUntil} onChange={(value) => setForm({ ...form, validUntil: value })} />
             </div>
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="control-form-actions mt-6">
               <button type="button" onClick={() => setFormOpen(false)} className="min-h-11 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-muted-strong)]">Cancelar</button>
               <button type="submit" disabled={saving || !form.reservationId} className="min-h-11 rounded-xl bg-[var(--color-burgundy)] px-5 text-sm font-semibold text-white disabled:opacity-60">{saving ? 'Guardando...' : 'Emitir pase'}</button>
             </div>
@@ -485,7 +485,7 @@ export function CheckInPage() {
       ) : null}
 
       {scannerOpen ? (
-        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-[#210711]/78 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="checkin-scanner-title">
+        <div className="fixed inset-0 z-[var(--control-z-scanner)] flex items-center justify-center bg-[#210711]/78 p-4 backdrop-blur-md" role="dialog" aria-modal="true" aria-labelledby="checkin-scanner-title">
           <button type="button" aria-label="Cerrar escáner" onClick={closeScanner} className="absolute inset-0 cursor-default" />
           <section className="relative z-10 w-full max-w-xl overflow-hidden rounded-[1.5rem] border border-white/20 bg-[#fff9f1] shadow-[0_35px_90px_rgba(29,5,12,0.42)]">
             <header className="flex items-center justify-between gap-4 border-b border-[var(--color-line)] px-5 py-4">

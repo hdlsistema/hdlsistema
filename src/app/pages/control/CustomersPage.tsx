@@ -876,7 +876,7 @@ export function CustomersPage() {
       </div>
 
       {form ? (
-        <div className="control-form-overlay fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+        <div className="control-form-overlay fixed inset-0 z-[150] grid place-items-center bg-black/35 p-4">
           <form onSubmit={submitCustomer} className="control-form-surface grid max-h-[92vh] w-full max-w-4xl gap-4 overflow-auto rounded-lg bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-label={form.id ? 'Editar cliente' : 'Nuevo cliente'}>
             <div className="control-form-header flex items-start justify-between gap-3">
               <div>
@@ -938,7 +938,7 @@ export function CustomersPage() {
               </Field>
             </div>
 
-            <div className="flex justify-end gap-2">
+            <div className="control-form-actions">
               <button type="button" onClick={() => setForm(null)} className="inline-flex h-10 items-center justify-center rounded-md border border-[var(--color-line)] px-4 text-sm font-semibold">
                 Cancelar
               </button>
@@ -951,7 +951,7 @@ export function CustomersPage() {
         </div>
       ) : null}
       {tagEdit ? (
-        <div className="control-form-overlay fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
+        <div className="control-form-overlay fixed inset-0 z-[150] grid place-items-center bg-black/35 p-4">
           <form onSubmit={submitTagEdit} className="control-form-surface control-form-surface--compact grid w-full max-w-md gap-4 rounded-lg bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-label="Editar etiqueta">
             <div className="control-form-header flex items-start justify-between gap-3">
               <div>
@@ -963,7 +963,7 @@ export function CustomersPage() {
               </button>
             </div>
             <input value={tagEditName} onChange={(event) => setTagEditName(event.target.value)} className={inputClass()} autoFocus />
-            <div className="flex justify-end gap-2">
+            <div className="control-form-actions">
               <button type="button" onClick={() => setTagEdit(null)} className="inline-flex h-10 items-center justify-center rounded-md border border-[var(--color-line)] px-4 text-sm font-semibold">
                 Cancelar
               </button>

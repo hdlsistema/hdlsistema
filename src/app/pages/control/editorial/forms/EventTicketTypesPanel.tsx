@@ -254,7 +254,7 @@ export function EventTicketTypesPanel({
           <label><span className={labelClass}>Venta</span><CrystalSelect value={draft.active} onChange={(active) => setDraft({ ...draft, active })}><option value="true">Activa</option><option value="false">Inactiva</option></CrystalSelect></label>
           <label><span className={labelClass}>Visible en app</span><CrystalSelect value={draft.visibleInApp} onChange={(visibleInApp) => setDraft({ ...draft, visibleInApp })}><option value="true">Sí</option><option value="false">No</option></CrystalSelect></label>
           <label className="sm:col-span-2"><span className={labelClass}>Descripción</span><textarea rows={3} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} className="w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-sm outline-none" /></label>
-          <div className="flex justify-end gap-2 sm:col-span-2">
+          <div className="control-form-actions sm:col-span-2">
             <button type="button" onClick={() => setDraft(null)} className="inline-flex min-h-10 items-center rounded-xl border border-[var(--color-line)] bg-white px-4 text-xs font-semibold text-[var(--color-burgundy)]">Cancelar</button>
             <button type="submit" disabled={saving} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-45">{saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}Guardar boleto</button>
           </div>
