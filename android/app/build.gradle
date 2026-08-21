@@ -41,7 +41,7 @@ android {
         applicationId "com.haciendadeletras.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20
+        versionCode 21
         versionName "1.0.10"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
