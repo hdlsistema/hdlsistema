@@ -246,7 +246,12 @@ export function CustomersPage() {
   const [tagEdit, setTagEdit] = useState<CustomerTag | null>(null)
   const [tagEditName, setTagEditName] = useState('')
 
-  const selected = selectedDetail ?? customers.find((item) => item.id === selectedId) ?? customers[0] ?? null
+  const visibleCustomers = useMemo(() => {
+    if (!selectedDetail) return customers
+    return customers.map((customer) => customer.id === selectedDetail.id ? { ...customer, ...selectedDetail } : customer)
+  }, [customers, selectedDetail])
+
+  const selected = selectedDetail ?? visibleCustomers.find((item) => item.id === selectedId) ?? visibleCustomers[0] ?? null
 
   const loadCustomers = useCallback(async () => {
     setLoading(true)
@@ -283,6 +288,7 @@ export function CustomersPage() {
         customersClient.history(token, id),
       ])
       setSelectedDetail(detail.data)
+      setCustomers((current) => current.map((customer) => customer.id === detail.data.id ? { ...customer, ...detail.data } : customer))
       setReservations(customerReservations.data)
       setOrders(customerOrders.data)
       setMemberships(customerMemberships.data)
@@ -317,11 +323,11 @@ export function CustomersPage() {
   }, [loadDetail, selectedId])
 
   const metrics = useMemo(() => ({
-    total: customers.length,
-    vip: customers.filter((item) => item.segment === 'vip' || item.activeMembershipsCount > 0).length,
-    revenue: customers.reduce((sum, item) => sum + item.totalSpend, 0),
-    consent: customers.filter((item) => item.marketingEmailConsent || item.marketingPushConsent).length,
-  }), [customers])
+    total: visibleCustomers.length,
+    vip: visibleCustomers.filter((item) => item.segment === 'vip' || item.activeMembershipsCount > 0).length,
+    revenue: visibleCustomers.reduce((sum, item) => sum + item.totalSpend, 0),
+    consent: visibleCustomers.filter((item) => item.marketingEmailConsent || item.marketingPushConsent).length,
+  }), [visibleCustomers])
 
   const openCreate = () => {
     setForm(emptyCustomerForm)
@@ -610,9 +616,9 @@ export function CustomersPage() {
                   <div key={item} className="h-24 animate-pulse rounded-lg bg-[var(--color-soft)]" />
                 ))}
               </div>
-            ) : customers.length ? (
+            ) : visibleCustomers.length ? (
               <div className="grid gap-3">
-                {customers.map((customer) => (
+                {visibleCustomers.map((customer) => (
                   <button
                     key={customer.id}
                     type="button"
@@ -633,13 +639,17 @@ export function CustomersPage() {
                           {segmentLabel(customer.segment)}
                         </span>
                       </span>
-                      <span className="mt-2 grid gap-1 text-sm text-[var(--color-muted)] md:grid-cols-2">
+                      <span className="mt-2 grid gap-2 text-sm text-[var(--color-muted)]">
                         <span className="inline-flex min-w-0 items-center gap-2">
-                          <Mail size={14} />
+                          <Mail size={14} className="shrink-0" />
                           <span className="truncate">{customer.email ?? 'Sin correo'}</span>
                         </span>
-                        <span className="inline-flex min-w-0 items-center gap-2">
-                          <Phone size={14} />
+                        <span className={`inline-flex min-w-0 items-center gap-2 rounded-md px-2 py-1 ${
+                          customer.phone
+                            ? 'bg-[var(--color-panel-strong)] font-semibold text-[var(--color-ink)]'
+                            : 'bg-white/70 text-[var(--color-muted)]'
+                        }`}>
+                          <Phone size={14} className="shrink-0" />
                           <span className="truncate">{customer.phone ?? 'Sin teléfono'}</span>
                         </span>
                       </span>
