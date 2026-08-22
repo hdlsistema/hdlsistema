@@ -22,6 +22,7 @@ import {
   formatPublicTimeRange,
   imageField,
   numberField,
+  publicEventHasEnded,
   textField,
 } from '../../utils/publicContent'
 
@@ -124,8 +125,8 @@ export function EventsScreen() {
           options={categories.map((label, index) => ({ value: String(index), label }))}
           ariaLabel={isEnglish ? 'Filter grand events by type' : 'Filtrar eventos magnos por tipo'}
           className="relative z-30"
-          buttonClassName="min-h-12 rounded-[1.15rem] border-white/70 bg-[rgba(255,252,247,0.78)] px-4 text-[13px] font-semibold text-[#513d34] shadow-[0_16px_34px_rgba(37,47,55,0.1)] backdrop-blur-2xl"
-          menuClassName="z-[320] rounded-[1.2rem] border-white/76 bg-[linear-gradient(180deg,rgba(255,252,247,0.98),rgba(247,242,234,0.96))]"
+          buttonClassName="min-h-12 rounded-[1.15rem] border-[rgba(180,138,85,0.34)] bg-[linear-gradient(135deg,rgba(247,242,234,0.94),rgba(232,216,200,0.78))] px-4 text-[13px] font-semibold text-[var(--color-ink)] shadow-[0_16px_34px_rgba(37,47,55,0.1)] backdrop-blur-2xl"
+          menuClassName="z-[320] rounded-[1.2rem] border-[rgba(180,138,85,0.34)] bg-[linear-gradient(180deg,rgba(247,242,234,0.98),rgba(232,216,200,0.96))]"
         />
       </section>
 
@@ -151,6 +152,7 @@ export function EventsScreen() {
             const kind = eventKindLabel(metadataField(event, 'event_kind'))
             const reservationPhone = metadataField(event, 'reservation_phone')
             const salesDisabled = event.sales_enabled === false
+            const eventEnded = publicEventHasEnded(event)
 
             return (
               <EditorialCard
@@ -176,6 +178,8 @@ export function EventsScreen() {
                     <StatusBadge>
                       {salesDisabled && reservationPhone
                         ? (isEnglish ? 'Phone reservation' : 'Reserva por teléfono')
+                        : eventEnded
+                          ? (isEnglish ? 'Closed sale' : 'Venta cerrada')
                         : price > 0
                         ? formatCurrency(price, locale)
                         : t('app.premium.events.ticketPending')}

@@ -92,6 +92,7 @@ export type CustomerReservation = {
   createdAt: string
   updatedAt: string
   accessPass?: CustomerAccessPass | null
+  accessPasses?: CustomerAccessPass[]
 }
 
 export type CustomerAccessPass = {

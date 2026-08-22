@@ -30,8 +30,19 @@ const editorActions: ContentAction[] = [
 ]
 
 const operationsEntities: ContentEntityType[] = ['experience', 'event']
-const marketingEntities: ContentEntityType[] = ['promotion', 'campaign']
+const marketingEntities: ContentEntityType[] = ['promotion', 'campaign', 'event', 'experience', 'wine']
 const financeEntities: ContentEntityType[] = ['wine', 'membership_plan']
+const marketingActions: ContentAction[] = [
+  'create',
+  'update',
+  'publish',
+  'unpublish',
+  'schedule',
+  'archive',
+  'restore',
+  'duplicate',
+  'preview',
+]
 
 export const contentAdminRoles = adminRoles
 
@@ -59,7 +70,7 @@ export function canAccessContent(
   if (
     roleSet.has('marketing') &&
     marketingEntities.includes(entityType) &&
-    editorActions.includes(action)
+    marketingActions.includes(action)
   ) {
     return true
   }

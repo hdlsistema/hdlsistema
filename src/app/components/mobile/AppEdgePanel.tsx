@@ -149,7 +149,7 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className={`app-edge-panel-handle ${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/58 bg-[linear-gradient(155deg,rgba(91,9,34,.95),rgba(61,5,22,.88))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(46,4,17,.28),inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-2xl touch-none`}
+        className={`app-edge-panel-handle ${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/58 bg-[linear-gradient(155deg,rgba(37,47,55,.96),rgba(104,17,38,.92))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(46,4,17,.28),inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-2xl touch-none`}
         style={{ right: handleRight, transition: dragOffset === null ? 'right 260ms cubic-bezier(.2,.8,.2,1)' : 'none' }}
       >
         <PanelRightOpen size={17} strokeWidth={1.4} aria-hidden="true" />
@@ -195,18 +195,18 @@ export function AppEdgePanel() {
               <X size={18} strokeWidth={1.45} />
             </button>
             <img src="/hacienda de letras logo 2.png" alt="Hacienda de Letras" className="mx-auto h-auto w-[126px] object-contain" />
-            <p className="mt-3 font-[var(--font-display)] text-[19px] leading-none text-[#30221D]">Hacienda de Letras</p>
-            <p className="mt-2 text-[11px] text-[#786B63]">{roleLabel}</p>
+            <p className="mt-3 font-[var(--font-display)] text-[19px] leading-none text-[#252F37]">Hacienda de Letras</p>
+            <p className="mt-2 text-[11px] text-[#675f59]">{roleLabel}</p>
           </div>
 
           {isAuthenticated ? (
             <div className="mt-4 flex items-center gap-3 border-b border-[#E8DDCE] pb-4">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#D9BD8A] bg-[#FBF7F0] text-[#690D2B]">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-gold)] bg-[var(--color-panel)] text-[var(--color-burgundy)]">
                 <UserRound size={18} strokeWidth={1.45} />
               </span>
               <span className="min-w-0 text-left">
-                <span className="block truncate text-[13px] font-semibold text-[#30221D]">{displayName}</span>
-                <span className="block truncate text-[10px] text-[#786B63]">{roleLabel}</span>
+                <span className="block truncate text-[13px] font-semibold text-[#252F37]">{displayName}</span>
+                <span className="block truncate text-[10px] text-[#675f59]">{roleLabel}</span>
               </span>
             </div>
           ) : null}
@@ -228,8 +228,8 @@ export function AppEdgePanel() {
 
           <div className="mt-6 border-t border-[#E8DDCE] pt-4">
             <EdgeLanguageSwitcher language={language} setLanguage={setLanguage} />
-            <Link to={appPath('/perfil')} onClick={() => closePanel(false)} className="mt-3 flex min-h-11 items-center gap-3 px-1 text-[13px] text-[#30221D]">
-              <HelpCircle size={18} strokeWidth={1.5} className="text-[#786B63]" />
+            <Link to={appPath('/perfil')} onClick={() => closePanel(false)} className="mt-3 flex min-h-11 items-center gap-3 px-1 text-[13px] text-[#252F37]">
+              <HelpCircle size={18} strokeWidth={1.5} className="text-[#675f59]" />
               {isEnglish ? 'Help / contact' : 'Ayuda / contacto'}
             </Link>
             {isAuthenticated ? (
@@ -248,7 +248,7 @@ export function AppEdgePanel() {
 function EdgeSection({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section>
-      <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#B78A4C]">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#B48A55]">{label}</p>
       <div className="mt-2 space-y-1">{children}</div>
     </section>
   )
@@ -257,10 +257,10 @@ function EdgeSection({ label, children }: { label: string; children: ReactNode }
 function EdgeNavItem({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate: () => void }) {
   const Icon = item.icon
   return (
-    <Link to={item.to} onClick={onNavigate} className={`flex min-h-[46px] items-center gap-3 rounded-[14px] px-2.5 text-[13px] transition ${active ? 'border border-white/80 bg-white/68 text-[#690D2B] shadow-[0_9px_24px_rgba(72,31,28,.07)]' : 'text-[#30221D]'}`}>
+    <Link to={item.to} onClick={onNavigate} className={`flex min-h-[46px] items-center gap-3 rounded-[14px] px-2.5 text-[13px] transition ${active ? 'border border-[rgba(180,138,85,0.36)] bg-[rgba(247,242,234,0.72)] text-[var(--color-burgundy)] shadow-[0_9px_24px_rgba(37,47,55,.08)]' : 'text-[var(--color-ink)]'}`}>
       <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${active ? 'border-[#d8b986] bg-[#6a102a] text-white' : 'border-white/80 bg-white/55 text-[#80644d]'}`}><Icon size={16} strokeWidth={1.45} /></span>
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
-      <ChevronRight size={15} strokeWidth={1.45} className="text-[#B78A4C]" />
+      <ChevronRight size={15} strokeWidth={1.45} className="text-[#B48A55]" />
     </Link>
   )
 }
@@ -268,11 +268,11 @@ function EdgeNavItem({ item, active, onNavigate }: { item: NavItem; active: bool
 function EdgeLanguageSwitcher({ language, setLanguage }: { language: AppLanguage; setLanguage: (value: AppLanguage) => void }) {
   return (
     <div className="flex min-h-10 items-center justify-between rounded-lg bg-[#F6EFE5] px-3">
-      <Globe2 size={16} strokeWidth={1.45} className="text-[#B78A4C]" />
+      <Globe2 size={16} strokeWidth={1.45} className="text-[#B48A55]" />
       <div className="flex items-center gap-3 text-[11px] font-bold">
-        <button type="button" onClick={() => setLanguage('es')} className={language === 'es' ? 'text-[#690D2B]' : 'text-[#786B63]'}>ES</button>
-        <span className="h-4 w-px bg-[#D9BD8A]" />
-        <button type="button" onClick={() => setLanguage('en')} className={language === 'en' ? 'text-[#690D2B]' : 'text-[#786B63]'}>EN</button>
+        <button type="button" onClick={() => setLanguage('es')} className={language === 'es' ? 'text-[var(--color-burgundy)]' : 'text-[var(--color-muted)]'}>ES</button>
+        <span className="h-4 w-px bg-[#B48A55]" />
+        <button type="button" onClick={() => setLanguage('en')} className={language === 'en' ? 'text-[var(--color-burgundy)]' : 'text-[var(--color-muted)]'}>EN</button>
       </div>
     </div>
   )

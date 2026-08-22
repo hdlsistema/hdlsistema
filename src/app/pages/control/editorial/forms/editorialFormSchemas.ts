@@ -225,6 +225,13 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
         ],
       },
       {
+        title: 'Reglas, menú y variables',
+        description: 'Condiciones contractuales, menú opcional y configuración operativa visible en app.',
+        fields: [
+          { key: 'metadata', label: 'Condiciones y menú', type: 'eventMetadata', nullable: true, publicVisible: true },
+        ],
+      },
+      {
         title: 'Contenido visible en app',
         description: 'Controla visibilidad, imagen y orden.',
         fields: [

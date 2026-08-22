@@ -65,6 +65,13 @@ function toIso(value: string) {
   return value ? new Date(value).toISOString() : null
 }
 
+function notifyTicketCatalogUpdated(eventId: string) {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('hdl:content-updated', {
+    detail: { entity: 'grand-events', id: eventId, scope: 'event-ticket-types', updatedAt: Date.now() },
+  }))
+}
+
 export function EventTicketTypesPanel({
   eventId,
   token,
@@ -150,6 +157,7 @@ export function EventTicketTypesPanel({
       setSuccess(draft.id ? 'Tipo de boleto actualizado.' : 'Tipo de boleto creado.')
       setDraft(null)
       await load()
+      notifyTicketCatalogUpdated(eventId)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'No fue posible guardar el tipo de boleto.')
     } finally {
@@ -167,6 +175,7 @@ export function EventTicketTypesPanel({
       setPendingRemoveId('')
       setSuccess('Tipo de boleto retirado.')
       await load()
+      notifyTicketCatalogUpdated(eventId)
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : 'No fue posible retirar el tipo de boleto.')
     } finally {

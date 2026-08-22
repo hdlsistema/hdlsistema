@@ -3,7 +3,7 @@ import {
   supabaseAdminClient,
 } from '../../config/supabase'
 import {
-  ensureReservationAccessPass,
+  ensureReservationAccessPasses,
   listCustomerAccessPasses,
   revokeReservationAccessPasses,
 } from '../checkin/accessPassIssuer'
@@ -246,7 +246,7 @@ function mapReservation(row: ReservationRow) {
 }
 
 async function withReservationAccessPass(reservation: CustomerReservationData) {
-  const accessPass = await ensureReservationAccessPass({
+  const accessPasses = await ensureReservationAccessPasses({
     id: reservation.id,
     status: reservation.status,
     reservationType: reservation.reservationType,
@@ -258,7 +258,7 @@ async function withReservationAccessPass(reservation: CustomerReservationData) {
     checkIn: reservation.checkIn,
     checkOut: reservation.checkOut,
   })
-  return { ...reservation, accessPass }
+  return { ...reservation, accessPass: accessPasses[0] ?? null, accessPasses }
 }
 
 function customerDisplayName(customer: CustomerRow) {
@@ -456,7 +456,7 @@ function queueReservationPush(
     userId: user.userId ?? customer.user_id,
     title: copy.title,
     body: copy.body,
-    deepLink: '/app/reservacion',
+    deepLink: `/app/reservacion?reservationId=${encodeURIComponent(reservation.id)}`,
     data: {
       type: event.replace('.', '_'),
       reservationId: reservation.id,

@@ -18,7 +18,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import {
@@ -80,6 +80,7 @@ function PreferenceControl({ name, label, detail, defaultChecked }: { name: stri
 }
 
 export function ProfileScreen() {
+  const navigate = useNavigate()
   const { t, locale, language: appLanguage, setLanguage: setAppLanguage } = useAppPreferences()
   const { user, session, profile, refreshProfile, signOut } = useAuth()
   const [customerMe, setCustomerMe] = useState<CustomerMe | null>(null)
@@ -336,7 +337,11 @@ export function ProfileScreen() {
         // Reading the destination remains available if the read receipt fails.
       }
     }
-    if (notification.deepLink?.startsWith('/app/')) window.location.assign(notification.deepLink)
+    if (notification.deepLink?.startsWith('/app')) {
+      const destination = new URL(notification.deepLink, window.location.origin)
+      const appRoute = destination.pathname.replace(/^\/app/, '') || '/'
+      navigate(`${appPath(appRoute)}${destination.search}${destination.hash}`)
+    }
   }
 
   const menuGroups = [
@@ -526,7 +531,7 @@ export function ProfileScreen() {
                   <p className="text-[13px] font-semibold capitalize text-[var(--color-ink)]">{method.brand ?? method.type} •••• {method.last4 ?? '----'}</p>
                   <p className="mt-1 text-[11px] text-[var(--color-muted)]">{language === 'en' ? 'Expires' : 'Vence'} {String(method.expMonth ?? '').padStart(2, '0')}/{method.expYear ?? '----'}</p>
                 </div>
-                <ShieldCheck size={17} className="shrink-0 text-[var(--color-vineyard)]" />
+                <ShieldCheck size={17} className="shrink-0 text-[#252F37]" />
               </article>
             ))}
           </div>

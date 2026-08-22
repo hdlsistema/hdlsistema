@@ -21,8 +21,8 @@ export function OfficialDirectionsSheet({
   }
 
   const sheet = (
-    <div className="fixed inset-0 z-[260] flex items-end bg-[rgba(35,12,13,0.38)] px-3 pb-[calc(env(safe-area-inset-bottom)+104px)] pt-[calc(env(safe-area-inset-top)+16px)] backdrop-blur-[7px]" role="dialog" aria-modal="true" aria-label={isEnglish ? 'Choose navigation app' : 'Elige aplicación de navegación'}>
-      <section className="app-scrollbar-none max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-132px)] w-full overflow-y-auto overscroll-contain rounded-[24px] border border-[rgba(231,207,170,0.82)] bg-[rgba(255,249,241,0.97)] p-5 pb-5 shadow-[0_28px_64px_rgba(45,12,18,0.3)]">
+    <div className="fixed inset-0 z-[1000] flex items-end bg-[rgba(35,12,13,0.38)] px-3 pb-[calc(env(safe-area-inset-bottom)+112px)] pt-[calc(env(safe-area-inset-top)+16px)] backdrop-blur-[7px]" role="dialog" aria-modal="true" aria-label={isEnglish ? 'Choose navigation app' : 'Elige aplicación de navegación'}>
+      <section className="app-scrollbar-none max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-148px)] w-full overflow-y-auto overscroll-contain rounded-[24px] border border-[rgba(231,207,170,0.82)] bg-[rgba(255,249,241,0.97)] p-5 pb-5 shadow-[0_28px_64px_rgba(45,12,18,0.3)]">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">{isEnglish ? 'Directions' : 'Cómo llegar'}</p>

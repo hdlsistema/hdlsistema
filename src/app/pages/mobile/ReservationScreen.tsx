@@ -11,6 +11,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerAccessPass, type CustomerAvailabilitySlot, type CustomerReservation } from '../../../services/customer.service'
 import { appPath } from '../../utils/appRoutes'
 import { downloadAccessCredentialPdf, shareAccessCredential } from '../../utils/accessCredentialPdf'
+import { acceptedContractMetadata, buildMenuSelection, contractTermsFromMetadata, menuConfigFromMetadata, menuSelectionFromMetadata } from '../../utils/reservationContract'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
   return {
@@ -64,8 +65,8 @@ function makeIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
 }
 
-function isStandaloneTicketPass(pass: CustomerAccessPass) {
-  return !pass.reservationId && pass.accessType === 'event_ticket' && Boolean(pass.eventTicketTypeId)
+function isTicketAccessPass(pass: CustomerAccessPass) {
+  return (pass.accessType === 'event_ticket' && Boolean(pass.eventTicketTypeId)) || pass.accessType === 'experience'
 }
 
 type ChoiceOption = {
@@ -81,12 +82,27 @@ type RomanticSignSelection = {
   currency: 'MXN'
 }
 
+type MainCourseSelection = {
+  required: boolean
+  label: string
+  option: string
+  value: string
+}
+
 const ROMANTIC_SIGN_PRICE = 500
 const ROMANTIC_SIGN_LABEL = 'Letrero luminoso'
 const ROMANTIC_SIGN_OPTIONS = [
   'Te quieres casar conmigo',
   'Quieres ser mi novia',
 ]
+const MAIN_COURSE_LABEL = 'Plato fuerte'
+const MAIN_COURSE_OPTIONS: ChoiceOption[] = [
+  { value: 'filete-res', label: 'Filete de res' },
+  { value: 'pechuga-rellena', label: 'Pechuga rellena' },
+  { value: 'pasta-cremosa', label: 'Pasta cremosa' },
+  { value: 'opcion-vegetariana', label: 'Opción vegetariana' },
+]
+const ROMANTIC_SERVICE_NOTICE_HOURS = 5
 
 function objectRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
@@ -102,10 +118,14 @@ function normalizeText(value: unknown) {
 function romanticSignConfig(record: Record<string, unknown> | null | undefined) {
   const metadata = objectRecord(record?.metadata)
   const config = objectRecord(metadata.romanticSign)
+  const descriptor = normalizeText(`${record?.slug ?? ''} ${record?.title ?? ''}`)
+  const isPicnic = descriptor.includes('picnic')
+  const isRomanticService = descriptor.includes('cena romantica') || isPicnic
   const enabled = config.enabled === true
     || metadata.romanticDinner === true
+    || metadata.romanticService === true
     || record?.slug === 'cena-romantica-cava'
-    || normalizeText(record?.title).includes('cena romantica')
+    || isRomanticService
   if (!enabled) return null
 
   const price = Number(config.price)
@@ -119,6 +139,44 @@ function romanticSignConfig(record: Record<string, unknown> | null | undefined) 
     price: Number.isFinite(price) && price >= 0 ? price : ROMANTIC_SIGN_PRICE,
     currency: 'MXN' as const,
     options: options.length > 0 ? options : ROMANTIC_SIGN_OPTIONS,
+    serviceLabel: String(config.serviceLabel ?? (isPicnic ? 'Picnic' : 'Cena romántica')),
+  }
+}
+
+function mainCourseConfig(record: Record<string, unknown> | null | undefined) {
+  const metadata = objectRecord(record?.metadata)
+  const config = objectRecord(metadata.mainCourse)
+  const signConfig = romanticSignConfig(record)
+  const menuConfig = objectRecord(metadata.menuConfig)
+  const menuOptions = Array.isArray(menuConfig.options) ? menuConfig.options : []
+  const hasStructuredMenu = menuConfig.enabled === true || menuOptions.length > 0
+  const descriptor = normalizeText(`${record?.slug ?? ''} ${record?.title ?? ''}`)
+  const isPicnic = descriptor.includes('picnic')
+  const enabled = config.enabled === true
+    || metadata.mainCourseRequired === true
+    || (Boolean(signConfig) && !hasStructuredMenu)
+  if (!enabled) return null
+
+  const rawOptions = Array.isArray(config.options) ? config.options : []
+  const options = rawOptions
+    .map((option) => {
+      if (typeof option === 'string') return { value: normalizeText(option).replace(/\s+/g, '-'), label: option }
+      const recordOption = objectRecord(option)
+      const label = String(recordOption.label ?? recordOption.name ?? '').trim()
+      if (!label) return null
+      return {
+        value: String(recordOption.value ?? normalizeText(label).replace(/\s+/g, '-')),
+        label,
+      }
+    })
+    .filter((option): option is ChoiceOption => Boolean(option))
+  const noticeHours = Number(config.noticeHours ?? metadata.minimumNoticeHours)
+
+  return {
+    label: String(config.label ?? MAIN_COURSE_LABEL),
+    options: options.length > 0 ? options : MAIN_COURSE_OPTIONS,
+    noticeHours: Number.isFinite(noticeHours) && noticeHours > 0 ? noticeHours : ROMANTIC_SERVICE_NOTICE_HOURS,
+    serviceLabel: String(config.serviceLabel ?? signConfig?.serviceLabel ?? (isPicnic ? 'Picnic' : 'Cena romántica')),
   }
 }
 
@@ -137,6 +195,20 @@ function romanticSignFromMetadata(metadata: Record<string, unknown> | null | und
   }
 }
 
+function mainCourseFromMetadata(metadata: Record<string, unknown> | null | undefined): MainCourseSelection | null {
+  const course = objectRecord(metadata?.mainCourse)
+  if (course.required !== true) return null
+  const option = String(course.option ?? '').trim()
+  const value = String(course.value ?? '').trim()
+  if (!option) return null
+  return {
+    required: true,
+    label: String(course.label ?? MAIN_COURSE_LABEL),
+    option,
+    value,
+  }
+}
+
 function MobileChoiceSheet({
   title,
   options,
@@ -151,15 +223,15 @@ function MobileChoiceSheet({
   onClose: () => void
 }) {
   return (
-    <div className="fixed inset-0 z-[160] flex items-end bg-[rgba(45,24,17,0.34)] p-3 backdrop-blur-md" role="dialog" aria-modal="true">
-      <section className="max-h-[78dvh] w-full overflow-hidden rounded-[2rem] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,249,241,0.94)] shadow-[0_28px_80px_rgba(45,24,17,0.32)] backdrop-blur-2xl">
+    <div className="fixed inset-0 z-[160] flex items-end bg-[rgba(45,24,17,0.34)] px-3 pb-[calc(env(safe-area-inset-bottom)+118px)] pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-md" role="dialog" aria-modal="true">
+      <section className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-142px)] w-full overflow-hidden rounded-[2rem] border border-[rgba(255,255,255,0.6)] bg-[rgba(255,249,241,0.94)] shadow-[0_28px_80px_rgba(45,24,17,0.32)] backdrop-blur-2xl">
         <header className="flex items-center justify-between gap-3 border-b border-[rgba(184,138,74,0.18)] px-5 py-4">
           <h3 className="text-[13px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{title}</h3>
           <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/72 text-[var(--color-ink)]" aria-label="Cerrar">
             <X size={16} />
           </button>
         </header>
-        <div className="app-scrollbar-none max-h-[58dvh] overflow-y-auto p-3">
+        <div className="app-scrollbar-none max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-220px)] overflow-y-auto p-3">
           {options.map((option) => {
             const active = option.value === selectedValue
             return (
@@ -193,8 +265,8 @@ function AccessQr({ payload, alt }: { payload: string; alt: string }) {
       margin: 4,
       width: 260,
       color: {
-        dark: '#2D1811',
-        light: '#FFF9F1',
+        dark: '#252F37',
+        light: '#F7F2EA',
       },
     }).then((nextSource) => {
       if (active) setSource(nextSource)
@@ -228,11 +300,12 @@ function TicketSheet({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[180] flex items-end overflow-y-auto bg-[rgba(45,24,17,0.46)] px-3 pb-[calc(env(safe-area-inset-bottom)+86px)] pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-md"
+      className="fixed inset-0 z-[180] flex items-end overflow-y-auto bg-[rgba(45,24,17,0.46)] px-3 pb-[calc(env(safe-area-inset-bottom)+118px)] pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-md"
       role="dialog"
       aria-modal="true"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom)+86px)', margin: 4 }}
     >
-      <section className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-104px)] w-full overflow-y-auto overscroll-contain rounded-[2rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.92)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
+      <section className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-142px)] w-full overflow-y-auto overscroll-contain rounded-[2rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.92)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.ticket.eyebrow', 'Mi boleto')}</p>
@@ -270,7 +343,15 @@ export function ReservationScreen() {
   const { session } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
-  const requestedExperienceId = (location.state as { experienceId?: string } | null)?.experienceId
+  const requestedExperienceId = useMemo(() => {
+    const stateId = (location.state as { experienceId?: string } | null)?.experienceId
+    const params = new URLSearchParams(location.search)
+    return stateId || params.get('experienceId') || params.get('experience') || ''
+  }, [location.search, location.state])
+  const requestedReservationId = useMemo(() => {
+    const params = new URLSearchParams(location.search)
+    return params.get('reservationId') || params.get('reservation') || ''
+  }, [location.search])
   const { records: experiences, loading, error, retry } = usePublicContent('experiences')
   const [selectedExperienceId, setSelectedExperienceId] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState('')
@@ -286,8 +367,12 @@ export function ReservationScreen() {
   const [operationError, setOperationError] = useState('')
   const [selectedTicket, setSelectedTicket] = useState<CustomerAccessPass | null>(null)
   const [experienceSheetOpen, setExperienceSheetOpen] = useState(false)
+  const [appliedRequestedExperienceId, setAppliedRequestedExperienceId] = useState<string | null>(null)
   const [romanticSignRequired, setRomanticSignRequired] = useState(false)
   const [romanticSignMessage, setRomanticSignMessage] = useState(ROMANTIC_SIGN_OPTIONS[0])
+  const [mainCourseValue, setMainCourseValue] = useState(MAIN_COURSE_OPTIONS[0].value)
+  const [menuValue, setMenuValue] = useState('')
+  const [contractAccepted, setContractAccepted] = useState(false)
 
   const featuredExperience =
     experiences.find((experience) => String(experience.id) === selectedExperienceId)
@@ -299,6 +384,20 @@ export function ReservationScreen() {
       setSelectedExperienceId(String(featuredExperience.id))
     }
   }, [featuredExperience, selectedExperienceId])
+
+  useEffect(() => {
+    if (!requestedExperienceId || requestedExperienceId === appliedRequestedExperienceId || experiences.length === 0) return
+    const requested = experiences.find((experience) => contentRouteId(experience) === requestedExperienceId || String(experience.id) === requestedExperienceId)
+    if (!requested) {
+      setAppliedRequestedExperienceId(requestedExperienceId)
+      return
+    }
+    setSelectedExperienceId(String(requested.id))
+    setSelectedSlotId('')
+    setMessage('')
+    setOperationError('')
+    setAppliedRequestedExperienceId(requestedExperienceId)
+  }, [appliedRequestedExperienceId, experiences, requestedExperienceId])
 
   const token = session?.access_token
 
@@ -358,12 +457,23 @@ export function ReservationScreen() {
     void loadReservations()
   }, [loadReservations])
 
+  useEffect(() => {
+    if (!requestedReservationId || loadingReservations || reservations.length === 0) return
+    const handle = window.setTimeout(() => {
+      document.getElementById(`reservation-${requestedReservationId}`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 120)
+    return () => window.clearTimeout(handle)
+  }, [loadingReservations, requestedReservationId, reservations.length])
+
   const selectedSlot = useMemo(
     () => slots.find((slot) => slot.id === selectedSlotId) ?? null,
     [selectedSlotId, slots],
   )
 
-  const bookingSlots = useMemo(
+  const allBookingSlots = useMemo(
     () => slots.filter((slot) => slot.experienceId === selectedExperienceId),
     [selectedExperienceId, slots],
   )
@@ -372,6 +482,37 @@ export function ReservationScreen() {
     () => romanticSignConfig(featuredExperience as Record<string, unknown> | null | undefined),
     [featuredExperience],
   )
+
+  const activeMainCourseConfig = useMemo(
+    () => mainCourseConfig(featuredExperience as Record<string, unknown> | null | undefined),
+    [featuredExperience],
+  )
+
+  const featuredMetadata = useMemo(
+    () => objectRecord((featuredExperience as Record<string, unknown> | null | undefined)?.metadata),
+    [featuredExperience],
+  )
+
+  const activeContractTerms = useMemo(
+    () => contractTermsFromMetadata(featuredMetadata),
+    [featuredMetadata],
+  )
+
+  const activeMenuConfig = useMemo(
+    () => menuConfigFromMetadata(featuredMetadata),
+    [featuredMetadata],
+  )
+
+  const bookingSlots = useMemo(() => {
+    if (!activeMainCourseConfig?.noticeHours) return allBookingSlots
+    const minimumStart = Date.now() + activeMainCourseConfig.noticeHours * 60 * 60 * 1000
+    return allBookingSlots.filter((slot) => {
+      const start = new Date(slot.startAt).getTime()
+      return Number.isNaN(start) || start >= minimumStart
+    })
+  }, [activeMainCourseConfig?.noticeHours, allBookingSlots])
+
+  const blockedByNotice = allBookingSlots.length > 0 && bookingSlots.length === 0
 
   useEffect(() => {
     if (!activeRomanticSignConfig) {
@@ -386,7 +527,29 @@ export function ReservationScreen() {
 
   useEffect(() => {
     setRomanticSignRequired(false)
+    setContractAccepted(false)
+    setMenuValue('')
   }, [selectedExperienceId])
+
+  useEffect(() => {
+    if (!activeMainCourseConfig) {
+      setMainCourseValue(MAIN_COURSE_OPTIONS[0].value)
+      return
+    }
+    setMainCourseValue((current) => activeMainCourseConfig.options.some((option) => option.value === current)
+      ? current
+      : activeMainCourseConfig.options[0]?.value ?? MAIN_COURSE_OPTIONS[0].value)
+  }, [activeMainCourseConfig])
+
+  useEffect(() => {
+    if (!activeMenuConfig) {
+      setMenuValue('')
+      return
+    }
+    setMenuValue((current) => activeMenuConfig.options.some((option) => option.value === current)
+      ? current
+      : activeMenuConfig.required ? activeMenuConfig.options[0]?.value ?? '' : '')
+  }, [activeMenuConfig])
 
   const romanticSignSelection = useMemo<RomanticSignSelection | null>(() => {
     if (!activeRomanticSignConfig || !romanticSignRequired) return null
@@ -401,8 +564,28 @@ export function ReservationScreen() {
 
   const romanticSignTotal = romanticSignSelection ? romanticSignSelection.price : 0
 
+  const mainCourseSelection = useMemo<MainCourseSelection | null>(() => {
+    if (!activeMainCourseConfig) return null
+    const selectedCourse = activeMainCourseConfig.options.find((option) => option.value === mainCourseValue)
+    if (!selectedCourse) return null
+    return {
+      required: true,
+      label: activeMainCourseConfig.label,
+      option: selectedCourse.label,
+      value: selectedCourse.value,
+    }
+  }, [activeMainCourseConfig, mainCourseValue])
+
+  const menuSelection = useMemo(
+    () => buildMenuSelection(activeMenuConfig, menuValue, people),
+    [activeMenuConfig, menuValue, people],
+  )
+
+  const menuTotal = menuSelection?.subtotal ?? 0
+  const reservationTotal = selectedSlot ? (selectedSlot.price * people) + romanticSignTotal + menuTotal : 0
+
   const standalonePasses = useMemo(
-    () => accessPasses.filter(isStandaloneTicketPass),
+    () => accessPasses.filter(isTicketAccessPass),
     [accessPasses],
   )
 
@@ -414,15 +597,33 @@ export function ReservationScreen() {
 
   const createReservation = async () => {
     if (!token || !selectedSlot) return
+    if (activeMainCourseConfig && !mainCourseSelection) {
+      setOperationError('Selecciona el plato fuerte antes de continuar.')
+      return
+    }
+    if (activeMenuConfig?.required && !menuSelection) {
+      setOperationError('Selecciona el menú antes de continuar.')
+      return
+    }
+    if (activeContractTerms.requiresAcceptance && !contractAccepted) {
+      setOperationError('Acepta las condiciones de reservación antes de continuar.')
+      return
+    }
     setSubmitting(true)
     setMessage('')
     setOperationError('')
     try {
+      const metadata = {
+        ...(romanticSignSelection ? { romanticSign: romanticSignSelection } : {}),
+        ...(mainCourseSelection ? { mainCourse: mainCourseSelection } : {}),
+        ...(menuSelection ? { menuSelection } : {}),
+        acceptedTerms: acceptedContractMetadata(activeContractTerms, 'mobile_experience_reservation'),
+      }
       const response = await customerClient.createReservation(token, {
         experienceSlotId: selectedSlot.id,
         peopleCount: people,
         customerNotes: notes || null,
-        metadata: romanticSignSelection ? { romanticSign: romanticSignSelection } : undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
         language,
         idempotencyKey: makeIdempotencyKey('reservation'),
       })
@@ -535,7 +736,9 @@ export function ReservationScreen() {
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingAvailability')}</div>
         ) : bookingSlots.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
-            {t('app.premium.reservation.noSlots')}
+            {blockedByNotice
+              ? `${activeMainCourseConfig?.serviceLabel ?? 'Esta experiencia'} requiere reservar con al menos ${activeMainCourseConfig?.noticeHours ?? ROMANTIC_SERVICE_NOTICE_HOURS} horas de anticipación.`
+              : t('app.premium.reservation.noSlots')}
           </div>
         ) : (
           <div className="grid gap-3">
@@ -583,7 +786,7 @@ export function ReservationScreen() {
         <section className="rounded-[1.25rem] border border-[rgba(180,138,85,0.28)] bg-[linear-gradient(145deg,rgba(247,242,234,0.96),rgba(232,216,200,0.72))] p-4 shadow-[0_14px_30px_rgba(37,47,55,0.07)]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">Cena romántica</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{activeRomanticSignConfig.serviceLabel}</p>
               <h3 className="mt-1 flex items-center gap-2 text-[18px] font-semibold leading-tight text-[var(--color-ink)]"><Sparkles size={17} className="shrink-0 text-[var(--color-burgundy)]" />{activeRomanticSignConfig.label}</h3>
               <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
                 Agrega el letrero a la reservación por {formatCurrency(activeRomanticSignConfig.price, locale)}.
@@ -618,6 +821,100 @@ export function ReservationScreen() {
         </section>
       ) : null}
 
+      {activeMainCourseConfig ? (
+        <section className="rounded-[1.25rem] border border-[rgba(180,138,85,0.28)] bg-white/82 p-4 shadow-[0_14px_30px_rgba(37,47,55,0.06)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">Cocina</p>
+          <h3 className="mt-1 text-[18px] font-semibold leading-tight text-[var(--color-ink)]">{activeMainCourseConfig.label}</h3>
+          <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
+            Se comparte con cocina para preparar la reserva. Requiere mínimo {activeMainCourseConfig.noticeHours} horas de anticipación.
+          </p>
+          <div className="mt-4 grid gap-2">
+            {activeMainCourseConfig.options.map((option) => {
+              const active = mainCourseValue === option.value
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setMainCourseValue(option.value)}
+                  className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                >
+                  <span className="min-w-0 break-words">{option.label}</span>
+                  {active ? <Check size={16} className="shrink-0" /> : null}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {activeMenuConfig ? (
+        <section className="rounded-[1.25rem] border border-[rgba(180,138,85,0.28)] bg-white/86 p-4 shadow-[0_14px_30px_rgba(37,47,55,0.06)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{activeMenuConfig.label}</p>
+          <h3 className="mt-1 text-[18px] font-semibold leading-tight text-[var(--color-ink)]">Elige tu menú</h3>
+          <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
+            {activeMenuConfig.priceMode === 'per_person'
+              ? 'El precio se calcula por persona registrada en la reservación.'
+              : 'El precio se agrega una vez a la reservación.'}
+          </p>
+          <div className="mt-4 grid gap-2">
+            {!activeMenuConfig.required ? (
+              <button
+                type="button"
+                onClick={() => setMenuValue('')}
+                className={`flex min-h-[58px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left transition ${menuValue === '' ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+              >
+                <span className="min-w-0 text-[13px] font-semibold">Sin menú</span>
+                {menuValue === '' ? <Check size={16} className="shrink-0" /> : null}
+              </button>
+            ) : null}
+            {activeMenuConfig.options.map((option) => {
+              const active = menuValue === option.value
+              const quantity = activeMenuConfig.priceMode === 'per_person' ? Math.max(1, people) : 1
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setMenuValue(option.value)}
+                  className={`flex min-h-[72px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                >
+                  <span className="min-w-0">
+                    {option.category ? <span className={`mb-1 block text-[9px] font-semibold uppercase tracking-[0.13em] ${active ? 'text-white/70' : 'text-[var(--color-gold)]'}`}>{option.category}</span> : null}
+                    <span className="block break-words text-[13px] font-semibold">{option.label}</span>
+                    {option.description ? <span className={`mt-1 block break-words text-[11px] leading-4 ${active ? 'text-white/76' : 'text-[var(--color-muted)]'}`}>{option.description}</span> : null}
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="block text-[12px] font-semibold">{formatCurrency(option.price * quantity, locale)}</span>
+                    {active ? <Check size={16} className="ml-auto mt-2" /> : null}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="rounded-[1.25rem] border border-[rgba(180,138,85,0.28)] bg-[rgba(247,242,234,0.78)] p-4 shadow-[0_14px_30px_rgba(37,47,55,0.05)]">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">Contrato de reservación</p>
+        <h3 className="mt-1 text-[18px] font-semibold leading-tight text-[var(--color-ink)]">{activeContractTerms.title}</h3>
+        <ul className="mt-3 grid gap-2 text-[12px] leading-5 text-[var(--color-muted)]">
+          {activeContractTerms.terms.map((term) => (
+            <li key={term} className="rounded-[0.9rem] bg-white/68 px-3 py-2">{term}</li>
+          ))}
+        </ul>
+        {activeContractTerms.requiresAcceptance ? (
+          <button
+            type="button"
+            onClick={() => setContractAccepted((current) => !current)}
+            className={`mt-4 flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${contractAccepted ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.24)]'}`}
+          >
+            <span className="min-w-0 break-words">{activeContractTerms.confirmationMessage}</span>
+            <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${contractAccepted ? 'bg-white/18 text-white' : 'bg-[rgba(37,47,55,0.08)] text-[var(--color-muted)]'}`}>
+              {contractAccepted ? <Check size={15} /> : null}
+            </span>
+          </button>
+        ) : null}
+      </section>
+
       {selectedSlot ? (
         <section className="rounded-[1.3rem] bg-[linear-gradient(145deg,#fffaf5,#f2dfca)] p-5 shadow-[0_16px_34px_rgba(74,32,28,0.07)]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{t('app.premium.reservation.summary')}</p>
@@ -627,7 +924,13 @@ export function ReservationScreen() {
               {romanticSignSelection ? (
                 <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">{romanticSignSelection.label}</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(romanticSignTotal, locale)}</span></div>
               ) : null}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(180,138,85,0.22)] pt-2"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency((selectedSlot.price * people) + romanticSignTotal, locale)}</span></div>
+              {mainCourseSelection ? (
+                <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">{mainCourseSelection.label}</span><span className="font-semibold text-[var(--color-ink)]">{mainCourseSelection.option}</span></div>
+              ) : null}
+              {menuSelection ? (
+                <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">{menuSelection.label}</span><span className="font-semibold text-[var(--color-ink)]">{menuSelection.option} · {formatCurrency(menuTotal, locale)}</span></div>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(180,138,85,0.22)] pt-2"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(reservationTotal, locale)}</span></div>
           </div>
         </section>
       ) : null}
@@ -676,16 +979,34 @@ export function ReservationScreen() {
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.noReservations')}</div>
         ) : (
           <div className="grid gap-3">
-            {reservations.map((reservation) => (
-              <article key={reservation.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+            {reservations.map((reservation) => {
+              const reservationPasses = reservation.accessPasses?.length
+                ? reservation.accessPasses
+                : reservation.accessPass ? [reservation.accessPass] : []
+              const romanticSign = romanticSignFromMetadata(reservation.metadata)
+              const mainCourse = mainCourseFromMetadata(reservation.metadata)
+              const menu = menuSelectionFromMetadata(reservation.metadata)
+              const isRequestedReservation = requestedReservationId === reservation.id
+              return (
+              <article id={`reservation-${reservation.id}`} key={reservation.id} className={`rounded-[1.2rem] border bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)] ${isRequestedReservation ? 'border-[var(--color-burgundy)] ring-2 ring-[rgba(104,17,38,0.14)]' : 'border-[rgba(220,202,181,0.78)]'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>
                     <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.title ?? reservation.experienceTitle}</h3>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">{reservationSchedule(reservation, locale, t('common.toBeConfirmed'))}</p>
-                    {romanticSignFromMetadata(reservation.metadata) ? (
+                    {romanticSign ? (
                       <p className="mt-2 rounded-[0.85rem] bg-[rgba(180,138,85,0.16)] px-3 py-2 text-[11px] font-semibold leading-4 text-[var(--color-burgundy)]">
-                        {romanticSignFromMetadata(reservation.metadata)?.label}: {romanticSignFromMetadata(reservation.metadata)?.message}
+                        {romanticSign.label}: {romanticSign.message}
+                      </p>
+                    ) : null}
+                    {mainCourse ? (
+                      <p className="mt-2 rounded-[0.85rem] bg-[rgba(37,47,55,0.08)] px-3 py-2 text-[11px] font-semibold leading-4 text-[#252F37]">
+                        {mainCourse.label}: {mainCourse.option}
+                      </p>
+                    ) : null}
+                    {menu ? (
+                      <p className="mt-2 rounded-[0.85rem] bg-[rgba(180,138,85,0.14)] px-3 py-2 text-[11px] font-semibold leading-4 text-[var(--color-ink)]">
+                        {menu.label}: {menu.option}
                       </p>
                     ) : null}
                     {reservation.paymentStatus === 'pending' && reservation.paymentOrderId ? (
@@ -698,11 +1019,15 @@ export function ReservationScreen() {
                 </div>
                 {['pending', 'confirmed'].includes(reservation.status) ? (
                   <div className="mt-4 grid gap-2">
-                    {reservation.accessPass ? (
-                      <button type="button" onClick={() => setSelectedTicket(reservation.accessPass ?? null)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
-                        <Ticket size={15} />
-                        {t('app.premium.ticket.show', 'Ver boleto QR')}
-                      </button>
+                    {reservationPasses.length ? (
+                      <div className={reservationPasses.length > 1 ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
+                        {reservationPasses.map((pass, index) => (
+                          <button key={pass.id} type="button" onClick={() => setSelectedTicket(pass)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
+                            <Ticket size={15} />
+                            {reservationPasses.length > 1 ? `QR ${index + 1} de ${reservationPasses.length}` : t('app.premium.ticket.show', 'Ver boleto QR')}
+                          </button>
+                        ))}
+                      </div>
                     ) : null}
                     {reservation.reservationType === 'experience' ? (
                       <AppSelect
@@ -727,7 +1052,8 @@ export function ReservationScreen() {
                   </div>
                 ) : null}
               </article>
-            ))}
+              )
+            })}
           </div>
         )}
       </section>

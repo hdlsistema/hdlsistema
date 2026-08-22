@@ -8,9 +8,9 @@ class HdlBridgeViewController: CAPBridgeViewController {
 
     private var burgundy: UIColor {
         UIColor(
-            red: 63.0 / 255.0,
-            green: 8.0 / 255.0,
-            blue: 24.0 / 255.0,
+            red: 104.0 / 255.0,
+            green: 17.0 / 255.0,
+            blue: 38.0 / 255.0,
             alpha: 1.0
         )
     }

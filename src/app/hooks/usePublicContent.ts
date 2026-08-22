@@ -20,6 +20,25 @@ export function usePublicContent(entity: ContentEntity, localeOverride?: 'es-MX'
   const retry = useCallback(() => setReloadKey((value) => value + 1), [])
 
   useEffect(() => {
+    const refresh = () => setReloadKey((value) => value + 1)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+
+    window.addEventListener('focus', refresh)
+    window.addEventListener('hdl:content-updated', refresh)
+    window.addEventListener('hdl:push-received', refresh)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('hdl:content-updated', refresh)
+      window.removeEventListener('hdl:push-received', refresh)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [])
+
+  useEffect(() => {
     let active = true
     setLoading(true)
     setError(null)

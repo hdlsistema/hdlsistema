@@ -288,7 +288,7 @@ export function CheckoutScreen() {
       {order ? (
         <section className="rounded-[1.25rem] bg-[linear-gradient(145deg,rgba(37,47,55,0.1),rgba(255,250,242,0.96))] p-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start gap-3">
-            <CheckCircle2 size={26} className="mt-0.5 shrink-0 text-[var(--color-vineyard)]" />
+            <CheckCircle2 size={26} className="mt-0.5 shrink-0 text-[#252F37]" />
             <div className="min-w-0">
               <h1 className="break-words text-[1.65rem] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
                 {order.orderNumber}

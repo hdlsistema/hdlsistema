@@ -139,7 +139,7 @@ with seed_events as (
           'required', true,
           'options', jsonb_build_array(
             jsonb_build_object('id', 'adult', 'label', 'Adulto', 'value', 'adulto'),
-            jsonb_build_object('id', 'child', 'label', 'Nino', 'value', 'nino')
+            jsonb_build_object('id', 'child', 'label', 'Niño', 'value', 'nino')
           )
         )
       )
@@ -323,11 +323,11 @@ with ticket_seed as (
   union all select 'concierto-80s-90s-mas-vendimia-2026', 'Preventa', 'Boleto en preventa para concierto dentro de Vendimia 2026.', 150, 600, 10, jsonb_build_object('seed_group', 'grand_events_2026', 'ticket_kind', 'preventa')
   union all select 'concierto-80s-90s-mas-vendimia-2026', 'Dia del evento', 'Boleto comprado el dia del evento.', 200, 600, 20, jsonb_build_object('seed_group', 'grand_events_2026', 'ticket_kind', 'dia_evento')
   union all select 'la-gran-carrera-del-vino-2026', 'Adulto 3K', 'Inscripcion adulto para distancia 3K.', 300, 150, 10, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '3K', 'participant_type', 'adulto')
-  union all select 'la-gran-carrera-del-vino-2026', 'Nino 3K', 'Inscripcion infantil para distancia 3K.', 180, 80, 20, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '3K', 'participant_type', 'nino')
+  union all select 'la-gran-carrera-del-vino-2026', 'Niño 3K', 'Inscripción infantil para distancia 3K.', 180, 80, 20, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '3K', 'participant_type', 'nino')
   union all select 'la-gran-carrera-del-vino-2026', 'Adulto 5K', 'Inscripcion adulto para distancia 5K.', 350, 180, 30, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '5K', 'participant_type', 'adulto')
-  union all select 'la-gran-carrera-del-vino-2026', 'Nino 5K', 'Inscripcion infantil para distancia 5K.', 220, 80, 40, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '5K', 'participant_type', 'nino')
+  union all select 'la-gran-carrera-del-vino-2026', 'Niño 5K', 'Inscripción infantil para distancia 5K.', 220, 80, 40, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '5K', 'participant_type', 'nino')
   union all select 'la-gran-carrera-del-vino-2026', 'Adulto 8K', 'Inscripcion adulto para distancia 8K.', 400, 220, 50, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '8K', 'participant_type', 'adulto')
-  union all select 'la-gran-carrera-del-vino-2026', 'Nino 8K', 'Inscripcion infantil para distancia 8K.', 250, 90, 60, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '8K', 'participant_type', 'nino')
+  union all select 'la-gran-carrera-del-vino-2026', 'Niño 8K', 'Inscripción infantil para distancia 8K.', 250, 90, 60, jsonb_build_object('seed_group', 'grand_events_2026', 'distance', '8K', 'participant_type', 'nino')
   union all select 'festival-espuma-y-vino-2026', 'Acceso general', 'Entrada general al Festival de Espuma y Vino.', 150, 800, 10, jsonb_build_object('seed_group', 'grand_events_2026', 'ticket_kind', 'general')
 )
 insert into public.event_ticket_types (

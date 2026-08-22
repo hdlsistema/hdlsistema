@@ -178,7 +178,10 @@ export function ExperienceDetailScreen() {
         )}
       </section>
 
-      <PrimaryButton to={appPath('/reservacion')}>
+      <PrimaryButton
+        to={`${appPath('/reservacion')}?experience=${encodeURIComponent(String(experience.slug ?? experience.id))}`}
+        state={{ experienceId: String(experience.slug ?? experience.id) }}
+      >
         <CalendarDays size={16} />
         {t('app.reserveLive')}
       </PrimaryButton>

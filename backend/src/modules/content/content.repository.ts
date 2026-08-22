@@ -42,6 +42,10 @@ function translationLocales(locale: string) {
   return normalizePublicLocale(locale) === 'en-US' ? ['en-US', 'en'] : baseLocales
 }
 
+function shouldUseTranslations(locale: string) {
+  return normalizePublicLocale(locale) === 'en-US'
+}
+
 function selectPreferredTranslation(rows: TranslationRow[], locale: string) {
   const locales = translationLocales(locale)
   return rows
@@ -121,6 +125,7 @@ function livePublicQuery(config: ContentConfig) {
 }
 
 async function getLiveTranslations(config: ContentConfig, entityIds: string[], locale: string) {
+  if (!shouldUseTranslations(locale)) return []
   if (entityIds.length === 0) return []
 
   const result = await supabaseAdminClient
@@ -141,6 +146,8 @@ async function getLiveTranslations(config: ContentConfig, entityIds: string[], l
 }
 
 async function getLiveTranslationBySlug(config: ContentConfig, slug: string, locale: string) {
+  if (!shouldUseTranslations(locale)) return undefined
+
   const result = await supabaseAdminClient
     .from('content_translations')
     .select(translationSelect)
@@ -267,7 +274,7 @@ export async function createPublicationJob(
 ) {
   const existing = await supabaseAdminClient
     .from('content_publication_jobs')
-    .select('id,entity_type,entity_id,action,run_at,timezone,status,attempts,max_attempts,created_at,updated_at')
+    .select('id,entity_type,entity_id,action,run_at,timezone,status,attempts,max_attempts,metadata,created_at,updated_at')
     .eq('entity_type', config.entityType)
     .eq('entity_id', id)
     .eq('action', action)
@@ -288,8 +295,12 @@ export async function createPublicationJob(
         status: 'pending',
         created_by: userId ?? null,
         updated_at: new Date().toISOString(),
+        metadata: {
+          route: config.route,
+          metadataScope: config.metadataScope ?? null,
+        },
       })
-    .select('id,entity_type,entity_id,action,run_at,timezone,status,attempts,max_attempts,created_at,updated_at')
+    .select('id,entity_type,entity_id,action,run_at,timezone,status,attempts,max_attempts,metadata,created_at,updated_at')
     .single()
 
   return assertNoError(result)

@@ -130,6 +130,13 @@ function approvalStatusLabel(status: unknown) {
   return 'Sin solicitud'
 }
 
+function notifyContentUpdated(entity: ContentEntity, record: ContentRecord | null) {
+  if (!record || typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('hdl:content-updated', {
+    detail: { entity, id: record.id, updatedAt: Date.now() },
+  }))
+}
+
 export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const config = editorialDefinitions[entity]
   const { session, roles } = useAuth()
@@ -285,6 +292,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         ? await adminContentClient.update(entity, selected.id, payload, token)
         : await adminContentClient.create(entity, payload, token)
       setSelected(response.data)
+      notifyContentUpdated(entity, response.data)
       setSuccess(selected ? 'Cambios guardados.' : 'Registro creado.')
       await loadRecords()
     } catch (saveError) {
@@ -314,7 +322,8 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       }
       const response = await adminContentClient.action(entity, selected.id, action, token)
       setSelected(response.data)
-      setSuccess('Acción completada.')
+      notifyContentUpdated(entity, response.data)
+      setSuccess(action === 'publish' ? 'Publicado y visible en app.' : 'Acción completada.')
       await loadRecords()
     } catch (actionError) {
       const apiFieldErrors = extractFieldErrorsFromBackend(actionError, config)

@@ -178,8 +178,8 @@ function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
     endsAt,
     peopleCount: row.event_ticket_type_id
       ? 1
-      : reservation?.people_count
-      ?? numericMetadata(row.metadata?.peopleCount)
+      : numericMetadata(row.metadata?.peopleCount)
+      ?? reservation?.people_count
       ?? numericMetadata(row.metadata?.itemCount),
     validFrom: row.valid_from ?? null,
     validUntil: row.valid_until ?? null,
@@ -278,8 +278,9 @@ async function upsertAccessPass(payload: {
 
   const existingResult = await existingRequest
   const existingRows = assertNoError<Array<{ id: string; qr_token_hash: string; status: string; revoked_at?: string | null; metadata?: Record<string, unknown> | null }>>(existingResult).data ?? []
+  const hasTicketSequence = typeof payload.metadata.ticketSequence === 'number'
   const existing = payload.reservationId
-    ? existingRows[0] ?? null
+    ? existingRows.find((row) => row.metadata?.idempotencyKey === payload.idempotencyKey) ?? (!hasTicketSequence ? existingRows[0] ?? null : null)
     : existingRows.find((row) => row.metadata?.idempotencyKey === payload.idempotencyKey) ?? null
 
   if (existing?.id) {
@@ -325,18 +326,87 @@ async function upsertAccessPass(payload: {
   return getAccessPassById(row.id)
 }
 
-export async function ensureReservationAccessPass(reservation: ReservationAccessSource) {
-  if (!['confirmed', 'completed'].includes(reservation.status)) return null
-  return upsertAccessPass({
-    reservationId: reservation.id,
+function reservationAccessWindow(reservation: ReservationAccessSource) {
+  return {
     validFrom: reservation.startAt ?? cabinDate(reservation.checkIn) ?? restaurantDateTime(reservation.reservationDate, reservation.reservationTime),
     validUntil: reservation.endAt ?? cabinDate(reservation.checkOut) ?? null,
-    idempotencyKey: `reservation-access:${reservation.id}`,
+  }
+}
+
+function normalizedPeopleCount(value?: number | null) {
+  const parsed = Number(value ?? 1)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.max(1, Math.trunc(parsed)) : 1
+}
+
+async function archiveUnusedReservationPassesExcept(reservationId: string, allowedIdempotencyKeys: Set<string>, reason: string) {
+  const result = await supabaseAdminClient
+    .from('access_passes')
+    .select('id,metadata,used_at,revoked_at')
+    .eq('reservation_id', reservationId)
+  const rows = assertNoError<Array<{ id: string; metadata?: Record<string, unknown> | null; used_at?: string | null; revoked_at?: string | null }>>(result).data ?? []
+  const obsoleteIds = rows
+    .filter((row) => !row.used_at && !row.revoked_at)
+    .filter((row) => !allowedIdempotencyKeys.has(String(row.metadata?.idempotencyKey ?? '')))
+    .map((row) => row.id)
+
+  if (!obsoleteIds.length) return
+  await supabaseAdminClient
+    .from('access_passes')
+    .update({
+      status: 'archived',
+      revoked_at: new Date().toISOString(),
+      revocation_reason: reason,
+    })
+    .in('id', obsoleteIds)
+}
+
+export async function ensureReservationAccessPasses(reservation: ReservationAccessSource) {
+  if (!['confirmed', 'completed'].includes(reservation.status)) return []
+  const accessType = reservation.reservationType ?? 'experience'
+  const { validFrom, validUntil } = reservationAccessWindow(reservation)
+
+  if (accessType === 'experience') {
+    const total = normalizedPeopleCount(reservation.peopleCount)
+    const idempotencyKeys = new Set(Array.from({ length: total }, (_, index) => `reservation-access:${reservation.id}:${index + 1}`))
+    await archiveUnusedReservationPassesExcept(reservation.id, idempotencyKeys, 'reservation_access_reissued_per_person')
+    const passes = []
+    for (let index = 1; index <= total; index += 1) {
+      const pass = await upsertAccessPass({
+        reservationId: reservation.id,
+        validFrom,
+        validUntil,
+        idempotencyKey: `reservation-access:${reservation.id}:${index}`,
+        metadata: {
+          accessType,
+          peopleCount: 1,
+          ticketSequence: index,
+          ticketTotal: total,
+          reservationPeopleCount: total,
+        },
+      })
+      if (pass) passes.push(pass)
+    }
+    return passes
+  }
+
+  const idempotencyKey = `reservation-access:${reservation.id}`
+  await archiveUnusedReservationPassesExcept(reservation.id, new Set([idempotencyKey]), 'reservation_access_single_pass')
+  const pass = await upsertAccessPass({
+    reservationId: reservation.id,
+    validFrom,
+    validUntil,
+    idempotencyKey,
     metadata: {
-      accessType: reservation.reservationType ?? 'experience',
+      accessType,
       peopleCount: reservation.peopleCount ?? null,
     },
   })
+  return pass ? [pass] : []
+}
+
+export async function ensureReservationAccessPass(reservation: ReservationAccessSource) {
+  const passes = await ensureReservationAccessPasses(reservation)
+  return passes[0] ?? null
 }
 
 export async function revokeReservationAccessPasses(reservationId: string, reason: string) {
@@ -437,7 +507,7 @@ export async function ensureReservationAccessPassForPaidOrder(orderId: string) {
   } | null>(reservationResult).data
   if (!reservation) return null
   const slot = first(reservation.experience_slots)
-  return ensureReservationAccessPass({
+  const passes = await ensureReservationAccessPasses({
     id: reservation.id,
     status: reservation.status,
     reservationType: reservation.reservation_type,
@@ -449,6 +519,7 @@ export async function ensureReservationAccessPassForPaidOrder(orderId: string) {
     checkIn: reservation.check_in,
     checkOut: reservation.check_out,
   })
+  return passes[0] ?? null
 }
 
 export async function ensureUniversalAccessPassesForPaidOrder(orderId: string) {

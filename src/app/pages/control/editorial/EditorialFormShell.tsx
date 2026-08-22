@@ -490,6 +490,118 @@ function EventMetadataField({
         placeholder="Teléfono de reservación"
         className={inputClass}
       />
+      <section className="rounded-2xl border border-[var(--color-line)] bg-white/80 p-4 shadow-[0_18px_40px_rgba(37,47,55,0.06)]">
+        <div className="flex items-start gap-3">
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(37,47,55,0.08)] text-[#252F37]"><BookOpenCheck size={17} /></span>
+          <div className="min-w-0">
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">Contrato y condiciones</span>
+            <p className="mt-1 text-[13px] leading-5 text-[var(--color-muted)]">
+              Estas reglas se muestran en la app y el cliente debe aceptarlas antes de reservar.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Título</span>
+            <input
+              value={textPart(parsed.contract_title)}
+              onChange={(event) => setCompositeValue('contract_title', event.target.value)}
+              placeholder="Condiciones de reservación"
+              className={inputClass}
+            />
+          </label>
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Confirmación</span>
+            <input
+              value={textPart(parsed.contract_confirmation)}
+              onChange={(event) => setCompositeValue('contract_confirmation', event.target.value)}
+              placeholder="Acepto las condiciones de reservación."
+              className={inputClass}
+            />
+          </label>
+        </div>
+        <label className="mt-3 block">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Condiciones visibles</span>
+          <textarea
+            value={textPart(parsed.contract_terms)}
+            onChange={(event) => setCompositeValue('contract_terms', event.target.value)}
+            rows={5}
+            placeholder="Una condición por línea"
+            className="w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
+          />
+        </label>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Aceptación obligatoria</span>
+            <CrystalSelect
+              value={booleanPart(parsed.contract_requires_acceptance, true) ? 'true' : 'false'}
+              onChange={(nextValue) => setCompositeValue('contract_requires_acceptance', nextValue === 'true')}
+            >
+              <option value="true">Sí</option>
+              <option value="false">No</option>
+            </CrystalSelect>
+          </label>
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Versión</span>
+            <input
+              value={textPart(parsed.contract_version)}
+              onChange={(event) => setCompositeValue('contract_version', event.target.value)}
+              placeholder="reservation-terms-v1"
+              className={inputClass}
+            />
+          </label>
+        </div>
+      </section>
+      <section className="rounded-2xl border border-[var(--color-line)] bg-[rgba(247,242,234,0.72)] p-4 shadow-[0_18px_40px_rgba(37,47,55,0.05)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <span className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">Menú de reservación</span>
+            <p className="mt-1 text-[13px] leading-5 text-[var(--color-muted)]">
+              Úsalo para picnic, cenas o experiencias con alimento. En la app se muestra como listado cristal.
+            </p>
+          </div>
+          <span className="rounded-full bg-[rgba(37,47,55,0.08)] px-3 py-1 text-[12px] font-semibold text-[#252F37]">
+            Editable
+          </span>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Activo</span>
+            <CrystalSelect value={booleanPart(parsed.menu_enabled, false) ? 'true' : 'false'} onChange={(nextValue) => setCompositeValue('menu_enabled', nextValue === 'true')}>
+              <option value="true">Sí</option>
+              <option value="false">No</option>
+            </CrystalSelect>
+          </label>
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Obligatorio</span>
+            <CrystalSelect value={booleanPart(parsed.menu_required, true) ? 'true' : 'false'} onChange={(nextValue) => setCompositeValue('menu_required', nextValue === 'true')}>
+              <option value="true">Sí</option>
+              <option value="false">No</option>
+            </CrystalSelect>
+          </label>
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Cobro</span>
+            <CrystalSelect value={textPart(parsed.menu_price_mode) || 'per_person'} onChange={(nextValue) => setCompositeValue('menu_price_mode', nextValue)}>
+              <option value="per_person">Por persona</option>
+              <option value="flat">Fijo</option>
+            </CrystalSelect>
+          </label>
+          <label>
+            <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Etiqueta</span>
+            <input value={textPart(parsed.menu_label)} onChange={(event) => setCompositeValue('menu_label', event.target.value)} placeholder="Menú" className={inputClass} />
+          </label>
+        </div>
+        <label className="mt-3 block">
+          <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Opciones</span>
+          <textarea
+            value={textPart(parsed.menu_options_text)}
+            onChange={(event) => setCompositeValue('menu_options_text', event.target.value)}
+            rows={7}
+            placeholder="Categoría | Platillo | Precio | Descripción"
+            className="w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
+          />
+        </label>
+      </section>
       <section className="rounded-2xl border border-[var(--color-line)] bg-white/75 p-4 shadow-[0_18px_40px_rgba(104,17,38,0.06)]">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

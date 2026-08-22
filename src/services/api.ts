@@ -52,7 +52,7 @@ export async function apiFetch<T = unknown>(
 
   let response: Response
   try {
-    response = await fetch(url, { ...fetchOptions, signal: controller.signal })
+    response = await fetch(url, { cache: 'no-store', ...fetchOptions, signal: controller.signal })
   } catch (err) {
     clearTimeout(tid)
     if (err instanceof Error && err.name === 'AbortError') {

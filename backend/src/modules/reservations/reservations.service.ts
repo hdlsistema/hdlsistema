@@ -16,7 +16,7 @@ import type {
   ReservationListQuery,
 } from './reservations.schemas'
 import { createCustomerNotification } from '../notifications/notifications.service'
-import { ensureReservationAccessPass, revokeReservationAccessPasses } from '../checkin/accessPassIssuer'
+import { ensureReservationAccessPasses, revokeReservationAccessPasses } from '../checkin/accessPassIssuer'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 const writeRoles = ['super_admin', 'admin', 'operations']
@@ -236,7 +236,7 @@ function queueReservationStatusPush(
     userId: reservation.userId,
     title: copy.title,
     body: copy.body,
-    deepLink: '/app/reservacion',
+    deepLink: `/app/reservacion?reservationId=${encodeURIComponent(reservation.id)}`,
     data: {
       type: `reservation_${event}`,
       reservationId: reservation.id,
@@ -247,7 +247,7 @@ function queueReservationStatusPush(
 }
 
 async function syncReservationAccessPass(reservation: ReturnType<typeof mapReservation>) {
-  return ensureReservationAccessPass({
+  const passes = await ensureReservationAccessPasses({
     id: reservation.id,
     status: reservation.status,
     reservationType: reservation.reservationType,
@@ -259,6 +259,7 @@ async function syncReservationAccessPass(reservation: ReturnType<typeof mapReser
     checkIn: reservation.checkIn,
     checkOut: reservation.checkOut,
   })
+  return passes[0] ?? null
 }
 
 function matchesSearch(row: ReservationRow, search?: string) {

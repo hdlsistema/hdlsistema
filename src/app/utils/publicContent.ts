@@ -18,6 +18,32 @@ export function numberField(record: ContentRecord, key: string, fallback = 0) {
   return fallback
 }
 
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function valueText(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  if (Array.isArray(value)) return value.map(valueText).filter(Boolean).join(' ')
+  if (value && typeof value === 'object') return Object.values(value as Record<string, unknown>).map(valueText).filter(Boolean).join(' ')
+  return ''
+}
+
+export function metadataRecord(record: ContentRecord) {
+  return objectRecord(record.metadata)
+}
+
+export function metadataText(record: ContentRecord, ...keys: string[]) {
+  const metadata = metadataRecord(record)
+  const overrides = objectRecord(metadata.overrides)
+  if (keys.length === 0) return valueText(metadata)
+  return keys
+    .flatMap((key) => [valueText(metadata[key]), valueText(overrides[key])])
+    .filter(Boolean)
+    .join(' ')
+}
+
 export function contentRouteId(record: ContentRecord) {
   return textField(record, 'slug') || textField(record, 'code') || record.id
 }
@@ -121,6 +147,13 @@ export function eventMinimumTicketPrice(record: ContentRecord, fallback = 0) {
     .filter((price) => Number.isFinite(price) && price > 0)
 
   return prices.length ? Math.min(...prices) : fallback
+}
+
+export function publicEventHasEnded(record: ContentRecord) {
+  const endAt = textField(record, 'end_at')
+  if (!endAt) return false
+  const endDate = new Date(endAt).getTime()
+  return Number.isFinite(endDate) && endDate <= Date.now()
 }
 
 export function formatCurrency(value: number, locale: AppLocale = DEFAULT_LOCALE) {

@@ -48,6 +48,7 @@ export const createCabinReservationSchema = z.object({
   checkOut: z.string().date(),
   peopleCount: z.coerce.number().int().min(1).max(8).default(2),
   customerNotes: optionalText(1000),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   language: z.enum(['es', 'en']).default('es'),
   idempotencyKey: z.string().trim().min(8).max(160),
 }).strict().refine((value) => value.checkOut > value.checkIn, {
@@ -62,6 +63,7 @@ export const createRestaurantReservationSchema = z.object({
   peopleCount: z.coerce.number().int().min(1).max(40),
   occasion: z.string().trim().max(120).nullable().optional(),
   customerNotes: optionalText(1000),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   language: z.enum(['es', 'en']).default('es'),
   idempotencyKey: z.string().trim().min(8).max(160),
 }).strict()

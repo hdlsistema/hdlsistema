@@ -41,12 +41,12 @@ export function EventVenuesScreen() {
                 <Link
                   key={venue.key}
                   to={appPath(`/nuestros-eventos/${venue.key}`)}
-                  className="group overflow-hidden rounded-[1.35rem] border border-[rgba(220,202,181,0.78)] bg-white shadow-[0_18px_42px_rgba(58,32,18,0.08)]"
+                  className="group overflow-hidden rounded-[1.35rem] border border-[rgba(180,138,85,0.32)] bg-[linear-gradient(145deg,#F7F2EA,rgba(232,216,200,0.72))] shadow-[0_18px_42px_rgba(37,47,55,0.1)]"
                 >
-                  <span className="relative block h-[172px] bg-[#2D1811]">
+                  <span className="relative block h-[172px] bg-[var(--color-ink)]">
                     <img src={venue.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(45,24,17,0.04),rgba(45,24,17,0.58))]" />
-                    <span className="absolute bottom-3 left-3 inline-flex min-h-8 items-center gap-2 rounded-full border border-white/34 bg-white/20 px-3 text-[11px] font-semibold text-white backdrop-blur-xl">
+                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08),rgba(104,17,38,0.68))]" />
+                    <span className="absolute bottom-3 left-3 inline-flex min-h-8 items-center gap-2 rounded-full border border-[rgba(247,242,234,0.38)] bg-[rgba(37,47,55,0.38)] px-3 text-[11px] font-semibold text-[#F7F2EA] backdrop-blur-xl">
                       <CalendarDays size={14} />
                       {count} {isEnglish ? 'events' : 'eventos'}
                     </span>
@@ -67,7 +67,7 @@ export function EventVenuesScreen() {
                         {venue.description}
                       </span>
                     </span>
-                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(104,13,43,0.12)] bg-[#fff7ef] text-[var(--color-burgundy)]">
+                    <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(180,138,85,0.35)] bg-[rgba(247,242,234,0.7)] text-[var(--color-burgundy)]">
                       <ChevronRight size={18} />
                     </span>
                   </span>

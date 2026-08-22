@@ -82,7 +82,7 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
   const hasStatus = Boolean(status)
   const hasAccessFulfillment = Boolean(status?.hasAccessFulfillment || status?.fulfillmentKind === 'access' || status?.fulfillmentKind === 'mixed')
   const icon = resolvedMode === 'success'
-    ? <CheckCircle2 size={30} className="text-[var(--color-vineyard)]" />
+    ? <CheckCircle2 size={30} className="text-[#252F37]" />
     : resolvedMode === 'failed'
       ? <AlertCircle size={30} className="text-[var(--color-alert)]" />
       : <Loader2 size={30} className="animate-spin text-[var(--color-burgundy)]" />

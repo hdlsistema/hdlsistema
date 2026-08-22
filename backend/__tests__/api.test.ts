@@ -1294,7 +1294,7 @@ describe('Fase 4B content API', () => {
     expect(canAccessContent(['super_admin'], 'campaign', 'delete')).toBe(true)
   })
 
-  it('devuelve contenido público con caché corta y sin credenciales', async () => {
+  it('devuelve contenido público sin caché persistente y sin credenciales', async () => {
     supabaseMock.tableData.wines = [
       {
         id: '00000000-0000-0000-0000-000000000020',
@@ -1309,7 +1309,7 @@ describe('Fase 4B content API', () => {
 
     expect(res.status).toBe(200)
     expect(res.body.ok).toBe(true)
-    expect(res.headers['cache-control']).toContain('max-age=60')
+    expect(res.headers['cache-control']).toContain('no-store')
     expect(JSON.stringify(res.body)).not.toContain('SERVICE_ROLE')
     expect(JSON.stringify(res.body)).not.toContain('eyJhbGci')
   })
@@ -3631,6 +3631,34 @@ describe('Fase 8D Stripe customer payments', () => {
     expect(JSON.stringify(res.body)).not.toContain('sk_test_mock_phase8d')
     expect(supabaseMock.tableData.payments).toHaveLength(1)
     expect((supabaseMock.tableData.payments[0] as { provider?: string; status?: string }).provider).toBe('stripe')
+  })
+
+  it('permite payment-session para boletos de evento sin domicilio de envio', async () => {
+    signInCustomer()
+    ;(env as Record<string, string>).STRIPE_SECRET_KEY = 'sk_test_mock_phase8d'
+    ;(env as Record<string, string>).STRIPE_ENVIRONMENT = 'test'
+    supabaseMock.tableData.orders = [{
+      ...(supabaseMock.tableData.orders[0] as Record<string, unknown>),
+      requires_shipping: false,
+      metadata: { fulfillmentMode: 'event_access', paymentAvailable: true },
+    }]
+    supabaseMock.tableData.order_items = [{
+      ...(supabaseMock.tableData.order_items[0] as Record<string, unknown>),
+      item_type: 'event_ticket',
+      quantity: 2,
+    }]
+    supabaseMock.tableData.order_shipping_addresses = []
+    stripeMock.customersCreate.mockResolvedValue({ id: 'cus_fase8d_event_mock' })
+    stripeMock.customerSessionsCreate.mockResolvedValue({ client_secret: 'cuss_fase8d_event_secret' })
+    stripeMock.paymentIntentsCreate.mockResolvedValue(mockPaymentIntent())
+
+    const res = await request(app)
+      .post(`/api/customer/orders/${orderId}/payment-session`)
+      .set('Authorization', 'Bearer jwt-customer')
+      .send({})
+
+    expect(res.status).toBe(201)
+    expect(stripeMock.paymentIntentsCreate).toHaveBeenCalled()
   })
 
   it('rechaza amount/currency enviados por frontend en payment-session', async () => {

@@ -26,6 +26,8 @@ export function ExperiencesScreen() {
     [isEnglish],
   )
   const [activeCategory, setActiveCategory] = useState(0)
+  const activeCategoryLabel = normalize(categories[activeCategory] ?? '')
+  const showTourScheduleNotice = activeCategoryLabel.includes('tour') || activeCategoryLabel.includes('recorrido')
 
   const filteredExperiences = useMemo(() => {
     if (activeCategory === 0) return experiences
@@ -46,7 +48,7 @@ export function ExperiencesScreen() {
 
   return (
     <div className="ipad-experiences-screen space-y-6 px-[var(--app-pad)] pb-2 pt-3">
-      <section className="relative min-h-[clamp(220px,52vh,320px)] overflow-hidden rounded-[20px] bg-[#2D1811] text-white">
+      <section className="relative min-h-[clamp(220px,52vh,320px)] overflow-hidden rounded-[20px] bg-[var(--color-ink)] text-white">
         {heroImage ? <img src={heroImage} alt={t('app.nav.experiences')} className="absolute inset-0 h-full w-full object-cover" /> : null}
         <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,20,15,0.08),rgba(35,20,15,0.78))]" />
         <div className="relative flex min-h-[clamp(220px,52vh,320px)] flex-col justify-end px-[var(--app-pad)] pb-5 pt-8">
@@ -60,8 +62,8 @@ export function ExperiencesScreen() {
 
       <section className="space-y-3">
         <div>
-          <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">{t('app.premium.experiences.choose')}</p>
-          <h2 className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
+          <p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">{t('app.premium.experiences.choose')}</p>
+          <h2 className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
             {t('app.nav.experiences')}
           </h2>
         </div>
@@ -73,6 +75,14 @@ export function ExperiencesScreen() {
           buttonClassName="min-h-12 rounded-[1.15rem] border-white/60 bg-white/62 px-4 text-[13px] font-semibold text-[#513d34] shadow-[0_16px_34px_rgba(76,34,25,0.1)] backdrop-blur-2xl"
           menuClassName="rounded-[1.2rem] border-white/70 bg-[linear-gradient(180deg,rgba(255,252,247,0.97),rgba(245,235,225,0.95))]"
         />
+        {showTourScheduleNotice ? (
+          <div className="rounded-[1.15rem] border border-[rgba(180,138,85,0.34)] bg-[#F7F2EA]/72 p-4 text-[12px] leading-5 text-[var(--color-muted)] shadow-[0_16px_34px_rgba(76,34,25,0.08)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[.14em] text-[var(--color-gold)]">{isEnglish ? 'Tour schedule' : 'Horario de recorridos'}</p>
+            <p className="mt-1">
+              {isEnglish ? 'Tours depart every hour. First tour at 12:00 p.m.; last tour at 6:00 p.m.' : 'Los recorridos salen cada hora. Primer recorrido a las 12:00 p.m.; último recorrido a las 6:00 p.m.'}
+            </p>
+          </div>
+        ) : null}
       </section>
 
       {loading ? (
@@ -102,8 +112,8 @@ export function ExperiencesScreen() {
                 description={textField(experience, 'short_description') || textField(experience, 'description')}
                 actionLabel={t('app.premium.experiences.details')}
                 meta={
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[#776053]">
-                    <span className="font-semibold text-[#690D2B]">{price > 0 ? formatCurrency(price, locale) : t('app.premium.pricePending')}</span>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-[var(--color-muted)]">
+                    <span className="font-semibold text-[var(--color-burgundy)]">{price > 0 ? formatCurrency(price, locale) : t('app.premium.pricePending')}</span>
                     {duration > 0 ? <span className="inline-flex items-center gap-1"><Clock3 size={12} />{duration} {t('app.minutes')}</span> : null}
                     {capacity > 0 ? <span className="inline-flex items-center gap-1"><Users size={12} />{capacity}</span> : null}
                   </div>

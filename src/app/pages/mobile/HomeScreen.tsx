@@ -94,18 +94,18 @@ export function HomeScreen() {
 
   return (
     <div className="ipad-home-screen pb-2">
-      <section className="ipad-home-hero relative -mt-px min-h-[clamp(330px,64vh,430px)] overflow-hidden bg-[#2D1811]">
+      <section className="ipad-home-hero relative -mt-px min-h-[clamp(330px,64vh,430px)] overflow-hidden bg-[var(--color-ink)]">
         <img
           src="/Hacienda-de-Letras hacienda.jpg"
           alt="Hacienda de Letras"
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(35,20,15,0.05)_25%,rgba(35,20,15,0.75)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08)_18%,rgba(104,17,38,0.78)_100%)]" />
         <div className="absolute right-[var(--app-pad)] top-4 z-10">
           <button
             type="button"
             onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
-            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-white/28 bg-white/18 px-3 text-[11px] font-semibold text-white shadow-[0_12px_28px_rgba(45,24,17,0.22)] backdrop-blur-xl"
+            className="inline-flex min-h-9 items-center gap-2 rounded-full border border-[rgba(247,242,234,0.32)] bg-[rgba(37,47,55,0.26)] px-3 text-[11px] font-semibold text-[#F7F2EA] shadow-[0_12px_28px_rgba(37,47,55,0.22)] backdrop-blur-xl"
             aria-label={t('common.language')}
           >
             <Languages size={14} />
@@ -113,7 +113,7 @@ export function HomeScreen() {
           </button>
         </div>
         <div className="relative flex min-h-[clamp(330px,64vh,430px)] flex-col justify-end px-[var(--app-pad)] pb-6 text-white">
-          <p className="text-[10px] font-semibold uppercase text-[#E2C58E]">
+          <p className="text-[10px] font-semibold uppercase text-[#F7DFAE]">
             {t('app.premium.home.eyebrow')}
           </p>
           <h1
@@ -134,36 +134,36 @@ export function HomeScreen() {
       <div className="ipad-home-content space-y-7 px-[var(--app-pad)]">
         <Link
           to={appPath('/vinos')}
-          className="relative z-10 -mt-7 flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-white/80 bg-white/72 p-4 shadow-[0_18px_42px_rgba(58,32,18,0.11),inset_0_1px_0_rgba(255,255,255,.9)] backdrop-blur-xl"
+          className="relative z-10 -mt-7 flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-[rgba(180,138,85,0.34)] bg-[linear-gradient(135deg,rgba(247,242,234,0.92),rgba(232,216,200,0.76))] p-4 shadow-[0_18px_42px_rgba(37,47,55,0.11),inset_0_1px_0_rgba(255,255,255,.72)] backdrop-blur-xl"
         >
           <span className="min-w-0">
             <span
-              className="block text-[1.35rem] leading-none text-[#2D1811]"
+              className="block text-[1.35rem] leading-none text-[var(--color-ink)]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               {t('app.premium.home.wines')}
             </span>
-            <span className="mt-2 block text-[12px] leading-4 text-[#776053]">
+            <span className="mt-2 block text-[12px] leading-4 text-[var(--color-muted)]">
               {t('app.premium.home.winesCopy')}
             </span>
           </span>
-          <ChevronRight size={18} className="shrink-0 text-[#690D2B]" />
+          <ChevronRight size={18} className="shrink-0 text-[var(--color-burgundy)]" />
         </Link>
 
         <section className="space-y-4">
           <div className="flex items-end justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">
+              <p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">
                 {t('app.nav.store')}
               </p>
               <h2
-                className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]"
+                className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[var(--color-ink)]"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 {t('app.premium.home.wines')}
               </h2>
             </div>
-            <Link to={appPath('/vinos')} className="text-[12px] font-semibold text-[#690D2B]">
+            <Link to={appPath('/vinos')} className="text-[12px] font-semibold text-[var(--color-burgundy)]">
               {t('app.premium.viewAll')}
             </Link>
           </div>
@@ -190,9 +190,9 @@ export function HomeScreen() {
                 <Link
                   key={wine.id}
                   to={appPath(`/vinos/${contentRouteId(wine)}`)}
-                  className="w-[156px] shrink-0 overflow-hidden rounded-[18px] border border-[rgba(184,138,74,0.18)] bg-[#FFF9F1] shadow-[0_14px_26px_rgba(58,32,18,0.08)]"
+                  className="w-[156px] shrink-0 overflow-hidden rounded-[18px] border border-[rgba(180,138,85,0.26)] bg-[linear-gradient(145deg,#F7F2EA,rgba(232,216,200,0.72))] shadow-[0_14px_26px_rgba(37,47,55,0.08)]"
                 >
-                  <span className="block h-[132px] bg-[#2D1811]">
+                  <span className="block h-[132px] bg-[var(--color-ink)]">
                     {imageField(wine, '') ? (
                       <img
                         src={imageField(wine, '')}
@@ -202,16 +202,16 @@ export function HomeScreen() {
                     ) : null}
                   </span>
                   <span className="block min-h-[86px] p-3">
-                    <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
+                    <span className="block text-[9px] font-semibold uppercase text-[var(--color-gold)]">
                       {textField(wine, 'category') || textField(wine, 'grape_variety') || 'Cava'}
                     </span>
                     <span
-                      className="mt-1 line-clamp-2 block text-[18px] leading-none text-[#2D1811]"
+                      className="mt-1 line-clamp-2 block text-[18px] leading-none text-[var(--color-ink)]"
                       style={{ fontFamily: 'var(--font-display)' }}
                     >
                       {textField(wine, 'name', 'Hacienda de Letras')}
                     </span>
-                    <span className="mt-2 block text-[11px] font-semibold text-[#690D2B]">
+                    <span className="mt-2 block text-[11px] font-semibold text-[var(--color-burgundy)]">
                       {formatCurrency(numberField(wine, 'price'), locale)}
                     </span>
                   </span>
@@ -223,11 +223,11 @@ export function HomeScreen() {
 
         <section className="space-y-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">
+            <p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">
               {t('app.premium.experiences.eyebrow')}
             </p>
             <h2
-              className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]"
+              className="mt-1 text-[clamp(23px,6vw,29px)] font-medium leading-none text-[var(--color-ink)]"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               {t('app.premium.home.experiences')}
@@ -290,26 +290,26 @@ export function HomeScreen() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="grid min-h-[104px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-[20px] border border-white/78 bg-white/64 p-4 shadow-[0_14px_34px_rgba(64,31,24,.055),inset_0_1px_0_rgba(255,255,255,.9)] backdrop-blur-xl"
+                className="grid min-h-[104px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-[20px] border border-[rgba(180,138,85,0.28)] bg-[linear-gradient(145deg,rgba(247,242,234,0.9),rgba(232,216,200,0.66))] p-4 shadow-[0_14px_34px_rgba(37,47,55,.07),inset_0_1px_0_rgba(255,255,255,.72)] backdrop-blur-xl"
               >
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#ead8c2] bg-white/74 text-[#7a1731] shadow-[0_8px_18px_rgba(90,30,42,.06)]">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(180,138,85,0.34)] bg-[rgba(37,47,55,0.08)] text-[var(--color-burgundy)] shadow-[0_8px_18px_rgba(37,47,55,.08)]">
                   <Icon size={18} strokeWidth={1.45} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[9px] font-semibold uppercase text-[#B88A4A]">
+                  <span className="block text-[9px] font-semibold uppercase text-[var(--color-gold)]">
                     {item.eyebrow}
                   </span>
                   <span
-                    className="mt-1 block text-[clamp(17px,4.6vw,19px)] font-medium leading-none text-[#2D1811]"
+                    className="mt-1 block text-[clamp(17px,4.6vw,19px)] font-medium leading-none text-[var(--color-ink)]"
                     style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
                   >
                     {item.title}
                   </span>
-                  <span className="mt-2 line-clamp-2 block text-[11px] leading-4 text-[#776053]">
+                  <span className="mt-2 line-clamp-2 block text-[11px] leading-4 text-[var(--color-muted)]">
                     {item.copy}
                   </span>
                 </span>
-                <ChevronRight size={17} className="text-[#690D2B]" />
+                <ChevronRight size={17} className="text-[var(--color-burgundy)]" />
               </Link>
             )
           })}

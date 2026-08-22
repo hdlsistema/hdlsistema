@@ -152,7 +152,7 @@ export function MapScreen() {
             })),
             ...(userLocation ? [{ coordinates: userLocation, label: isEnglish ? 'My location' : 'Mi ubicación' }] : []),
           ]}
-          routes={routeCoordinates.length ? [{ coordinates: routeCoordinates, color: '#690D2B' }] : []}
+          routes={routeCoordinates.length ? [{ coordinates: routeCoordinates, color: '#681126' }] : []}
           className="app-map-height"
         />
       </section>

@@ -144,10 +144,10 @@ export function WineDetailScreen() {
               const Icon = item.icon
               return (
                 <div key={item.label} className="grid grid-cols-[26px_1fr] gap-3 py-3">
-                  <Icon size={17} className="mt-0.5 text-[#B88A4A]" />
+                  <Icon size={17} className="mt-0.5 text-[var(--color-gold)]" />
                   <div>
-                    <p className="text-[9px] font-semibold uppercase text-[#B88A4A]">{item.label}</p>
-                    <p className="mt-1 text-[12px] leading-5 text-[#2D1811]">{item.value}</p>
+                    <p className="text-[9px] font-semibold uppercase text-[var(--color-gold)]">{item.label}</p>
+                    <p className="mt-1 text-[12px] leading-5 text-[var(--color-ink)]">{item.value}</p>
                   </div>
                 </div>
               )
@@ -157,7 +157,7 @@ export function WineDetailScreen() {
 
         {gallery.length > 1 ? (
           <section className="space-y-3">
-            <p className="text-[10px] font-semibold uppercase text-[#B88A4A]">{isEnglish ? 'Gallery' : 'Galería'}</p>
+            <p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">{isEnglish ? 'Gallery' : 'Galería'}</p>
             <div className="app-scrollbar-none flex gap-3 overflow-x-auto pb-1">
               {gallery.map((image) => (
                 <img
@@ -172,7 +172,7 @@ export function WineDetailScreen() {
         ) : null}
 
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <span className="text-[12px] font-semibold uppercase text-[#B88A4A]">{t('app.premium.quantity')}</span>
+          <span className="text-[12px] font-semibold uppercase text-[var(--color-gold)]">{t('app.premium.quantity')}</span>
           <QuantitySelector
             value={quantity}
             onChange={setQuantity}

@@ -88,12 +88,12 @@ export function HeroEditorial({
       {image ? (
         <img src={image} alt={alt ?? title} className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <div className="absolute inset-0 bg-[linear-gradient(140deg,#4d1022,#8f4538_58%,#d8bb89)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#252F37_0%,#681126_55%,#B48A55_100%)]" />
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(26,7,8,0.18),rgba(26,7,8,0.78))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.16),rgba(104,17,38,0.78))]" />
       <div className="relative flex min-h-[inherit] flex-col justify-end px-[var(--app-pad)] pb-6 pt-8">
         {eyebrow ? (
-          <p className="max-w-full text-[10px] font-semibold uppercase tracking-[0.2em] text-[#ead0a2]">
+          <p className="max-w-full text-[10px] font-semibold uppercase tracking-[0.2em] text-[#F7DFAE]">
             {eyebrow}
           </p>
         ) : null}
@@ -160,9 +160,9 @@ export function EditorialImagePlaceholder({
 }) {
   const { t } = useAppPreferences()
   return (
-    <div className={cx('flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(145deg,#EEE2D2,#E5D6C4)] text-center', className)}>
-      <ImageIcon size={18} strokeWidth={1.5} className="text-[#B88A4A]" aria-hidden="true" />
-      <span className="mt-2 max-w-[8rem] px-3 text-[10px] font-semibold leading-4 text-[#9B7042]">
+    <div className={cx('flex h-full w-full flex-col items-center justify-center bg-[linear-gradient(145deg,#F7F2EA,#E8D8C8)] text-center', className)}>
+      <ImageIcon size={18} strokeWidth={1.5} className="text-[var(--color-gold)]" aria-hidden="true" />
+      <span className="mt-2 max-w-[8rem] px-3 text-[10px] font-semibold leading-4 text-[var(--color-muted)]">
         {label ?? t('app.premium.imagePending')}
       </span>
     </div>
@@ -175,7 +175,7 @@ export function SearchField({ placeholder, value, onChange }: {
   onChange?: (value: string) => void
 }) {
   return (
-    <label className="flex min-h-[48px] items-center gap-3 rounded-[1rem] bg-[rgba(255,250,242,0.84)] px-4 text-[13px] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)] backdrop-blur">
+    <label className="flex min-h-[48px] items-center gap-3 rounded-[1rem] border border-[rgba(180,138,85,0.3)] bg-[linear-gradient(135deg,rgba(247,242,234,0.94),rgba(232,216,200,0.72))] px-4 text-[13px] shadow-[0_14px_30px_rgba(37,47,55,0.08),inset_0_1px_0_rgba(255,255,255,0.72)] backdrop-blur">
       <Search size={17} className="shrink-0 text-[var(--color-burgundy)]" aria-hidden="true" />
       <input
         type="search"
@@ -205,8 +205,8 @@ export function PillRow({ items, activeIndex = 0, onSelect }: {
             className={cx(
               'min-h-8 shrink-0 rounded-[11px] px-3 text-[10px] font-semibold tracking-[0.015em] transition-all',
               active
-                ? 'border border-[#8c2947] bg-[linear-gradient(135deg,#7d1435,#57071d)] text-[#fffaf1] shadow-[0_9px_18px_rgba(104,13,36,0.18),inset_0_1px_0_rgba(255,255,255,0.16)]'
-                : 'border border-[rgba(184,138,74,0.25)] bg-[rgba(255,249,241,0.72)] text-[#6F584B] shadow-[0_6px_14px_rgba(74,32,28,0.04),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl',
+                ? 'border border-[rgba(180,138,85,0.52)] bg-[linear-gradient(135deg,#252F37,#681126)] text-[#F7F2EA] shadow-[0_9px_18px_rgba(37,47,55,0.18),inset_0_1px_0_rgba(255,255,255,0.16)]'
+                : 'border border-[rgba(180,138,85,0.28)] bg-[rgba(247,242,234,0.78)] text-[var(--color-ink)] shadow-[0_6px_14px_rgba(37,47,55,0.05),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl',
             )}
           >
             {item}
@@ -245,6 +245,7 @@ export function PriceBlock({
 export function PrimaryButton({
   children,
   to,
+  state,
   onClick,
   disabled = false,
   tone = 'primary',
@@ -252,6 +253,7 @@ export function PrimaryButton({
 }: {
   children: ReactNode
   to?: string
+  state?: unknown
   onClick?: () => void
   disabled?: boolean
   tone?: ButtonTone
@@ -272,7 +274,7 @@ export function PrimaryButton({
 
   if (to) {
     return (
-      <Link to={to} className={classes} aria-disabled={disabled}>
+      <Link to={to} state={state} className={classes} aria-disabled={disabled}>
         {children}
       </Link>
     )
@@ -370,7 +372,7 @@ export function StatusBadge({
       className={cx(
         'inline-flex min-h-7 items-center gap-1.5 rounded-full px-3 text-[10px] font-semibold',
         tone === 'neutral' && 'bg-[var(--color-surface-warm)] text-[var(--color-muted-strong)]',
-        tone === 'success' && 'bg-[rgba(37,47,55,0.1)] text-[var(--color-vineyard)]',
+        tone === 'success' && 'bg-[rgba(37,47,55,0.1)] text-[#252F37]',
         tone === 'warning' && 'bg-[rgba(170,125,67,0.14)] text-[var(--color-gold)]',
         tone === 'danger' && 'bg-[rgba(154,68,59,0.12)] text-[var(--color-alert)]',
       )}
@@ -382,8 +384,8 @@ export function StatusBadge({
 
 export function LoadingState({ label }: { label: string }) {
   return (
-    <div className="flex min-h-[72px] items-center gap-3 rounded-[16px] bg-[#FFF9F1] px-4 text-[12px] text-[#776053] shadow-[inset_0_0_0_1px_rgba(184,138,74,0.14)]">
-      <Loader2 size={16} className="shrink-0 animate-spin text-[#690D2B]" />
+    <div className="flex min-h-[72px] items-center gap-3 rounded-[16px] border border-[rgba(180,138,85,0.24)] bg-[linear-gradient(135deg,#F7F2EA,rgba(232,216,200,0.72))] px-4 text-[12px] text-[var(--color-muted)] shadow-[0_12px_26px_rgba(37,47,55,0.06)]">
+      <Loader2 size={16} className="shrink-0 animate-spin text-[var(--color-burgundy)]" />
       <span>{label}</span>
     </div>
   )
@@ -396,11 +398,11 @@ export function ErrorState({ message, retryLabel, onRetry }: {
 }) {
   const { t } = useAppPreferences()
   return (
-    <div className="flex min-h-[74px] items-center gap-3 rounded-[16px] bg-[#FFF9F1] px-4 text-[12px] leading-5 text-[#776053] shadow-[inset_0_0_0_1px_rgba(154,68,59,0.18)]">
+    <div className="flex min-h-[74px] items-center gap-3 rounded-[16px] border border-[rgba(143,47,53,0.22)] bg-[linear-gradient(135deg,#F7F2EA,rgba(232,216,200,0.7))] px-4 text-[12px] leading-5 text-[var(--color-muted)] shadow-[0_12px_26px_rgba(37,47,55,0.06)]">
       <AlertCircle size={16} className="shrink-0 text-[#9A443B]" />
       <p className="min-w-0 flex-1">{message || t('app.premium.contentUnavailable')}</p>
       {onRetry && retryLabel ? (
-        <button type="button" onClick={onRetry} className="shrink-0 font-semibold text-[#690D2B]">
+        <button type="button" onClick={onRetry} className="shrink-0 font-semibold text-[var(--color-burgundy)]">
           {retryLabel}
         </button>
       ) : null}
@@ -418,12 +420,12 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="rounded-[16px] bg-[#FFF9F1] p-4 text-center shadow-[inset_0_0_0_1px_rgba(184,138,74,0.14)]">
-      <ImageIcon size={18} className="mx-auto text-[#B88A4A]" />
-      <h3 className="mt-2 text-[1.2rem] leading-none text-[#2D1811]" style={{ fontFamily: 'var(--font-display)' }}>
+    <div className="rounded-[16px] border border-[rgba(180,138,85,0.24)] bg-[linear-gradient(145deg,#F7F2EA,rgba(232,216,200,0.74))] p-4 text-center shadow-[0_14px_30px_rgba(37,47,55,0.06)]">
+      <ImageIcon size={18} className="mx-auto text-[var(--color-gold)]" />
+      <h3 className="mt-2 text-[1.2rem] leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
         {title}
       </h3>
-      {description ? <p className="mt-2 text-[12px] leading-5 text-[#776053]">{description}</p> : null}
+      {description ? <p className="mt-2 text-[12px] leading-5 text-[var(--color-muted)]">{description}</p> : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
   )
@@ -441,7 +443,7 @@ export function AppToast({ message, tone = 'neutral' }: { message: string; tone?
       className={cx(
         'rounded-[1rem] px-4 py-3 text-[12px] leading-5 shadow-[var(--shadow-soft)]',
         tone === 'neutral' && 'bg-[var(--color-panel)] text-[var(--color-muted)]',
-        tone === 'success' && 'bg-[rgba(37,47,55,0.1)] text-[var(--color-vineyard)]',
+        tone === 'success' && 'bg-[rgba(37,47,55,0.1)] text-[#252F37]',
         tone === 'danger' && 'bg-[rgba(154,68,59,0.1)] text-[var(--color-alert)]',
       )}
     >
@@ -518,9 +520,9 @@ export function WineCard({
   const detailPath = appPath(`/vinos/${wine.id}`)
   return (
     <article className="group min-w-0">
-      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#EEE2D2,#E5D6C4)]">
+      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#252F37,#681126)]">
         {badge ? (
-          <span className="absolute left-2.5 top-2.5 z-10 max-w-[calc(100%-1.25rem)] truncate rounded-full bg-[#FFF9F1]/92 px-2 py-1 text-[8px] font-bold uppercase text-[#690D2B]">
+          <span className="absolute left-2.5 top-2.5 z-10 max-w-[calc(100%-1.25rem)] truncate rounded-full bg-[rgba(247,242,234,0.92)] px-2 py-1 text-[8px] font-bold uppercase text-[var(--color-burgundy)]">
             {badge}
           </span>
         ) : null}
@@ -533,16 +535,16 @@ export function WineCard({
       <div className="pt-2">
         <Link to={detailPath}>
           {wine.kind || wine.varietal ? (
-            <p className="line-clamp-1 text-[10px] font-semibold uppercase text-[#B88A4A]">
+            <p className="line-clamp-1 text-[10px] font-semibold uppercase text-[var(--color-gold)]">
               {[wine.kind, wine.varietal].filter(Boolean).join(' · ')}
             </p>
           ) : null}
-          <h3 className="mt-0.5 line-clamp-2 min-h-[39px] text-[18px] leading-[1.06] text-[#2D1811]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+          <h3 className="mt-0.5 line-clamp-2 min-h-[39px] text-[18px] leading-[1.06] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
             {wine.name}
           </h3>
         </Link>
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="min-w-0 truncate text-[12px] font-semibold text-[#690D2B]">
+          <span className="min-w-0 truncate text-[12px] font-semibold text-[var(--color-burgundy)]">
             {wine.price}
           </span>
           <CompactAddButton onClick={onAdd} disabled={addDisabled} ariaLabel={addLabel} />
@@ -570,16 +572,16 @@ export function EditorialCard({
   actionLabel?: string
 }) {
   return (
-    <Link to={to} className="app-editorial-card grid min-h-[148px] min-w-0 overflow-hidden rounded-[16px] border border-[rgba(184,138,74,0.16)] bg-[#FFF9F1]">
+    <Link to={to} className="app-editorial-card grid min-h-[148px] min-w-0 overflow-hidden rounded-[16px] border border-[rgba(180,138,85,0.28)] bg-[linear-gradient(145deg,#F7F2EA,rgba(232,216,200,0.72))] shadow-[0_14px_30px_rgba(37,47,55,0.06)]">
       <div className="min-w-0 p-4">
-        {eyebrow ? <p className="line-clamp-1 text-[9px] font-semibold uppercase text-[#B88A4A]">{eyebrow}</p> : null}
-        <h3 className="mt-1 line-clamp-2 text-[clamp(17px,4.6vw,19px)] font-medium leading-[1.08] text-[#2D1811]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
+        {eyebrow ? <p className="line-clamp-1 text-[9px] font-semibold uppercase text-[var(--color-gold)]">{eyebrow}</p> : null}
+        <h3 className="mt-1 line-clamp-2 text-[clamp(17px,4.6vw,19px)] font-medium leading-[1.08] text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}>
           {title}
         </h3>
-        {description ? <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-[#776053]">{description}</p> : null}
+        {description ? <p className="mt-2 line-clamp-2 text-[11px] leading-4 text-[var(--color-muted)]">{description}</p> : null}
         {meta ? <div className="mt-3">{meta}</div> : null}
         {actionLabel ? (
-          <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-[#690D2B]">
+          <p className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--color-burgundy)]">
             {actionLabel}
             <ArrowRight size={14} />
           </p>
@@ -602,7 +604,7 @@ export const MembershipCard = EditorialCard
 
 export function InlineSuccess({ children }: { children: ReactNode }) {
   return (
-    <p className="inline-flex items-start gap-2 rounded-[1rem] bg-[rgba(37,47,55,0.1)] px-4 py-3 text-[12px] leading-5 text-[var(--color-vineyard)]">
+    <p className="inline-flex items-start gap-2 rounded-[1rem] bg-[rgba(37,47,55,0.1)] px-4 py-3 text-[12px] leading-5 text-[#252F37]">
       <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
       {children}
     </p>

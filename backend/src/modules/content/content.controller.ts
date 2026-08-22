@@ -293,7 +293,7 @@ export async function listPublic(req: Request, res: Response): Promise<void> {
   try {
     const locale = typeof req.query.locale === 'string' ? req.query.locale : 'es-MX'
     const { data } = await listPublicEntity(req.params.entity, locale)
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120')
+    res.set('Cache-Control', 'no-store')
     res.json({ ok: true, data })
   } catch (error) {
     sendError(res, error)
@@ -308,7 +308,7 @@ export async function getPublicBySlug(req: Request, res: Response): Promise<void
       res.status(404).json({ ok: false, error: { code: 'NOT_FOUND', message: 'Contenido no encontrado' } })
       return
     }
-    res.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120')
+    res.set('Cache-Control', 'no-store')
     res.json({ ok: true, data })
   } catch (error) {
     sendError(res, error)

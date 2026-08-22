@@ -4,7 +4,7 @@ import { CalendarDays, Clock3, MapPin, Minus, Plus, ShoppingCart, Ticket } from 
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
 import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
-import { eventMinimumTicketPrice, formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
+import { eventMinimumTicketPrice, formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, publicEventHasEnded, textField } from '../../utils/publicContent'
 import { appPath } from '../../utils/appRoutes'
 import { eventKindLabel, eventMetadata, eventVenueForRecord } from '../../utils/eventVenues'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -154,10 +154,12 @@ export function EventDetailScreen() {
   const kind = eventKindLabel(String(metadata.event_kind ?? ''))
   const reservationPhone = typeof metadata.reservation_phone === 'string' ? metadata.reservation_phone : ''
   const salesEnabled = event.sales_enabled !== false
+  const eventEnded = publicEventHasEnded(event)
+  const eventPurchasable = salesEnabled && !eventEnded
   const variants = variantSchemaItems(event)
   const ticketTypes = (Array.isArray(event.event_ticket_types) ? event.event_ticket_types : [])
     .filter((item): item is EventTicketType => Boolean(item && typeof item === 'object' && 'id' in item))
-    .filter((ticket) => salesEnabled && liveTicket(ticket))
+    .filter((ticket) => eventPurchasable && liveTicket(ticket))
   const eventAvailable = Math.max(
     numberField(event, 'capacity') - numberField(event, 'sold_count') - numberField(event, 'reserved_count'),
     0,
@@ -169,7 +171,12 @@ export function EventDetailScreen() {
       navigate(appPath('/login'))
       return
     }
-    const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(Math.min(ticketAvailable(ticket), eventAvailable), 1))
+    const maxQuantity = Math.max(Math.min(ticketAvailable(ticket), eventAvailable), 0)
+    if (!eventPurchasable || maxQuantity < 1) {
+      setCartError(t('app.premium.events.ticketUnavailable', 'La venta para este boleto no está disponible.'))
+      return
+    }
+    const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, maxQuantity)
     setAddingTicket(ticket.id)
     setCartError('')
     setCartMessage('')
@@ -181,6 +188,7 @@ export function EventDetailScreen() {
         idempotencyKey: `event_ticket_${ticket.id}_${Date.now()}`,
       })
       setCartMessage(t('app.premium.events.ticketAdded', 'Boleto agregado al carrito.'))
+      navigate(appPath('/checkout'))
     } catch {
       setCartError(t('app.premium.events.ticketAddError', 'No fue posible agregar el boleto.'))
     } finally {
@@ -206,7 +214,9 @@ export function EventDetailScreen() {
           {
             icon: Ticket,
             label: t('app.premium.events.ticket'),
-            value: !salesEnabled && reservationPhone
+            value: eventEnded
+              ? t('app.premium.events.salesClosed', 'Venta cerrada')
+              : !salesEnabled && reservationPhone
               ? t('app.premium.events.phoneReservation', 'Reserva por teléfono')
               : price > 0
                 ? formatCurrency(price, locale)
@@ -274,8 +284,14 @@ export function EventDetailScreen() {
         <AppSectionHeader eyebrow={t('app.premium.events.ticket')} title={t('app.premium.events.accessOptions', 'Boletos disponibles')} />
         {ticketTypes.length === 0 ? (
           <EmptyState
-            title={!salesEnabled && reservationPhone ? t('app.premium.events.phoneReservation', 'Reserva por teléfono') : t('app.premium.events.ticketPending')}
-            description={!salesEnabled && reservationPhone
+            title={eventEnded
+              ? t('app.premium.events.salesClosed', 'Venta cerrada')
+              : !salesEnabled && reservationPhone
+                ? t('app.premium.events.phoneReservation', 'Reserva por teléfono')
+                : t('app.premium.events.ticketPending')}
+            description={eventEnded
+              ? t('app.premium.events.eventEnded', 'Este evento ya terminó. Los boletos se cerraron automáticamente.')
+              : !salesEnabled && reservationPhone
               ? `${t('app.premium.events.reserveByPhone', 'Este evento se reserva directamente con Hacienda de Letras.')} ${reservationPhone}`
               : t('app.premium.events.noTicketsConfigured', 'La información de acceso se publicará cuando Hacienda confirme boletos, precios y capacidad.')}
           />
@@ -283,7 +299,7 @@ export function EventDetailScreen() {
           <div className="grid gap-3">
             {ticketTypes.map((ticket) => {
               const available = Math.min(ticketAvailable(ticket), eventAvailable)
-              const quantity = Math.min(quantityByTicket[ticket.id] ?? 1, Math.max(available, 1))
+              const quantity = available > 0 ? Math.min(quantityByTicket[ticket.id] ?? 1, available) : 0
               return (
                 <article key={ticket.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
                   <div className="flex items-start justify-between gap-3">

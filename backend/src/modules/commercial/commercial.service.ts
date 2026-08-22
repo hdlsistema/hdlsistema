@@ -299,7 +299,7 @@ function queueCommercialReservationPush(
     userId: user.userId ?? customer.user_id ?? null,
     title: 'Solicitud de reservación recibida',
     body: `Recibimos tu solicitud para ${serviceTitle}${dateDetail ? ` (${dateDetail})` : ''}. Te avisaremos cuando quede confirmada.`,
-    deepLink: '/app/reservacion',
+    deepLink: `/app/reservacion?reservationId=${encodeURIComponent(reservation.id)}`,
     data: {
       type: 'reservation_created',
       reservationId: reservation.id,
@@ -523,6 +523,7 @@ export async function createCabinReservation(payload: CreateCabinReservationPayl
     p_customer_notes: payload.customerNotes ?? null,
     p_idempotency_key: payload.idempotencyKey,
     p_metadata: {
+      ...(payload.metadata ?? {}),
       language: payload.language,
       bookingMode: 'CONFIRMATION_HOLD',
       requestedCheckIn: payload.checkIn,
@@ -598,7 +599,11 @@ export async function createRestaurantReservation(payload: CreateRestaurantReser
       occasion: payload.occasion ?? null,
       customer_notes: payload.customerNotes ?? null,
       idempotency_key: payload.idempotencyKey,
-      metadata: { language: payload.language, bookingMode: 'REQUEST_CONFIRMATION' },
+      metadata: {
+        ...(payload.metadata ?? {}),
+        language: payload.language,
+        bookingMode: 'REQUEST_CONFIRMATION',
+      },
     })
     .select(reservationSelect)
     .single()

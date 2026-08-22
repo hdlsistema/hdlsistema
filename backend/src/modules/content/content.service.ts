@@ -86,12 +86,14 @@ function controlContentDeepLink(routeEntity: ContentRouteEntity) {
 
 function buildStatusPatch(config: ContentConfig, action: PublicationAction) {
   const now = new Date().toISOString()
-	  if (action === 'publish') {
-	    return {
-	      status: config.publishStatus,
-	      visible_in_app: config.publicEnabled,
-	      published_at: now,
-	      archived_at: null,
+  if (action === 'publish') {
+    return {
+      status: config.publishStatus,
+      visible_in_app: config.publicEnabled,
+      published_at: now,
+      publish_at: null,
+      unpublish_at: null,
+      archived_at: null,
       deleted_at: null,
     }
   }
@@ -138,6 +140,25 @@ function assertPublicationWindowReady(record: Record<string, unknown>) {
   if (startAt !== null && unpublishAt !== null && unpublishAt <= startAt) {
     throw httpError(422, 'La fecha de retiro debe ser posterior al inicio del evento')
   }
+}
+
+function keepPublishedContentImmediatelyVisible(
+  config: ContentConfig,
+  current: Record<string, unknown> | undefined,
+  payload: Record<string, unknown>,
+) {
+  if (!config.publicEnabled || !current || current.status !== config.publishStatus) return payload
+
+  const candidate = { ...current, ...payload }
+  const publishAt = timestamp(candidate.publish_at)
+  const remainsPublished = candidate.status === config.publishStatus
+  const remainsVisible = candidate.visible_in_app !== false
+
+  if (remainsPublished && remainsVisible && publishAt !== null && publishAt > Date.now()) {
+    return { ...payload, publish_at: null }
+  }
+
+  return payload
 }
 
 function clonePayload(row: Record<string, unknown>, config: ContentConfig) {
@@ -255,15 +276,45 @@ function withContentDefaults(
   payload: Record<string, unknown>,
   current?: Record<string, unknown> | null,
 ) {
-  if (!config.defaultMetadata) return payload
+  if (!config.defaultMetadata && !Object.prototype.hasOwnProperty.call(payload, 'metadata')) return payload
+
+  const currentMetadata = normalizeRecordJson(current?.metadata)
+  const payloadMetadata = normalizeRecordJson(payload.metadata)
+
   return {
     ...payload,
     metadata: {
-      ...normalizeRecordJson(current?.metadata),
-      ...normalizeRecordJson(payload.metadata),
-      ...config.defaultMetadata,
+      ...currentMetadata,
+      ...payloadMetadata,
+      ...(config.defaultMetadata ?? {}),
     },
   }
+}
+
+async function resolvePublicationJobConfig(job: {
+  entity_type: string
+  entity_id: string
+  metadata?: unknown
+}) {
+  const jobMetadata = normalizeRecordJson(job.metadata)
+  const route = typeof jobMetadata.route === 'string' ? jobMetadata.route : ''
+  const explicitConfig = route ? getContentConfig(route) : null
+  if (explicitConfig && explicitConfig.entityType === job.entity_type) return explicitConfig
+
+  const candidates = Object.values(contentConfigs).filter((item) => item.entityType === job.entity_type)
+  if (candidates.length <= 1) return candidates[0] ?? null
+
+  if (job.entity_type === 'event') {
+    const eventResult = await supabaseAdminClient
+      .from('events')
+      .select('metadata')
+      .eq('id', job.entity_id)
+      .maybeSingle()
+    const eventMetadata = normalizeRecordJson(assertNoError<{ metadata?: unknown } | null>(eventResult).data?.metadata)
+    if (eventMetadata.event_scope === 'grand') return contentConfigs['grand-events']
+  }
+
+  return candidates[0] ?? null
 }
 
 function normalizeCustomerEmail(value?: string | null) {
@@ -975,19 +1026,26 @@ export async function updateAdminContent(
     : null
   if (isEventContentRoute(routeEntity)) {
     if (!current?.data) throw httpError(404, 'Evento no encontrado')
-    const candidate = { ...(current.data as unknown as Record<string, unknown>), ...payload }
+    const currentRecord = current.data as unknown as Record<string, unknown>
+    const candidate = { ...currentRecord, ...payload }
     if (candidate.status === 'published') {
       assertPublicationWindowReady(candidate)
-      await assertEventSalesReady(id, candidate)
+      const publishingNow = currentRecord.status !== 'published' && payload.status === 'published'
+      const enablingSales = currentRecord.sales_enabled !== true && payload.sales_enabled === true
+      if (candidate.sales_enabled === true && (publishingNow || enablingSales)) {
+        await assertEventSalesReady(id, candidate)
+      }
     }
   } else if (config.publicEnabled && payload.status === config.publishStatus) {
     const candidate = { ...(current?.data as unknown as Record<string, unknown> | undefined), ...payload }
     assertPublicationWindowReady(candidate)
   }
+  const currentRecord = current?.data as Record<string, unknown> | undefined
+  const updatePayload = keepPublishedContentImmediatelyVisible(config, currentRecord, payload)
   return updateContent(
     config,
     id,
-    withContentDefaults(config, { ...payload, updated_by: user.userId }, current?.data as Record<string, unknown> | undefined),
+    withContentDefaults(config, { ...updatePayload, updated_by: user.userId }, currentRecord),
   )
 }
 
@@ -1170,17 +1228,23 @@ export async function processDuePublicationJobs(limit = 10) {
     action: PublicationAction
     attempts: number
     max_attempts: number
+    metadata?: unknown
   }>
 
   for (const job of jobs) {
-    const config = Object.values(contentConfigs).find((item) => item.entityType === job.entity_type)
+    const config = await resolvePublicationJobConfig(job)
     if (!config) {
       await failPublicationJob(job.id, job.attempts, job.max_attempts)
       continue
     }
 
     try {
-      await updateContent(config, job.entity_id, buildStatusPatch(config, job.action))
+      const current = config.defaultMetadata ? await getContentById(config, job.entity_id) : null
+      await updateContent(
+        config,
+        job.entity_id,
+        withContentDefaults(config, buildStatusPatch(config, job.action), current?.data as Record<string, unknown> | undefined),
+      )
       await completePublicationJob(job.id)
     } catch {
       await failPublicationJob(job.id, job.attempts, job.max_attempts)

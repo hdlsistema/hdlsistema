@@ -20,9 +20,24 @@ import {
   contentRouteId,
   formatCurrency,
   imageField,
+  metadataText,
   numberField,
   textField,
 } from '../../utils/publicContent'
+
+function normalizeSearchText(value: string, locale: string) {
+  return value
+    .toLocaleLowerCase(locale)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+const WINE_FILTER_TERMS: Record<number, string[]> = {
+  1: ['tinto', 'tintos', 'red', 'reds'],
+  2: ['blanco', 'blancos', 'white', 'whites'],
+  3: ['rosado', 'rosados', 'rose', 'roses', 'rosé'],
+  4: ['espumoso', 'espumosos', 'sparkling'],
+}
 
 export function StoreScreen() {
   const { t, isEnglish, locale } = useAppPreferences()
@@ -73,22 +88,25 @@ export function StoreScreen() {
 
   const filteredWines = useMemo(() => {
     const activeLocale = isEnglish ? 'en-US' : 'es-MX'
-    const target = search.trim().toLocaleLowerCase(activeLocale)
-    const family = filters[activeFilter]?.toLocaleLowerCase(activeLocale)
+    const target = normalizeSearchText(search.trim(), activeLocale)
+    const familyTerms = WINE_FILTER_TERMS[activeFilter] ?? []
     const filtered = wines.filter((wine) => {
       const searchable = [
         textField(wine, 'name'),
         textField(wine, 'subtitle'),
+        textField(wine, 'category'),
+        textField(wine, 'category_id'),
         textField(wine, 'origin'),
         textField(wine, 'grape_variety'),
         textField(wine, 'wine_type'),
         textField(wine, 'description'),
-      ].join(' ').toLocaleLowerCase(activeLocale)
-      const matchesSearch = !target || searchable.includes(target)
+        metadataText(wine, 'category', 'family', 'style', 'type', 'wine_type', 'color', 'tags', 'origin', 'grape_variety'),
+      ].join(' ')
+      const normalizedSearchable = normalizeSearchText(searchable, activeLocale)
+      const matchesSearch = !target || normalizedSearchable.includes(target)
       const matchesFamily =
         activeFilter === 0 ||
-        searchable.includes(String(family).replace('é', 'e')) ||
-        searchable.includes(String(family))
+        familyTerms.some((term) => normalizedSearchable.includes(normalizeSearchText(term, activeLocale)))
       return matchesSearch && matchesFamily
     })
     return [...filtered].sort((a, b) => {
@@ -146,7 +164,7 @@ export function StoreScreen() {
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <h1
-              className="text-[clamp(23px,6vw,29px)] font-medium leading-none text-[#2D1811]"
+              className="text-[clamp(23px,6vw,29px)] font-medium leading-none text-[var(--color-ink)]"
               style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
             >
               {t('app.premium.wines.title')}
@@ -158,12 +176,12 @@ export function StoreScreen() {
               onChange={(value) => setOrder(value as typeof order)}
               options={sortOptions}
               className="w-11"
-              buttonClassName="h-10 min-h-10 w-11 justify-center rounded-full border-[rgba(184,138,74,0.2)] bg-[#FFF9F1] px-0 text-[#690D2B] shadow-none"
+              buttonClassName="h-10 min-h-10 w-11 justify-center rounded-full border-[rgba(184,138,74,0.2)] bg-[var(--color-panel)] px-0 text-[var(--color-burgundy)] shadow-none"
               menuClassName="left-auto right-0 min-w-[15rem]"
             />
             <SlidersHorizontal
               size={16}
-              className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[#690D2B]"
+              className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--color-burgundy)]"
             />
             <span className="sr-only">{t('app.premium.wines.sort')}</span>
           </div>

@@ -96,6 +96,88 @@ function metadataValue(value: unknown, key: string) {
   return typeof raw === 'string' || typeof raw === 'number' ? String(raw) : ''
 }
 
+function metadataRecord(value: unknown, key: string) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const record = value as Record<string, unknown>
+  const raw = record[key]
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+}
+
+function metadataBoolean(value: unknown, key: string, fallback: boolean) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return fallback
+  const record = value as Record<string, unknown>
+  const raw = record[key]
+  if (typeof raw === 'boolean') return raw
+  if (typeof raw === 'string') return ['true', '1', 'yes', 'si', 'sí'].includes(raw.trim().toLowerCase())
+  return fallback
+}
+
+function booleanPart(value: unknown, fallback: boolean) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return ['true', '1', 'yes', 'si', 'sí'].includes(value.trim().toLowerCase())
+  return fallback
+}
+
+function linesFromUnknown(value: unknown) {
+  if (Array.isArray(value)) return value.map(textValue).filter(Boolean).join('\n')
+  return textValue(value)
+}
+
+function parseLines(value: unknown) {
+  return textValue(value)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
+function nestedBoolean(value: unknown, key: string, nestedKey: string, fallback: boolean) {
+  return booleanPart(metadataRecord(value, key)[nestedKey], fallback)
+}
+
+function menuOptionsTextFromMetadata(value: unknown) {
+  const menu = metadataRecord(value, 'menuConfig')
+  const options = Array.isArray(menu.options) ? menu.options : []
+  return options
+    .map((option) => {
+      if (!option || typeof option !== 'object' || Array.isArray(option)) return ''
+      const record = option as Record<string, unknown>
+      const label = textValue(record.label || record.name || record.option)
+      if (!label) return ''
+      const price = numericValue(record.price) ?? 0
+      const category = textValue(record.category)
+      const description = textValue(record.description)
+      const parts = category ? [category, label, String(price), description] : [label, String(price), description]
+      return parts.filter(Boolean).join(' | ')
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+function parseMenuOptionsText(value: unknown) {
+  return textValue(value)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line, index) => {
+      const parts = line.split('|').map((part) => part.trim())
+      const [category, label, price, description] = parts.length >= 4
+        ? parts
+        : ['', parts[0] ?? '', parts[1] ?? '', parts.slice(2).join(' | ')]
+      const cleanPrice = String(price ?? '').replace(/[$,]/g, '')
+      const priceValue = numericValue(cleanPrice) ?? 0
+      if (!label) return null
+      return {
+        value: slugKey(label) || `menu_${index + 1}`,
+        label,
+        category: category || null,
+        description: description || null,
+        price: priceValue,
+        currency: 'MXN',
+      }
+    })
+    .filter((item): item is { value: string; label: string; category: string | null; description: string | null; price: number; currency: 'MXN' } => Boolean(item))
+}
+
 function slugKey(value: string) {
   return value
     .normalize('NFD')
@@ -214,10 +296,22 @@ function toInputValue(record: ContentRecord | null, field: EditorialField) {
   if (field.type === 'datetime') return toDatetimeLocal(value)
   if (field.type === 'benefits') return linesFromBenefits(value)
   if (field.type === 'eventMetadata') {
+    const contractTerms = metadataRecord(value, 'contractTerms')
+    const menuConfig = metadataRecord(value, 'menuConfig')
     return JSON.stringify({
       event_kind: metadataValue(value, 'event_kind'),
       location_kind: metadataValue(value, 'location_kind') || 'estate',
       reservation_phone: metadataValue(value, 'reservation_phone'),
+      contract_title: textValue(contractTerms.title),
+      contract_terms: linesFromUnknown(contractTerms.terms),
+      contract_confirmation: textValue(contractTerms.confirmationMessage),
+      contract_requires_acceptance: nestedBoolean(value, 'contractTerms', 'requiresAcceptance', true),
+      contract_version: textValue(contractTerms.version),
+      menu_enabled: metadataBoolean(menuConfig, 'enabled', false),
+      menu_required: metadataBoolean(menuConfig, 'required', true),
+      menu_label: textValue(menuConfig.label),
+      menu_price_mode: textValue(menuConfig.priceMode) || 'per_person',
+      menu_options_text: menuOptionsTextFromMetadata(value),
       variant_schema: eventVariantSchemaFromMetadata(value),
       advancedJson: '',
     })
@@ -286,17 +380,43 @@ export function serializeEditorialPayload(definition: EditorialDefinition, value
       const eventKind = typeof parsed.event_kind === 'string' ? parsed.event_kind.trim() : ''
       const locationKind = typeof parsed.location_kind === 'string' ? parsed.location_kind.trim() : 'estate'
       const reservationPhone = typeof parsed.reservation_phone === 'string' ? parsed.reservation_phone.trim() : ''
+      const contractTitle = typeof parsed.contract_title === 'string' ? parsed.contract_title.trim() : ''
+      const contractTerms = parseLines(parsed.contract_terms)
+      const contractConfirmation = typeof parsed.contract_confirmation === 'string' ? parsed.contract_confirmation.trim() : ''
+      const contractVersion = typeof parsed.contract_version === 'string' ? parsed.contract_version.trim() : ''
+      const menuLabel = typeof parsed.menu_label === 'string' ? parsed.menu_label.trim() : ''
+      const menuPriceMode = parsed.menu_price_mode === 'flat' ? 'flat' : 'per_person'
+      const menuOptions = parseMenuOptionsText(parsed.menu_options_text)
       const variantSchemaText = typeof parsed.variant_schema_text === 'string' ? parsed.variant_schema_text : ''
       const variantSchema = Array.isArray(parsed.variant_schema)
         ? normalizeVariantSchema(parsed.variant_schema)
         : parseVariantSchemaText(variantSchemaText)
-      payload.metadata = parseGuidedJson(rawValue ?? '', {
-        event_scope: 'grand',
+      const fallbackMetadata: Record<string, unknown> = {
+        event_scope: definition.entity === 'grand-events' ? 'grand' : 'standard',
         event_kind: eventKind,
         location_kind: locationKind || 'estate',
         reservation_phone: reservationPhone,
         variant_schema: variantSchema,
-      })
+      }
+      if (contractTitle || contractTerms.length || contractConfirmation) {
+        fallbackMetadata.contractTerms = {
+          title: contractTitle || 'Condiciones de reservación',
+          terms: contractTerms,
+          confirmationMessage: contractConfirmation || 'Acepto las condiciones de reservación.',
+          requiresAcceptance: booleanPart(parsed.contract_requires_acceptance, true),
+          version: contractVersion || `${definition.entity}-${slugKey(contractTitle || 'condiciones') || 'condiciones'}-v1`,
+        }
+      }
+      if (booleanPart(parsed.menu_enabled, menuOptions.length > 0) || menuOptions.length > 0) {
+        fallbackMetadata.menuConfig = {
+          enabled: true,
+          required: booleanPart(parsed.menu_required, true),
+          label: menuLabel || 'Menú',
+          priceMode: menuPriceMode,
+          options: menuOptions,
+        }
+      }
+      payload.metadata = parseGuidedJson(rawValue ?? '', fallbackMetadata)
       return payload
     }
 
