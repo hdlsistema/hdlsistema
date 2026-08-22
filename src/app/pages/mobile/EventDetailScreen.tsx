@@ -6,6 +6,7 @@ import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, Lo
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
 import { appPath } from '../../utils/appRoutes'
+import { eventKindLabel, eventMetadata, eventVenueForRecord } from '../../utils/eventVenues'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
 
@@ -52,6 +53,22 @@ function ticketAvailable(ticket: EventTicketType) {
   )
 }
 
+function variantSchemaItems(record: ContentRecord) {
+  const schema = eventMetadata(record).variant_schema
+  if (!Array.isArray(schema)) return []
+  return schema
+    .map((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return null
+      const row = item as Record<string, unknown>
+      const label = typeof row.label === 'string' ? row.label : typeof row.name === 'string' ? row.name : ''
+      const options = Array.isArray(row.options)
+        ? row.options.map((option) => String(option)).filter(Boolean)
+        : []
+      return label ? { label, options } : null
+    })
+    .filter((item): item is { label: string; options: string[] } => Boolean(item))
+}
+
 export function EventDetailScreen() {
   const { eventId } = useParams()
   const navigate = useNavigate()
@@ -75,7 +92,7 @@ export function EventDetailScreen() {
       return
     }
     publicContentClient
-      .getBySlug('events', eventId, locale)
+      .getBySlug('grand-events', eventId, locale)
       .then((response) => {
         if (active) setEvent(response.data)
       })
@@ -98,6 +115,9 @@ export function EventDetailScreen() {
   const price = numberField(event, 'price')
   const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
   const gallery = galleryImages(event, 'event_images', imageField(event, ''))
+  const venue = eventVenueForRecord(event)
+  const kind = eventKindLabel(String(eventMetadata(event).event_kind ?? ''))
+  const variants = variantSchemaItems(event)
   const ticketTypes = (Array.isArray(event.event_ticket_types) ? event.event_ticket_types : [])
     .filter((item): item is EventTicketType => Boolean(item && typeof item === 'object' && 'id' in item))
     .filter(liveTicket)
@@ -145,7 +165,7 @@ export function EventDetailScreen() {
         {[
           { icon: CalendarDays, label: t('app.premium.events.date'), value: formatPublicDate(event.start_at, locale, t('common.datePending')) },
           { icon: Clock3, label: t('app.premium.events.schedule'), value: formatPublicTimeRange(event.start_at, event.end_at, locale) },
-          { icon: MapPin, label: t('app.location'), value: textField(event, 'venue', 'Hacienda de Letras') },
+          { icon: MapPin, label: t('app.location'), value: `${venue.title} · ${textField(event, 'venue', 'Hacienda de Letras')}` },
           { icon: Ticket, label: t('app.premium.events.ticket'), value: price > 0 ? formatCurrency(price, locale) : t('app.premium.events.ticketPending') },
         ].map((item) => {
           const Icon = item.icon
@@ -158,6 +178,21 @@ export function EventDetailScreen() {
           )
         })}
       </section>
+      {variants.length ? (
+        <section className="space-y-3">
+          <AppSectionHeader eyebrow={kind} title={t('app.premium.events.variants', 'Opciones del evento')} />
+          <div className="grid gap-3">
+            {variants.map((item) => (
+              <article key={item.label} className="rounded-[1rem] border border-[rgba(220,202,181,0.78)] bg-[#fffaf5] p-4">
+                <p className="text-[9px] font-semibold uppercase tracking-[0.13em] text-[var(--color-gold)]">{item.label}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {item.options.length ? item.options.map((option) => <StatusBadge key={`${item.label}-${option}`}>{option}</StatusBadge>) : <StatusBadge>{t('common.toBeConfirmed')}</StatusBadge>}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
       <section className="space-y-3">
         <AppSectionHeader eyebrow={t('app.publishedDetails')} title={t('app.publishedDetails')} />
         {includedItems.length ? (

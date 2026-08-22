@@ -9,6 +9,7 @@ export type EditorialFieldType =
   | 'datetime'
   | 'select'
   | 'benefits'
+  | 'eventMetadata'
   | 'campaignAudience'
   | 'campaignContent'
 

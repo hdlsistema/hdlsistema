@@ -23,7 +23,7 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at 50% -10%, rgba(255, 251, 244, 0.98), rgba(246, 236, 222, 0.96) 42%, rgba(232, 217, 199, 0.98)),
+    radial-gradient(circle at 50% -10%, rgba(247, 242, 234, 0.98), rgba(232, 216, 200, 0.72) 42%, rgba(247, 242, 234, 0.98)),
     var(--color-page);
   color: var(--color-ink);
   font-family: var(--font-body);
@@ -51,16 +51,17 @@ body.hdl-mobile-app {
   inset: 0;
   background:
     radial-gradient(circle at 15% -10%, rgba(255,255,255,.98), transparent 38%),
-    linear-gradient(160deg, #FCF8F2, #F3E8DD);
+    linear-gradient(160deg, #F7F2EA, #E8D8C8);
   touch-action: pan-y;
 }
 
 html.hdl-mobile-app {
-  --color-page: #FBF7F0;
-  --color-ink: #30221D;
-  --color-burgundy: #690D2B;
-  --color-gold: #B78A4C;
-  --color-muted: #786B63;
+  --color-page: #F7F2EA;
+  --color-ink: #252F37;
+  --color-burgundy: #681126;
+  --color-gold: #B48A55;
+  --color-muted: #675f59;
+  --color-soft: #E8D8C8;
   --font-display: 'Cormorant Garamond', Georgia, serif;
   --font-body: 'Montserrat', Arial, sans-serif;
   -webkit-text-size-adjust: 100%;
@@ -126,12 +127,12 @@ html:not(.hdl-mobile-app) textarea:focus-visible {
 .app-primary-button--primary:visited,
 .app-primary-button--primary:hover,
 .app-primary-button--primary:active {
-  color: #FFFDF8 !important;
+  color: #F7F2EA !important;
 }
 
 .app-primary-button--primary *,
 .app-primary-button--primary svg {
-  color: #FFFDF8 !important;
+  color: #F7F2EA !important;
   stroke: currentColor;
 }
 
@@ -141,8 +142,8 @@ html:not(.hdl-mobile-app) textarea:focus-visible {
 .app-burgundy-cta:active,
 .app-burgundy-cta *,
 .app-burgundy-cta svg {
-  color: #FFFDF8 !important;
-  -webkit-text-fill-color: #FFFDF8 !important;
+  color: #F7F2EA !important;
+  -webkit-text-fill-color: #F7F2EA !important;
   stroke: currentColor;
 }
 
@@ -163,7 +164,7 @@ html.hdl-mobile-app .app-preview-shell {
   overflow: hidden;
   background:
     radial-gradient(circle at 12% -4%, rgba(255,255,255,.96), transparent 34%),
-    linear-gradient(160deg, #FCF8F2, #F3E8DD);
+    linear-gradient(160deg, #F7F2EA, #E8D8C8);
 }
 
 html.hdl-mobile-app .mobile-shell-scroll {
@@ -195,8 +196,8 @@ html.hdl-mobile-app .native-app-header {
   padding: max(2rem, env(safe-area-inset-top)) 2rem max(2rem, env(safe-area-inset-bottom));
   background:
     radial-gradient(ellipse at 50% 38%, rgba(130,27,59,.42), transparent 48%),
-    #3F0818;
-  color: #FFFDF8;
+    #681126;
+  color: #F7F2EA;
   text-align: center;
 }
 
@@ -215,7 +216,7 @@ html.hdl-mobile-app .native-app-header {
   overflow: hidden;
   background-position: center;
   background-size: cover;
-  color: #FFFDF8;
+  color: #F7F2EA;
 }
 
 .mobile-onboarding__media {

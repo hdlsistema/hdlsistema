@@ -69,11 +69,68 @@ function campaignValue(value: unknown, key: string) {
   return typeof raw === 'string' || typeof raw === 'number' ? String(raw) : ''
 }
 
+function metadataValue(value: unknown, key: string) {
+  if (!value || typeof value !== 'object') return ''
+  const record = value as Record<string, unknown>
+  const raw = record[key]
+  return typeof raw === 'string' || typeof raw === 'number' ? String(raw) : ''
+}
+
+function linesFromVariantSchema(value: unknown) {
+  if (!value || typeof value !== 'object') return ''
+  const record = value as Record<string, unknown>
+  const schema = record.variant_schema
+  if (!Array.isArray(schema)) return ''
+  return schema
+    .map((item) => {
+      if (!item || typeof item !== 'object') return ''
+      const variant = item as Record<string, unknown>
+      const name = typeof variant.name === 'string'
+        ? variant.name.trim()
+        : typeof variant.label === 'string'
+          ? variant.label.trim()
+          : ''
+      const options = Array.isArray(variant.options)
+        ? variant.options.map((option) => String(option).trim()).filter(Boolean)
+        : []
+      return name && options.length ? `${name}: ${options.join(', ')}` : ''
+    })
+    .filter(Boolean)
+    .join('\n')
+}
+
+function parseVariantSchemaText(value: string) {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [rawName, ...rest] = line.split(':')
+      const name = rawName?.trim() ?? ''
+      const options = rest
+        .join(':')
+        .split(',')
+        .map((option) => option.trim())
+        .filter(Boolean)
+      return name && options.length ? { name, options } : null
+    })
+    .filter((item): item is { name: string; options: string[] } => Boolean(item))
+}
+
 function toInputValue(record: ContentRecord | null, field: EditorialField) {
   const value = record?.[field.key]
   if (field.type === 'boolean') return value === true ? 'true' : 'false'
   if (field.type === 'datetime') return toDatetimeLocal(value)
   if (field.type === 'benefits') return linesFromBenefits(value)
+  if (field.type === 'eventMetadata') {
+    return JSON.stringify({
+      event_kind: metadataValue(value, 'event_kind'),
+      location_kind: metadataValue(value, 'location_kind') || 'estate',
+      reservation_phone: metadataValue(value, 'reservation_phone'),
+      variant_schema_text: linesFromVariantSchema(value),
+      advancedJson: '',
+    })
+  }
   if (field.type === 'campaignAudience') {
     return JSON.stringify({
       segment: campaignValue(value, 'segment'),
@@ -108,7 +165,11 @@ function parseGuidedJson(rawValue: string, fallback: Record<string, unknown>) {
   const parsed = JSON.parse(rawValue) as Record<string, unknown>
   const advancedJson = typeof parsed.advancedJson === 'string' ? parsed.advancedJson.trim() : ''
   if (!advancedJson) return fallback
-  return JSON.parse(advancedJson) as Record<string, unknown>
+  const advanced = JSON.parse(advancedJson) as Record<string, unknown>
+  return {
+    ...fallback,
+    ...advanced,
+  }
 }
 
 export function serializeEditorialPayload(definition: EditorialDefinition, values: EditorialFormValues) {
@@ -126,6 +187,22 @@ export function serializeEditorialPayload(definition: EditorialDefinition, value
         .map((item) => item.trim())
         .filter(Boolean)
       payload.benefits = { items }
+      return payload
+    }
+
+    if (field.type === 'eventMetadata') {
+      const parsed = rawValue ? JSON.parse(rawValue) as Record<string, unknown> : {}
+      const eventKind = typeof parsed.event_kind === 'string' ? parsed.event_kind.trim() : ''
+      const locationKind = typeof parsed.location_kind === 'string' ? parsed.location_kind.trim() : 'estate'
+      const reservationPhone = typeof parsed.reservation_phone === 'string' ? parsed.reservation_phone.trim() : ''
+      const variantSchemaText = typeof parsed.variant_schema_text === 'string' ? parsed.variant_schema_text : ''
+      payload.metadata = parseGuidedJson(rawValue ?? '', {
+        event_scope: 'grand',
+        event_kind: eventKind,
+        location_kind: locationKind || 'estate',
+        reservation_phone: reservationPhone,
+        variant_schema: parseVariantSchemaText(variantSchemaText),
+      })
       return payload
     }
 
@@ -223,9 +300,11 @@ export function validateEditorialForm(
           ? value.split('\n').map((item) => item.trim()).filter(Boolean).length === 0
           : field.type === 'campaignAudience'
             ? !getGuidedJsonPart(values, field.key, 'segment')
-            : field.type === 'campaignContent'
-              ? !getGuidedJsonPart(values, field.key, 'body')
-              : !value
+            : field.type === 'eventMetadata'
+              ? !getGuidedJsonPart(values, field.key, 'event_kind')
+              : field.type === 'campaignContent'
+                ? !getGuidedJsonPart(values, field.key, 'body')
+                : !value
       if (missing) {
         missingForPublish.push(field.label)
         errors[field.key] = `${field.label} es necesario antes de publicar.`
@@ -248,7 +327,7 @@ export function validateEditorialForm(
       errors[field.key] = 'El estado editorial no está permitido.'
     }
 
-    if (field.type === 'campaignAudience' || field.type === 'campaignContent') {
+    if (field.type === 'eventMetadata' || field.type === 'campaignAudience' || field.type === 'campaignContent') {
       validateGuidedJson(values, field.key, errors)
     }
   }

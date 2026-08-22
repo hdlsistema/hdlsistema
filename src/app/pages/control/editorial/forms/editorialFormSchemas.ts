@@ -25,6 +25,92 @@ export const campaignStatuses: EditorialFieldOption[] = [
   { value: 'cancelled', label: 'Cancelada' },
 ]
 
+function createEventEditorialDefinition(
+  entity: Extract<ContentEntity, 'events' | 'grand-events'>,
+  labels: {
+    title: string
+    subtitle: string
+    listLabel: string
+    singularLabel: string
+    createLabel: string
+    microcopy: string
+    publicSummary: string
+  },
+): EditorialDefinition {
+  return {
+    entity,
+    title: labels.title,
+    subtitle: labels.subtitle,
+    eyebrow: 'Contenido editorial',
+    primaryLabel: 'title',
+    secondaryLabel: 'venue',
+    listLabel: labels.listLabel,
+    singularLabel: labels.singularLabel,
+    createLabel: labels.createLabel,
+    orderBy: 'title',
+    publishStatus: 'published',
+    microcopy: labels.microcopy,
+    publicSummary: labels.publicSummary,
+    sections: [
+      {
+        title: 'Información del evento',
+        description: 'Nombre público, enlace y textos principales.',
+        fields: [
+          { key: 'title', label: 'Título', type: 'text', required: true, publishRequired: true, publicVisible: true },
+          { key: 'slug', label: 'Enlace corto', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
+          { key: 'subtitle', label: 'Subtítulo', type: 'text', nullable: true, publicVisible: true },
+          { key: 'short_description', label: 'Descripción corta', type: 'textarea', nullable: true, publicVisible: true },
+          { key: 'description', label: 'Descripción larga', type: 'textarea', nullable: true, publishRequired: true, publicVisible: true },
+        ],
+      },
+      {
+        title: 'Fecha y ubicación',
+        description: 'Agenda visible para visitantes.',
+        fields: [
+          { key: 'start_at', label: 'Inicio', type: 'datetime', required: true, publishRequired: true, publicVisible: true },
+          { key: 'end_at', label: 'Fin', type: 'datetime', required: true, publicVisible: true },
+          { key: 'venue', label: 'Ubicación', type: 'text', nullable: true, publicVisible: true },
+        ],
+      },
+      {
+        title: 'Clasificación operativa',
+        description: 'Se guarda en Supabase para separar agenda, sede, navegación y variables sin crear columnas rígidas.',
+        fields: [
+          { key: 'metadata', label: 'Clasificación del evento', type: 'eventMetadata', required: true, publishRequired: true, publicVisible: true },
+        ],
+      },
+      {
+        title: 'Capacidad y acceso',
+        description: 'Controla aforo y venta desde la app.',
+        fields: [
+          { key: 'capacity', label: 'Capacidad', type: 'number', required: true, publishRequired: true, publicVisible: true },
+          { key: 'sold_count', label: 'Vendidos', type: 'number' },
+          { key: 'sales_enabled', label: 'Venta activa', type: 'boolean', publicVisible: true },
+        ],
+      },
+      {
+        title: 'Contenido visible en app',
+        description: 'Define visibilidad, imagen y prioridad.',
+        fields: [
+          { key: 'cover_image_url', label: 'Imagen principal', type: 'text', nullable: true, publicVisible: true },
+          { key: 'featured', label: 'Destacado', type: 'boolean', publicVisible: true },
+          { key: 'visible_in_app', label: 'Visible en app', type: 'boolean', publicVisible: true },
+          { key: 'sort_order', label: 'Orden de aparición', type: 'number', nullable: true, publicVisible: true },
+        ],
+      },
+      {
+        title: 'Estado editorial',
+        description: 'Publicar hace visible el evento cuando también está marcado como visible.',
+        fields: [
+          { key: 'status', label: 'Estado editorial', type: 'select', options: eventStatuses },
+          { key: 'publish_at', label: 'Publicar desde', type: 'datetime', nullable: true },
+          { key: 'unpublish_at', label: 'Retirar desde', type: 'datetime', nullable: true },
+        ],
+      },
+    ],
+  }
+}
+
 export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = {
   wines: {
     entity: 'wines',
@@ -158,71 +244,24 @@ export const editorialDefinitions: Record<ContentEntity, EditorialDefinition> = 
       },
     ],
   },
-  events: {
-    entity: 'events',
+  events: createEventEditorialDefinition('events', {
     title: 'Eventos',
-    subtitle: 'Eventos con publicación, agenda y control de aforo.',
-    eyebrow: 'Contenido editorial',
-    primaryLabel: 'title',
-    secondaryLabel: 'venue',
+    subtitle: 'Agenda heredada de eventos con publicación, boletos y control de aforo.',
     listLabel: 'eventos',
     singularLabel: 'evento',
     createLabel: 'Nuevo evento',
-    orderBy: 'title',
-    publishStatus: 'published',
     microcopy: 'Las fechas se muestran en horario local configurado para Hacienda.',
     publicSummary: 'La app del cliente usa título, fechas, sede, aforo, venta activa, descripciones e imagen.',
-    sections: [
-      {
-        title: 'Información del evento',
-        description: 'Nombre público, enlace y textos principales.',
-        fields: [
-          { key: 'title', label: 'Título', type: 'text', required: true, publishRequired: true, publicVisible: true },
-          { key: 'slug', label: 'Enlace corto', type: 'text', required: true, publishRequired: true, publicVisible: true, helper: 'Usa minúsculas, números y guiones.' },
-          { key: 'subtitle', label: 'Subtítulo', type: 'text', nullable: true, publicVisible: true },
-          { key: 'short_description', label: 'Descripción corta', type: 'textarea', nullable: true, publicVisible: true },
-          { key: 'description', label: 'Descripción larga', type: 'textarea', nullable: true, publishRequired: true, publicVisible: true },
-        ],
-      },
-      {
-        title: 'Fecha y ubicación',
-        description: 'Agenda visible para visitantes.',
-        fields: [
-          { key: 'start_at', label: 'Inicio', type: 'datetime', required: true, publishRequired: true, publicVisible: true },
-          { key: 'end_at', label: 'Fin', type: 'datetime', required: true, publicVisible: true },
-          { key: 'venue', label: 'Ubicación', type: 'text', nullable: true, publicVisible: true },
-        ],
-      },
-      {
-        title: 'Capacidad y acceso',
-        description: 'Controla aforo y venta desde la app.',
-        fields: [
-          { key: 'capacity', label: 'Capacidad', type: 'number', required: true, publishRequired: true, publicVisible: true },
-          { key: 'sold_count', label: 'Vendidos', type: 'number' },
-          { key: 'sales_enabled', label: 'Venta activa', type: 'boolean', publicVisible: true },
-        ],
-      },
-      {
-        title: 'Contenido visible en app',
-        description: 'Define visibilidad, imagen y prioridad.',
-        fields: [
-          { key: 'cover_image_url', label: 'Imagen principal', type: 'text', nullable: true, publicVisible: true },
-          { key: 'featured', label: 'Destacado', type: 'boolean', publicVisible: true },
-          { key: 'visible_in_app', label: 'Visible en app', type: 'boolean', publicVisible: true },
-          { key: 'sort_order', label: 'Orden de aparición', type: 'number', nullable: true, publicVisible: true },
-        ],
-      },
-      {
-        title: 'Estado editorial',
-        description: 'Publicar hace visible el evento cuando también está marcado como visible.',
-        fields: [
-          { key: 'status', label: 'Estado editorial', type: 'select', options: eventStatuses },
-          { key: 'publish_at', label: 'Publicar desde', type: 'datetime', nullable: true },
-          { key: 'unpublish_at', label: 'Retirar desde', type: 'datetime', nullable: true },
-        ],
-      },
-    ],
-  },
+  }),
+  'grand-events': createEventEditorialDefinition('grand-events', {
+    title: 'Eventos magnos',
+    subtitle: 'Agenda especial separada de experiencias, con publicación, boletos y control de aforo.',
+    listLabel: 'eventos magnos',
+    singularLabel: 'evento magno',
+    createLabel: 'Nuevo evento magno',
+    microcopy: 'Clasifica aquí atardeceres, vendimias, festivales, carreras, conciertos y encuentros especiales publicados en la app.',
+    publicSummary: 'La app muestra estos eventos por sede, separados de Experiencias, conservando imagen, fecha, sede, cupo, boletos, variables y acceso QR cuando aplique.',
+  }),
   promotions: {
     entity: 'promotions',
     title: 'Promociones',

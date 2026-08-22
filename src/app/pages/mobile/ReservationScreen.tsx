@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { CalendarDays, Check, ChevronDown, Clock3, Download, Minus, Plus, QrCode, RefreshCw, Share2, Ticket, Users, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, Clock3, Download, Minus, Plus, QrCode, RefreshCw, Share2, Sparkles, Ticket, Users, X } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { AppSelect } from '../../components/mobile/AppSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -71,6 +71,70 @@ function isStandaloneTicketPass(pass: CustomerAccessPass) {
 type ChoiceOption = {
   value: string
   label: string
+}
+
+type RomanticSignSelection = {
+  required: boolean
+  label: string
+  message: string
+  price: number
+  currency: 'MXN'
+}
+
+const ROMANTIC_SIGN_PRICE = 500
+const ROMANTIC_SIGN_LABEL = 'Letrero luminoso'
+const ROMANTIC_SIGN_OPTIONS = [
+  'Te quieres casar conmigo',
+  'Quieres ser mi novia',
+]
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function normalizeText(value: unknown) {
+  return String(value ?? '')
+    .toLocaleLowerCase('es-MX')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function romanticSignConfig(record: Record<string, unknown> | null | undefined) {
+  const metadata = objectRecord(record?.metadata)
+  const config = objectRecord(metadata.romanticSign)
+  const enabled = config.enabled === true
+    || metadata.romanticDinner === true
+    || record?.slug === 'cena-romantica-cava'
+    || normalizeText(record?.title).includes('cena romantica')
+  if (!enabled) return null
+
+  const price = Number(config.price)
+  const rawOptions = Array.isArray(config.options) ? config.options : []
+  const options = rawOptions
+    .map((option) => typeof option === 'string' ? option : String(objectRecord(option).label ?? ''))
+    .filter(Boolean)
+
+  return {
+    label: String(config.label ?? ROMANTIC_SIGN_LABEL),
+    price: Number.isFinite(price) && price >= 0 ? price : ROMANTIC_SIGN_PRICE,
+    currency: 'MXN' as const,
+    options: options.length > 0 ? options : ROMANTIC_SIGN_OPTIONS,
+  }
+}
+
+function romanticSignFromMetadata(metadata: Record<string, unknown> | null | undefined): RomanticSignSelection | null {
+  const sign = objectRecord(metadata?.romanticSign)
+  if (sign.required !== true) return null
+  const price = Number(sign.price)
+  const message = String(sign.message ?? '').trim()
+  if (!message) return null
+  return {
+    required: true,
+    label: String(sign.label ?? ROMANTIC_SIGN_LABEL),
+    message,
+    price: Number.isFinite(price) && price >= 0 ? price : ROMANTIC_SIGN_PRICE,
+    currency: 'MXN',
+  }
 }
 
 function MobileChoiceSheet({
@@ -222,6 +286,8 @@ export function ReservationScreen() {
   const [operationError, setOperationError] = useState('')
   const [selectedTicket, setSelectedTicket] = useState<CustomerAccessPass | null>(null)
   const [experienceSheetOpen, setExperienceSheetOpen] = useState(false)
+  const [romanticSignRequired, setRomanticSignRequired] = useState(false)
+  const [romanticSignMessage, setRomanticSignMessage] = useState(ROMANTIC_SIGN_OPTIONS[0])
 
   const featuredExperience =
     experiences.find((experience) => String(experience.id) === selectedExperienceId)
@@ -302,6 +368,39 @@ export function ReservationScreen() {
     [selectedExperienceId, slots],
   )
 
+  const activeRomanticSignConfig = useMemo(
+    () => romanticSignConfig(featuredExperience as Record<string, unknown> | null | undefined),
+    [featuredExperience],
+  )
+
+  useEffect(() => {
+    if (!activeRomanticSignConfig) {
+      setRomanticSignRequired(false)
+      setRomanticSignMessage(ROMANTIC_SIGN_OPTIONS[0])
+      return
+    }
+    setRomanticSignMessage((current) => activeRomanticSignConfig.options.includes(current)
+      ? current
+      : activeRomanticSignConfig.options[0] ?? ROMANTIC_SIGN_OPTIONS[0])
+  }, [activeRomanticSignConfig])
+
+  useEffect(() => {
+    setRomanticSignRequired(false)
+  }, [selectedExperienceId])
+
+  const romanticSignSelection = useMemo<RomanticSignSelection | null>(() => {
+    if (!activeRomanticSignConfig || !romanticSignRequired) return null
+    return {
+      required: true,
+      label: activeRomanticSignConfig.label,
+      message: romanticSignMessage,
+      price: activeRomanticSignConfig.price,
+      currency: activeRomanticSignConfig.currency,
+    }
+  }, [activeRomanticSignConfig, romanticSignMessage, romanticSignRequired])
+
+  const romanticSignTotal = romanticSignSelection ? romanticSignSelection.price : 0
+
   const standalonePasses = useMemo(
     () => accessPasses.filter(isStandaloneTicketPass),
     [accessPasses],
@@ -323,6 +422,7 @@ export function ReservationScreen() {
         experienceSlotId: selectedSlot.id,
         peopleCount: people,
         customerNotes: notes || null,
+        metadata: romanticSignSelection ? { romanticSign: romanticSignSelection } : undefined,
         language,
         idempotencyKey: makeIdempotencyKey('reservation'),
       })
@@ -479,13 +579,55 @@ export function ReservationScreen() {
         />
       </section>
 
+      {activeRomanticSignConfig ? (
+        <section className="rounded-[1.25rem] border border-[rgba(180,138,85,0.28)] bg-[linear-gradient(145deg,rgba(247,242,234,0.96),rgba(232,216,200,0.72))] p-4 shadow-[0_14px_30px_rgba(37,47,55,0.07)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">Cena romántica</p>
+              <h3 className="mt-1 flex items-center gap-2 text-[18px] font-semibold leading-tight text-[var(--color-ink)]"><Sparkles size={17} className="shrink-0 text-[var(--color-burgundy)]" />{activeRomanticSignConfig.label}</h3>
+              <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
+                Agrega el letrero a la reservación por {formatCurrency(activeRomanticSignConfig.price, locale)}.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRomanticSignRequired((current) => !current)}
+              className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-full px-4 text-[12px] font-semibold transition ${romanticSignRequired ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_24px_rgba(104,17,38,0.18)]' : 'border border-[rgba(180,138,85,0.34)] bg-white/72 text-[var(--color-burgundy)]'}`}
+            >
+              {romanticSignRequired ? 'Agregado' : 'Agregar'}
+            </button>
+          </div>
+          {romanticSignRequired ? (
+            <div className="mt-4 grid gap-2">
+              {activeRomanticSignConfig.options.map((option) => {
+                const active = romanticSignMessage === option
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setRomanticSignMessage(option)}
+                    className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${active ? 'bg-white text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_var(--color-burgundy)]' : 'bg-white/58 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.22)]'}`}
+                  >
+                    <span className="min-w-0 break-words">{option}</span>
+                    {active ? <Check size={16} className="shrink-0" /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {selectedSlot ? (
         <section className="rounded-[1.3rem] bg-[linear-gradient(145deg,#fffaf5,#f2dfca)] p-5 shadow-[0_16px_34px_rgba(74,32,28,0.07)]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{t('app.premium.reservation.summary')}</p>
             <div className="mt-4 space-y-2 text-[12px]">
               <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">{t('app.premium.reservation.date')}</span><span className="text-right font-semibold text-[var(--color-ink)]">{formatDateTime(selectedSlot.startAt, locale, t('common.toBeConfirmed'))}</span></div>
               <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">{t('app.premium.reservation.guests')}</span><span className="font-semibold text-[var(--color-ink)]">{people}</span></div>
-              <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(selectedSlot.price * people, locale)}</span></div>
+              {romanticSignSelection ? (
+                <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-[var(--color-muted)]">{romanticSignSelection.label}</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency(romanticSignTotal, locale)}</span></div>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[rgba(180,138,85,0.22)] pt-2"><span className="text-[var(--color-muted)]">Total</span><span className="font-semibold text-[var(--color-ink)]">{formatCurrency((selectedSlot.price * people) + romanticSignTotal, locale)}</span></div>
           </div>
         </section>
       ) : null}
@@ -541,6 +683,11 @@ export function ReservationScreen() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>
                     <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.title ?? reservation.experienceTitle}</h3>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">{reservationSchedule(reservation, locale, t('common.toBeConfirmed'))}</p>
+                    {romanticSignFromMetadata(reservation.metadata) ? (
+                      <p className="mt-2 rounded-[0.85rem] bg-[rgba(180,138,85,0.16)] px-3 py-2 text-[11px] font-semibold leading-4 text-[var(--color-burgundy)]">
+                        {romanticSignFromMetadata(reservation.metadata)?.label}: {romanticSignFromMetadata(reservation.metadata)?.message}
+                      </p>
+                    ) : null}
                     {reservation.paymentStatus === 'pending' && reservation.paymentOrderId ? (
                       <button type="button" onClick={() => navigate(`${appPath('/checkout')}?orderId=${encodeURIComponent(reservation.paymentOrderId ?? '')}`)} className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-[var(--color-burgundy)] px-4 text-[11px] font-semibold text-white">
                         {t('app.premium.reservation.completePayment', 'Completar pago')}

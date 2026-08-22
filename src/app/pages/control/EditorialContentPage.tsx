@@ -8,6 +8,9 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Send,
+  ShieldAlert,
+  ShieldCheck,
   Trash2,
   XCircle,
 } from 'lucide-react'
@@ -18,6 +21,7 @@ import {
   getPreviewUrl,
   type ContentEntity,
   type ContentRecord,
+  type EditorialApprover,
   type PublicationAction,
 } from '../../../services/content.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
@@ -104,6 +108,28 @@ function StatusPill({ status, label }: { status?: string | null; label: string }
   )
 }
 
+function metadataRecord(record?: ContentRecord | null) {
+  const value = record?.metadata
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+function editorialApproval(record?: ContentRecord | null) {
+  const value = metadataRecord(record).editorial_approval
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
+}
+
+function approvalStatusLabel(status: unknown) {
+  if (status === 'approved') return 'Autorizado'
+  if (status === 'rejected') return 'Rechazado'
+  if (status === 'pending') return 'Pendiente de autorización'
+  if (status === 'published_without_approval') return 'Publicado sin autorización'
+  return 'Sin solicitud'
+}
+
 export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const config = editorialDefinitions[entity]
   const { session, roles } = useAuth()
@@ -125,8 +151,15 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null)
   const [confirmationError, setConfirmationError] = useState<string | null>(null)
   const [confirmingAction, setConfirmingAction] = useState(false)
+  const [approvers, setApprovers] = useState<EditorialApprover[]>([])
+  const [selectedApproverId, setSelectedApproverId] = useState('')
+  const [approvalNote, setApprovalNote] = useState('')
+  const [approvalError, setApprovalError] = useState('')
+  const [approvalBusy, setApprovalBusy] = useState('')
 
   const statusOptions = useMemo(() => getStatusOptions(entity), [entity])
+  const isGrandEvents = entity === 'grand-events'
+  const isAdminUser = roles.some((role) => ['super_admin', 'admin'].includes(role))
 
   const loadRecords = useCallback(async () => {
     setLoading(true)
@@ -158,6 +191,27 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   useEffect(() => {
     void loadRecords()
   }, [loadRecords])
+
+  useEffect(() => {
+    if (!isGrandEvents || !token) {
+      setApprovers([])
+      setSelectedApproverId('')
+      return
+    }
+    let active = true
+    adminContentClient.approvers(entity, token)
+      .then((response) => {
+        if (!active) return
+        setApprovers(response.data)
+        setSelectedApproverId((current) => current || response.data[0]?.id || '')
+      })
+      .catch(() => {
+        if (active) setApprovers([])
+      })
+    return () => {
+      active = false
+    }
+  }, [entity, isGrandEvents, token])
 
   useEffect(() => {
     setForm(buildInitialEditorialForm(selected, config))
@@ -288,16 +342,72 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     }
 
     setConfirmationError(null)
+    const approval = editorialApproval(selected)
+    const publishingWithoutApproval = isGrandEvents && action === 'publish' && approval.status !== 'approved'
+    const confirmState = buildEditorialConfirmState({
+      action: confirmationTypeForPublicationAction(action),
+      contentLabel: selectedTitle,
+      currentStatus: statusLabel(config, selected.status),
+      afterStatus: publicationActionAfterStatus(action),
+      visibleAfter: action === 'publish',
+    })
     setPendingConfirmation({
-      ...buildEditorialConfirmState({
-        action: confirmationTypeForPublicationAction(action),
-        contentLabel: selectedTitle,
-        currentStatus: statusLabel(config, selected.status),
-        afterStatus: publicationActionAfterStatus(action),
-        visibleAfter: action === 'publish',
-      }),
+      ...confirmState,
+      message: publishingWithoutApproval
+        ? 'Esta publicación no está autorizada por administración. Si confirmas, se publicará con tracking como publicación sin autorización.'
+        : confirmState.message,
+      confirmLabel: publishingWithoutApproval ? 'Publicar sin autorización' : confirmState.confirmLabel,
       execute: () => executePublicationAction(action),
     })
+  }
+
+  async function sendApprovalRequest() {
+    if (!selected || !selectedApproverId) {
+      setApprovalError('Selecciona un administrador para enviar el preview.')
+      return
+    }
+    setApprovalBusy('request')
+    setApprovalError('')
+    setSuccess(null)
+    try {
+      const response = await adminContentClient.requestApproval(
+        entity,
+        selected.id,
+        { approverUserId: selectedApproverId, note: approvalNote.trim() || undefined, expiresInMinutes: 120, locale: 'es-MX' },
+        token,
+      )
+      setSelected(response.data.content)
+      setApprovalNote('')
+      setSuccess('Preview enviado para autorización.')
+      await loadRecords()
+    } catch (requestError) {
+      setApprovalError(requestError instanceof Error ? requestError.message : 'No fue posible solicitar autorización.')
+    } finally {
+      setApprovalBusy('')
+    }
+  }
+
+  async function decideApproval(decision: 'approved' | 'rejected') {
+    if (!selected) return
+    setApprovalBusy(decision)
+    setApprovalError('')
+    setSuccess(null)
+    try {
+      const response = await adminContentClient.approvalDecision(
+        entity,
+        selected.id,
+        { decision, note: approvalNote.trim() || undefined },
+        token,
+      )
+      setSelected(response.data.content)
+      setApprovalNote('')
+      setSuccess(decision === 'approved' ? 'Publicación autorizada.' : 'Publicación rechazada.')
+      await loadRecords()
+    } catch (decisionError) {
+      setApprovalError(decisionError instanceof Error ? decisionError.message : 'No fue posible actualizar la autorización.')
+    } finally {
+      setApprovalBusy('')
+    }
   }
 
   async function executeScheduleRecord() {
@@ -509,6 +619,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     wines: WineEditorialForm,
     experiences: ExperienceEditorialForm,
     events: EventEditorialForm,
+    'grand-events': EventEditorialForm,
     promotions: PromotionEditorialForm,
     'membership-plans': MembershipPlanEditorialForm,
     campaigns: CampaignEditorialForm,
@@ -516,6 +627,78 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
 
   const actionControls = selected ? (
     <div className="space-y-4 border-t border-[var(--color-line)] pt-4">
+      {isGrandEvents ? (
+        <section className="space-y-3 rounded-xl border border-[var(--color-line)] bg-white p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">Autorización administrativa</p>
+              <h3 className="mt-1 text-base font-semibold text-[var(--color-ink)]">{approvalStatusLabel(editorialApproval(selected).status)}</h3>
+              <p className="mt-1 text-[13px] leading-5 text-[var(--color-muted)]">
+                Marketing puede preparar y solicitar revisión. Si se publica sin aprobación, queda trazado en historial.
+              </p>
+            </div>
+            {editorialApproval(selected).status === 'approved' ? (
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-[rgba(61,122,77,0.1)] px-3 text-[12px] font-semibold text-[var(--color-positive)]">
+                <ShieldCheck size={15} />Autorizado
+              </span>
+            ) : (
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-[rgba(180,138,85,0.13)] px-3 text-[12px] font-semibold text-[var(--color-gold)]">
+                <ShieldAlert size={15} />Requiere revisión
+              </span>
+            )}
+          </div>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <CrystalSelect value={selectedApproverId} onChange={setSelectedApproverId}>
+              <option value="">Elegir administrador</option>
+              {approvers.map((approver) => (
+                <option key={approver.id} value={approver.id}>
+                  {approver.displayName}{approver.email ? ` · ${approver.email}` : ''}
+                </option>
+              ))}
+            </CrystalSelect>
+            <input
+              value={approvalNote}
+              onChange={(event) => setApprovalNote(event.target.value)}
+              placeholder="Nota para autorización"
+              className="min-h-11 rounded-xl border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none"
+            />
+          </div>
+          {approvalError ? <p className="text-[13px] font-semibold text-[var(--color-alert)]">{approvalError}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void sendApprovalRequest()}
+              disabled={isBusy || Boolean(approvalBusy) || !selectedApproverId}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--color-burgundy)] px-4 text-[13px] font-semibold text-white disabled:opacity-45"
+            >
+              {approvalBusy === 'request' ? <Loader2 className="animate-spin" size={15} /> : <Send size={15} />}
+              Enviar preview
+            </button>
+            {isAdminUser ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void decideApproval('approved')}
+                  disabled={isBusy || Boolean(approvalBusy)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[rgba(61,122,77,0.3)] bg-[rgba(61,122,77,0.08)] px-4 text-[13px] font-semibold text-[var(--color-positive)] disabled:opacity-45"
+                >
+                  {approvalBusy === 'approved' ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}
+                  Autorizar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void decideApproval('rejected')}
+                  disabled={isBusy || Boolean(approvalBusy)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.06)] px-4 text-[13px] font-semibold text-[var(--color-alert)] disabled:opacity-45"
+                >
+                  {approvalBusy === 'rejected' ? <Loader2 className="animate-spin" size={15} /> : <XCircle size={15} />}
+                  Rechazar
+                </button>
+              </>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
       <details className="control-more-actions rounded-lg border border-[var(--color-line)] bg-white">
         <summary className="cursor-pointer px-3 py-2 text-[13px] font-semibold text-[var(--color-burgundy)]">Más acciones</summary>
         <div className="space-y-3 border-t border-[var(--color-line)] p-3">

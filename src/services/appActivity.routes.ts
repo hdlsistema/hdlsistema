@@ -19,8 +19,9 @@ export function eventForAppPath(pathname: string): AppRouteActivity | null {
     const parts = path.split('/')
     return { eventName: 'experience_viewed', entityType: 'experience', entityId: parts[parts.length - 1] }
   }
-  if (path === '/eventos') return { eventName: 'event_list_viewed' }
-  if (/^\/eventos\/[^/]+$/.test(path)) {
+  if (path === '/eventos' || path === '/eventos-magnos' || path === '/nuestros-eventos') return { eventName: 'event_list_viewed' }
+  if (/^\/nuestros-eventos\/[^/]+$/.test(path)) return { eventName: 'event_list_viewed', entityType: 'event' }
+  if (/^\/(eventos|eventos-magnos)\/[^/]+$/.test(path)) {
     const parts = path.split('/')
     return { eventName: 'event_viewed', entityType: 'event', entityId: parts[parts.length - 1] }
   }

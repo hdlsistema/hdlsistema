@@ -4,6 +4,7 @@ import { getContentConfig } from './content.config'
 import {
   applyPublicationAction,
   createAdminContent,
+  decideEditorialApproval,
   deleteAdminContent,
   duplicateAdminContent,
   generatePreviewToken,
@@ -11,16 +12,20 @@ import {
   getCampaignMetrics,
   getPreviewContent,
   getPublicEntityBySlug,
+  listEditorialApprovers,
   listAdminContent,
   listAdminContentVersions,
   listPublicEntity,
   previewCampaignAudience,
+  requestEditorialApproval,
   restoreAdminContentVersion,
   schedulePublicationAction,
   sendCampaignEmail,
   updateAdminContent,
 } from './content.service'
 import {
+  approvalDecisionSchema,
+  approvalRequestSchema,
   campaignAudiencePreviewSchema,
   listQuerySchema,
   parseContentPatch,
@@ -110,6 +115,35 @@ export async function sendCampaignAdmin(req: Request, res: Response): Promise<vo
     const payload = sendCampaignSchema.parse(req.body)
     const { data } = await sendCampaignEmail(req.params.id, payload, userContext(req))
     res.status(202).json({ ok: true, data })
+  } catch (error) {
+    sendError(res, error)
+  }
+}
+
+export async function listApproversAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const { data } = await listEditorialApprovers(routeEntity(req), userContext(req))
+    res.json({ ok: true, data })
+  } catch (error) {
+    sendError(res, error)
+  }
+}
+
+export async function requestApprovalAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = approvalRequestSchema.parse(req.body)
+    const { data } = await requestEditorialApproval(routeEntity(req), req.params.id, payload, userContext(req))
+    res.status(201).json({ ok: true, data })
+  } catch (error) {
+    sendError(res, error)
+  }
+}
+
+export async function decideApprovalAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = approvalDecisionSchema.parse(req.body)
+    const { data } = await decideEditorialApproval(routeEntity(req), req.params.id, payload, userContext(req))
+    res.json({ ok: true, data })
   } catch (error) {
     sendError(res, error)
   }

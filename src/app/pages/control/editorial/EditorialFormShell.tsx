@@ -171,6 +171,79 @@ function BenefitsField({
   )
 }
 
+function EventMetadataField({
+  value,
+  error,
+  onChange,
+}: {
+  value: string
+  error?: string
+  onChange: (value: string) => void
+}) {
+  const parsed = parseCompositeValue(value)
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-2">
+        <label>
+          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Tipo de evento</span>
+          <CrystalSelect value={parsed.event_kind ?? ''} onChange={(nextValue) => onChange(updateCompositeValue(value, 'event_kind', nextValue))}>
+            <option value="">Seleccionar</option>
+            <option value="special">Especial</option>
+            <option value="sunset">Atardecer</option>
+            <option value="festival">Festival</option>
+            <option value="harvest">Vendimia</option>
+            <option value="gastronomy">Gastronomía</option>
+            <option value="race">Carrera</option>
+            <option value="concert">Concierto</option>
+            <option value="private">Encuentro privado</option>
+          </CrystalSelect>
+        </label>
+        <label>
+          <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Sede / mapa</span>
+          <CrystalSelect value={parsed.location_kind ?? 'estate'} onChange={(nextValue) => onChange(updateCompositeValue(value, 'location_kind', nextValue))}>
+            <option value="estate">Hacienda principal</option>
+            <option value="restaurant_estate">Restaurante Hacienda</option>
+            <option value="restaurant_center">Restaurante Centro</option>
+            <option value="cabins">Cabañas</option>
+            <option value="boutique">Boutique</option>
+          </CrystalSelect>
+        </label>
+      </div>
+      <input
+        value={parsed.reservation_phone ?? ''}
+        onChange={(event) => onChange(updateCompositeValue(value, 'reservation_phone', event.target.value))}
+        placeholder="Teléfono de reservación"
+        className={`min-h-11 w-full rounded-xl border bg-white px-3 text-[13px] text-[var(--color-ink)] outline-none ${
+          error ? 'border-[rgba(157,71,63,0.65)]' : 'border-[var(--color-line)]'
+        }`}
+      />
+      <label className="block">
+        <span className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Variables del evento</span>
+        <textarea
+          value={parsed.variant_schema_text ?? ''}
+          onChange={(event) => onChange(updateCompositeValue(value, 'variant_schema_text', event.target.value))}
+          rows={4}
+          placeholder={'Distancia: 3K, 5K, 8K\nTipo de asistente: Adulto, Niño'}
+          className="w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
+        />
+        <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
+          Usa una línea por variable. Cada opción puede convertirse en tipos de boleto con precio y cupo propios.
+        </p>
+      </label>
+      <details className="rounded-xl border border-[var(--color-line)] bg-white p-3">
+        <summary className="cursor-pointer text-[13px] font-semibold text-[var(--color-burgundy)]">Opciones avanzadas</summary>
+        <textarea
+          value={parsed.advancedJson ?? ''}
+          onChange={(event) => onChange(updateCompositeValue(value, 'advancedJson', event.target.value))}
+          rows={4}
+          placeholder="JSON adicional de metadata"
+          className="mt-3 w-full rounded-xl border border-[var(--color-line)] bg-white px-3 py-3 text-[13px] text-[var(--color-ink)] outline-none"
+        />
+      </details>
+    </div>
+  )
+}
+
 function CampaignAudienceField({
   value,
   error,
@@ -288,17 +361,24 @@ function FormField({
   entity: EditorialDefinition['entity']
   recordId?: string
 }) {
-  const isCoverImage = field.key === 'cover_image_url' && ['wines', 'experiences', 'events', 'promotions'].includes(entity)
+  const isCoverImage = field.key === 'cover_image_url' && ['wines', 'experiences', 'events', 'grand-events', 'promotions'].includes(entity)
+  const storageBucket = entity === 'grand-events' ? 'events' : entity
+  const isWideField = field.type === 'textarea' ||
+    field.type === 'benefits' ||
+    field.type === 'eventMetadata' ||
+    field.type === 'campaignAudience' ||
+    field.type === 'campaignContent'
+
   return (
-    <label className={field.type === 'textarea' || field.type === 'benefits' || field.type === 'campaignAudience' || field.type === 'campaignContent' ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
+    <label className={isWideField ? 'space-y-2 md:col-span-2' : 'space-y-2'}>
       <span className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
         {field.label}
         {field.required || field.publishRequired ? ' *' : ''}
       </span>
       {isCoverImage ? (
         <ControlStorageUpload
-          bucket={entity}
-          pathPrefix={`${entity}/${recordId ?? 'draft'}`}
+          bucket={storageBucket}
+          pathPrefix={`${storageBucket}/${recordId ?? 'draft'}`}
           value={value}
           onChange={onChange}
           label="imagen"
@@ -309,6 +389,8 @@ function FormField({
         />
       ) : field.type === 'benefits' ? (
         <BenefitsField value={value} error={error} onChange={onChange} />
+      ) : field.type === 'eventMetadata' ? (
+        <EventMetadataField value={value} error={error} onChange={onChange} />
       ) : field.type === 'campaignAudience' ? (
         <CampaignAudienceField value={value} error={error} onChange={onChange} />
       ) : field.type === 'campaignContent' ? (

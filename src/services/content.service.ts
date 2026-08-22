@@ -4,6 +4,7 @@ export const contentEntities = [
   'wines',
   'experiences',
   'events',
+  'grand-events',
   'promotions',
   'membership-plans',
   'campaigns',
@@ -111,6 +112,22 @@ export type PreviewTokenResponse = {
   data: {
     token: string
     expires_at: string
+  }
+}
+
+export type EditorialApprover = {
+  id: string
+  displayName: string
+  email?: string | null
+  roles: string[]
+}
+
+export type ApprovalRequestResponse = {
+  ok: true
+  data: {
+    content: ContentRecord
+    approval: Record<string, unknown>
+    previewUrl?: string
   }
 }
 
@@ -310,6 +327,38 @@ export const adminContentClient = {
 	      body: JSON.stringify({ expiresInMinutes: 30, locale: 'es-MX' }),
 	    })
 	  },
+
+  approvers(entity: ContentEntity, token: string | null | undefined) {
+    return apiFetch<{ ok: true; data: EditorialApprover[] }>(`/api/admin/${entity}/approvers`, {
+      headers: adminHeaders(token),
+    })
+  },
+
+  requestApproval(
+    entity: ContentEntity,
+    id: string,
+    payload: { approverUserId: string; note?: string; expiresInMinutes?: number; locale?: string },
+    token: string | null | undefined,
+  ) {
+    return apiFetch<ApprovalRequestResponse>(`/api/admin/${entity}/${encodeURIComponent(id)}/request-approval`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+
+  approvalDecision(
+    entity: ContentEntity,
+    id: string,
+    payload: { decision: 'approved' | 'rejected'; note?: string },
+    token: string | null | undefined,
+  ) {
+    return apiFetch<ApprovalRequestResponse>(`/api/admin/${entity}/${encodeURIComponent(id)}/approval-decision`, {
+      method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
 
   previewCampaignAudience(payload: CampaignAudienceFilters, token: string | null | undefined) {
     return apiFetch<CampaignAudiencePreviewResponse>('/api/admin/campaigns/audience-preview', {

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { BedDouble, ChevronRight, Compass, FileText, Grape, Languages, MapPin, MessagesSquare, UtensilsCrossed } from 'lucide-react'
+import { BedDouble, CalendarDays, ChevronRight, Compass, FileText, Grape, Languages, MapPin, MessagesSquare, UtensilsCrossed } from 'lucide-react'
 import {
   EditorialCard,
   EmptyState,
@@ -38,6 +38,13 @@ export function HomeScreen() {
       eyebrow: isEnglish ? 'Live the Hacienda' : 'Vive la Hacienda',
       title: t('app.nav.experiences'),
       copy: commercial.experiences[0]?.shortDescription || (isEnglish ? 'Tastings, tours and unique moments at Hacienda de Letras.' : 'Catas, recorridos y momentos únicos en Hacienda de Letras.'),
+    },
+    {
+      to: appPath('/nuestros-eventos'),
+      icon: CalendarDays,
+      eyebrow: isEnglish ? 'Venues and tickets' : 'Sedes y boletos',
+      title: isEnglish ? 'Our events' : 'Nuestros eventos',
+      copy: isEnglish ? 'Choose a venue and review grand events published by Hacienda.' : 'Elige una sede y revisa los eventos magnos publicados por Hacienda.',
     },
     {
       to: appPath('/cabanas'),
@@ -80,7 +87,7 @@ export function HomeScreen() {
       to: appPath('/sommelier'),
       icon: MessagesSquare,
       eyebrow: t('app.premium.home.sommelierTitle'),
-      title: t('app.premium.contentPreparing'),
+      title: t('app.premium.home.sommelierTitle'),
       copy: t('app.premium.home.sommelierCopy'),
     },
   ]

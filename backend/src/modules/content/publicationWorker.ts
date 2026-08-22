@@ -1,4 +1,4 @@
-import { processDuePublicationJobs } from './content.service'
+import { processDuePublicationJobs, processEditorialApprovalReminders } from './content.service'
 
 type WorkerHandle = {
   stop: () => void
@@ -22,6 +22,10 @@ export function startPublicationWorker(): WorkerHandle {
       const result = await processDuePublicationJobs(10)
       if (result.processed > 0) {
         console.log(`[content-worker] Jobs procesados: ${result.processed}`)
+      }
+      const reminders = await processEditorialApprovalReminders(25)
+      if (reminders.reminders > 0) {
+        console.log(`[content-worker] Recordatorios editoriales enviados: ${reminders.reminders}`)
       }
     } catch {
       console.warn('[content-worker] No fue posible procesar jobs vencidos.')

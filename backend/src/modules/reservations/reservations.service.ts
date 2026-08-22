@@ -47,6 +47,7 @@ type ReservationRow = {
   payment_expires_at?: string | null
   customer_notes?: string | null
   internal_notes?: string | null
+  metadata?: Record<string, unknown> | null
   reservation_date?: string | null
   reservation_time?: string | null
   check_in?: string | null
@@ -132,7 +133,7 @@ type HistoryRow = {
 const reservationSelect = `
   id,reservation_number,customer_id,user_id,reservation_type,experience_id,experience_slot_id,cabin_package_id,restaurant_location_id,
   people_count,subtotal,discount_total,tax_total,total,currency,status,payment_status,payment_expires_at,customer_notes,internal_notes,
-  reservation_date,reservation_time,check_in,check_out,occasion,
+  reservation_date,reservation_time,check_in,check_out,occasion,metadata,
   source,booking_channel,operational_status,confirmed_at,cancelled_at,cancellation_reason,
   rescheduled_at,created_at,updated_at,
   customers(id,first_name,last_name,email,phone,source),
@@ -203,6 +204,7 @@ function mapReservation(row: ReservationRow) {
     source: row.source ?? row.booking_channel ?? 'app',
     customerNotes: row.customer_notes ?? null,
     internalNotes: row.internal_notes ?? null,
+    metadata: row.metadata ?? {},
     operationalStatus: row.operational_status ?? 'active',
     capacity,
     confirmed,

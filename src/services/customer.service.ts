@@ -69,6 +69,7 @@ export type CustomerReservation = {
   total: number
   currency: string
   customerNotes?: string | null
+  metadata?: Record<string, unknown>
   experienceId?: string | null
   experienceTitle: string
   experienceSlug?: string | null

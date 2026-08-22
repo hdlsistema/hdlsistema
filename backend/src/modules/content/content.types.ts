@@ -2,6 +2,7 @@ export const CONTENT_ROUTE_ENTITIES = [
   'wines',
   'experiences',
   'events',
+  'grand-events',
   'promotions',
   'membership-plans',
   'campaigns',
@@ -44,6 +45,11 @@ export type ContentConfig = {
   unpublishStatus: string
   archiveStatus: string
   restoreStatus: string
+  metadataScope?: {
+    key: string
+    value: string
+  }
+  defaultMetadata?: Record<string, unknown>
 }
 
 export type ContentListQuery = {

@@ -9,7 +9,7 @@ export function QuickActions() {
   const actions = [
     { label: isEnglish ? 'Buy wine' : 'Comprar vino', to: appPath('/vinos'), icon: ShoppingBag },
     { label: isEnglish ? 'Book experience' : 'Reservar experiencia', to: appPath('/reservacion'), icon: CalendarDays },
-    { label: isEnglish ? 'Events' : 'Eventos', to: appPath('/eventos'), icon: CalendarDays },
+    { label: isEnglish ? 'Our events' : 'Nuestros eventos', to: appPath('/nuestros-eventos'), icon: CalendarDays },
     { label: 'Wine Club', to: appPath('/membresias'), icon: Grape },
   ]
 

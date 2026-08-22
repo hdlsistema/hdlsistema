@@ -79,6 +79,22 @@ describe('flujo punta a punta de boletos y horarios comerciales', () => {
     expect(reservationService).toContain('paymentOrderId')
   })
 
+  it('cotiza letrero luminoso en cena romantica desde app, control y Supabase', () => {
+    const romanticDinner = readFileSync(resolve(__dirname, '../migrations/066_romantic_dinner_luminous_sign.sql'), 'utf8')
+    const reservationScreen = readFileSync(resolve(__dirname, '../../src/app/pages/mobile/ReservationScreen.tsx'), 'utf8')
+    const reservationsPage = readFileSync(resolve(__dirname, '../../src/app/pages/control/ReservationsPage.tsx'), 'utf8')
+
+    expect(romanticDinner).toContain("'Letrero luminoso'")
+    expect(romanticDinner).toContain("'Te quieres casar conmigo'")
+    expect(romanticDinner).toContain("'Quieres ser mi novia'")
+    expect(romanticDinner).toContain('v_addon_total := v_romantic_sign_price')
+    expect(romanticDinner).toContain("'experience_addon'")
+    expect(reservationScreen).toContain('romanticSignSelection')
+    expect(reservationScreen).toContain('metadata: romanticSignSelection ? { romanticSign: romanticSignSelection } : undefined')
+    expect(reservationsPage).toContain('Extra de cena romántica')
+    expect(reservationsPage).toContain('metadata: romanticSign ? { romanticSign } : undefined')
+  })
+
   it('emite QR publico solo para accesos y conserva consumo protegido', () => {
     const issuer = readFileSync(resolve(__dirname, '../src/modules/checkin/accessPassIssuer.ts'), 'utf8')
     const universal = readFileSync(resolve(__dirname, '../migrations/056_universal_access_credentials.sql'), 'utf8')

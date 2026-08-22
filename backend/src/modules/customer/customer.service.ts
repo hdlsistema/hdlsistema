@@ -218,6 +218,7 @@ function mapReservation(row: ReservationRow) {
     total: row.total,
     currency: row.currency,
     customerNotes: row.customer_notes ?? null,
+    metadata: row.metadata ?? {},
     reservationType,
     title,
     experienceId: experience?.id ?? row.experience_id ?? null,
@@ -652,13 +653,15 @@ export async function createCustomerReservation(payload: CreateCustomerReservati
   assertCustomerAccess(user)
   const customer = await getCustomerForUser(user)
   try {
-    const result = await rpcClient(user).rpc('create_customer_reservation', {
+    const args: Record<string, unknown> = {
       p_experience_slot_id: payload.experienceSlotId,
       p_people_count: payload.peopleCount,
       p_customer_notes: payload.customerNotes ?? null,
       p_language: payload.language,
       p_idempotency_key: payload.idempotencyKey,
-    })
+    }
+    if (payload.metadata) args.p_metadata = payload.metadata
+    const result = await rpcClient(user).rpc('create_customer_reservation', args)
     if (result.error) normalizeDatabaseError(result.error)
     const response = await getCustomerReservation(String(result.data), user)
     queueReservationEmail('reservation.created', response.data, customer, user, payload.language)

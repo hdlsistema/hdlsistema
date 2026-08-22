@@ -20,6 +20,7 @@ const forms = [
   ['wines', WineEditorialForm, 'Ficha del vino'],
   ['experiences', ExperienceEditorialForm, 'Detalle de experiencia'],
   ['events', EventEditorialForm, 'Fecha y ubicación'],
+  ['grand-events', EventEditorialForm, 'Clasificación operativa'],
   ['promotions', PromotionEditorialForm, 'Condiciones'],
   ['membership-plans', MembershipPlanEditorialForm, 'Beneficios'],
   ['campaigns', CampaignEditorialForm, 'Audiencia'],
@@ -122,6 +123,28 @@ describe('formularios editoriales especializados', () => {
       cta_label: 'Reservar',
       cta_url: '/app/eventos',
       image_url: 'https://cdn.hacienda.test/vendimia.webp',
+    })
+  })
+
+  it('mapea Eventos magnos a metadata clasificada para Supabase', () => {
+    const definition = editorialDefinitions['grand-events']
+    const payload = serializeEditorialPayload(definition, {
+      ...buildInitialEditorialForm(null, definition),
+      title: 'Atardecer de Salsa',
+      slug: 'atardecer-de-salsa',
+      description: 'Noche de vino, terraza y baile.',
+      start_at: '2026-08-21T19:00',
+      end_at: '2026-08-22T01:00',
+      venue: 'Restaurante Hacienda de Letras Centro',
+      capacity: '120',
+      metadata: JSON.stringify({ event_kind: 'sunset', location_kind: 'restaurant_center', reservation_phone: '449 192 2876' }),
+    })
+
+    expect(payload.metadata).toMatchObject({
+      event_scope: 'grand',
+      event_kind: 'sunset',
+      location_kind: 'restaurant_center',
+      reservation_phone: '449 192 2876',
     })
   })
 

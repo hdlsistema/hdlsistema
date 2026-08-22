@@ -43,7 +43,7 @@ export const CONTROL_PERMISSION_CATALOG: ControlPermission[] = [
   { code: 'distributors.financial', module: 'Comercial', page: 'Distribuidores', action: 'Finanzas', label: 'Importes distribuidores', financial: true, sortOrder: 132 },
   { code: 'content.wines.manage', module: 'Contenido', page: 'Vinos', action: 'Gestionar', label: 'Vinos', financial: false, sortOrder: 140 },
   { code: 'content.experiences.manage', module: 'Contenido', page: 'Experiencias', action: 'Gestionar', label: 'Experiencias', financial: false, sortOrder: 150 },
-  { code: 'content.events.manage', module: 'Contenido', page: 'Eventos', action: 'Gestionar', label: 'Eventos', financial: false, sortOrder: 160 },
+  { code: 'content.events.manage', module: 'Contenido', page: 'Eventos magnos', action: 'Gestionar', label: 'Eventos magnos', financial: false, sortOrder: 160 },
   { code: 'content.services.manage', module: 'Contenido', page: 'Servicios y sedes', action: 'Gestionar', label: 'Servicios y sedes', financial: false, sortOrder: 170 },
   { code: 'content.promotions.manage', module: 'Contenido', page: 'Promociones', action: 'Gestionar', label: 'Promociones', financial: false, sortOrder: 180 },
   { code: 'content.memberships.manage', module: 'Contenido', page: 'Membresías', action: 'Gestionar', label: 'Membresías', financial: false, sortOrder: 190 },

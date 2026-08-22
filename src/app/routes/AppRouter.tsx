@@ -55,6 +55,7 @@ import { CheckoutScreen } from '../pages/mobile/CheckoutScreen'
 import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
+import { EventVenuesScreen } from '../pages/mobile/EventVenuesScreen'
 import { QuoteRequestsPage } from '../pages/control/QuoteRequestsPage'
 import { AccountDeletionRequestsPage } from '../pages/control/AccountDeletionRequestsPage'
 import { PrivacyAccountScreen } from '../pages/mobile/PrivacyAccountScreen'
@@ -72,7 +73,12 @@ function RedirectWineDetail() {
 
 function RedirectEventDetail() {
   const { eventId } = useParams<{ eventId: string }>()
-  return <Navigate to={`/app/eventos/${eventId ?? ''}`} replace />
+  return <Navigate to={`/app/eventos-magnos/${eventId ?? ''}`} replace />
+}
+
+function RedirectEventVenue() {
+  const { venueId } = useParams<{ venueId: string }>()
+  return <Navigate to={`/app/nuestros-eventos/${venueId ?? ''}`} replace />
 }
 
 const CONTROL_ENTRY_ROUTES = [
@@ -129,8 +135,12 @@ export function AppRouter() {
         <Route path="vinos/:wineId" element={<WineDetailScreen />} />
         <Route path="experiencias" element={<ExperiencesScreen />} />
         <Route path="experiencias/:experienceId" element={<ExperienceDetailScreen />} />
-        <Route path="eventos" element={<EventsScreen />} />
-        <Route path="eventos/:eventId" element={<EventDetailScreen />} />
+        <Route path="eventos" element={<Navigate to="nuestros-eventos" replace />} />
+        <Route path="eventos/:eventId" element={<RedirectEventDetail />} />
+        <Route path="nuestros-eventos" element={<EventVenuesScreen />} />
+        <Route path="nuestros-eventos/:venueId" element={<EventsScreen />} />
+        <Route path="eventos-magnos" element={<EventsScreen />} />
+        <Route path="eventos-magnos/:eventId" element={<EventDetailScreen />} />
         <Route path="cabanas" element={<CabinsScreen />} />
         <Route path="restaurantes" element={<RestaurantsScreen />} />
         <Route
@@ -237,7 +247,8 @@ export function AppRouter() {
         <Route path="cotizaciones/:quoteId" element={<PermissionRoute permission="quotes.view"><QuoteRequestsPage /></PermissionRoute>} />
         <Route path="vinos" element={<PermissionRoute permission="content.wines.manage"><EditorialContentPage entity="wines" /></PermissionRoute>} />
         <Route path="experiencias" element={<PermissionRoute permission="content.experiences.manage"><EditorialContentPage entity="experiences" /></PermissionRoute>} />
-        <Route path="eventos" element={<PermissionRoute permission="content.events.manage"><EditorialContentPage entity="events" /></PermissionRoute>} />
+        <Route path="eventos" element={<Navigate to="/control/eventos-magnos" replace />} />
+        <Route path="eventos-magnos" element={<PermissionRoute permission="content.events.manage"><EditorialContentPage entity="grand-events" /></PermissionRoute>} />
         <Route path="servicios" element={<PermissionRoute permission="content.services.manage"><CommercialCatalogPage /></PermissionRoute>} />
         <Route path="clientes" element={<PermissionRoute permission="customers.view"><CustomersPage /></PermissionRoute>} />
         <Route path="actividad" element={<PermissionRoute permission="activity.view"><AppActivityPage /></PermissionRoute>} />
@@ -266,8 +277,12 @@ export function AppRouter() {
         <Route path="app/tienda" element={<Navigate to="/app/tienda" replace />} />
         <Route path="app/tienda/:wineId" element={<RedirectWineDetail />} />
         <Route path="app/experiencias" element={<Navigate to="/app/experiencias" replace />} />
-        <Route path="app/eventos" element={<Navigate to="/app/eventos" replace />} />
+        <Route path="app/eventos" element={<Navigate to="/app/nuestros-eventos" replace />} />
+        <Route path="app/nuestros-eventos" element={<Navigate to="/app/nuestros-eventos" replace />} />
+        <Route path="app/nuestros-eventos/:venueId" element={<RedirectEventVenue />} />
+        <Route path="app/eventos-magnos" element={<Navigate to="/app/eventos-magnos" replace />} />
         <Route path="app/eventos/:eventId" element={<RedirectEventDetail />} />
+        <Route path="app/eventos-magnos/:eventId" element={<RedirectEventDetail />} />
         <Route path="app/cabanas" element={<Navigate to="/app/cabanas" replace />} />
         <Route path="app/restaurantes" element={<Navigate to="/app/restaurantes" replace />} />
         <Route path="app/celebra" element={<Navigate to="/app/celebra" replace />} />

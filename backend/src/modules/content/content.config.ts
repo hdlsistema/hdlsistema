@@ -1,5 +1,11 @@
 import type { ContentConfig, ContentRouteEntity } from './content.types'
 
+const eventPublicSelect =
+  'id,slug,title,subtitle,description,short_description,venue,start_at,end_at,capacity,sold_count,reserved_count,featured,status,visible_in_app,sales_enabled,cover_image_url,sort_order,publish_at,unpublish_at,published_at,locale,version,metadata,event_images(id,url,alt_text,sort_order,status,visible_in_app,publish_at,unpublish_at,archived_at,deleted_at),event_ticket_types(id,name,description,price,capacity,sold_count,reserved_count,active,status,visible_in_app,sales_start_at,sales_end_at,publish_at,unpublish_at,archived_at,deleted_at)'
+
+const grandEventMetadataScope = { key: 'event_scope', value: 'grand' }
+const grandEventDefaults = { event_scope: 'grand' }
+
 export const contentConfigs: Record<ContentRouteEntity, ContentConfig> = {
   wines: {
     route: 'wines',
@@ -39,12 +45,28 @@ export const contentConfigs: Record<ContentRouteEntity, ContentConfig> = {
     publicEnabled: true,
     searchColumns: ['title', 'slug', 'subtitle', 'venue'],
     adminSelect: '*',
-    publicSelect:
-      'id,slug,title,subtitle,description,short_description,venue,start_at,end_at,capacity,sold_count,reserved_count,featured,status,visible_in_app,sales_enabled,cover_image_url,sort_order,publish_at,unpublish_at,published_at,locale,version,event_images(id,url,alt_text,sort_order,status,visible_in_app,publish_at,unpublish_at,archived_at,deleted_at),event_ticket_types(id,name,description,price,capacity,sold_count,reserved_count,active,status,visible_in_app,sales_start_at,sales_end_at,publish_at,unpublish_at,archived_at,deleted_at)',
+    publicSelect: eventPublicSelect,
     publishStatus: 'published',
     unpublishStatus: 'inactive',
     archiveStatus: 'archived',
     restoreStatus: 'draft',
+    defaultMetadata: grandEventDefaults,
+  },
+  'grand-events': {
+    route: 'grand-events',
+    entityType: 'event',
+    table: 'events',
+    slugColumn: 'slug',
+    publicEnabled: true,
+    searchColumns: ['title', 'slug', 'subtitle', 'venue'],
+    adminSelect: '*',
+    publicSelect: eventPublicSelect,
+    publishStatus: 'published',
+    unpublishStatus: 'inactive',
+    archiveStatus: 'archived',
+    restoreStatus: 'draft',
+    metadataScope: grandEventMetadataScope,
+    defaultMetadata: grandEventDefaults,
   },
   promotions: {
     route: 'promotions',

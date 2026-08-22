@@ -29,6 +29,7 @@ export const createCustomerReservationSchema = z.object({
   experienceSlotId: uuid,
   peopleCount: z.coerce.number().int().min(1).max(20),
   customerNotes: z.string().max(1000).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
   language: z.enum(['es', 'en']).default('es'),
   idempotencyKey: z.string().min(8).max(120),
 }).strict()

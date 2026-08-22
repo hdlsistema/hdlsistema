@@ -8,6 +8,7 @@ import { CabinsScreen } from '../app/pages/mobile/CabinsScreen'
 import { CheckoutScreen } from '../app/pages/mobile/CheckoutScreen'
 import { ClubScreen } from '../app/pages/mobile/ClubScreen'
 import { EventDetailScreen } from '../app/pages/mobile/EventDetailScreen'
+import { EventVenuesScreen } from '../app/pages/mobile/EventVenuesScreen'
 import { EventsScreen } from '../app/pages/mobile/EventsScreen'
 import { ExperienceDetailScreen } from '../app/pages/mobile/ExperienceDetailScreen'
 import { ExperiencesScreen } from '../app/pages/mobile/ExperiencesScreen'
@@ -67,8 +68,12 @@ export function MobileRouter() {
         <Route path="vinos/:wineId" element={<WineDetailScreen />} />
         <Route path="experiencias" element={<ExperiencesScreen />} />
         <Route path="experiencias/:experienceId" element={<ExperienceDetailScreen />} />
-        <Route path="eventos" element={<EventsScreen />} />
+        <Route path="eventos" element={<Navigate to="/nuestros-eventos" replace />} />
         <Route path="eventos/:eventId" element={<EventDetailScreen />} />
+        <Route path="nuestros-eventos" element={<EventVenuesScreen />} />
+        <Route path="nuestros-eventos/:venueId" element={<EventsScreen />} />
+        <Route path="eventos-magnos" element={<EventsScreen />} />
+        <Route path="eventos-magnos/:eventId" element={<EventDetailScreen />} />
         <Route path="cabanas" element={<CabinsScreen />} />
         <Route path="restaurantes" element={<RestaurantsScreen />} />
         <Route path="celebra" element={protectedScreen(<QuoteRequestScreen />)} />

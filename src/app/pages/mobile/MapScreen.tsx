@@ -115,6 +115,8 @@ export function MapScreen() {
     if (!isEnglish) return poi.name
     if (poi.slug === 'vinedos-bodegas-hacienda-de-letras') return 'Hacienda de Letras Vineyards and Winery'
     if (poi.slug === 'cabanas-hacienda-de-letras') return 'Hacienda de Letras Cabins'
+    if (poi.slug === 'restaurante-hacienda-de-letras') return 'Hacienda de Letras Restaurant'
+    if (poi.slug === 'boutique-hacienda-de-letras') return 'Hacienda de Letras Boutique'
     if (poi.slug === 'restaurante-centro-aguascalientes') return 'Hacienda de Letras Downtown Restaurant'
     return poi.name
   }
@@ -143,7 +145,7 @@ export function MapScreen() {
                 ? 'estate' as const
                 : poi.slug === 'cabanas-hacienda-de-letras'
                   ? 'lodging' as const
-                  : poi.slug === 'restaurante-centro-aguascalientes'
+                  : poi.slug === 'restaurante-centro-aguascalientes' || poi.slug === 'restaurante-hacienda-de-letras'
                     ? 'restaurant' as const
                     : 'default' as const,
               onSelect: () => setSelectedPoiId(poi.id),

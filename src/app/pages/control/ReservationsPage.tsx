@@ -45,6 +45,8 @@ type ReservationForm = {
   customerNotes: string
   internalNotes: string
   source: string
+  romanticSignRequired: boolean
+  romanticSignMessage: string
 }
 
 const emptyForm: ReservationForm = {
@@ -58,6 +60,54 @@ const emptyForm: ReservationForm = {
   customerNotes: '',
   internalNotes: '',
   source: 'Centro de control',
+  romanticSignRequired: false,
+  romanticSignMessage: 'Te quieres casar conmigo',
+}
+
+type RomanticSignSelection = {
+  required: boolean
+  label: string
+  message: string
+  price: number
+  currency: 'MXN'
+}
+
+const ROMANTIC_SIGN_PRICE = 500
+const ROMANTIC_SIGN_LABEL = 'Letrero luminoso'
+const ROMANTIC_SIGN_OPTIONS = [
+  'Te quieres casar conmigo',
+  'Quieres ser mi novia',
+]
+
+function objectRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function normalizeTextValue(value: unknown) {
+  return String(value ?? '')
+    .toLocaleLowerCase('es-MX')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+function isRomanticSlot(slot?: AvailabilitySlot | null) {
+  return slot?.experienceSlug === 'cena-romantica-cava'
+    || normalizeTextValue(slot?.experienceTitle).includes('cena romantica')
+}
+
+function romanticSignFromMetadata(metadata: Record<string, unknown> | null | undefined): RomanticSignSelection | null {
+  const sign = objectRecord(metadata?.romanticSign)
+  if (sign.required !== true) return null
+  const message = String(sign.message ?? '').trim()
+  if (!message) return null
+  const price = Number(sign.price)
+  return {
+    required: true,
+    label: String(sign.label ?? ROMANTIC_SIGN_LABEL),
+    message,
+    price: Number.isFinite(price) && price >= 0 ? price : ROMANTIC_SIGN_PRICE,
+    currency: 'MXN',
+  }
 }
 
 function canWrite(roles: string[]) {
@@ -269,12 +319,31 @@ export function ReservationsPage() {
     && (!selected?.cabinPackage?.id || !unit.cabinPackageId || unit.cabinPackageId === selected.cabinPackage.id)
   )), [lodgingUnits, selected?.cabinPackage?.id, selected?.peopleCount])
 
+  const selectedFormSlot = useMemo(
+    () => slots.find((slot) => slot.id === form.experienceSlotId) ?? null,
+    [form.experienceSlotId, slots],
+  )
+
+  const selectedRomanticSign = useMemo(
+    () => romanticSignFromMetadata(selected?.metadata),
+    [selected?.metadata],
+  )
+
   const submitReservation = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (saving) return
     setSaving(true)
     setError('')
     try {
+      const romanticSign = isRomanticSlot(selectedFormSlot) && form.romanticSignRequired
+        ? {
+          required: true,
+          label: ROMANTIC_SIGN_LABEL,
+          message: form.romanticSignMessage,
+          price: ROMANTIC_SIGN_PRICE,
+          currency: 'MXN',
+        }
+        : null
       const response = await reservationsClient.create(token, {
         customerId: form.customerId,
         customerName: form.customerId ? undefined : form.customerName,
@@ -286,6 +355,7 @@ export function ReservationsPage() {
         customerNotes: form.customerNotes || null,
         internalNotes: form.internalNotes || null,
         source: form.source,
+        metadata: romanticSign ? { romanticSign } : undefined,
       })
       setForm(emptyForm)
       setFormOpen(false)
@@ -444,7 +514,7 @@ export function ReservationsPage() {
           <CrystalSelect value={reservationType} onChange={setReservationType}>
             <option value="">Todos los servicios</option>
             <option value="experience">Experiencias</option>
-            <option value="event">Eventos</option>
+            <option value="event">Eventos magnos</option>
             <option value="cabin">Cabañas</option>
             <option value="restaurant">Restaurantes</option>
           </CrystalSelect>
@@ -542,6 +612,16 @@ export function ReservationsPage() {
                   <Detail label="Pago" value={selected.paymentStatus === 'not_required' ? 'No requerido' : selected.paymentStatus === 'pending' ? 'Pendiente en App' : selected.paymentStatus === 'paid' ? 'Pagado' : selected.paymentStatus} />
                 </div>
               )}
+              {selectedRomanticSign ? (
+                <div className="mt-5 rounded-[var(--radius-card)] border border-[rgba(180,138,85,0.32)] bg-[linear-gradient(145deg,rgba(247,242,234,0.95),rgba(232,216,200,0.64))] p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">Extra de cena romántica</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Detail label="Servicio" value={selectedRomanticSign.label} />
+                    <Detail label="Mensaje" value={selectedRomanticSign.message} />
+                    <Detail label="Costo" value={currency(selectedRomanticSign.price, selectedRomanticSign.currency)} />
+                  </div>
+                </div>
+              ) : null}
               <div className="mt-5 flex flex-wrap gap-2">
                 <ActionButton disabled={!writable || selected.status !== 'pending' || (selected.reservationType === 'cabin' && selectedStay?.status === 'expired') || (selected.reservationType === 'experience' && selected.paymentStatus !== 'not_required')} onClick={() => requestAction({ title: 'Confirmar reservación', message: selected.reservationType === 'cabin' ? 'La solicitud pendiente se convertirá en reserva firme; las noches ya están bloqueadas para impedir cruces.' : 'Se validará el cupo antes de confirmar la reservación.', confirmLabel: 'Confirmar', success: 'Reservación confirmada.', action: () => reservationsClient.confirm(token, selected.id) })}>Confirmar</ActionButton>
                 <ActionButton disabled={!writable || !['pending', 'confirmed'].includes(selected.status) || (selected.reservationType === 'experience' && selected.paymentStatus !== 'not_required')} onClick={() => requestAction({ title: 'Cancelar reservación', message: selected.reservationType === 'cabin' ? 'Se cancelará la estancia y se liberarán sus noches en el calendario de cabañas.' : 'Si estaba confirmada, se liberará el cupo del horario.', confirmLabel: 'Cancelar reservación', tone: 'danger', success: 'Reservación cancelada.', action: () => reservationsClient.cancel(token, selected.id, 'Cancelación desde Centro de Control') })}>Cancelar</ActionButton>
@@ -597,9 +677,40 @@ export function ReservationsPage() {
           <form onSubmit={submitReservation} className="space-y-4">
             <ControlEntityPicker label="Cliente relacionado" value={form.customerId} options={customers.map((customer) => ({ id: customer.id, label: customer.displayName, description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber }))} onChange={(customerId) => setForm({ ...form, customerId })} actionLabel="Crear cliente nuevo" onAction={() => setCustomerDialogOpen(true)} required />
             <FormInput label="Personas" type="number" min="1" value={form.peopleCount} onChange={(value) => setForm({ ...form, peopleCount: value })} required />
-            <FormSelect label="Horario disponible" value={form.experienceSlotId} onChange={(value) => setForm({ ...form, experienceSlotId: value })}>
+            <FormSelect label="Horario disponible" value={form.experienceSlotId} onChange={(value) => {
+              const nextSlot = slots.find((slot) => slot.id === value)
+              setForm({ ...form, experienceSlotId: value, romanticSignRequired: isRomanticSlot(nextSlot) ? form.romanticSignRequired : false })
+            }}>
               {slots.map((slot) => <option key={slot.id} value={slot.id}>{slot.experienceTitle} · {formatDateTime(slot.startAt)} · {slot.available} lugares</option>)}
             </FormSelect>
+            {isRomanticSlot(selectedFormSlot) ? (
+              <div className="rounded-[var(--radius-card)] border border-[rgba(180,138,85,0.32)] bg-[var(--color-soft)] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-gold)]">Extra de cena romántica</p>
+                    <p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{ROMANTIC_SIGN_LABEL} · {currency(ROMANTIC_SIGN_PRICE)}</p>
+                  </div>
+                  <label className="inline-flex min-h-10 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4 text-sm font-semibold text-[var(--color-burgundy)]">
+                    <input type="checkbox" checked={form.romanticSignRequired} onChange={(event) => setForm({ ...form, romanticSignRequired: event.target.checked })} className="h-4 w-4 accent-[var(--color-burgundy)]" />
+                    Agregar
+                  </label>
+                </div>
+                {form.romanticSignRequired ? (
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                    {ROMANTIC_SIGN_OPTIONS.map((option) => (
+                      <button
+                        key={option}
+                        type="button"
+                        onClick={() => setForm({ ...form, romanticSignMessage: option })}
+                        className={`min-h-11 rounded-xl border px-4 text-sm font-semibold transition ${form.romanticSignMessage === option ? 'border-[var(--color-burgundy)] bg-[var(--color-burgundy)] text-white' : 'border-[var(--color-line)] bg-[var(--color-panel-strong)] text-[var(--color-ink)]'}`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <FormSelect label="Estado inicial" value={form.status} onChange={(value) => setForm({ ...form, status: value as ReservationForm['status'] })}>
               <option value="pending">Pendiente</option>
               <option value="confirmed">Confirmada</option>

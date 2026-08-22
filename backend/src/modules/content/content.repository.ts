@@ -92,6 +92,11 @@ function applyTranslation(row: ContentRow, translation?: TranslationRow) {
   return translated
 }
 
+function applyMetadataScope<T>(query: T, config: ContentConfig): T {
+  if (!config.metadataScope) return query
+  return (query as any).eq(`metadata->>${config.metadataScope.key}`, config.metadataScope.value) as T
+}
+
 function livePublicQuery(config: ContentConfig) {
   let query: any = supabaseAdminClient
     .from(config.table)
@@ -103,6 +108,8 @@ function livePublicQuery(config: ContentConfig) {
     .is('archived_at', null)
     .or(`publish_at.is.null,publish_at.lte.${new Date().toISOString()}`)
     .or(`unpublish_at.is.null,unpublish_at.gt.${new Date().toISOString()}`)
+
+  query = applyMetadataScope(query, config)
 
   if (config.table === 'promotions') {
     query = query
@@ -161,6 +168,8 @@ export async function listContent(config: ContentConfig, queryParams: ContentLis
     .is('deleted_at', null)
     .eq('locale', queryParams.locale)
 
+  query = applyMetadataScope(query, config)
+
   if (queryParams.status) query = query.eq('status', queryParams.status)
 
   if (queryParams.search && config.searchColumns.length > 0) {
@@ -178,12 +187,15 @@ export async function listContent(config: ContentConfig, queryParams: ContentLis
 }
 
 export async function getContentById(config: ContentConfig, id: string) {
-  const result = await supabaseAdminClient
+  let query: any = supabaseAdminClient
     .from(config.table)
     .select(config.adminSelect)
     .eq('id', id)
     .is('deleted_at', null)
-    .maybeSingle()
+
+  query = applyMetadataScope(query, config)
+
+  const result = await query.maybeSingle()
 
   return assertNoError(result)
 }
@@ -198,11 +210,15 @@ export async function updateContent(
   id: string,
   payload: Record<string, unknown>,
 ) {
-  const result = await supabaseAdminClient
+  let query: any = supabaseAdminClient
     .from(config.table)
     .update(payload)
     .eq('id', id)
     .is('deleted_at', null)
+
+  query = applyMetadataScope(query, config)
+
+  const result = await query
     .select(config.adminSelect)
     .single()
 

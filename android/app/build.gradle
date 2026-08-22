@@ -50,6 +50,17 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    flavorDimensions "distribution"
+    productFlavors {
+        live {
+            dimension "distribution"
+        }
+        qa {
+            dimension "distribution"
+            applicationIdSuffix ".qa"
+            versionNameSuffix "-qa"
+        }
+    }
     signingConfigs {
         release {
             if (haciendaReleaseSigningReady) {

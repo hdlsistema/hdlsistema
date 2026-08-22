@@ -12,6 +12,7 @@
     "build:mobile": "tsc -b && vite build --config vite.mobile.config.ts",
     "android:sync": "npm run build:mobile && npx cap sync android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:apk:qa": "npm run android:sync && cd android && ./gradlew assembleQaDebug",
     "lint": "oxlint",
     "preview": "npm run preview:web",
     "preview:web": "vite preview",

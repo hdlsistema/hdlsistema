@@ -1,19 +1,20 @@
 import { MapboxScene } from '../shared/MapboxScene'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
+import { OFFICIAL_HACIENDA_POI, navigationUrl } from '../../utils/officialLocations'
 
 export function MapCard() {
   const { isEnglish } = useAppPreferences()
-  const address = 'Teodoro Olivares S/N, 20668 San Luis de Letras, Ags.'
-  const mapUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`
+  const address = OFFICIAL_HACIENDA_POI.address
+  const mapUrl = navigationUrl('google', OFFICIAL_HACIENDA_POI)
   return (
     <article className="grid grid-cols-[142px_minmax(0,1fr)] gap-4 rounded-[1.15rem] border border-[rgba(220,202,181,0.82)] bg-[linear-gradient(135deg,#fffaf3,#f5e7d3)] p-3 shadow-[var(--shadow-card)]">
       <div className="relative min-h-[116px] overflow-hidden rounded-[1rem] border border-[rgba(220,202,181,0.82)]">
         <MapboxScene
-          center={[-102.29508, 22.13935]}
+          center={OFFICIAL_HACIENDA_POI.coordinates}
           zoom={14}
           pitch={0}
           bearing={0}
-          markers={[{ coordinates: [-102.29508, 22.13935], label: 'Hacienda de Letras', variant: 'estate' }]}
+          markers={[{ coordinates: OFFICIAL_HACIENDA_POI.coordinates, label: 'Hacienda de Letras', variant: 'estate' }]}
           className="h-full min-h-[116px]"
         />
       </div>

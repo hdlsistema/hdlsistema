@@ -53,7 +53,7 @@ export function AppEdgePanel() {
         { to: appPath('/home'), label: t('app.nav.home'), icon: Home },
         { to: appPath('/vinos'), label: t('app.nav.store'), icon: ShoppingBasket },
         { to: appPath('/experiencias'), label: t('app.nav.experiences'), icon: Wine },
-        { to: appPath('/eventos'), label: t('app.nav.events'), icon: Ticket },
+        { to: appPath('/nuestros-eventos'), label: t('app.nav.events'), icon: Ticket },
       ],
     },
     {

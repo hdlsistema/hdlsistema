@@ -37,6 +37,7 @@ type ControlNotificationInput = {
   body: string
   deepLink: string
   idempotencyKey: string
+  userId?: string | null
   data?: Record<string, unknown>
 }
 
@@ -242,6 +243,7 @@ export async function createControlNotification(input: ControlNotificationInput)
     .from('notifications')
     .select('id')
     .eq('channel', 'control')
+    .or(input.userId ? `user_id.eq.${input.userId},user_id.is.null` : 'user_id.is.null')
     .contains('data', { idempotencyKey: input.idempotencyKey })
     .maybeSingle()
   const prior = assertNoError<{ id: string } | null>(existing).data
@@ -250,6 +252,7 @@ export async function createControlNotification(input: ControlNotificationInput)
   const result = await supabaseAdminClient
     .from('notifications')
     .insert({
+      user_id: input.userId ?? null,
       channel: 'control',
       title: input.title,
       body: input.body,
@@ -340,6 +343,12 @@ export async function listAdminNotifications(query: NotificationListQuery, user:
     .eq('channel', 'control')
     .order('created_at', { ascending: false })
     .limit(query.limit)
+
+  if (user.userId) {
+    request = request.or(`user_id.is.null,user_id.eq.${user.userId}`)
+  } else {
+    request = request.is('user_id', null)
+  }
 
   if (query.status) {
     request = request.eq('status', query.status)

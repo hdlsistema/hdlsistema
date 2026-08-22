@@ -4,6 +4,10 @@ import type { ContentRouteEntity, PublicationAction } from './content.types'
 const nullableDate = z.string().datetime().nullable()
 const metadataSchema = z.record(z.string(), z.unknown())
 const jsonSchema = z.record(z.string(), z.unknown())
+const publicImageSchema = z
+  .string()
+  .trim()
+  .refine((value) => value.startsWith('/') || /^https?:\/\//i.test(value), 'Imagen inválida')
 
 const editorialFields = {
   visible_in_app: z.boolean().optional(),
@@ -48,6 +52,26 @@ const campaignAudienceFiltersSchema = z
     createdTo: z.string().datetime().optional(),
     locale: z.enum(['es', 'en', 'es-MX', 'en-US']).optional(),
     limit: z.number().int().min(1).max(500).optional(),
+  })
+  .strict()
+
+const eventContentSchema = z
+  .object({
+    slug: z.string().trim().min(1).optional(),
+    title: z.string().trim().min(1).optional(),
+    subtitle: z.string().trim().nullable().optional(),
+    description: z.string().trim().nullable().optional(),
+    short_description: z.string().trim().nullable().optional(),
+    venue: z.string().trim().nullable().optional(),
+    start_at: z.string().datetime().optional(),
+    end_at: z.string().datetime().optional(),
+    capacity: z.number().int().positive().optional(),
+    sold_count: z.number().int().min(0).optional(),
+    featured: z.boolean().optional(),
+    status: eventStatus.optional(),
+    sales_enabled: z.boolean().optional(),
+    cover_image_url: publicImageSchema.nullable().optional(),
+    ...editorialFields,
   })
   .strict()
 
@@ -97,25 +121,8 @@ const schemas = {
       ...editorialFields,
     })
     .strict(),
-  events: z
-    .object({
-      slug: z.string().trim().min(1).optional(),
-      title: z.string().trim().min(1).optional(),
-      subtitle: z.string().trim().nullable().optional(),
-      description: z.string().trim().nullable().optional(),
-      short_description: z.string().trim().nullable().optional(),
-      venue: z.string().trim().nullable().optional(),
-      start_at: z.string().datetime().optional(),
-      end_at: z.string().datetime().optional(),
-      capacity: z.number().int().positive().optional(),
-      sold_count: z.number().int().min(0).optional(),
-      featured: z.boolean().optional(),
-      status: eventStatus.optional(),
-      sales_enabled: z.boolean().optional(),
-      cover_image_url: z.string().url().nullable().optional(),
-      ...editorialFields,
-    })
-    .strict(),
+  events: eventContentSchema,
+  'grand-events': eventContentSchema,
   promotions: z
     .object({
       code: z.string().trim().min(1).nullable().optional(),
@@ -190,6 +197,22 @@ export const previewTokenSchema = z
   })
   .strict()
 
+export const approvalRequestSchema = z
+  .object({
+    approverUserId: z.string().uuid(),
+    expiresInMinutes: z.number().int().min(10).max(240).default(60),
+    locale: z.enum(['es', 'en', 'es-MX', 'en-US']).default('es-MX'),
+    note: z.string().trim().max(600).optional(),
+  })
+  .strict()
+
+export const approvalDecisionSchema = z
+  .object({
+    decision: z.enum(['approved', 'rejected']),
+    note: z.string().trim().max(600).optional(),
+  })
+  .strict()
+
 export const campaignAudiencePreviewSchema = campaignAudienceFiltersSchema
 
 export const sendCampaignSchema = z
@@ -220,3 +243,5 @@ export function assertPublicationAction(action: string): asserts action is Publi
 
 export type CampaignAudienceFilters = z.infer<typeof campaignAudienceFiltersSchema>
 export type SendCampaignPayload = z.infer<typeof sendCampaignSchema>
+export type ApprovalRequestPayload = z.infer<typeof approvalRequestSchema>
+export type ApprovalDecisionPayload = z.infer<typeof approvalDecisionSchema>

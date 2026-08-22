@@ -13,16 +13,19 @@ import {
 import {
   archiveAdmin,
   createAdmin,
+  decideApprovalAdmin,
   duplicateAdmin,
   getAdmin,
 	  getPreview,
 	  getCampaignMetricsAdmin,
   getPublicBySlug,
+  listApproversAdmin,
   listAdmin,
 	  listPublic,
 	  patchAdmin,
 	  previewTokenAdmin,
 	  previewCampaignAudienceAdmin,
+  requestApprovalAdmin,
 	  publishAdmin,
 	  removeAdmin,
 	  restoreAdmin,
@@ -41,6 +44,7 @@ const contentPermissionByEntity: Record<string, string> = {
   wines: 'content.wines.manage',
   experiences: 'content.experiences.manage',
   events: 'content.events.manage',
+  'grand-events': 'content.events.manage',
   services: 'content.services.manage',
   promotions: 'content.promotions.manage',
   'membership-plans': 'content.memberships.manage',
@@ -57,11 +61,14 @@ adminRouter.get('/events/:eventId/ticket-types', ...protectedAdmin, requireContr
 adminRouter.post('/events/:eventId/ticket-types', ...protectedAdmin, requireControlPermission('content.events.manage'), createEventTicketTypeAdmin)
 adminRouter.patch('/events/:eventId/ticket-types/:ticketId', ...protectedAdmin, requireControlPermission('content.events.manage'), patchEventTicketTypeAdmin)
 adminRouter.delete('/events/:eventId/ticket-types/:ticketId', ...protectedAdmin, requireControlPermission('content.events.manage'), removeEventTicketTypeAdmin)
+adminRouter.get('/:entity/approvers', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), listApproversAdmin)
 adminRouter.get('/:entity', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), listAdmin)
 adminRouter.get('/:entity/:id', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), getAdmin)
 adminRouter.post('/:entity', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), createAdmin)
 adminRouter.patch('/:entity/:id', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), patchAdmin)
 adminRouter.delete('/:entity/:id', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), removeAdmin)
+adminRouter.post('/:entity/:id/request-approval', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), requestApprovalAdmin)
+adminRouter.post('/:entity/:id/approval-decision', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), decideApprovalAdmin)
 adminRouter.post('/:entity/:id/publish', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), publishAdmin)
 adminRouter.post('/:entity/:id/unpublish', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), unpublishAdmin)
 adminRouter.post('/:entity/:id/schedule', ...protectedAdmin, requireControlPermission(contentPermissionForRequest), scheduleAdmin)

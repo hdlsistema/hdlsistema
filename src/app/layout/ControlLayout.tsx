@@ -195,7 +195,7 @@ export function ControlLayout() {
           permission: 'content.experiences.manage',
         },
         {
-          to: '/control/eventos',
+          to: '/control/eventos-magnos',
           label: t('control.events'),
           icon: CalendarDays,
           permission: 'content.events.manage',

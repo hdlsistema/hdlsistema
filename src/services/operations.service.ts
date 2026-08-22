@@ -98,6 +98,7 @@ export type ReservationRecord = {
   source: string
   customerNotes?: string | null
   internalNotes?: string | null
+  metadata?: Record<string, unknown>
   operationalStatus: string
   capacity: number
   confirmed: number

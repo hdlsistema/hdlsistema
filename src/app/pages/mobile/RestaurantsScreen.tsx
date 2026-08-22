@@ -137,7 +137,7 @@ export function RestaurantsScreen() {
 
       {directionsRestaurant ? (
         <OfficialDirectionsSheet
-          poi={officialRestaurantPoi(directionsRestaurant.slug)}
+          poi={officialRestaurantPoi(directionsRestaurant)}
           displayName={directionsRestaurant.name}
           onClose={() => setDirectionsSlug('')}
         />

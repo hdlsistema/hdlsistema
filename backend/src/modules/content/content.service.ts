@@ -1,9 +1,10 @@
 import { createHash, randomBytes, randomUUID } from 'crypto'
+import { env } from '../../config/env'
 import { supabaseAdminClient } from '../../config/supabase'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
-import { createCustomerCampaignNotification } from '../notifications/notifications.service'
+import { createControlNotification, createCustomerCampaignNotification } from '../notifications/notifications.service'
 import { assertNoError } from '../operations/operationErrors'
-import type { CampaignAudienceFilters, SendCampaignPayload } from './content.schemas'
+import type { ApprovalDecisionPayload, ApprovalRequestPayload, CampaignAudienceFilters, SendCampaignPayload } from './content.schemas'
 import { contentConfigs, getContentConfig } from './content.config'
 import { canAccessContent } from './content.permissions'
 import {
@@ -75,6 +76,12 @@ function assertEntity(routeEntity: string): ContentConfig {
   const config = getContentConfig(routeEntity)
   if (!config) throw httpError(404, 'Entidad no permitida')
   return config
+}
+
+function controlContentDeepLink(routeEntity: ContentRouteEntity) {
+  if (routeEntity === 'grand-events') return '/control/eventos-magnos'
+  if (routeEntity === 'membership-plans') return '/control/membresias'
+  return `/control/${routeEntity}`
 }
 
 function buildStatusPatch(config: ContentConfig, action: PublicationAction) {
@@ -166,6 +173,73 @@ function campaignHash(value: unknown) {
 
 function normalizeRecordJson(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function normalizeString(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function frontendPreviewUrl(token: string) {
+  return `${env.FRONTEND_URL.replace(/\/+$/, '')}/vista-previa/${encodeURIComponent(token)}`
+}
+
+function editorialApproval(record: Record<string, unknown>) {
+  return normalizeRecordJson(normalizeRecordJson(record.metadata).editorial_approval)
+}
+
+function approvalHistory(record: Record<string, unknown>) {
+  const history = editorialApproval(record).history
+  return Array.isArray(history) ? history.slice(-40) : []
+}
+
+function isAdminApproverRole(roles?: string[]) {
+  return Boolean(roles?.some((role) => role === 'super_admin' || role === 'admin'))
+}
+
+function reminderDayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10)
+}
+
+function timestampMs(value: unknown) {
+  if (typeof value !== 'string' || !value) return 0
+  const timestamp = new Date(value).getTime()
+  return Number.isFinite(timestamp) ? timestamp : 0
+}
+
+async function writeContentAudit(
+  user: UserContext,
+  action: string,
+  entityType: string,
+  entityId: string,
+  afterData: Record<string, unknown>,
+) {
+  await supabaseAdminClient.from('audit_logs').insert({
+    actor_user_id: user.userId ?? null,
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    after_data: afterData,
+  })
+}
+
+function isEventContentRoute(routeEntity: string) {
+  return routeEntity === 'events' || routeEntity === 'grand-events'
+}
+
+function withContentDefaults(
+  config: ContentConfig,
+  payload: Record<string, unknown>,
+  current?: Record<string, unknown> | null,
+) {
+  if (!config.defaultMetadata) return payload
+  return {
+    ...payload,
+    metadata: {
+      ...normalizeRecordJson(current?.metadata),
+      ...normalizeRecordJson(payload.metadata),
+      ...config.defaultMetadata,
+    },
+  }
 }
 
 function normalizeCustomerEmail(value?: string | null) {
@@ -592,6 +666,262 @@ export async function getCampaignMetrics(id: string, user: UserContext) {
   }
 }
 
+export async function listEditorialApprovers(routeEntity: ContentRouteEntity, user: UserContext) {
+  const config = assertEntity(routeEntity)
+  requirePermission(config, 'preview', user)
+
+  const roleResult = await supabaseAdminClient
+    .from('user_roles')
+    .select('user_id,roles(code)')
+  const roleRows = assertNoError<Array<{ user_id?: string | null; roles?: { code?: string | null } | Array<{ code?: string | null }> | null }>>(roleResult).data ?? []
+  const approverIds = Array.from(new Set(roleRows
+    .filter((row) => {
+      const roleValue = Array.isArray(row.roles) ? row.roles[0]?.code : row.roles?.code
+      return row.user_id && (roleValue === 'super_admin' || roleValue === 'admin')
+    })
+    .map((row) => String(row.user_id))))
+
+  if (!approverIds.length) return { data: [] }
+
+  const profileResult = await supabaseAdminClient
+    .from('profiles')
+    .select('id,first_name,last_name,display_name')
+    .in('id', approverIds)
+  const profiles = new Map((assertNoError<Array<Record<string, unknown>>>(profileResult).data ?? [])
+    .map((row) => [String(row.id), row]))
+
+  const users = await supabaseAdminClient.auth.admin.listUsers({ page: 1, perPage: 1000 })
+  const emailById = new Map((users.data.users ?? []).map((authUser) => [authUser.id, authUser.email ?? '']))
+
+  const roleByUser = new Map<string, string[]>()
+  for (const row of roleRows) {
+    const userId = String(row.user_id ?? '')
+    if (!approverIds.includes(userId)) continue
+    const roleValue = Array.isArray(row.roles) ? row.roles[0]?.code : row.roles?.code
+    if (roleValue) roleByUser.set(userId, [...(roleByUser.get(userId) ?? []), roleValue])
+  }
+
+  return {
+    data: approverIds
+      .map((id) => {
+        const profile = profiles.get(id) ?? {}
+        const displayName = normalizeString(profile.display_name) ||
+          `${normalizeString(profile.first_name)} ${normalizeString(profile.last_name)}`.trim() ||
+          emailById.get(id) ||
+          'Administrador'
+        return {
+          id,
+          displayName,
+          email: emailById.get(id) || null,
+          roles: Array.from(new Set(roleByUser.get(id) ?? [])),
+        }
+      })
+      .sort((left, right) => left.displayName.localeCompare(right.displayName, 'es-MX')),
+  }
+}
+
+export async function requestEditorialApproval(
+  routeEntity: ContentRouteEntity,
+  id: string,
+  payload: ApprovalRequestPayload,
+  user: UserContext,
+) {
+  const config = assertEntity(routeEntity)
+  requirePermission(config, 'preview', user)
+  const current = await getContentById(config, id)
+  if (!current.data) throw httpError(404, 'Contenido no encontrado')
+
+  const approvers = await listEditorialApprovers(routeEntity, user)
+  const approver = approvers.data.find((item) => item.id === payload.approverUserId)
+  if (!approver) throw httpError(422, 'Selecciona un administrador válido para autorización')
+
+  const preview = await generatePreviewToken(routeEntity, id, payload.expiresInMinutes, payload.locale, user)
+  const previewUrl = frontendPreviewUrl(preview.token)
+  const now = new Date().toISOString()
+  const record = current.data as unknown as Record<string, unknown>
+  const previousMetadata = normalizeRecordJson(record.metadata)
+  const previousApproval = editorialApproval(record)
+  const approval = {
+    ...previousApproval,
+    status: 'pending',
+    requested_at: now,
+    requested_by: user.userId ?? null,
+    requested_to: payload.approverUserId,
+    requested_to_name: approver.displayName,
+    preview_url: previewUrl,
+    preview_expires_at: preview.expires_at,
+    note: payload.note ?? null,
+    last_reminder_at: now,
+    reminder_count: Number(previousApproval.reminder_count ?? 0),
+    history: [
+      ...approvalHistory(record),
+      {
+        action: 'approval_requested',
+        at: now,
+        by: user.userId ?? null,
+        to: payload.approverUserId,
+        note: payload.note ?? null,
+      },
+    ],
+  }
+
+  const updated = await updateContent(config, id, withContentDefaults(config, {
+    metadata: {
+      ...previousMetadata,
+      editorial_approval: approval,
+    },
+    updated_by: user.userId,
+  }, record))
+
+  await createControlNotification({
+    type: 'content_approval_request',
+    userId: payload.approverUserId,
+    title: 'Autorización editorial pendiente',
+    body: `Revisa ${normalizeString(record.title) || normalizeString(record.name) || 'la publicación'} antes de publicarla.`,
+    deepLink: controlContentDeepLink(routeEntity),
+    idempotencyKey: `content-approval:${routeEntity}:${id}:${payload.approverUserId}:${now.slice(0, 13)}`,
+    data: {
+      entity: routeEntity,
+      entityId: id,
+      previewUrl,
+      requestedBy: user.userId ?? null,
+    },
+  })
+
+  await writeContentAudit(user, 'content_approval_requested', config.entityType, id, {
+    entity: routeEntity,
+    approverUserId: payload.approverUserId,
+    previewExpiresAt: preview.expires_at,
+  })
+
+  return { data: { content: updated.data, approval, previewUrl } }
+}
+
+export async function decideEditorialApproval(
+  routeEntity: ContentRouteEntity,
+  id: string,
+  payload: ApprovalDecisionPayload,
+  user: UserContext,
+) {
+  const config = assertEntity(routeEntity)
+  requirePermission(config, 'publish', user)
+  if (!isAdminApproverRole(user.roles)) throw httpError(403, 'Sólo administración puede autorizar publicaciones')
+  const current = await getContentById(config, id)
+  if (!current.data) throw httpError(404, 'Contenido no encontrado')
+
+  const now = new Date().toISOString()
+  const record = current.data as unknown as Record<string, unknown>
+  const previousMetadata = normalizeRecordJson(record.metadata)
+  const previousApproval = editorialApproval(record)
+  const approval = {
+    ...previousApproval,
+    status: payload.decision,
+    decided_at: now,
+    decided_by: user.userId ?? null,
+    decision_note: payload.note ?? null,
+    history: [
+      ...approvalHistory(record),
+      {
+        action: payload.decision === 'approved' ? 'approval_approved' : 'approval_rejected',
+        at: now,
+        by: user.userId ?? null,
+        note: payload.note ?? null,
+      },
+    ],
+  }
+
+  const updated = await updateContent(config, id, withContentDefaults(config, {
+    metadata: {
+      ...previousMetadata,
+      editorial_approval: approval,
+    },
+    updated_by: user.userId,
+  }, record))
+
+  await writeContentAudit(user, payload.decision === 'approved' ? 'content_approval_approved' : 'content_approval_rejected', config.entityType, id, {
+    entity: routeEntity,
+    note: payload.note ?? null,
+  })
+
+  return { data: { content: updated.data, approval } }
+}
+
+export async function processEditorialApprovalReminders(limit = 25) {
+  const config = assertEntity('grand-events')
+  const now = new Date()
+  const nowIso = now.toISOString()
+  const thresholdMs = now.getTime() - 24 * 60 * 60 * 1000
+
+  const result = await supabaseAdminClient
+    .from(config.table)
+    .select('id,title,name,metadata')
+    .eq('metadata->editorial_approval->>status', 'pending')
+    .is('deleted_at', null)
+    .is('archived_at', null)
+    .limit(Math.max(1, Math.min(limit, 100)))
+  const rows = assertNoError<Array<Record<string, unknown>>>(result).data ?? []
+  let reminders = 0
+
+  for (const record of rows) {
+    const id = normalizeString(record.id)
+    const approval = editorialApproval(record)
+    const approverUserId = normalizeString(approval.requested_to)
+    if (!id || !approverUserId) continue
+
+    const lastReminderMs = timestampMs(approval.last_reminder_at) || timestampMs(approval.requested_at)
+    if (lastReminderMs && lastReminderMs > thresholdMs) continue
+
+    const unreadResult = await supabaseAdminClient
+      .from('notifications')
+      .select('id')
+      .eq('channel', 'control')
+      .eq('user_id', approverUserId)
+      .neq('status', 'read')
+      .is('read_at', null)
+      .contains('data', { type: 'content_approval_request', entity: 'grand-events', entityId: id })
+      .limit(1)
+    const unread = assertNoError<Array<{ id: string }>>(unreadResult).data ?? []
+    if (!unread.length) continue
+
+    await createControlNotification({
+      type: 'content_approval_reminder',
+      userId: approverUserId,
+      title: 'Recordatorio de autorización editorial',
+      body: `Sigue pendiente la revisión de ${normalizeString(record.title) || normalizeString(record.name) || 'la publicación'}.`,
+      deepLink: '/control/eventos-magnos',
+      idempotencyKey: `content-approval-reminder:grand-events:${id}:${approverUserId}:${reminderDayKey(now)}`,
+      data: {
+        entity: 'grand-events',
+        entityId: id,
+        requestedBy: approval.requested_by ?? null,
+      },
+    })
+
+    const metadata = normalizeRecordJson(record.metadata)
+    await updateContent(config, id, withContentDefaults(config, {
+      metadata: {
+        ...metadata,
+        editorial_approval: {
+          ...approval,
+          last_reminder_at: nowIso,
+          reminder_count: Number(approval.reminder_count ?? 0) + 1,
+          history: [
+            ...approvalHistory(record),
+            {
+              action: 'approval_reminded',
+              at: nowIso,
+              to: approverUserId,
+            },
+          ],
+        },
+      },
+    }, record))
+    reminders += 1
+  }
+
+  return { processed: rows.length, reminders }
+}
+
 export async function createAdminContent(
   routeEntity: ContentRouteEntity,
   payload: Record<string, unknown>,
@@ -599,10 +929,10 @@ export async function createAdminContent(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'create', user)
-  if (routeEntity === 'events' && payload.status === 'published' && payload.sales_enabled === true) {
+  if (isEventContentRoute(routeEntity) && payload.status === 'published' && payload.sales_enabled === true) {
     throw httpError(422, 'Guarda el evento como borrador, configura sus boletos y después publícalo')
   }
-  return insertContent(config, { ...payload, created_by: user.userId, updated_by: user.userId })
+  return insertContent(config, withContentDefaults(config, { ...payload, created_by: user.userId, updated_by: user.userId }))
 }
 
 export async function updateAdminContent(
@@ -613,13 +943,19 @@ export async function updateAdminContent(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'update', user)
-  if (routeEntity === 'events') {
-    const current = await getContentById(config, id)
-    if (!current.data) throw httpError(404, 'Evento no encontrado')
+  const current = isEventContentRoute(routeEntity) || config.defaultMetadata
+    ? await getContentById(config, id)
+    : null
+  if (isEventContentRoute(routeEntity)) {
+    if (!current?.data) throw httpError(404, 'Evento no encontrado')
     const candidate = { ...(current.data as unknown as Record<string, unknown>), ...payload }
     if (candidate.status === 'published') await assertEventSalesReady(id, candidate)
   }
-  return updateContent(config, id, { ...payload, updated_by: user.userId })
+  return updateContent(
+    config,
+    id,
+    withContentDefaults(config, { ...payload, updated_by: user.userId }, current?.data as Record<string, unknown> | undefined),
+  )
 }
 
 export async function deleteAdminContent(routeEntity: string, id: string, user: UserContext) {
@@ -636,12 +972,47 @@ export async function applyPublicationAction(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, action, user)
-  if (routeEntity === 'events' && action === 'publish') {
-    const current = await getContentById(config, id)
-    if (!current.data) throw httpError(404, 'Evento no encontrado')
+  const current = (isEventContentRoute(routeEntity) && action === 'publish') || config.defaultMetadata
+    ? await getContentById(config, id)
+    : null
+  if (isEventContentRoute(routeEntity) && action === 'publish') {
+    if (!current?.data) throw httpError(404, 'Evento no encontrado')
     await assertEventSalesReady(id, current.data as unknown as Record<string, unknown>)
   }
-  return updateContent(config, id, { ...buildStatusPatch(config, action), updated_by: user.userId })
+  const statusPatch: Record<string, unknown> = buildStatusPatch(config, action)
+  if (routeEntity === 'grand-events' && action === 'publish' && current?.data) {
+    const record = current.data as unknown as Record<string, unknown>
+    const previousMetadata = normalizeRecordJson(record.metadata)
+    const previousApproval = editorialApproval(record)
+    if (previousApproval.status !== 'approved') {
+      const now = new Date().toISOString()
+      statusPatch.metadata = {
+        ...previousMetadata,
+        editorial_approval: {
+          ...previousApproval,
+          status: 'published_without_approval',
+          unauthorized_publish_at: now,
+          unauthorized_publish_by: user.userId ?? null,
+          history: [
+            ...approvalHistory(record),
+            {
+              action: 'published_without_approval',
+              at: now,
+              by: user.userId ?? null,
+            },
+          ],
+        },
+      }
+      await writeContentAudit(user, 'content_published_without_approval', config.entityType, id, {
+        entity: routeEntity,
+      })
+    }
+  }
+  return updateContent(
+    config,
+    id,
+    withContentDefaults(config, { ...statusPatch, updated_by: user.userId }, current?.data as Record<string, unknown> | undefined),
+  )
 }
 
 export async function schedulePublicationAction(
@@ -654,7 +1025,7 @@ export async function schedulePublicationAction(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'schedule', user)
-  if (routeEntity === 'events' && action === 'publish') {
+  if (isEventContentRoute(routeEntity) && action === 'publish') {
     const current = await getContentById(config, id)
     if (!current.data) throw httpError(404, 'Evento no encontrado')
     await assertEventSalesReady(id, current.data as unknown as Record<string, unknown>)
@@ -667,7 +1038,7 @@ export async function duplicateAdminContent(routeEntity: string, id: string, use
   requirePermission(config, 'duplicate', user)
   const { data } = await getContentById(config, id)
   if (!data) throw httpError(404, 'Contenido no encontrado')
-  return insertContent(config, clonePayload(data as unknown as Record<string, unknown>, config))
+  return insertContent(config, withContentDefaults(config, clonePayload(data as unknown as Record<string, unknown>, config)))
 }
 
 export async function listAdminContentVersions(routeEntity: string, id: string, user: UserContext) {
@@ -688,7 +1059,7 @@ export async function restoreAdminContentVersion(
   if (!data || typeof data !== 'object') throw httpError(404, 'Versión no encontrada')
   const snapshot = (data as { snapshot?: unknown }).snapshot
   if (!snapshot || typeof snapshot !== 'object') throw httpError(422, 'Versión no restaurable')
-  return updateContent(config, id, sanitizeRestorePayload(snapshot as Record<string, unknown>))
+  return updateContent(config, id, withContentDefaults(config, sanitizeRestorePayload(snapshot as Record<string, unknown>), snapshot as Record<string, unknown>))
 }
 
 export async function generatePreviewToken(
