@@ -138,7 +138,7 @@ export function RestaurantAvailabilityPanel({ token, writable }: { token: string
                     <p className="text-base font-semibold text-[var(--color-ink)]">{item.name}</p>
                     <p className="mt-1 text-xs text-[var(--color-muted)]">{visible ? 'Publicado y visible en la app' : 'No visible actualmente en la app'}</p>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-[10px] font-semibold ${draft.reservationEnabled ? 'bg-[#edf5ea] text-[#55745a]' : 'bg-[#f6eae6] text-[#9b463a]'}`}>{draft.reservationEnabled ? 'Reservaciones activas' : 'Reservaciones pausadas'}</span>
+                  <span className={`rounded-full px-3 py-1 text-[10px] font-semibold ${draft.reservationEnabled ? 'bg-[rgba(37,47,55,0.08)] text-[#252F37]' : 'bg-[#f6eae6] text-[#9b463a]'}`}>{draft.reservationEnabled ? 'Reservaciones activas' : 'Reservaciones pausadas'}</span>
                 </header>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)]">
@@ -170,7 +170,7 @@ export function RestaurantAvailabilityPanel({ token, writable }: { token: string
         </section>
       )}
 
-      {toast ? <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{toast}<button type="button" onClick={() => setToast('')} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button></div> : null}
+      {toast ? <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[rgba(37,47,55,0.24)] bg-white p-4 text-sm font-semibold text-[#252F37] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{toast}<button type="button" onClick={() => setToast('')} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button></div> : null}
     </div>
   )
 }

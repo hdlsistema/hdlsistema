@@ -125,7 +125,7 @@ export function AccessPassPage() {
               <div className="text-center">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#B88A4A]">{pass.accessType.replaceAll('_', ' ')}</p>
                 <h1 className="mt-2 text-[clamp(30px,8vw,45px)] leading-none text-[#680D24]" style={{ fontFamily: 'var(--font-display)' }}>{pass.title || 'Hacienda de Letras'}</h1>
-                <div className={`mx-auto mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ${pass.valid ? 'bg-[#e9f3e9] text-[#376345]' : 'bg-[#f7e8e5] text-[#943c35]'}`}>
+                <div className={`mx-auto mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ${pass.valid ? 'bg-[rgba(37,47,55,0.08)] text-[#252F37]' : 'bg-[#f7e8e5] text-[#943c35]'}`}>
                   {pass.valid ? <CheckCircle2 size={15} /> : <XCircle size={15} />}{state.label}
                 </div>
                 <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#7a665c]">{state.detail}</p>
@@ -150,7 +150,7 @@ export function AccessPassPage() {
                   <button type="button" disabled={!pass.valid || saving} onClick={() => void confirm()} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#2D1811] px-5 text-sm font-semibold text-white disabled:opacity-45"><ShieldCheck size={17} />{saving ? 'Confirmando…' : confirmationLabel(pass.accessType)}</button>
                 ) : <p className="text-center text-xs text-[#7a665c]">La confirmación está reservada al personal autorizado.</p>}
               </div>
-              {message ? <p className="mt-4 rounded-xl bg-[#e9f3e9] p-3 text-center text-sm text-[#376345]">{message}</p> : null}
+              {message ? <p className="mt-4 rounded-xl bg-[rgba(37,47,55,0.08)] p-3 text-center text-sm text-[#252F37]">{message}</p> : null}
               {error ? <p className="mt-4 rounded-xl bg-[#f7e8e5] p-3 text-center text-sm text-[#943c35]">{error}</p> : null}
             </>
           ) : null}

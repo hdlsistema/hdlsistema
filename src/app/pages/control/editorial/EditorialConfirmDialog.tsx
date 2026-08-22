@@ -34,7 +34,7 @@ export function EditorialConfirmDialog({
               className={`mt-1 inline-flex h-9 w-9 items-center justify-center rounded-lg border ${
                 warning
                   ? 'border-[rgba(180,138,85,0.36)] bg-[rgba(180,138,85,0.14)] text-[var(--color-gold)]'
-                  : 'border-[rgba(61,122,77,0.25)] bg-[rgba(61,122,77,0.1)] text-[var(--color-positive)]'
+                  : 'border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] text-[var(--color-positive)]'
               }`}
             >
               <AlertTriangle size={17} />

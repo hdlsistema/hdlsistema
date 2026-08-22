@@ -10,6 +10,26 @@ import type {
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
+type EventVariantOption = {
+  id: string
+  label: string
+  value: string
+  price: number | null
+  capacity: number | null
+  code: string | null
+}
+
+type EventVariant = {
+  id: string
+  name: string
+  label: string
+  key: string
+  category: string
+  input_type: string
+  required: boolean
+  options: EventVariantOption[]
+}
+
 export function getDefinitionFields(definition: EditorialDefinition): EditorialField[] {
   return definition.sections.flatMap((section) => section.fields)
 }
@@ -76,45 +96,116 @@ function metadataValue(value: unknown, key: string) {
   return typeof raw === 'string' || typeof raw === 'number' ? String(raw) : ''
 }
 
-function linesFromVariantSchema(value: unknown) {
-  if (!value || typeof value !== 'object') return ''
-  const record = value as Record<string, unknown>
-  const schema = record.variant_schema
-  if (!Array.isArray(schema)) return ''
-  return schema
-    .map((item) => {
-      if (!item || typeof item !== 'object') return ''
-      const variant = item as Record<string, unknown>
-      const name = typeof variant.name === 'string'
-        ? variant.name.trim()
-        : typeof variant.label === 'string'
-          ? variant.label.trim()
-          : ''
-      const options = Array.isArray(variant.options)
-        ? variant.options.map((option) => String(option).trim()).filter(Boolean)
-        : []
-      return name && options.length ? `${name}: ${options.join(', ')}` : ''
-    })
-    .filter(Boolean)
-    .join('\n')
+function slugKey(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
 }
 
-function parseVariantSchemaText(value: string) {
+function textValue(value: unknown) {
+  return typeof value === 'string' || typeof value === 'number' ? String(value).trim() : ''
+}
+
+function numericValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return null
+  const numberValue = Number(value)
+  return Number.isFinite(numberValue) ? numberValue : null
+}
+
+function normalizeVariantOption(value: unknown, index: number): EventVariantOption | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>
+    const label = textValue(record.label || record.name || record.value)
+    if (!label) return null
+    return {
+      id: textValue(record.id) || slugKey(label) || `option_${index + 1}`,
+      label,
+      value: textValue(record.value) || slugKey(label),
+      price: numericValue(record.price),
+      capacity: numericValue(record.capacity),
+      code: textValue(record.code || record.sku) || null,
+    }
+  }
+  const label = textValue(value)
+  if (!label) return null
+  return {
+    id: slugKey(label) || `option_${index + 1}`,
+    label,
+    value: slugKey(label),
+    price: null,
+    capacity: null,
+    code: null,
+  }
+}
+
+function normalizeVariantSchema(value: unknown): EventVariant[] {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item, index) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return null
+      const record = item as Record<string, unknown>
+      const name = textValue(record.name || record.label)
+      const key = textValue(record.key) || slugKey(name)
+      const options = Array.isArray(record.options)
+        ? record.options.map(normalizeVariantOption).filter((option): option is EventVariantOption => Boolean(option))
+        : []
+      if (!name || !key || options.length === 0) return null
+      return {
+        id: textValue(record.id) || key || `variable_${index + 1}`,
+        name,
+        label: textValue(record.label) || name,
+        key,
+        category: textValue(record.category) || 'custom',
+        input_type: textValue(record.input_type) || 'select',
+        required: typeof record.required === 'boolean' ? record.required : false,
+        options,
+      }
+    })
+    .filter((item): item is EventVariant => Boolean(item))
+}
+
+function parseVariantSchemaText(value: string): EventVariant[] {
   return value
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
-    .map((line) => {
+    .map((line): EventVariant | null => {
       const [rawName, ...rest] = line.split(':')
       const name = rawName?.trim() ?? ''
-      const options = rest
+      const options: EventVariantOption[] = rest
         .join(':')
         .split(',')
         .map((option) => option.trim())
         .filter(Boolean)
-      return name && options.length ? { name, options } : null
+        .map((option, optionIndex) => ({
+          id: slugKey(option) || `option_${optionIndex + 1}`,
+          label: option,
+          value: slugKey(option),
+          price: null,
+          capacity: null,
+          code: null,
+        }))
+      return name && options.length ? {
+        id: slugKey(name),
+        name,
+        label: name,
+        key: slugKey(name),
+        category: 'custom',
+        input_type: 'select',
+        required: false,
+        options,
+      } : null
     })
-    .filter((item): item is { name: string; options: string[] } => Boolean(item))
+    .filter((item): item is EventVariant => Boolean(item))
+}
+
+function eventVariantSchemaFromMetadata(value: unknown) {
+  if (!value || typeof value !== 'object') return []
+  const record = value as Record<string, unknown>
+  return normalizeVariantSchema(record.variant_schema)
 }
 
 function toInputValue(record: ContentRecord | null, field: EditorialField) {
@@ -127,7 +218,7 @@ function toInputValue(record: ContentRecord | null, field: EditorialField) {
       event_kind: metadataValue(value, 'event_kind'),
       location_kind: metadataValue(value, 'location_kind') || 'estate',
       reservation_phone: metadataValue(value, 'reservation_phone'),
-      variant_schema_text: linesFromVariantSchema(value),
+      variant_schema: eventVariantSchemaFromMetadata(value),
       advancedJson: '',
     })
   }
@@ -196,12 +287,15 @@ export function serializeEditorialPayload(definition: EditorialDefinition, value
       const locationKind = typeof parsed.location_kind === 'string' ? parsed.location_kind.trim() : 'estate'
       const reservationPhone = typeof parsed.reservation_phone === 'string' ? parsed.reservation_phone.trim() : ''
       const variantSchemaText = typeof parsed.variant_schema_text === 'string' ? parsed.variant_schema_text : ''
+      const variantSchema = Array.isArray(parsed.variant_schema)
+        ? normalizeVariantSchema(parsed.variant_schema)
+        : parseVariantSchemaText(variantSchemaText)
       payload.metadata = parseGuidedJson(rawValue ?? '', {
         event_scope: 'grand',
         event_kind: eventKind,
         location_kind: locationKind || 'estate',
         reservation_phone: reservationPhone,
-        variant_schema: parseVariantSchemaText(variantSchemaText),
+        variant_schema: variantSchema,
       })
       return payload
     }
@@ -340,8 +434,18 @@ export function validateEditorialForm(
   }
 
   const publishAt = values.publish_at
+  const unpublishAt = values.unpublish_at
   if (intent === 'schedule' && publishAt && new Date(publishAt).getTime() <= Date.now()) {
     errors.publish_at = 'La programación debe ser futura.'
+  }
+  if (publishAt && unpublishAt && new Date(unpublishAt).getTime() <= new Date(publishAt).getTime()) {
+    errors.unpublish_at = 'La fecha de retiro debe ser posterior a la publicación.'
+  }
+  if (validatesForPublish && unpublishAt && new Date(unpublishAt).getTime() <= Date.now()) {
+    errors.unpublish_at = 'La fecha de retiro ya venció; elimínala o elige una fecha futura.'
+  }
+  if (startAt && unpublishAt && new Date(unpublishAt).getTime() <= new Date(startAt).getTime()) {
+    errors.unpublish_at = 'La fecha de retiro debe ser posterior al inicio.'
   }
 
   return {

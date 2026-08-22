@@ -63,7 +63,7 @@ function shipmentStatus(value: string) {
 
 function shipmentTone(status: string) {
   if (['delivered', 'not_required'].includes(status)) {
-    return 'border-[rgba(61,122,77,0.25)] bg-[rgba(61,122,77,0.08)] text-[var(--color-positive)]'
+    return 'border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] text-[var(--color-positive)]'
   }
   if (['failed', 'returned', 'cancelled'].includes(status)) {
     return 'border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] text-[var(--color-alert)]'
@@ -434,7 +434,7 @@ export function LogisticsPage() {
       />
 
       {toast ? (
-        <div className="fixed bottom-6 right-6 z-[180] rounded-xl border border-[#cfddca] bg-white px-4 py-3 text-sm font-semibold text-[#5f7d63] shadow-xl">
+        <div className="fixed bottom-6 right-6 z-[180] rounded-xl border border-[rgba(37,47,55,0.24)] bg-white px-4 py-3 text-sm font-semibold text-[#252F37] shadow-xl">
           {toast}
           <button onClick={() => setToast('')} className="ml-3">
             <X size={14} />

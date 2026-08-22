@@ -307,7 +307,7 @@ export function WineClubPage() {
         onConfirm={confirmPendingAction}
       />
 
-      {toast ? <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{toast}</div> : null}
+      {toast ? <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[rgba(37,47,55,0.24)] bg-white p-4 text-sm font-semibold text-[#252F37] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{toast}</div> : null}
     </div>
   )
 }

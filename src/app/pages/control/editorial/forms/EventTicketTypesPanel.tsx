@@ -32,8 +32,8 @@ const emptyDraft: TicketDraft = {
   salesStartAt: '',
   salesEndAt: '',
   active: 'true',
-  status: 'draft',
-  visibleInApp: 'false',
+  status: 'published',
+  visibleInApp: 'true',
   sortOrder: '0',
 }
 
@@ -188,7 +188,9 @@ export function EventTicketTypesPanel({
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">Venta y acceso</p>
           <h2 className="mt-1 text-xl font-semibold text-[var(--color-ink)]">Tipos de boleto</h2>
-          <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">Estos boletos son los que la app muestra, cobra y convierte en pases QR.</p>
+          <p className="mt-1 text-xs leading-5 text-[var(--color-muted)]">
+            Estos boletos son los que la app muestra, cobra y convierte en pases QR. Para carreras o categorías, crea cada opción cobrable aquí.
+          </p>
         </div>
         <button type="button" disabled={!canWrite || saving} onClick={() => setDraft({ ...emptyDraft })} className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white disabled:opacity-45">
           <Plus size={14} />Nuevo boleto
@@ -202,7 +204,7 @@ export function EventTicketTypesPanel({
       </div>
 
       {error ? <p className="rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-3 text-xs text-[#8a4b16]">{error}</p> : null}
-      {success ? <p className="rounded-xl border border-[#cfddca] bg-[#f5fbf2] p-3 text-xs text-[#4e704e]">{success}</p> : null}
+      {success ? <p className="rounded-xl border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] p-3 text-xs text-[#252F37]">{success}</p> : null}
 
       {loading ? (
         <div className="flex min-h-24 items-center justify-center text-sm text-[var(--color-muted)]"><Loader2 className="mr-2 animate-spin" size={16} />Cargando boletos...</div>

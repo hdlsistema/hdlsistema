@@ -394,7 +394,7 @@ export function CheckInPage() {
       </section>
 
       {issuedToken ? (
-        <section className="rounded-[var(--radius-card)] border border-[#cfddca] bg-white p-4 text-sm text-[#406845] shadow-[var(--shadow-card)]">
+        <section className="rounded-[var(--radius-card)] border border-[rgba(37,47,55,0.24)] bg-white p-4 text-sm text-[#252F37] shadow-[var(--shadow-card)]">
           <p className="font-semibold">Pase emitido correctamente</p>
           <p className="mt-2">El código quedó listo para acceso del visitante.</p>
         </section>
@@ -555,5 +555,5 @@ function Input({ label, value, onChange, type = 'text' }: { label: string; value
 }
 
 function Toast({ value, onClose }: { value: string; onClose: () => void }) {
-  return <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{value}<button type="button" onClick={onClose} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button></div>
+  return <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[rgba(37,47,55,0.24)] bg-white p-4 text-sm font-semibold text-[#252F37] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{value}<button type="button" onClick={onClose} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button></div>
 }

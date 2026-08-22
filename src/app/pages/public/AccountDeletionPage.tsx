@@ -80,13 +80,13 @@ export function AccountDeletionPage() {
             </p>
 
             {completed ? (
-              <div role="status" className="mt-8 rounded-[1.2rem] border border-[#bfd2bd] bg-[#f0f7ee] p-6">
-                <CheckCircle2 size={29} className="text-[#3f7747]" />
-                <h2 className="mt-4 text-2xl text-[#315b37]" style={{ fontFamily: 'var(--font-display)' }}>Solicitud recibida</h2>
-                <p className="mt-3 text-sm leading-6 text-[#4d6650]">
+              <div role="status" className="mt-8 rounded-[1.2rem] border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.07)] p-6">
+                <CheckCircle2 size={29} className="text-[#252F37]" />
+                <h2 className="mt-4 text-2xl text-[#252F37]" style={{ fontFamily: 'var(--font-display)' }}>Solicitud recibida</h2>
+                <p className="mt-3 text-sm leading-6 text-[#252F37]">
                   Registramos tu solicitud para revisión. El envío no borra la cuenta de inmediato; el equipo validará la identidad y dará seguimiento al proceso.
                 </p>
-                <button type="button" onClick={() => { setCompleted(false); setEmail(''); setName(''); setAcknowledged(false) }} className="mt-5 rounded-full border border-[#9fbc9f] bg-white px-5 py-2.5 text-xs font-semibold text-[#315b37]">
+                <button type="button" onClick={() => { setCompleted(false); setEmail(''); setName(''); setAcknowledged(false) }} className="mt-5 rounded-full border border-[rgba(37,47,55,0.24)] bg-white px-5 py-2.5 text-xs font-semibold text-[#252F37]">
                   Registrar otra solicitud
                 </button>
               </div>

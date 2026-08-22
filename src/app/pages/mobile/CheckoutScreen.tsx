@@ -286,7 +286,7 @@ export function CheckoutScreen() {
       <AppToast message={message} tone={order ? 'success' : 'danger'} />
 
       {order ? (
-        <section className="rounded-[1.25rem] bg-[linear-gradient(145deg,rgba(63,117,79,0.12),rgba(255,250,242,0.96))] p-5 shadow-[var(--shadow-soft)]">
+        <section className="rounded-[1.25rem] bg-[linear-gradient(145deg,rgba(37,47,55,0.1),rgba(255,250,242,0.96))] p-5 shadow-[var(--shadow-soft)]">
           <div className="flex items-start gap-3">
             <CheckCircle2 size={26} className="mt-0.5 shrink-0 text-[var(--color-vineyard)]" />
             <div className="min-w-0">

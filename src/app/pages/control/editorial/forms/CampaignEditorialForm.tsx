@@ -239,7 +239,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
         ) : null}
 
         {sendResult ? (
-          <div className="mt-5 rounded-[1rem] border border-green-200 bg-green-50/80 p-4 text-sm text-green-900">
+          <div className="mt-5 rounded-[1rem] border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] p-4 text-sm text-[#252F37]">
             Campaña enviada: {sendResult.sent} aceptados, {sendResult.pending} pendientes, {sendResult.failed} fallidos.
           </div>
         ) : null}

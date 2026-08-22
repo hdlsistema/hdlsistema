@@ -96,7 +96,7 @@ function StatusPill({ status, label }: { status?: string | null; label: string }
   const rawStatus = status || 'sin_estado'
   const tone =
     rawStatus === 'published' || rawStatus === 'active'
-      ? 'border-[rgba(61,122,77,0.28)] bg-[rgba(61,122,77,0.1)] text-[var(--color-positive)]'
+      ? 'border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] text-[var(--color-positive)]'
       : rawStatus === 'scheduled' || rawStatus === 'draft'
         ? 'border-[rgba(180,138,85,0.3)] bg-[rgba(180,138,85,0.12)] text-[var(--color-gold)]'
         : 'border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] text-[var(--color-alert)]'
@@ -638,7 +638,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
               </p>
             </div>
             {editorialApproval(selected).status === 'approved' ? (
-              <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-[rgba(61,122,77,0.1)] px-3 text-[12px] font-semibold text-[var(--color-positive)]">
+              <span className="inline-flex min-h-8 items-center gap-2 rounded-full bg-[rgba(37,47,55,0.08)] px-3 text-[12px] font-semibold text-[var(--color-positive)]">
                 <ShieldCheck size={15} />Autorizado
               </span>
             ) : (
@@ -680,7 +680,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
                   type="button"
                   onClick={() => void decideApproval('approved')}
                   disabled={isBusy || Boolean(approvalBusy)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[rgba(61,122,77,0.3)] bg-[rgba(61,122,77,0.08)] px-4 text-[13px] font-semibold text-[var(--color-positive)] disabled:opacity-45"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] px-4 text-[13px] font-semibold text-[var(--color-positive)] disabled:opacity-45"
                 >
                   {approvalBusy === 'approved' ? <Loader2 className="animate-spin" size={15} /> : <CheckCircle2 size={15} />}
                   Autorizar

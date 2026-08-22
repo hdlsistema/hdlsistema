@@ -4,7 +4,7 @@ import { CalendarDays, Clock3, MapPin, Minus, Plus, ShoppingCart, Ticket } from 
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
 import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
-import { formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
+import { eventMinimumTicketPrice, formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
 import { appPath } from '../../utils/appRoutes'
 import { eventKindLabel, eventMetadata, eventVenueForRecord } from '../../utils/eventVenues'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -27,6 +27,12 @@ type EventTicketType = {
   unpublish_at?: string | null
   archived_at?: string | null
   deleted_at?: string | null
+}
+
+type EventVariantDisplayOption = {
+  label: string
+  price: number | null
+  capacity: number | null
 }
 
 function liveTicket(ticket: EventTicketType) {
@@ -62,11 +68,39 @@ function variantSchemaItems(record: ContentRecord) {
       const row = item as Record<string, unknown>
       const label = typeof row.label === 'string' ? row.label : typeof row.name === 'string' ? row.name : ''
       const options = Array.isArray(row.options)
-        ? row.options.map((option) => String(option)).filter(Boolean)
+        ? row.options
+          .map((option): EventVariantDisplayOption | null => {
+            if (option && typeof option === 'object' && !Array.isArray(option)) {
+              const optionRecord = option as Record<string, unknown>
+              const optionLabel = typeof optionRecord.label === 'string'
+                ? optionRecord.label
+                : typeof optionRecord.name === 'string'
+                  ? optionRecord.name
+                  : typeof optionRecord.value === 'string'
+                    ? optionRecord.value
+                    : ''
+              const price = optionRecord.price === null || optionRecord.price === undefined || optionRecord.price === ''
+                ? null
+                : Number(optionRecord.price)
+              const capacity = optionRecord.capacity === null || optionRecord.capacity === undefined || optionRecord.capacity === ''
+                ? null
+                : Number(optionRecord.capacity)
+              return optionLabel
+                ? {
+                  label: optionLabel,
+                  price: Number.isFinite(price) ? price : null,
+                  capacity: Number.isFinite(capacity) ? capacity : null,
+                }
+                : null
+            }
+            const optionLabel = String(option ?? '').trim()
+            return optionLabel ? { label: optionLabel, price: null, capacity: null } : null
+          })
+          .filter((option): option is EventVariantDisplayOption => Boolean(option))
         : []
       return label ? { label, options } : null
     })
-    .filter((item): item is { label: string; options: string[] } => Boolean(item))
+    .filter((item): item is { label: string; options: EventVariantDisplayOption[] } => Boolean(item))
 }
 
 export function EventDetailScreen() {
@@ -112,15 +146,18 @@ export function EventDetailScreen() {
 
   const title = textField(event, 'title', t('app.nav.events'))
   const summary = textField(event, 'short_description') || textField(event, 'description') || t('app.premium.informationSoon')
-  const price = numberField(event, 'price')
+  const price = eventMinimumTicketPrice(event, numberField(event, 'price'))
   const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
   const gallery = galleryImages(event, 'event_images', imageField(event, ''))
   const venue = eventVenueForRecord(event)
-  const kind = eventKindLabel(String(eventMetadata(event).event_kind ?? ''))
+  const metadata = eventMetadata(event)
+  const kind = eventKindLabel(String(metadata.event_kind ?? ''))
+  const reservationPhone = typeof metadata.reservation_phone === 'string' ? metadata.reservation_phone : ''
+  const salesEnabled = event.sales_enabled !== false
   const variants = variantSchemaItems(event)
   const ticketTypes = (Array.isArray(event.event_ticket_types) ? event.event_ticket_types : [])
     .filter((item): item is EventTicketType => Boolean(item && typeof item === 'object' && 'id' in item))
-    .filter(liveTicket)
+    .filter((ticket) => salesEnabled && liveTicket(ticket))
   const eventAvailable = Math.max(
     numberField(event, 'capacity') - numberField(event, 'sold_count') - numberField(event, 'reserved_count'),
     0,
@@ -166,7 +203,15 @@ export function EventDetailScreen() {
           { icon: CalendarDays, label: t('app.premium.events.date'), value: formatPublicDate(event.start_at, locale, t('common.datePending')) },
           { icon: Clock3, label: t('app.premium.events.schedule'), value: formatPublicTimeRange(event.start_at, event.end_at, locale) },
           { icon: MapPin, label: t('app.location'), value: `${venue.title} · ${textField(event, 'venue', 'Hacienda de Letras')}` },
-          { icon: Ticket, label: t('app.premium.events.ticket'), value: price > 0 ? formatCurrency(price, locale) : t('app.premium.events.ticketPending') },
+          {
+            icon: Ticket,
+            label: t('app.premium.events.ticket'),
+            value: !salesEnabled && reservationPhone
+              ? t('app.premium.events.phoneReservation', 'Reserva por teléfono')
+              : price > 0
+                ? formatCurrency(price, locale)
+                : t('app.premium.events.ticketPending'),
+          },
         ].map((item) => {
           const Icon = item.icon
           return (
@@ -186,7 +231,13 @@ export function EventDetailScreen() {
               <article key={item.label} className="rounded-[1rem] border border-[rgba(220,202,181,0.78)] bg-[#fffaf5] p-4">
                 <p className="text-[9px] font-semibold uppercase tracking-[0.13em] text-[var(--color-gold)]">{item.label}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {item.options.length ? item.options.map((option) => <StatusBadge key={`${item.label}-${option}`}>{option}</StatusBadge>) : <StatusBadge>{t('common.toBeConfirmed')}</StatusBadge>}
+                  {item.options.length ? item.options.map((option) => (
+                    <StatusBadge key={`${item.label}-${option.label}`}>
+                      {option.label}
+                      {option.price !== null ? ` · ${formatCurrency(option.price, locale)}` : ''}
+                      {option.capacity !== null ? ` · ${option.capacity} cupos` : ''}
+                    </StatusBadge>
+                  )) : <StatusBadge>{t('common.toBeConfirmed')}</StatusBadge>}
                 </div>
               </article>
             ))}
@@ -222,7 +273,12 @@ export function EventDetailScreen() {
       <section className="space-y-3">
         <AppSectionHeader eyebrow={t('app.premium.events.ticket')} title={t('app.premium.events.accessOptions', 'Boletos disponibles')} />
         {ticketTypes.length === 0 ? (
-          <EmptyState title={t('app.premium.events.ticketPending')} description={t('app.premium.events.noTicketsConfigured', 'La información de acceso se publicará cuando Hacienda confirme boletos, precios y capacidad.')} />
+          <EmptyState
+            title={!salesEnabled && reservationPhone ? t('app.premium.events.phoneReservation', 'Reserva por teléfono') : t('app.premium.events.ticketPending')}
+            description={!salesEnabled && reservationPhone
+              ? `${t('app.premium.events.reserveByPhone', 'Este evento se reserva directamente con Hacienda de Letras.')} ${reservationPhone}`
+              : t('app.premium.events.noTicketsConfigured', 'La información de acceso se publicará cuando Hacienda confirme boletos, precios y capacidad.')}
+          />
         ) : (
           <div className="grid gap-3">
             {ticketTypes.map((ticket) => {
@@ -255,7 +311,7 @@ export function EventDetailScreen() {
             })}
           </div>
         )}
-        {cartMessage ? <p className="rounded-[1rem] bg-[#edf5ed] p-3 text-[12px] text-[#3f6f4b]">{cartMessage}</p> : null}
+        {cartMessage ? <p className="rounded-[1rem] bg-[rgba(37,47,55,0.08)] p-3 text-[12px] text-[#252F37]">{cartMessage}</p> : null}
         {cartError ? <p className="rounded-[1rem] bg-[rgba(157,71,63,0.08)] p-3 text-[12px] text-[var(--color-alert)]">{cartError}</p> : null}
       </section>
     </div>

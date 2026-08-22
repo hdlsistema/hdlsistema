@@ -60,8 +60,8 @@ export function InitialPasswordChangeModal() {
             </label>
 
             <div className="grid gap-2 rounded-xl border border-[#eadfd4] bg-[#faf5ef] p-4 sm:grid-cols-2">
-              {checks.map((item) => <p key={item.label} className={`flex items-center gap-2 text-[11px] ${item.valid ? 'text-[#34734d]' : 'text-[var(--color-muted)]'}`}><span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${item.valid ? 'bg-[#e2efe5]' : 'bg-white'}`}><Check size={12} /></span>{item.label}</p>)}
-              <p className={`flex items-center gap-2 text-[11px] ${confirmation && password === confirmation ? 'text-[#34734d]' : 'text-[var(--color-muted)]'}`}><span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${confirmation && password === confirmation ? 'bg-[#e2efe5]' : 'bg-white'}`}><Check size={12} /></span>Ambas contraseñas coinciden</p>
+              {checks.map((item) => <p key={item.label} className={`flex items-center gap-2 text-[11px] ${item.valid ? 'text-[#252F37]' : 'text-[var(--color-muted)]'}`}><span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${item.valid ? 'bg-[rgba(37,47,55,0.1)]' : 'bg-white'}`}><Check size={12} /></span>{item.label}</p>)}
+              <p className={`flex items-center gap-2 text-[11px] ${confirmation && password === confirmation ? 'text-[#252F37]' : 'text-[var(--color-muted)]'}`}><span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ${confirmation && password === confirmation ? 'bg-[rgba(37,47,55,0.1)]' : 'bg-white'}`}><Check size={12} /></span>Ambas contraseñas coinciden</p>
             </div>
 
             {error ? <p role="alert" className="rounded-xl border border-[#e0b7ad] bg-[#fff5f1] px-4 py-3 text-xs text-[#8d352b]">{error}</p> : null}

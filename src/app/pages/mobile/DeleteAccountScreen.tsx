@@ -49,15 +49,15 @@ export function DeleteAccountScreen() {
   if (requestNumber) {
     return (
       <div className="app-page space-y-6">
-        <section className="rounded-[1.45rem] border border-[#bfd2bd] bg-[#f2f8ef] p-6 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
-          <CheckCircle2 size={34} className="text-[#3f7747]" />
-          <h1 className="mt-5 text-[2.3rem] leading-none text-[#315b37]" style={{ fontFamily: 'var(--font-display)' }}>{duplicate ? (isEnglish ? 'Your request is still active' : 'Tu solicitud sigue activa') : (isEnglish ? 'Request received' : 'Solicitud recibida')}</h1>
-          <p className="mt-4 text-[13px] leading-6 text-[#4d6650]">{isEnglish ? 'Your account remains active while we verify and process the request. It was not deleted when you submitted this form.' : 'Tu cuenta permanece activa mientras validamos y procesamos la solicitud. No fue eliminada al enviar este formulario.'}</p>
-          <div className="mt-5 rounded-[1rem] border border-[#d6e3d2] bg-white/80 p-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#66806a]">{isEnglish ? 'Tracking number' : 'Folio de seguimiento'}</p>
-            <p className="mt-2 break-all text-[16px] font-semibold text-[#315b37]">{requestNumber}</p>
+        <section className="rounded-[1.45rem] border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.07)] p-6 shadow-[0_18px_38px_rgba(37,47,55,0.08)]">
+          <CheckCircle2 size={34} className="text-[#252F37]" />
+          <h1 className="mt-5 text-[2.3rem] leading-none text-[#252F37]" style={{ fontFamily: 'var(--font-display)' }}>{duplicate ? (isEnglish ? 'Your request is still active' : 'Tu solicitud sigue activa') : (isEnglish ? 'Request received' : 'Solicitud recibida')}</h1>
+          <p className="mt-4 text-[13px] leading-6 text-[#252F37]">{isEnglish ? 'Your account remains active while we verify and process the request. It was not deleted when you submitted this form.' : 'Tu cuenta permanece activa mientras validamos y procesamos la solicitud. No fue eliminada al enviar este formulario.'}</p>
+          <div className="mt-5 rounded-[1rem] border border-[rgba(37,47,55,0.18)] bg-white/80 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[rgba(37,47,55,0.72)]">{isEnglish ? 'Tracking number' : 'Folio de seguimiento'}</p>
+            <p className="mt-2 break-all text-[16px] font-semibold text-[#252F37]">{requestNumber}</p>
           </div>
-          <Link to={appPath('/perfil')} className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#315b37] px-5 text-[12px] font-semibold text-white">{isEnglish ? 'Back to Profile' : 'Volver a Perfil'}</Link>
+          <Link to={appPath('/perfil')} className="mt-6 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#252F37] px-5 text-[12px] font-semibold text-white">{isEnglish ? 'Back to Profile' : 'Volver a Perfil'}</Link>
         </section>
       </div>
     )

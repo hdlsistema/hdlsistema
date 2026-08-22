@@ -50,7 +50,6 @@ export const contentConfigs: Record<ContentRouteEntity, ContentConfig> = {
     unpublishStatus: 'inactive',
     archiveStatus: 'archived',
     restoreStatus: 'draft',
-    defaultMetadata: grandEventDefaults,
   },
   'grand-events': {
     route: 'grand-events',

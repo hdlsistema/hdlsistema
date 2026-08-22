@@ -551,7 +551,7 @@ export function UserPermissionsPage() {
         </section>
       </section>
 
-      {toast ? <div className="fixed bottom-6 right-6 z-[180] inline-flex items-center gap-3 rounded-xl border border-[#cfddca] bg-white px-4 py-3 text-sm font-semibold text-[#5f7d63] shadow-xl">{toast}<button type="button" aria-label="Cerrar" onClick={() => setToast('')}><X size={14} /></button></div> : null}
+      {toast ? <div className="fixed bottom-6 right-6 z-[180] inline-flex items-center gap-3 rounded-xl border border-[rgba(37,47,55,0.24)] bg-white px-4 py-3 text-sm font-semibold text-[#252F37] shadow-xl">{toast}<button type="button" aria-label="Cerrar" onClick={() => setToast('')}><X size={14} /></button></div> : null}
     </div>
   )
 }

@@ -7,15 +7,16 @@ import {
   ErrorState,
   HeroEditorial,
   LoadingState,
-  PillRow,
   StatusBadge,
 } from '../../components/mobile/PremiumMobileUi'
+import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
 import { eventKindLabel, eventMatchesVenue, eventVenueForRecord, venueByKey } from '../../utils/eventVenues'
 import {
   contentRouteId,
+  eventMinimumTicketPrice,
   formatCurrency,
   formatPublicDate,
   formatPublicTimeRange,
@@ -117,10 +118,14 @@ export function EventsScreen() {
           title={t('app.nav.events')}
           action={<StatusBadge>{filteredEvents.length}</StatusBadge>}
         />
-        <PillRow
-          items={categories}
-          activeIndex={activeCategory}
-          onSelect={setActiveCategory}
+        <CrystalSelect
+          value={String(activeCategory)}
+          onChange={(value) => setActiveCategory(Number(value))}
+          options={categories.map((label, index) => ({ value: String(index), label }))}
+          ariaLabel={isEnglish ? 'Filter grand events by type' : 'Filtrar eventos magnos por tipo'}
+          className="relative z-30"
+          buttonClassName="min-h-12 rounded-[1.15rem] border-white/70 bg-[rgba(255,252,247,0.78)] px-4 text-[13px] font-semibold text-[#513d34] shadow-[0_16px_34px_rgba(37,47,55,0.1)] backdrop-blur-2xl"
+          menuClassName="z-[320] rounded-[1.2rem] border-white/76 bg-[linear-gradient(180deg,rgba(255,252,247,0.98),rgba(247,242,234,0.96))]"
         />
       </section>
 
@@ -141,9 +146,11 @@ export function EventsScreen() {
         <section className="grid gap-4">
           {filteredEvents.map((event) => {
             const title = textField(event, 'title', t('app.nav.events'))
-            const price = numberField(event, 'price')
+            const price = eventMinimumTicketPrice(event, numberField(event, 'price'))
             const venue = eventVenueForRecord(event)
             const kind = eventKindLabel(metadataField(event, 'event_kind'))
+            const reservationPhone = metadataField(event, 'reservation_phone')
+            const salesDisabled = event.sales_enabled === false
 
             return (
               <EditorialCard
@@ -167,7 +174,9 @@ export function EventsScreen() {
                     <StatusBadge>{venue.title}</StatusBadge>
                     <StatusBadge>{kind}</StatusBadge>
                     <StatusBadge>
-                      {price > 0
+                      {salesDisabled && reservationPhone
+                        ? (isEnglish ? 'Phone reservation' : 'Reserva por teléfono')
+                        : price > 0
                         ? formatCurrency(price, locale)
                         : t('app.premium.events.ticketPending')}
                     </StatusBadge>

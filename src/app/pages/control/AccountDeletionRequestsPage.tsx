@@ -44,7 +44,7 @@ function sourceLabel(source: string) {
 }
 
 function statusTone(status: AccountDeletionStatus) {
-  if (status === 'completed') return 'border-[#b9d3bd] bg-[#edf6ed] text-[#397246]'
+  if (status === 'completed') return 'border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] text-[#252F37]'
   if (['rejected', 'cancelled'].includes(status)) return 'border-[#e1bcb4] bg-[#fff0ed] text-[#994638]'
   if (['confirmed', 'in_progress'].includes(status)) return 'border-[#d7c29b] bg-[#fff7e8] text-[#896126]'
   return 'border-[#d8c6b2] bg-[#f8f0e7] text-[#705746]'
@@ -174,7 +174,7 @@ export function AccountDeletionRequestsPage() {
       </section>
 
       {error ? <p role="alert" className="rounded-xl border border-[#e3b8ad] bg-[#fff2ef] p-4 text-sm text-[#944431]">{error}</p> : null}
-      {notice ? <p role="status" className="rounded-xl border border-[#bfd2bd] bg-[#f0f7ee] p-4 text-sm text-[#3f7747]">{notice}</p> : null}
+      {notice ? <p role="status" className="rounded-xl border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] p-4 text-sm text-[#252F37]">{notice}</p> : null}
 
       <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(460px,0.92fr)_minmax(520px,1.08fr)]">
         <div className="min-w-0 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">

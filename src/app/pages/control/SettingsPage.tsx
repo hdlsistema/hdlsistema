@@ -359,7 +359,7 @@ export function SettingsPage() {
             </button>
 
 	            {saved ? (
-              <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(98,142,105,0.24)] bg-[#edf6ee] px-4 text-sm font-medium text-[#47724b]">
+              <span className="inline-flex min-h-11 items-center gap-2 rounded-full border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] px-4 text-sm font-medium text-[#252F37]">
                 <CheckCircle2 size={16} />
                 {copy.saved}
               </span>

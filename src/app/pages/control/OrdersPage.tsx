@@ -343,15 +343,24 @@ export function OrdersPage() {
           </div>
           {loading ? <State text="Cargando órdenes..." /> : orders.length === 0 ? <State title="Sin órdenes" text="Crea una orden manual vinculada a un cliente registrado." /> : (
             <div className="divide-y divide-[var(--color-line)]">
+              <div className="control-orders-list-header">
+                <span>Orden / cliente</span>
+                <span>Operación</span>
+                <span>Total</span>
+                <span>Pago</span>
+              </div>
               {orders.map((order) => (
-                <button key={order.id} type="button" onClick={() => setSelectedId(order.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.7fr_0.6fr_auto]" style={{ backgroundColor: selected?.id === order.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
+                <button key={order.id} type="button" onClick={() => setSelectedId(order.id)} className="control-orders-list-row" style={{ backgroundColor: selected?.id === order.id ? 'rgba(37,47,55,0.07)' : 'transparent' }}>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{order.orderNumber}</p>
                     <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{order.customerName || 'Cliente sin nombre'}</p>
                   </div>
-                  <p className="text-xs text-[var(--color-muted)]">{order.requiresShipping ? shippingStatusLabel(order.shippingStatus) : order.reservationNumber ?? 'Sin reservación'}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-[var(--color-ink)]">{order.requiresShipping ? 'Envío físico' : 'Servicio sin envío'}</p>
+                    <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{order.requiresShipping ? shippingStatusLabel(order.shippingStatus) : order.reservationNumber ?? 'Sin reservación'}</p>
+                  </div>
                   <p className="text-xs font-semibold text-[var(--color-ink)]">{financialAccess ? money(order.total, order.currency) : 'Sin importes'}</p>
-                  <StatusBadge label={order.status} />
+                  <div className="flex justify-start lg:justify-end"><StatusBadge label={order.status} /></div>
                 </button>
               ))}
             </div>
@@ -614,5 +623,5 @@ function Input({ label, value, onChange, type = 'text', min, required }: { label
 }
 
 function Toast({ value, onClose }: { value: string; onClose: () => void }) {
-  return <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[#cfddca] bg-white p-4 text-sm font-semibold text-[#5f7d63] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{value}<button type="button" onClick={onClose} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button></div>
+  return <div className="fixed bottom-6 right-6 z-[140] rounded-[1rem] border border-[rgba(37,47,55,0.24)] bg-white p-4 text-sm font-semibold text-[#252F37] shadow-[0_22px_50px_rgba(45,22,14,0.18)]">{value}<button type="button" onClick={onClose} className="ml-4 text-[var(--color-muted)]"><X size={14} /></button></div>
 }

@@ -370,7 +370,7 @@ export function StatusBadge({
       className={cx(
         'inline-flex min-h-7 items-center gap-1.5 rounded-full px-3 text-[10px] font-semibold',
         tone === 'neutral' && 'bg-[var(--color-surface-warm)] text-[var(--color-muted-strong)]',
-        tone === 'success' && 'bg-[rgba(63,117,79,0.12)] text-[var(--color-vineyard)]',
+        tone === 'success' && 'bg-[rgba(37,47,55,0.1)] text-[var(--color-vineyard)]',
         tone === 'warning' && 'bg-[rgba(170,125,67,0.14)] text-[var(--color-gold)]',
         tone === 'danger' && 'bg-[rgba(154,68,59,0.12)] text-[var(--color-alert)]',
       )}
@@ -441,7 +441,7 @@ export function AppToast({ message, tone = 'neutral' }: { message: string; tone?
       className={cx(
         'rounded-[1rem] px-4 py-3 text-[12px] leading-5 shadow-[var(--shadow-soft)]',
         tone === 'neutral' && 'bg-[var(--color-panel)] text-[var(--color-muted)]',
-        tone === 'success' && 'bg-[rgba(63,117,79,0.1)] text-[var(--color-vineyard)]',
+        tone === 'success' && 'bg-[rgba(37,47,55,0.1)] text-[var(--color-vineyard)]',
         tone === 'danger' && 'bg-[rgba(154,68,59,0.1)] text-[var(--color-alert)]',
       )}
     >
@@ -602,7 +602,7 @@ export const MembershipCard = EditorialCard
 
 export function InlineSuccess({ children }: { children: ReactNode }) {
   return (
-    <p className="inline-flex items-start gap-2 rounded-[1rem] bg-[rgba(63,117,79,0.1)] px-4 py-3 text-[12px] leading-5 text-[var(--color-vineyard)]">
+    <p className="inline-flex items-start gap-2 rounded-[1rem] bg-[rgba(37,47,55,0.1)] px-4 py-3 text-[12px] leading-5 text-[var(--color-vineyard)]">
       <CheckCircle2 size={15} className="mt-0.5 shrink-0" />
       {children}
     </p>

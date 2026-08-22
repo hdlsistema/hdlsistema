@@ -543,7 +543,7 @@ export function CustomersPage() {
         </div>
 
         {toast ? (
-          <div className="rounded-md border border-[#b7d7bd] bg-[#eef8f0] px-4 py-3 text-sm font-medium text-[#35623d]">
+          <div className="rounded-md border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] px-4 py-3 text-sm font-medium text-[#252F37]">
             {toast}
           </div>
         ) : null}

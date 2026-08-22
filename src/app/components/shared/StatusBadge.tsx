@@ -56,7 +56,7 @@ export function StatusBadge({ label }: StatusBadgeProps) {
       : mappedLabel
 
   const tone = positiveLabels.has(sanitizedLabel)
-    ? 'border-[rgba(61,122,77,0.25)] bg-[rgba(61,122,77,0.08)] text-[var(--color-positive)]'
+    ? 'border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] text-[var(--color-positive)]'
     : warningLabels.has(sanitizedLabel)
       ? 'border-[rgba(180,138,85,0.3)] bg-[rgba(180,138,85,0.12)] text-[var(--color-gold)]'
       : 'border-[rgba(157,71,63,0.28)] bg-[rgba(157,71,63,0.08)] text-[var(--color-alert)]'

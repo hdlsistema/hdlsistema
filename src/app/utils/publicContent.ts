@@ -43,6 +43,20 @@ type GalleryImage = {
   deleted_at?: string | null
 }
 
+type PublicTicketType = {
+  id?: string
+  price?: number | string | null
+  active?: boolean | null
+  status?: string | null
+  visible_in_app?: boolean | null
+  sales_start_at?: string | null
+  sales_end_at?: string | null
+  publish_at?: string | null
+  unpublish_at?: string | null
+  archived_at?: string | null
+  deleted_at?: string | null
+}
+
 function isLiveGalleryImage(image: GalleryImage) {
   const now = Date.now()
   const startsAt = image.publish_at ? new Date(image.publish_at).getTime() : null
@@ -73,6 +87,40 @@ export function galleryImages(record: ContentRecord, key: string, fallbackUrl = 
 
   if (liveImages.length > 0) return liveImages
   return fallbackUrl ? [{ id: fallbackUrl, url: fallbackUrl, alt: '' }] : []
+}
+
+function isLiveTicketType(ticket: PublicTicketType) {
+  const now = Date.now()
+  const starts = ticket.sales_start_at ? new Date(ticket.sales_start_at).getTime() : null
+  const ends = ticket.sales_end_at ? new Date(ticket.sales_end_at).getTime() : null
+  const publishes = ticket.publish_at ? new Date(ticket.publish_at).getTime() : null
+  const unpublishes = ticket.unpublish_at ? new Date(ticket.unpublish_at).getTime() : null
+  return ticket.active !== false
+    && ticket.visible_in_app !== false
+    && ticket.status === 'published'
+    && !ticket.archived_at
+    && !ticket.deleted_at
+    && (starts === null || starts <= now)
+    && (ends === null || ends >= now)
+    && (publishes === null || publishes <= now)
+    && (unpublishes === null || unpublishes > now)
+}
+
+export function liveEventTicketTypes(record: ContentRecord) {
+  const value = record.event_ticket_types
+  return Array.isArray(value)
+    ? value
+      .filter((item): item is PublicTicketType => Boolean(item && typeof item === 'object'))
+      .filter(isLiveTicketType)
+    : []
+}
+
+export function eventMinimumTicketPrice(record: ContentRecord, fallback = 0) {
+  const prices = liveEventTicketTypes(record)
+    .map((ticket) => Number(ticket.price ?? 0))
+    .filter((price) => Number.isFinite(price) && price > 0)
+
+  return prices.length ? Math.min(...prices) : fallback
 }
 
 export function formatCurrency(value: number, locale: AppLocale = DEFAULT_LOCALE) {

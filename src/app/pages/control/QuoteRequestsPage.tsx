@@ -432,7 +432,7 @@ export function QuoteRequestsPage() {
 	            />
 	          </div>
           {error ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
-          {success ? <p className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{success}</p> : null}
+          {success ? <p className="mt-4 rounded-2xl border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] px-4 py-3 text-sm text-[#252F37]">{success}</p> : null}
           <div className="mt-4 overflow-hidden rounded-[1.1rem] border border-[rgba(200,171,136,0.32)] bg-white/48">
             {loading ? (
               <div className="flex min-h-44 items-center justify-center text-[var(--color-muted)]"><Loader2 className="animate-spin" /></div>

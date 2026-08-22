@@ -116,6 +116,30 @@ function buildStatusPatch(config: ContentConfig, action: PublicationAction) {
   }
 }
 
+function timestamp(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return null
+  const time = new Date(value).getTime()
+  return Number.isFinite(time) ? time : null
+}
+
+function assertPublicationWindowReady(record: Record<string, unknown>) {
+  const publishAt = timestamp(record.publish_at)
+  const unpublishAt = timestamp(record.unpublish_at)
+  const startAt = timestamp(record.start_at)
+
+  if (publishAt !== null && unpublishAt !== null && unpublishAt <= publishAt) {
+    throw httpError(422, 'La fecha de retiro debe ser posterior a la fecha de publicación')
+  }
+
+  if (unpublishAt !== null && unpublishAt <= Date.now()) {
+    throw httpError(422, 'La fecha de retiro ya venció; elimínala o elige una fecha futura para publicar en app')
+  }
+
+  if (startAt !== null && unpublishAt !== null && unpublishAt <= startAt) {
+    throw httpError(422, 'La fecha de retiro debe ser posterior al inicio del evento')
+  }
+}
+
 function clonePayload(row: Record<string, unknown>, config: ContentConfig) {
   const blocked = new Set([
     'id',
@@ -929,6 +953,9 @@ export async function createAdminContent(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'create', user)
+  if (config.publicEnabled && payload.status === config.publishStatus) {
+    assertPublicationWindowReady(payload)
+  }
   if (isEventContentRoute(routeEntity) && payload.status === 'published' && payload.sales_enabled === true) {
     throw httpError(422, 'Guarda el evento como borrador, configura sus boletos y después publícalo')
   }
@@ -943,13 +970,19 @@ export async function updateAdminContent(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, 'update', user)
-  const current = isEventContentRoute(routeEntity) || config.defaultMetadata
+  const current = config.publicEnabled || config.defaultMetadata
     ? await getContentById(config, id)
     : null
   if (isEventContentRoute(routeEntity)) {
     if (!current?.data) throw httpError(404, 'Evento no encontrado')
     const candidate = { ...(current.data as unknown as Record<string, unknown>), ...payload }
-    if (candidate.status === 'published') await assertEventSalesReady(id, candidate)
+    if (candidate.status === 'published') {
+      assertPublicationWindowReady(candidate)
+      await assertEventSalesReady(id, candidate)
+    }
+  } else if (config.publicEnabled && payload.status === config.publishStatus) {
+    const candidate = { ...(current?.data as unknown as Record<string, unknown> | undefined), ...payload }
+    assertPublicationWindowReady(candidate)
   }
   return updateContent(
     config,
@@ -972,12 +1005,15 @@ export async function applyPublicationAction(
 ) {
   const config = assertEntity(routeEntity)
   requirePermission(config, action, user)
-  const current = (isEventContentRoute(routeEntity) && action === 'publish') || config.defaultMetadata
+  const current = (config.publicEnabled && action === 'publish') || config.defaultMetadata
     ? await getContentById(config, id)
     : null
   if (isEventContentRoute(routeEntity) && action === 'publish') {
     if (!current?.data) throw httpError(404, 'Evento no encontrado')
+    assertPublicationWindowReady(current.data as unknown as Record<string, unknown>)
     await assertEventSalesReady(id, current.data as unknown as Record<string, unknown>)
+  } else if (config.publicEnabled && action === 'publish' && current?.data) {
+    assertPublicationWindowReady(current.data as unknown as Record<string, unknown>)
   }
   const statusPatch: Record<string, unknown> = buildStatusPatch(config, action)
   if (routeEntity === 'grand-events' && action === 'publish' && current?.data) {
@@ -1028,6 +1064,7 @@ export async function schedulePublicationAction(
   if (isEventContentRoute(routeEntity) && action === 'publish') {
     const current = await getContentById(config, id)
     if (!current.data) throw httpError(404, 'Evento no encontrado')
+    assertPublicationWindowReady(current.data as unknown as Record<string, unknown>)
     await assertEventSalesReady(id, current.data as unknown as Record<string, unknown>)
   }
   return createPublicationJob(config, id, action, runAt, timezone, user.userId)

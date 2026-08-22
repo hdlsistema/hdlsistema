@@ -632,7 +632,7 @@ export function ReservationScreen() {
         </section>
       ) : null}
 
-      {message ? <p className="rounded-[1rem] bg-[#edf5ed] p-3 text-[12px] text-[#3f6f4b]">{message}</p> : null}
+      {message ? <p className="rounded-[1rem] bg-[rgba(37,47,55,0.08)] p-3 text-[12px] text-[#252F37]">{message}</p> : null}
       {operationError ? <p className="rounded-[1rem] bg-[rgba(157,71,63,0.08)] p-3 text-[12px] text-[var(--color-alert)]">{operationError}</p> : null}
 
       <PrimaryButton onClick={createReservation} disabled={!selectedSlot || submitting}>

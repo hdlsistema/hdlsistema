@@ -91,7 +91,7 @@ function DashboardPanel({
 
 function RadialGauge({ label, value, tone }: { label: string; value: number; tone: 'wine' | 'forest' }) {
   const percentage = clampPercent(value)
-  const color = tone === 'forest' ? '#466b52' : '#6b142d'
+  const color = tone === 'forest' ? '#252F37' : '#681126'
   return (
     <div className="control-radial-gauge">
       <div
