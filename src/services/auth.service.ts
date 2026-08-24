@@ -1,7 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js'
 import { Capacitor } from '@capacitor/core'
 import { Browser } from '@capacitor/browser'
-import { supabase } from '../lib/supabase'
+import { setAuthSessionPersistence, supabase } from '../lib/supabase'
 import type { Database } from '../types/database.types'
 import { requestNativeAppleCredential } from './nativeAppleAuth'
 import { apiFetch, type ApiFetchError } from './api'
@@ -24,6 +24,10 @@ export type SignUpCustomerInput = {
   lastName: string
   phone?: string
   preferredLanguage?: 'es' | 'en'
+}
+
+export type SignInOptions = {
+  rememberSession?: boolean
 }
 
 const APP_URL = (import.meta.env.VITE_APP_URL || window.location.origin).replace(
@@ -118,8 +122,9 @@ export async function signUpCustomer(input: SignUpCustomerInput): Promise<{
   }
 }
 
-export async function signIn(email: string, password: string) {
+export async function signIn(email: string, password: string, options: SignInOptions = {}) {
   try {
+    setAuthSessionPersistence(options.rememberSession ?? true)
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,

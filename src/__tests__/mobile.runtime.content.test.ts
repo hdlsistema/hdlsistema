@@ -148,11 +148,17 @@ describe('mobile runtime server-driven content', () => {
     expect(response.data.cabins.every((item) => item.coverImageUrl?.includes('/services/cabins/'))).toBe(true)
   })
 
-  it('no deja campañas ni promociones como contenido visible en Home mobile', () => {
+  it('deja promociones publicadas en Home mobile sin exponer campañas internas', () => {
     const home = readFileSync(resolve(__dirname, '../app/pages/mobile/HomeScreen.tsx'), 'utf8')
+    const router = readFileSync(resolve(__dirname, '../mobile/MobileRouter.tsx'), 'utf8')
+    const edgePanel = readFileSync(resolve(__dirname, '../app/components/mobile/AppEdgePanel.tsx'), 'utf8')
+    const promotionsScreen = readFileSync(resolve(__dirname, '../app/pages/mobile/PromotionsScreen.tsx'), 'utf8')
 
     expect(home).not.toContain("usePublicContent('campaigns')")
-    expect(home).not.toContain("usePublicContent('promotions')")
+    expect(home).toContain("usePublicContent('promotions')")
+    expect(router).toContain('path="promociones"')
+    expect(edgePanel).toContain("appPath('/promociones')")
+    expect(promotionsScreen).toContain("usePublicContent('promotions')")
     expect(home).not.toMatch(/campaign[A-Z]|featuredPromotion|liveCampaigns/)
   })
 

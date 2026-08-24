@@ -42,6 +42,11 @@ export type OrderRecord = {
   fulfilledAt?: string | null
   requiresShipping?: boolean
   shippingStatus?: string | null
+  itemSummary?: string | null
+  itemImageUrl?: string | null
+  itemTypes?: string[]
+  itemCount?: number
+  totalQuantity?: number
   shippingAddress?: {
     recipientName: string
     phone?: string | null
@@ -57,6 +62,7 @@ export type OrderRecord = {
   } | null
   shipment?: {
     id: string
+    shipmentNumber?: string | null
     carrier?: string | null
     trackingNumber?: string | null
     trackingUrl?: string | null
@@ -85,8 +91,17 @@ export type OrderItemRecord = {
 export type PaymentRecord = {
   id: string
   orderId: string
+  providerPaymentId?: string | null
   orderNumber?: string | null
+  orderStatus?: string | null
+  orderSource?: string | null
+  orderTotal?: number | null
+  orderCurrency?: string | null
+  orderCreatedAt?: string | null
+  orderReservationId?: string | null
+  orderMetadata?: Record<string, unknown> | null
   customerName?: string | null
+  customerEmail?: string | null
   provider: string
   providerEnvironment: string
   status: string
@@ -97,9 +112,32 @@ export type PaymentRecord = {
   paymentReference?: string | null
   hasReceipt: boolean
   paidAt?: string | null
+  failedAt?: string | null
   refundedAt?: string | null
   refundReason?: string | null
   notes?: string | null
+  itemSummary?: string | null
+  items?: Array<{
+    id: string
+    itemType?: string | null
+    name: string
+    sku?: string | null
+    quantity: number
+    unitPrice: number
+    subtotal: number
+  }>
+  createdAt: string
+  updatedAt?: string
+}
+
+export type OrderHistoryRecord = {
+  id: string
+  action: string
+  entityType: string
+  actorUserId?: string | null
+  actorName?: string | null
+  beforeData?: Record<string, unknown>
+  afterData?: Record<string, unknown>
   createdAt: string
 }
 
@@ -108,12 +146,24 @@ export type AccessPassRecord = {
   reservationId?: string | null
   orderId?: string | null
   eventTicketTypeId?: string | null
+  eventId?: string | null
   accessType?: string | null
   passNumber?: string | null
   reservationNumber?: string | null
   orderNumber?: string | null
   guestName?: string | null
+  guestEmail?: string | null
   eventOrExperience?: string | null
+  eventImageUrl?: string | null
+  eventCapacity?: number | null
+  eventStartsAt?: string | null
+  eventEndsAt?: string | null
+  ticketTypeName?: string | null
+  ticketCapacity?: number | null
+  purchaseSource?: string | null
+  purchasedAt?: string | null
+  orderTotal?: number | null
+  reservationTotal?: number | null
   peopleCount?: number | null
   status: string
   validFrom?: string | null
@@ -131,7 +181,21 @@ export type CheckinRecord = {
   accessPassId: string
   passNumber?: string | null
   reservationNumber?: string | null
+  orderNumber?: string | null
+  guestName?: string | null
+  guestEmail?: string | null
+  eventId?: string | null
   eventOrExperience?: string | null
+  eventImageUrl?: string | null
+  eventCapacity?: number | null
+  eventStartsAt?: string | null
+  eventEndsAt?: string | null
+  ticketTypeName?: string | null
+  purchaseSource?: string | null
+  purchasedAt?: string | null
+  orderTotal?: number | null
+  validUntil?: string | null
+  passStatus?: string | null
   checkedInAt: string
   reversedAt?: string | null
   reversalReason?: string | null
@@ -154,6 +218,7 @@ export type AccessPassValidation = {
   experienceTitle?: string | null
   ticketTypeName?: string | null
   usedAt?: string | null
+  validUntil?: string | null
 }
 
 export const ordersClient = {
@@ -240,7 +305,7 @@ export const ordersClient = {
     })
   },
   history(token: string | null | undefined, id: string) {
-    return apiFetch<{ ok: true; data: Array<{ id: string; action: string; entityType: string; createdAt: string }> }>(
+    return apiFetch<{ ok: true; data: OrderHistoryRecord[] }>(
       `/api/admin/orders/${encodeURIComponent(id)}/history`,
       { headers: adminHeaders(token) },
     )

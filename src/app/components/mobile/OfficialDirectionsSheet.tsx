@@ -36,7 +36,7 @@ export function OfficialDirectionsSheet({
         </p>
         <div className="mt-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
           <button type="button" onClick={() => openDirections('google')} className="flex min-h-14 items-center justify-center gap-2 rounded-[15px] border border-[rgba(184,138,74,0.28)] bg-white text-[12px] font-semibold text-[var(--color-ink)]"><MapPin size={17} className="text-[var(--color-burgundy)]" />Google Maps<ExternalLink size={13} /></button>
-          <button type="button" onClick={() => openDirections('waze')} className="app-burgundy-cta flex min-h-14 items-center justify-center gap-2 rounded-[15px] bg-[linear-gradient(135deg,#7d1435,#57071d)] text-[12px] font-semibold text-white"><Navigation size={17} />Waze<ExternalLink size={13} /></button>
+          <button type="button" onClick={() => openDirections('waze')} className="app-burgundy-cta flex min-h-14 items-center justify-center gap-2 rounded-[15px] bg-[linear-gradient(135deg,#5B0B1F,#33040F)] text-[12px] font-semibold text-white"><Navigation size={17} />Waze<ExternalLink size={13} /></button>
         </div>
       </section>
     </div>

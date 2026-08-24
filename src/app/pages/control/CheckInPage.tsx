@@ -1,6 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import jsQR from 'jsqr'
-import { Camera, Check, Download, KeyRound, QrCode, RefreshCw, RotateCcw, ShieldCheck, Ticket, X } from 'lucide-react'
+import {
+  CalendarClock,
+  Camera,
+  Check,
+  ClipboardList,
+  Download,
+  ExternalLink,
+  ImageIcon,
+  KeyRound,
+  QrCode,
+  ReceiptText,
+  RefreshCw,
+  RotateCcw,
+  ShieldCheck,
+  Ticket,
+  UserCheck,
+  Users,
+  WalletCards,
+  X,
+} from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   accessPassClient,
@@ -33,6 +53,23 @@ type PendingCheckinAction = {
   success: string
 }
 
+export type CheckinEventGroup = {
+  key: string
+  title: string
+  imageUrl: string | null
+  capacity: number
+  checkedIn: number
+  totalPasses: number
+  totalGuests: number
+  occupancy: number
+  startsAt: string | null
+  endsAt: string | null
+  ticketTotal: number | null
+  sources: string[]
+  passes: AccessPassRecord[]
+  checkins: CheckinRecord[]
+}
+
 const emptyPassForm: PassForm = {
   reservationId: '',
   validFrom: '',
@@ -42,6 +79,152 @@ const emptyPassForm: PassForm = {
 function dateLabel(value?: string | null) {
   if (!value) return 'Sin fecha'
   return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
+function shortDateLabel(value?: string | null) {
+  if (!value) return 'Sin fecha'
+  return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+}
+
+function moneyLabel(value?: number | null) {
+  if (value === null || value === undefined) return 'Sin total'
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(value)
+}
+
+export function sourceLabel(value?: string | null) {
+  const raw = String(value ?? '').trim()
+  const normalized = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  if (!raw) return 'Sin origen'
+  if (normalized.includes('app') || normalized.includes('mobile')) return 'App'
+  if (normalized.includes('web') || normalized.includes('public') || normalized.includes('online')) return 'Web'
+  if (normalized.includes('control') || normalized.includes('manual') || normalized.includes('mostrador') || normalized.includes('hacienda')) return 'Hacienda'
+  return raw
+}
+
+export function occupancyPercent(checkedIn: number, capacity: number) {
+  if (!Number.isFinite(capacity) || capacity <= 0) return 0
+  return Math.max(0, Math.min(100, Math.round((checkedIn / capacity) * 100)))
+}
+
+function positiveNumber(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+function latestDate(values: Array<string | null | undefined>) {
+  return values
+    .filter(Boolean)
+    .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0] ?? null
+}
+
+function accessGroupKey(pass: AccessPassRecord) {
+  if (pass.eventId) return `${pass.accessType ?? 'evento'}:${pass.eventId}`
+  if (pass.eventTicketTypeId) return `boleto:${pass.eventTicketTypeId}`
+  if (pass.reservationId) return `reservacion:${pass.reservationId}`
+  return `pase:${pass.id}`
+}
+
+function eventEditPath(group: CheckinEventGroup) {
+  const eventId = group.passes.find((pass) => pass.eventId)?.eventId ?? group.checkins.find((checkin) => checkin.eventId)?.eventId
+  return eventId ? `/control/eventos-magnos?recordId=${encodeURIComponent(eventId)}` : null
+}
+
+function emptyGroupFromPass(pass: AccessPassRecord): CheckinEventGroup {
+  const fallbackTitle = pass.ticketTypeName ?? pass.reservationNumber ?? pass.orderNumber ?? pass.passNumber ?? 'Acceso'
+  const capacity = positiveNumber(pass.eventCapacity) || positiveNumber(pass.ticketCapacity) || positiveNumber(pass.peopleCount) || 1
+  return {
+    key: accessGroupKey(pass),
+    title: pass.eventOrExperience ?? fallbackTitle,
+    imageUrl: pass.eventImageUrl ?? null,
+    capacity,
+    checkedIn: 0,
+    totalPasses: 0,
+    totalGuests: 0,
+    occupancy: 0,
+    startsAt: pass.eventStartsAt ?? pass.validFrom ?? null,
+    endsAt: pass.eventEndsAt ?? pass.validUntil ?? null,
+    ticketTotal: null,
+    sources: [],
+    passes: [],
+    checkins: [],
+  }
+}
+
+export function buildCheckinEventGroups(passes: AccessPassRecord[], checkins: CheckinRecord[]) {
+  const groups = new Map<string, CheckinEventGroup>()
+  const passById = new Map(passes.map((pass) => [pass.id, pass]))
+  const totalsByGroup = new Map<string, Map<string, number>>()
+
+  const recordTotal = (groupKey: string, transactionKey: string, value?: number | null) => {
+    if (!value || value <= 0) return
+    const totals = totalsByGroup.get(groupKey) ?? new Map<string, number>()
+    totals.set(transactionKey, value)
+    totalsByGroup.set(groupKey, totals)
+  }
+
+  for (const pass of passes) {
+    const key = accessGroupKey(pass)
+    const current = groups.get(key) ?? emptyGroupFromPass(pass)
+    const capacity = positiveNumber(pass.eventCapacity) || positiveNumber(pass.ticketCapacity)
+    current.capacity = Math.max(current.capacity, capacity || 0)
+    current.totalPasses += 1
+    current.totalGuests += positiveNumber(pass.peopleCount) || 1
+    recordTotal(key, pass.orderId ? `orden:${pass.orderId}` : pass.reservationId ? `reservacion:${pass.reservationId}` : `pase:${pass.id}`, pass.orderTotal ?? pass.reservationTotal)
+    current.startsAt = current.startsAt ?? pass.eventStartsAt ?? pass.validFrom ?? null
+    current.endsAt = current.endsAt ?? pass.eventEndsAt ?? pass.validUntil ?? null
+    current.imageUrl = current.imageUrl ?? pass.eventImageUrl ?? null
+    const source = sourceLabel(pass.purchaseSource)
+    if (source !== 'Sin origen' && !current.sources.includes(source)) current.sources.push(source)
+    current.passes.push(pass)
+    groups.set(key, current)
+  }
+
+  for (const checkin of checkins) {
+    const pass = passById.get(checkin.accessPassId)
+    const key = pass ? accessGroupKey(pass) : checkin.eventId ? `evento:${checkin.eventId}` : `pase:${checkin.accessPassId}`
+    const current = groups.get(key) ?? {
+      key,
+      title: checkin.eventOrExperience ?? checkin.ticketTypeName ?? checkin.reservationNumber ?? checkin.orderNumber ?? 'Acceso',
+      imageUrl: checkin.eventImageUrl ?? null,
+      capacity: positiveNumber(checkin.eventCapacity) || 1,
+      checkedIn: 0,
+      totalPasses: 0,
+      totalGuests: 0,
+      occupancy: 0,
+      startsAt: checkin.eventStartsAt ?? null,
+      endsAt: checkin.eventEndsAt ?? checkin.validUntil ?? null,
+      ticketTotal: checkin.orderTotal ?? null,
+      sources: [],
+      passes: [],
+      checkins: [],
+    }
+    if (checkin.status === 'active') current.checkedIn += 1
+    current.capacity = Math.max(current.capacity, positiveNumber(checkin.eventCapacity) || 0)
+    current.imageUrl = current.imageUrl ?? checkin.eventImageUrl ?? null
+    current.startsAt = current.startsAt ?? checkin.eventStartsAt ?? null
+    current.endsAt = current.endsAt ?? checkin.eventEndsAt ?? checkin.validUntil ?? null
+    const source = sourceLabel(checkin.purchaseSource)
+    if (source !== 'Sin origen' && !current.sources.includes(source)) current.sources.push(source)
+    if (!pass) {
+      recordTotal(key, checkin.orderNumber ? `orden:${checkin.orderNumber}` : checkin.reservationNumber ? `reservacion:${checkin.reservationNumber}` : `pase:${checkin.accessPassId}`, checkin.orderTotal)
+    }
+    current.checkins.push(checkin)
+    groups.set(key, current)
+  }
+
+  return Array.from(groups.values()).map((group) => {
+    const capacity = group.capacity || group.totalGuests || group.totalPasses || group.checkedIn || 1
+    return {
+      ...group,
+      capacity,
+      ticketTotal: Array.from(totalsByGroup.get(group.key)?.values() ?? []).reduce((sum, value) => sum + value, 0) || null,
+      occupancy: occupancyPercent(group.checkedIn, capacity),
+    }
+  }).sort((a, b) => {
+    const aDate = latestDate([a.startsAt, a.endsAt, a.passes[0]?.issuedAt, a.checkins[0]?.checkedInAt])
+    const bDate = latestDate([b.startsAt, b.endsAt, b.passes[0]?.issuedAt, b.checkins[0]?.checkedInAt])
+    return new Date(bDate ?? 0).getTime() - new Date(aDate ?? 0).getTime()
+  })
 }
 
 function isoOrNull(value: string) {
@@ -81,6 +264,7 @@ export function CheckInPage() {
   const [checkins, setCheckins] = useState<CheckinRecord[]>([])
   const [reservations, setReservations] = useState<ReservationRecord[]>([])
   const [selectedPassId, setSelectedPassId] = useState<string | null>(null)
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null)
   const [code, setCode] = useState('')
   const [validation, setValidation] = useState<AccessPassValidation | null>(null)
   const [loading, setLoading] = useState(true)
@@ -99,9 +283,16 @@ export function CheckInPage() {
   const scannerStreamRef = useRef<MediaStream | null>(null)
   const scannerFrameRef = useRef<number | null>(null)
 
+  const eventGroups = useMemo(() => buildCheckinEventGroups(passes, checkins), [checkins, passes])
+
+  const selectedGroup = useMemo(
+    () => eventGroups.find((item) => item.key === selectedGroupKey) ?? eventGroups[0] ?? null,
+    [eventGroups, selectedGroupKey],
+  )
+
   const selectedPass = useMemo(
-    () => passes.find((item) => item.id === selectedPassId) ?? passes[0] ?? null,
-    [passes, selectedPassId],
+    () => passes.find((item) => item.id === selectedPassId) ?? selectedGroup?.passes[0] ?? passes[0] ?? null,
+    [passes, selectedGroup, selectedPassId],
   )
 
   const loadCheckin = useCallback(async () => {
@@ -115,6 +306,8 @@ export function CheckInPage() {
       setPasses(passResponse.data)
       setCheckins(checkinResponse.data)
       setSelectedPassId((current) => current ?? passResponse.data[0]?.id ?? null)
+      const nextGroups = buildCheckinEventGroups(passResponse.data, checkinResponse.data)
+      setSelectedGroupKey((current) => current && nextGroups.some((group) => group.key === current) ? current : nextGroups[0]?.key ?? null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No fue posible cargar check-in.')
     } finally {
@@ -134,10 +327,12 @@ export function CheckInPage() {
   }, [formOpen, token])
 
   const metrics = useMemo(() => ({
+    events: eventGroups.length,
+    capacity: eventGroups.reduce((sum, item) => sum + item.capacity, 0),
     activePasses: passes.filter((item) => item.status === 'published' && !item.revokedAt && !item.usedAt && (!item.validUntil || new Date(item.validUntil).getTime() >= Date.now())).length,
     used: passes.filter((item) => item.usedAt).length,
     activeCheckins: checkins.filter((item) => item.status === 'active').length,
-  }), [checkins, passes])
+  }), [checkins, eventGroups, passes])
 
   const submitPass = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -364,10 +559,12 @@ export function CheckInPage() {
         </div>
       </div>
 
-      <section className="grid gap-4 sm:grid-cols-3">
+      <section className="control-checkin-kpis grid gap-3 sm:grid-cols-5">
+        <Metric icon={ClipboardList} label="Eventos" value={String(metrics.events)} />
+        <Metric icon={Users} label="Capacidad" value={String(metrics.capacity)} />
         <Metric icon={Ticket} label="Pases activos" value={String(metrics.activePasses)} />
         <Metric icon={ShieldCheck} label="Usados" value={String(metrics.used)} />
-        <Metric icon={Check} label="Check-ins" value={String(metrics.activeCheckins)} />
+        <Metric icon={UserCheck} label="Entradas" value={String(metrics.activeCheckins)} />
       </section>
 
       <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
@@ -402,60 +599,84 @@ export function CheckInPage() {
 
       {error ? <div className="rounded-[var(--radius-card)] border border-[#ead8c5] bg-[#fff7ed] p-4 text-sm text-[#8a4b16]">{error}</div> : null}
 
-      <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
-        <div className="min-w-0 overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-          <div className="flex items-center justify-between border-b border-[var(--color-line)] px-5 py-4">
-            <h3 className="text-lg font-semibold text-[var(--color-ink)]">Pases de acceso</h3>
-            <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{passes.length} registros</span>
+      <section className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Eventos con QR</p>
+            <h3 className="mt-1 text-base font-semibold text-[var(--color-ink)]">Ocupación por evento y reservación</h3>
           </div>
-          {loading ? <State text="Cargando pases..." /> : passes.length === 0 ? <State title="Sin pases emitidos" text="Los boletos de evento se generan al pagar; los pases manuales se emiten desde una reservación." /> : (
-            <div className="divide-y divide-[var(--color-line)]">
-              {passes.map((pass) => (
-                <button key={pass.id} type="button" onClick={() => setSelectedPassId(pass.id)} className="grid w-full gap-4 px-5 py-4 text-left lg:grid-cols-[1fr_0.8fr_auto]" style={{ backgroundColor: selectedPass?.id === pass.id ? 'rgba(180,138,85,0.12)' : 'transparent' }}>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-[var(--color-ink)]">{pass.passNumber ?? 'Pase'}</p>
-                    <p className="mt-1 truncate text-xs text-[var(--color-muted)]">{pass.guestName ?? 'Invitado'} · {pass.eventOrExperience ?? 'Acceso'}</p>
-                  </div>
-                  <p className="text-xs text-[var(--color-muted)]">{pass.usedAt ? `Usado ${dateLabel(pass.usedAt)}` : 'Sin uso'}</p>
-                  <StatusBadge label={passStatusLabel(pass)} />
-                </button>
-              ))}
-            </div>
-          )}
+          <span className="rounded-full bg-[var(--color-soft)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{passes.length} pases</span>
         </div>
+        {loading ? <State text="Cargando eventos y accesos..." /> : eventGroups.length === 0 ? <State title="Sin accesos emitidos" text="Los boletos pagados y reservaciones confirmadas aparecerán aquí con su ocupación real." /> : (
+          <div className="control-checkin-event-grid">
+            {eventGroups.map((group) => (
+              <EventAccessCard
+                key={group.key}
+                group={group}
+                active={selectedGroup?.key === group.key}
+                onClick={() => {
+                  setSelectedGroupKey(group.key)
+                  setSelectedPassId(group.passes[0]?.id ?? group.checkins[0]?.accessPassId ?? null)
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
-        <aside className="space-y-4">
-          {selectedPass ? (
-            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Pase seleccionado</p>
-              <h3 className="mt-2 text-2xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selectedPass.passNumber ?? 'Pase'}</h3>
-              <div className="mt-5 grid gap-3">
-                <Detail label="Invitado" value={selectedPass.guestName ?? 'Sin nombre'} />
-                <Detail label={selectedPass.reservationNumber ? 'Reservación' : 'Orden'} value={selectedPass.reservationNumber ?? selectedPass.orderNumber ?? 'Sin folio'} />
-                <Detail label="Vigencia" value={`${dateLabel(selectedPass.validFrom)} - ${dateLabel(selectedPass.validUntil)}`} />
+      {selectedGroup ? (
+        <section className="control-checkin-detail-grid grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(22rem,0.95fr)]">
+          <article className="min-w-0 rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Listado QR</p>
+                <h3 className="mt-1 truncate text-base font-semibold text-[var(--color-ink)]">{selectedGroup.title}</h3>
+                <p className="mt-1 text-xs text-[var(--color-muted)]">{selectedGroup.checkedIn}/{selectedGroup.capacity} entradas · {selectedGroup.occupancy}% ocupación</p>
               </div>
-              <button type="button" onClick={revokeSelectedPass} disabled={!writable || Boolean(selectedPass.revokedAt)} className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><X size={14} />Revocar pase</button>
-            </article>
-          ) : null}
-          <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-            <h4 className="text-sm font-semibold text-[var(--color-ink)]">Historial de check-in</h4>
-            <div className="mt-4 space-y-3">
-              {checkins.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin check-ins registrados.</p> : checkins.map((checkin) => (
-                <div key={checkin.id} className="rounded-xl bg-[var(--color-soft)] p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-[var(--color-ink)]">{checkin.passNumber ?? 'Pase'}</p>
-                      <p className="mt-1 text-xs text-[var(--color-muted)]">{dateLabel(checkin.checkedInAt)} · {checkin.eventOrExperience ?? 'Acceso'}</p>
-                    </div>
-                    <StatusBadge label={checkin.status === 'active' ? 'Activo' : 'Revertido'} />
-                  </div>
-                  <button type="button" onClick={() => reverseCheckin(checkin)} disabled={!writable || checkin.status !== 'active'} className="mt-3 inline-flex min-h-9 items-center gap-2 rounded-xl border border-[var(--color-line)] px-3 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><RotateCcw size={14} />Revertir</button>
-                </div>
+              <StatusBadge label={selectedGroup.occupancy >= 100 ? 'Completo' : 'En recepción'} />
+            </div>
+            <OccupancyBar value={selectedGroup.occupancy} />
+            <div className="mt-4 space-y-2">
+              {selectedGroup.checkins.length === 0 ? (
+                <p className="rounded-lg border border-[var(--color-line)] bg-white p-4 text-xs text-[var(--color-muted)]">Todavía no hay ingresos registrados por QR para este evento.</p>
+              ) : selectedGroup.checkins.map((checkin) => (
+                <AttendeeRow key={checkin.id} checkin={checkin} writable={writable} onReverse={reverseCheckin} />
               ))}
             </div>
           </article>
-        </aside>
-      </section>
+
+          <aside className="min-w-0 space-y-4">
+            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">Resumen del evento</p>
+                {eventEditPath(selectedGroup) ? (
+                  <Link to={eventEditPath(selectedGroup) ?? '#'} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white px-2 text-[10px] font-semibold text-[var(--color-burgundy)]">
+                    <ExternalLink size={12} />
+                    Editar evento
+                  </Link>
+                ) : null}
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <Detail icon={Users} label="Capacidad" value={`${selectedGroup.checkedIn}/${selectedGroup.capacity}`} />
+                <Detail icon={ReceiptText} label="Total del ticket" value={moneyLabel(selectedGroup.ticketTotal)} />
+                <Detail icon={WalletCards} label="Origen" value={selectedGroup.sources.join(' · ') || 'Sin origen'} />
+                <Detail icon={CalendarClock} label="Horario" value={shortDateLabel(selectedGroup.startsAt)} />
+              </div>
+            </article>
+            <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-4 shadow-[var(--shadow-card)]">
+              <div className="flex items-center justify-between gap-3">
+                <h4 className="text-sm font-semibold text-[var(--color-ink)]">Historial de compra y vigencia</h4>
+                {selectedPass ? <button type="button" onClick={revokeSelectedPass} disabled={!writable || Boolean(selectedPass.revokedAt)} className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-[var(--color-line)] px-2 text-[10px] font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><X size={12} />Revocar</button> : null}
+              </div>
+              <div className="mt-3 space-y-2">
+                {selectedGroup.passes.map((pass) => (
+                  <PurchaseHistoryRow key={pass.id} pass={pass} active={selectedPass?.id === pass.id} onClick={() => setSelectedPassId(pass.id)} />
+                ))}
+              </div>
+            </article>
+          </aside>
+        </section>
+      ) : null}
 
       {formOpen ? (
         <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
@@ -537,11 +758,74 @@ export function CheckInPage() {
 }
 
 function Metric({ icon: Icon, label, value }: { icon: typeof Ticket; label: string; value: string }) {
-  return <article className="rounded-[var(--radius-card)] border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]"><div className="flex items-start justify-between gap-4"><div><p className="text-xs text-[var(--color-muted)]">{label}</p><p className="mt-3 text-3xl text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{value}</p></div><span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={18} /></span></div></article>
+  return <article className="rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] p-3 shadow-[var(--shadow-card)]"><div className="flex items-center justify-between gap-3"><span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-soft)] text-[var(--color-burgundy)]"><Icon size={15} /></span><div className="min-w-0 text-right"><p className="truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">{label}</p><p className="mt-1 text-lg font-semibold text-[var(--color-ink)]">{value}</p></div></div></article>
 }
 
-function Detail({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-[var(--color-soft)] p-3"><p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</p><p className="mt-1 text-sm font-semibold text-[var(--color-ink)]">{value}</p></div>
+function EventAccessCard({ group, active, onClick }: { group: CheckinEventGroup; active: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={`control-checkin-event-card ${active ? 'is-active' : ''}`}>
+      <div className="control-checkin-event-card__image">
+        {group.imageUrl ? <img src={group.imageUrl} alt="" loading="lazy" /> : <ImageIcon size={24} aria-hidden="true" />}
+        <span className="control-checkin-event-card__status">{group.occupancy}%</span>
+      </div>
+      <div className="control-checkin-event-card__body">
+        <div className="min-w-0">
+          <p className="control-checkin-event-card__title">{group.title}</p>
+          <p className="control-checkin-event-card__meta">{shortDateLabel(group.startsAt)} · {group.sources.join(' · ') || 'Sin origen'}</p>
+        </div>
+        <div className="control-checkin-event-card__count">
+          <span>{group.checkedIn}/{group.capacity}</span>
+          <small>Entradas</small>
+        </div>
+        <OccupancyBar value={group.occupancy} compact />
+      </div>
+    </button>
+  )
+}
+
+function OccupancyBar({ value, compact = false }: { value: number; compact?: boolean }) {
+  const color = value >= 95 ? '#681126' : value >= 60 ? '#B48A55' : '#252F37'
+  return (
+    <div className={compact ? 'control-checkin-occupancy is-compact' : 'control-checkin-occupancy'} aria-label={`Ocupación ${value}%`}>
+      <span style={{ width: `${value}%`, backgroundColor: color }} />
+    </div>
+  )
+}
+
+function AttendeeRow({ checkin, writable, onReverse }: { checkin: CheckinRecord; writable: boolean; onReverse: (checkin: CheckinRecord) => void }) {
+  return (
+    <div className="control-checkin-attendee-row">
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold text-[var(--color-ink)]">{checkin.guestName ?? 'Invitado'}</p>
+        <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">QR {checkin.passNumber ?? 'sin folio'} · {dateLabel(checkin.checkedInAt)}</p>
+        <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">Compra {sourceLabel(checkin.purchaseSource)} · {checkin.orderNumber ?? checkin.reservationNumber ?? 'Sin folio'} · {moneyLabel(checkin.orderTotal)}</p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        <StatusBadge label={checkin.status === 'active' ? 'Entró' : 'Revertido'} />
+        <button type="button" onClick={() => onReverse(checkin)} disabled={!writable || checkin.status !== 'active'} className="inline-flex min-h-7 items-center gap-1 rounded-lg border border-[var(--color-line)] px-2 text-[10px] font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><RotateCcw size={12} />Revertir</button>
+      </div>
+    </div>
+  )
+}
+
+function PurchaseHistoryRow({ pass, active, onClick }: { pass: AccessPassRecord; active: boolean; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} className={`control-checkin-pass-row ${active ? 'is-active' : ''}`}>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold text-[var(--color-ink)]">{pass.passNumber ?? 'Pase'}</p>
+        <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">{pass.guestName ?? 'Invitado'} · {pass.orderNumber ?? pass.reservationNumber ?? 'Sin folio'}</p>
+        <p className="mt-1 truncate text-[10px] text-[var(--color-muted)]">Comprado en {sourceLabel(pass.purchaseSource)} · {dateLabel(pass.purchasedAt)} · Vence {dateLabel(pass.validUntil)}</p>
+      </div>
+      <div className="shrink-0 text-right">
+        <StatusBadge label={passStatusLabel(pass)} />
+        <p className="mt-2 text-[10px] font-semibold text-[var(--color-ink)]">{moneyLabel(pass.orderTotal ?? pass.reservationTotal)}</p>
+      </div>
+    </button>
+  )
+}
+
+function Detail({ icon: Icon, label, value }: { icon?: typeof Ticket; label: string; value: string }) {
+  return <div className="rounded-lg bg-[var(--color-soft)] p-3">{Icon ? <Icon size={13} className="mb-2 text-[var(--color-burgundy)]" /> : null}<p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</p><p className="mt-1 break-words text-xs font-semibold text-[var(--color-ink)]">{value}</p></div>
 }
 
 function State({ title, text }: { title?: string; text: string }) {

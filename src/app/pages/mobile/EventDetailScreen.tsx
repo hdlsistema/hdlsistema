@@ -59,6 +59,34 @@ function ticketAvailable(ticket: EventTicketType) {
   )
 }
 
+function normalizeLocationText(value?: string | null) {
+  return String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*·\s*/g, ' · ')
+    .trim()
+}
+
+function eventLocationValue(venueTitle: string, rawLocation: string) {
+  const title = normalizeLocationText(venueTitle)
+  const location = normalizeLocationText(rawLocation)
+  if (!location) return title
+  const uniqueParts = Array.from(
+    new Map(
+      location
+        .split(/\s+·\s+/)
+        .map((part) => normalizeLocationText(part))
+        .filter(Boolean)
+        .map((part) => [part.toLocaleLowerCase('es-MX'), part]),
+    ).values(),
+  )
+  const cleanLocation = uniqueParts.join(' · ')
+  if (!cleanLocation) return title
+  const normalizedTitle = title.toLocaleLowerCase('es-MX')
+  const normalizedLocation = cleanLocation.toLocaleLowerCase('es-MX')
+  if (normalizedLocation === normalizedTitle || normalizedLocation.includes(normalizedTitle)) return cleanLocation
+  return cleanLocation
+}
+
 function variantSchemaItems(record: ContentRecord) {
   const schema = eventMetadata(record).variant_schema
   if (!Array.isArray(schema)) return []
@@ -150,6 +178,7 @@ export function EventDetailScreen() {
   const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
   const gallery = galleryImages(event, 'event_images', imageField(event, ''))
   const venue = eventVenueForRecord(event)
+  const locationValue = eventLocationValue(venue.title, textField(event, 'venue'))
   const metadata = eventMetadata(event)
   const kind = eventKindLabel(String(metadata.event_kind ?? ''))
   const reservationPhone = typeof metadata.reservation_phone === 'string' ? metadata.reservation_phone : ''
@@ -210,7 +239,7 @@ export function EventDetailScreen() {
         {[
           { icon: CalendarDays, label: t('app.premium.events.date'), value: formatPublicDate(event.start_at, locale, t('common.datePending')) },
           { icon: Clock3, label: t('app.premium.events.schedule'), value: formatPublicTimeRange(event.start_at, event.end_at, locale) },
-          { icon: MapPin, label: t('app.location'), value: `${venue.title} · ${textField(event, 'venue', 'Hacienda de Letras')}` },
+          { icon: MapPin, label: t('app.location'), value: locationValue },
           {
             icon: Ticket,
             label: t('app.premium.events.ticket'),

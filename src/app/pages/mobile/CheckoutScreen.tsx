@@ -266,7 +266,7 @@ export function CheckoutScreen() {
         appearance: {
           theme: 'stripe' as const,
           variables: {
-            colorPrimary: '#681126',
+            colorPrimary: '#5B0B1F',
             colorText: '#2f1b16',
             colorDanger: '#9d473f',
             borderRadius: '14px',

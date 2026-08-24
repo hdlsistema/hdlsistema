@@ -75,6 +75,7 @@ describe('phase7e.service admin clients', () => {
 
     await inventoryClient.summary('jwt-admin', { lowStock: true })
     await inventoryClient.createLocation('jwt-admin', { name: 'Cava', type: 'warehouse' })
+    await inventoryClient.updateItem('jwt-admin', 'inventory-1', { status: 'archived' })
     await inventoryClient.operation('jwt-admin', 'receive', { inventoryItemId: 'inventory-1', quantity: 10 })
     await inventoryClient.exportCsv('jwt-admin', { status: 'active' })
 
@@ -85,11 +86,16 @@ describe('phase7e.service admin clients', () => {
     )
     expect(fetchSpy).toHaveBeenNthCalledWith(
       3,
+      'http://localhost:3001/api/admin/inventory/items/inventory-1',
+      expect.objectContaining({ method: 'PATCH', body: expect.stringContaining('archived') }),
+    )
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      4,
       'http://localhost:3001/api/admin/inventory/receive',
       expect.objectContaining({ method: 'POST' }),
     )
     expect(fetchSpy).toHaveBeenNthCalledWith(
-      4,
+      5,
       'http://localhost:3001/api/admin/inventory/export?status=active',
       expect.objectContaining({ headers: { Authorization: 'Bearer jwt-admin' } }),
     )

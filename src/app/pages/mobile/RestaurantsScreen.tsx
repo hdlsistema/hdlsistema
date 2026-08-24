@@ -120,7 +120,7 @@ export function RestaurantsScreen() {
         ) : restaurants.length === 0 ? (
           <EmptyState title={isEnglish ? 'No restaurants published' : 'Sin restaurantes publicados'} description={isEnglish ? 'Hacienda de Letras will publish restaurants once they are available.' : 'Hacienda de Letras publicará restaurantes desde el Centro de Control.'} />
         ) : restaurants.map((item) => (
-          <article key={item.id} className={`w-full overflow-hidden rounded-[18px] border ${selectedRestaurant === item.id ? 'border-[#681126] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}>
+          <article key={item.id} className={`w-full overflow-hidden rounded-[18px] border ${selectedRestaurant === item.id ? 'border-[#5B0B1F] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}>
             <button type="button" onClick={() => setSelected(item.id)} className="block w-full text-left">
               {item.coverImageUrl ? (
                 <span className="block h-40 bg-[var(--color-ink)]">
@@ -136,7 +136,7 @@ export function RestaurantsScreen() {
               </span>
             </button>
             <div className="px-4 pb-4">
-              <button type="button" onClick={() => setDirectionsSlug(item.slug)} className="app-burgundy-cta flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#7d1435,#57071d)] px-4 text-[12px] font-semibold text-white">
+              <button type="button" onClick={() => setDirectionsSlug(item.slug)} className="app-burgundy-cta flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#5B0B1F,#33040F)] px-4 text-[12px] font-semibold text-white">
                 <Navigation size={15} />
                 {isEnglish ? 'How to get there' : 'Cómo llegar'}
               </button>
@@ -168,7 +168,7 @@ export function RestaurantsScreen() {
             <button
               type="button"
               onClick={() => setContractAccepted((current) => !current)}
-              className={`mt-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-[14px] px-3 text-left text-[12px] font-semibold transition ${contractAccepted ? 'bg-[#681126] text-white' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.22)]'}`}
+              className={`mt-3 flex min-h-11 w-full items-center justify-between gap-3 rounded-[14px] px-3 text-left text-[12px] font-semibold transition ${contractAccepted ? 'bg-[#5B0B1F] text-white' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.22)]'}`}
             >
               <span className="min-w-0 break-words">{restaurantContractTerms.confirmationMessage}</span>
               <span className={`inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${contractAccepted ? 'bg-white/18 text-white' : 'bg-[rgba(37,47,55,0.08)] text-[var(--color-muted)]'}`}>
@@ -178,7 +178,7 @@ export function RestaurantsScreen() {
           ) : null}
         </div>
         {!canRequest && selectedRestaurantRecord ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-muted)]">{isEnglish ? 'This restaurant has no request times published from Control Center.' : 'Este restaurante aún no tiene horarios de solicitud publicados desde el Centro de Control.'}</p> : null}
-        <button type="button" onClick={submit} disabled={submitting || !canRequest} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#681126] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={submitting || !canRequest} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request table' : 'Solicitar mesa')}
         </button>
         {message ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-burgundy)]">{message}</p> : null}

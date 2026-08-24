@@ -152,7 +152,7 @@ export function MapScreen() {
             })),
             ...(userLocation ? [{ coordinates: userLocation, label: isEnglish ? 'My location' : 'Mi ubicación' }] : []),
           ]}
-          routes={routeCoordinates.length ? [{ coordinates: routeCoordinates, color: '#681126' }] : []}
+          routes={routeCoordinates.length ? [{ coordinates: routeCoordinates, color: '#5B0B1F' }] : []}
           className="app-map-height"
         />
       </section>
@@ -166,7 +166,7 @@ export function MapScreen() {
             <address className="mt-2 not-italic text-[12px] leading-5 text-[var(--color-muted)]">{HACIENDA_ADDRESS}</address>
           </div>
         </div>
-        <button type="button" onClick={() => setDirectionsPoi(OFFICIAL_HACIENDA_POI)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#7d1435,#57071d)] px-4 text-[12px] font-semibold text-[#fffaf1] shadow-[0_12px_24px_rgba(83,8,27,0.18)]">
+        <button type="button" onClick={() => setDirectionsPoi(OFFICIAL_HACIENDA_POI)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#5B0B1F,#33040F)] px-4 text-[12px] font-semibold text-[#fffaf1] shadow-[0_12px_24px_rgba(83,8,27,0.18)]">
           <Navigation size={16} />
           {isEnglish ? 'How to get there' : 'Cómo llegar'}
         </button>

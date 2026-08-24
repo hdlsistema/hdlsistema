@@ -116,7 +116,7 @@ export function LegalPage({ type }: LegalPageProps) {
           </Link>
           <Link
             to="/"
-            className="rounded-full border border-[#d8bf9c] bg-white/55 px-4 py-2 text-[12px] font-semibold text-[#681126] shadow-[0_12px_30px_rgba(57,26,18,0.08)]"
+            className="rounded-full border border-[#d8bf9c] bg-white/55 px-4 py-2 text-[12px] font-semibold text-[#5B0B1F] shadow-[0_12px_30px_rgba(57,26,18,0.08)]"
           >
             Volver al inicio
           </Link>
@@ -129,7 +129,7 @@ export function LegalPage({ type }: LegalPageProps) {
             {content.eyebrow}
           </p>
           <h1
-            className="mt-3 text-[2.6rem] leading-none text-[#681126] md:text-[4rem]"
+            className="mt-3 text-[2.6rem] leading-none text-[#5B0B1F] md:text-[4rem]"
             style={{ fontFamily: 'var(--font-display)' }}
           >
             {content.title}
@@ -153,16 +153,16 @@ export function LegalPage({ type }: LegalPageProps) {
           </div>
 
           <div className="mt-9 rounded-[1rem] border border-[#d8bf9c] bg-[#f7efe4] p-5 text-sm leading-7 text-[#5f463a]">
-            <p className="font-semibold text-[#681126]">Contacto</p>
+            <p className="font-semibold text-[#5B0B1F]">Contacto</p>
             <p>
               Para dudas sobre estos documentos escribe a{' '}
-              <a className="font-semibold text-[#681126] underline" href={`mailto:${supportEmail}`}>
+              <a className="font-semibold text-[#5B0B1F] underline" href={`mailto:${supportEmail}`}>
                 {supportEmail}
               </a>
               .
             </p>
             {type === 'privacy' ? (
-              <Link to="/eliminar-cuenta" className="mt-3 inline-flex rounded-full border border-[#d8bf9c] bg-white px-4 py-2 text-xs font-semibold text-[#681126]">
+              <Link to="/eliminar-cuenta" className="mt-3 inline-flex rounded-full border border-[#d8bf9c] bg-white px-4 py-2 text-xs font-semibold text-[#5B0B1F]">
                 Solicitar eliminación de cuenta
               </Link>
             ) : null}

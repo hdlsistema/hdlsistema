@@ -61,7 +61,7 @@ export function AccountDeletionPage() {
             <img src="/hacienda de letras logo1.png" alt="Hacienda de Letras" className="h-14 w-20 object-contain" />
             <span className="hidden text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7d1328] sm:inline">Hacienda de Letras</span>
           </Link>
-          <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-[#d8bf9c] bg-white/60 px-4 py-2 text-[12px] font-semibold text-[#681126]">
+          <Link to="/" className="inline-flex items-center gap-2 rounded-full border border-[#d8bf9c] bg-white/60 px-4 py-2 text-[12px] font-semibold text-[#5B0B1F]">
             <ChevronLeft size={15} /> Volver al inicio
           </Link>
         </div>
@@ -70,9 +70,9 @@ export function AccountDeletionPage() {
       <section className="px-5 py-10 md:px-10 md:py-16">
         <div className="mx-auto grid max-w-[1040px] gap-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(320px,0.92fr)]">
           <article className="rounded-[1.65rem] border border-[#dfcbb2] bg-white/80 p-6 shadow-[0_24px_70px_rgba(57,26,18,0.08)] backdrop-blur-xl md:p-9">
-            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4e6db] text-[#681126]"><UserRoundX size={23} /></span>
+            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f4e6db] text-[#5B0B1F]"><UserRoundX size={23} /></span>
             <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#b48a55]">Privacidad y cuenta</p>
-            <h1 className="mt-3 text-[clamp(2.45rem,6vw,4rem)] leading-[0.95] text-[#681126]" style={{ fontFamily: 'var(--font-display)' }}>
+            <h1 className="mt-3 text-[clamp(2.45rem,6vw,4rem)] leading-[0.95] text-[#5B0B1F]" style={{ fontFamily: 'var(--font-display)' }}>
               Eliminar cuenta de Hacienda de Letras
             </h1>
             <p className="mt-5 max-w-[42rem] text-sm leading-7 text-[#6f5a4d] md:text-base">
@@ -101,11 +101,11 @@ export function AccountDeletionPage() {
                   <input type="text" autoComplete="name" maxLength={180} value={name} onChange={(event) => setName(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-[#dccab5] bg-white px-4 text-sm outline-none focus:border-[#8b2d43]" placeholder="Tu nombre" />
                 </label>
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#eadbc9] bg-[#fffaf4] p-4 text-sm leading-6 text-[#645045]">
-                  <input type="checkbox" required checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} className="mt-1 h-4 w-4 accent-[#681126]" />
+                  <input type="checkbox" required checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} className="mt-1 h-4 w-4 accent-[#5B0B1F]" />
                   <span>Entiendo qué datos se eliminarán y que cierta información podrá conservarse únicamente cuando exista una obligación legal, fiscal, de seguridad o de prevención de fraude.</span>
                 </label>
                 {error ? <p role="alert" className="rounded-xl border border-[#e3b8ad] bg-[#fff2ef] p-4 text-sm text-[#944431]">{error}</p> : null}
-                <button type="submit" disabled={!email.trim() || !acknowledged} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#681126] px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(104,17,38,0.18)] disabled:cursor-not-allowed disabled:opacity-50">
+                <button type="submit" disabled={!email.trim() || !acknowledged} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5B0B1F] px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(91,11,31,0.18)] disabled:cursor-not-allowed disabled:opacity-50">
                   <Trash2 size={17} /> Solicitar eliminación de cuenta
                 </button>
               </form>
@@ -123,12 +123,12 @@ export function AccountDeletionPage() {
               </ul>
             </section>
             <section className="rounded-[1.4rem] border border-[#d8bf9c] bg-[#f2e5d5] p-6">
-              <ShieldCheck size={22} className="text-[#681126]" />
-              <h2 className="mt-4 text-xl text-[#681126]" style={{ fontFamily: 'var(--font-display)' }}>Conservación limitada</h2>
+              <ShieldCheck size={22} className="text-[#5B0B1F]" />
+              <h2 className="mt-4 text-xl text-[#5B0B1F]" style={{ fontFamily: 'var(--font-display)' }}>Conservación limitada</h2>
               <p className="mt-3 text-sm leading-7 text-[#654c3e]">
                 Cierta información de compras, pagos, reservaciones, accesos o seguridad podrá conservarse únicamente cuando exista una obligación legal, fiscal, de seguridad o de prevención de fraude, y solo durante el plazo aplicable.
               </p>
-              <Link to="/politica-de-privacidad" className="mt-4 inline-flex text-xs font-semibold text-[#681126] underline">Consultar Política de Privacidad</Link>
+              <Link to="/politica-de-privacidad" className="mt-4 inline-flex text-xs font-semibold text-[#5B0B1F] underline">Consultar Política de Privacidad</Link>
             </section>
           </aside>
         </div>
@@ -139,15 +139,15 @@ export function AccountDeletionPage() {
           <div className="w-full max-w-[520px] rounded-[1.5rem] border border-[#e2cdb3] bg-[#fffaf3] p-6 shadow-[0_30px_90px_rgba(32,7,11,0.35)] md:p-8">
             <div className="flex items-start justify-between gap-4">
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f2dfda] text-[#8c2638]"><Trash2 size={22} /></span>
-              <button type="button" aria-label="Cerrar" onClick={() => setConfirmOpen(false)} disabled={submitting} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dccab5] text-[#681126]"><X size={18} /></button>
+              <button type="button" aria-label="Cerrar" onClick={() => setConfirmOpen(false)} disabled={submitting} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dccab5] text-[#5B0B1F]"><X size={18} /></button>
             </div>
-            <h2 id="confirm-deletion-title" className="mt-5 text-3xl text-[#681126]" style={{ fontFamily: 'var(--font-display)' }}>Confirma tu solicitud</h2>
+            <h2 id="confirm-deletion-title" className="mt-5 text-3xl text-[#5B0B1F]" style={{ fontFamily: 'var(--font-display)' }}>Confirma tu solicitud</h2>
             <p className="mt-3 text-sm leading-7 text-[#6f5a4d]">
               Se registrará una solicitud para la cuenta asociada a <strong className="text-[#2b1712]">{email.trim().toLowerCase()}</strong>. No se borrará inmediatamente; primero se validará y procesará de forma segura.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => setConfirmOpen(false)} disabled={submitting} className="min-h-12 rounded-xl border border-[#d8bf9c] bg-white text-sm font-semibold text-[#681126]">Cancelar</button>
-              <button type="button" onClick={() => void submitRequest()} disabled={submitting} className="min-h-12 rounded-xl bg-[#681126] px-4 text-sm font-semibold text-white disabled:opacity-60">{submitting ? 'Enviando…' : 'Sí, enviar solicitud'}</button>
+              <button type="button" onClick={() => setConfirmOpen(false)} disabled={submitting} className="min-h-12 rounded-xl border border-[#d8bf9c] bg-white text-sm font-semibold text-[#5B0B1F]">Cancelar</button>
+              <button type="button" onClick={() => void submitRequest()} disabled={submitting} className="min-h-12 rounded-xl bg-[#5B0B1F] px-4 text-sm font-semibold text-white disabled:opacity-60">{submitting ? 'Enviando…' : 'Sí, enviar solicitud'}</button>
             </div>
           </div>
         </div>

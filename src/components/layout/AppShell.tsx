@@ -1,11 +1,11 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { Building2, Grape, Sparkles } from 'lucide-react'
+import { Building2, Grape, Layers3 } from 'lucide-react'
 import { Topbar } from './Topbar'
 
 const sections = [
   { to: '/app', label: 'App Cliente', icon: Grape },
   { to: '/admin', label: 'Panel Operativo', icon: Building2 },
-  { to: '/future', label: 'Etapa Posterior', icon: Sparkles },
+  { to: '/future', label: 'Etapa Posterior', icon: Layers3 },
 ]
 
 export function AppShell() {

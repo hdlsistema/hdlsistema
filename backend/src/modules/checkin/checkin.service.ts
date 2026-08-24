@@ -17,13 +17,78 @@ import type {
   IssueAccessPassPayload,
   RegisterCheckinPayload,
 } from './checkin.schemas'
-import { publicAccessUrl } from './accessPassIssuer'
+import { ACCESS_QR_EXPIRY_HOURS, publicAccessUrl } from './accessPassIssuer'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer']
 const checkinRoles = ['super_admin', 'admin', 'operations']
 const exportRoles = ['super_admin', 'admin', 'operations', 'viewer']
 
 type Relation<T> = T | T[] | null
+
+type CustomerRelation = {
+  display_name?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  email?: string | null
+}
+
+type ExperienceRelation = {
+  id?: string | null
+  title?: string | null
+  cover_image_url?: string | null
+  capacity?: number | string | null
+}
+
+type EventRelation = {
+  id?: string | null
+  title?: string | null
+  start_at?: string | null
+  end_at?: string | null
+  capacity?: number | string | null
+  sold_count?: number | string | null
+  reserved_count?: number | string | null
+  cover_image_url?: string | null
+}
+
+type SlotRelation = {
+  start_at?: string | null
+  end_at?: string | null
+  capacity?: number | string | null
+  reserved_count?: number | string | null
+}
+
+type OrderRelation = {
+  order_number?: string | null
+  status?: string | null
+  source?: string | null
+  total?: number | string | null
+  created_at?: string | null
+  customers?: Relation<CustomerRelation>
+}
+
+type TicketTypeRelation = {
+  id?: string | null
+  name?: string | null
+  capacity?: number | string | null
+  sold_count?: number | string | null
+  reserved_count?: number | string | null
+  events?: Relation<EventRelation>
+}
+
+type ReservationRelation = {
+  id?: string | null
+  reservation_number: string
+  reservation_type?: string | null
+  people_count: number
+  status?: string | null
+  source?: string | null
+  total?: number | string | null
+  created_at?: string | null
+  customers?: Relation<CustomerRelation>
+  experience_slots?: Relation<SlotRelation>
+  experiences?: Relation<ExperienceRelation>
+  events?: Relation<EventRelation>
+}
 
 type PassRow = {
   id: string
@@ -40,16 +105,9 @@ type PassRow = {
   revocation_reason?: string | null
   created_at: string
   metadata?: Record<string, unknown> | null
-	  reservations?: Relation<{
-	    reservation_number: string
-	    people_count: number
-	    status?: string | null
-	    customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string }>
-	    experiences?: Relation<{ title: string }>
-	    events?: Relation<{ title: string }>
-	  }>
-	  orders?: Relation<{ order_number: string; status: string }>
-	  event_ticket_types?: Relation<{ name?: string | null; events?: Relation<{ title?: string | null }> }>
+  reservations?: Relation<ReservationRelation>
+  orders?: Relation<OrderRelation>
+  event_ticket_types?: Relation<TicketTypeRelation>
 }
 
 type CheckinRow = {
@@ -61,10 +119,15 @@ type CheckinRow = {
   reversal_reason?: string | null
   created_at?: string | null
   access_passes?: Relation<{
+    id?: string | null
     pass_number?: string | null
-    reservations?: Relation<{ reservation_number: string; experiences?: Relation<{ title: string }>; events?: Relation<{ title: string }> }>
-    orders?: Relation<{ order_number: string }>
-    event_ticket_types?: Relation<{ name?: string | null; events?: Relation<{ title?: string | null }> }>
+    status?: string | null
+    valid_until?: string | null
+    issued_at?: string | null
+    metadata?: Record<string, unknown> | null
+    reservations?: Relation<ReservationRelation>
+    orders?: Relation<OrderRelation>
+    event_ticket_types?: Relation<TicketTypeRelation>
   }>
 }
 
@@ -89,14 +152,25 @@ type ValidationResult = {
 const passSelect = `
   id,reservation_id,order_id,event_ticket_type_id,pass_number,status,valid_from,valid_until,used_at,
   issued_at,revoked_at,revocation_reason,created_at,metadata,
-		  reservations(reservation_number,people_count,status,customers(display_name,first_name,last_name),experiences(title),events(title)),
-	  orders(order_number,status),
-	  event_ticket_types(name,events(title))
-	`
+  reservations(id,reservation_number,reservation_type,people_count,status,source,total,created_at,
+    customers(display_name,first_name,last_name,email),
+    experience_slots(start_at,end_at,capacity,reserved_count),
+    experiences(id,title,cover_image_url,capacity),
+    events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)),
+  orders(order_number,status,source,total,created_at,customers(display_name,first_name,last_name,email)),
+  event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url))
+`
 
 const checkinSelect = `
   id,access_pass_id,checked_in_at,notes,reversed_at,reversal_reason,created_at,
-  access_passes(pass_number,reservations(reservation_number,experiences(title),events(title)),orders(order_number),event_ticket_types(name,events(title)))
+  access_passes(id,pass_number,status,valid_until,issued_at,metadata,
+    reservations(id,reservation_number,reservation_type,people_count,status,source,total,created_at,
+      customers(display_name,first_name,last_name,email),
+      experience_slots(start_at,end_at,capacity,reserved_count),
+      experiences(id,title,cover_image_url,capacity),
+      events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)),
+    orders(order_number,status,source,total,created_at,customers(display_name,first_name,last_name,email)),
+    event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)))
 `
 
 function rpcClient(user: UserContext) {
@@ -105,6 +179,72 @@ function rpcClient(user: UserContext) {
 
 function firstRelation<T>(value: Relation<T> | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null
+}
+
+function numberOrNull(value: unknown) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function positiveNumberOrNull(value: unknown) {
+  const parsed = numberOrNull(value)
+  return parsed !== null && parsed > 0 ? parsed : null
+}
+
+function relationCustomerName(customer: CustomerRelation | null) {
+  return customer?.display_name
+    || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+    || null
+}
+
+function metadataText(metadata: Record<string, unknown> | null | undefined, keys: string[]) {
+  for (const key of keys) {
+    const value = metadata?.[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+function addHoursIso(value: string | null | undefined, hours: number) {
+  if (!value) return null
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) return null
+  return new Date(timestamp + (hours * 60 * 60 * 1000)).toISOString()
+}
+
+function displayValidUntil(stored: string | null | undefined, startsAt: string | null | undefined, endsAt: string | null | undefined) {
+  return stored ?? addHoursIso(endsAt ?? startsAt ?? null, ACCESS_QR_EXPIRY_HOURS)
+}
+
+function passEventContext(input: {
+  reservation?: ReservationRelation | null
+  ticketType?: TicketTypeRelation | null
+  metadata?: Record<string, unknown> | null
+}) {
+  const reservation = input.reservation ?? null
+  const ticketType = input.ticketType ?? null
+  const slot = firstRelation(reservation?.experience_slots)
+  const reservationExperience = firstRelation(reservation?.experiences)
+  const reservationEvent = firstRelation(reservation?.events)
+  const ticketEvent = firstRelation(ticketType?.events)
+  const metadataTitle = metadataText(input.metadata, ['title', 'eventTitle', 'experienceTitle'])
+  const metadataImage = metadataText(input.metadata, ['imageUrl', 'image_url', 'coverImageUrl', 'cover_image_url'])
+  const eventId = ticketEvent?.id ?? reservationEvent?.id ?? reservationExperience?.id ?? null
+  const title = ticketEvent?.title ?? reservationEvent?.title ?? reservationExperience?.title ?? metadataTitle
+  const eventCapacity = positiveNumberOrNull(ticketEvent?.capacity)
+    ?? positiveNumberOrNull(reservationEvent?.capacity)
+    ?? positiveNumberOrNull(slot?.capacity)
+    ?? positiveNumberOrNull(reservationExperience?.capacity)
+    ?? positiveNumberOrNull(ticketType?.capacity)
+  return {
+    eventId,
+    eventTitle: title ?? null,
+    eventImageUrl: ticketEvent?.cover_image_url ?? reservationEvent?.cover_image_url ?? reservationExperience?.cover_image_url ?? metadataImage,
+    eventCapacity,
+    eventStartsAt: ticketEvent?.start_at ?? reservationEvent?.start_at ?? slot?.start_at ?? null,
+    eventEndsAt: ticketEvent?.end_at ?? reservationEvent?.end_at ?? slot?.end_at ?? null,
+    ticketCapacity: positiveNumberOrNull(ticketType?.capacity),
+  }
 }
 
 function hashCode(code: string) {
@@ -118,8 +258,11 @@ function makePassToken() {
 function mapPass(row: PassRow) {
   const reservation = firstRelation(row.reservations)
   const customer = firstRelation(reservation?.customers)
+  const order = firstRelation(row.orders)
+  const orderCustomer = firstRelation(order?.customers)
   const ticketType = firstRelation(row.event_ticket_types)
-  const ticketEvent = firstRelation(ticketType?.events)
+  const eventContext = passEventContext({ reservation, ticketType, metadata: row.metadata })
+  const validUntil = displayValidUntil(row.valid_until ?? null, eventContext.eventStartsAt, eventContext.eventEndsAt)
   const metadataAccessType = typeof row.metadata?.accessType === 'string' ? row.metadata.accessType : null
   const accessType = row.event_ticket_type_id
     ? 'event_ticket'
@@ -129,17 +272,28 @@ function mapPass(row: PassRow) {
     reservationId: row.reservation_id ?? null,
     orderId: row.order_id ?? null,
     eventTicketTypeId: row.event_ticket_type_id ?? null,
+    eventId: eventContext.eventId,
     accessType,
     passNumber: row.pass_number ?? null,
     reservationNumber: reservation?.reservation_number ?? null,
-    orderNumber: firstRelation(row.orders)?.order_number ?? null,
-    guestName: customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim(),
-    eventOrExperience: firstRelation(reservation?.experiences)?.title ?? firstRelation(reservation?.events)?.title ?? ticketEvent?.title ?? null,
+    orderNumber: order?.order_number ?? null,
+    guestName: relationCustomerName(customer) ?? relationCustomerName(orderCustomer),
+    guestEmail: customer?.email ?? orderCustomer?.email ?? null,
+    eventOrExperience: eventContext.eventTitle,
+    eventImageUrl: eventContext.eventImageUrl,
+    eventCapacity: eventContext.eventCapacity,
+    eventStartsAt: eventContext.eventStartsAt,
+    eventEndsAt: eventContext.eventEndsAt,
     ticketTypeName: ticketType?.name ?? null,
-    peopleCount: reservation?.people_count ?? null,
+    ticketCapacity: eventContext.ticketCapacity,
+    purchaseSource: order?.source ?? reservation?.source ?? metadataText(row.metadata, ['source', 'purchaseSource']) ?? null,
+    purchasedAt: order?.created_at ?? reservation?.created_at ?? row.issued_at ?? row.created_at,
+    orderTotal: numberOrNull(order?.total),
+    reservationTotal: numberOrNull(reservation?.total),
+    peopleCount: row.event_ticket_type_id ? 1 : reservation?.people_count ?? null,
     status: row.status,
     validFrom: row.valid_from ?? null,
-    validUntil: row.valid_until ?? null,
+    validUntil,
     usedAt: row.used_at ?? null,
     issuedAt: row.issued_at ?? row.created_at,
     revokedAt: row.revoked_at ?? null,
@@ -162,14 +316,31 @@ function mapCheckin(row: CheckinRow) {
   const pass = firstRelation(row.access_passes)
   const reservation = firstRelation(pass?.reservations)
   const ticketType = firstRelation(pass?.event_ticket_types)
-  const ticketEvent = firstRelation(ticketType?.events)
+  const order = firstRelation(pass?.orders)
+  const customer = firstRelation(reservation?.customers)
+  const orderCustomer = firstRelation(order?.customers)
+  const eventContext = passEventContext({ reservation, ticketType, metadata: pass?.metadata })
+  const validUntil = displayValidUntil(pass?.valid_until ?? null, eventContext.eventStartsAt, eventContext.eventEndsAt)
   return {
     id: row.id,
     accessPassId: row.access_pass_id,
     passNumber: pass?.pass_number ?? null,
-    reservationNumber: reservation?.reservation_number ?? firstRelation(pass?.orders)?.order_number ?? null,
-    eventOrExperience: firstRelation(reservation?.experiences)?.title ?? firstRelation(reservation?.events)?.title ?? ticketEvent?.title ?? null,
+    reservationNumber: reservation?.reservation_number ?? null,
+    orderNumber: order?.order_number ?? null,
+    guestName: relationCustomerName(customer) ?? relationCustomerName(orderCustomer),
+    guestEmail: customer?.email ?? orderCustomer?.email ?? null,
+    eventId: eventContext.eventId,
+    eventOrExperience: eventContext.eventTitle,
+    eventImageUrl: eventContext.eventImageUrl,
+    eventCapacity: eventContext.eventCapacity,
+    eventStartsAt: eventContext.eventStartsAt,
+    eventEndsAt: eventContext.eventEndsAt,
     ticketTypeName: ticketType?.name ?? null,
+    purchaseSource: order?.source ?? reservation?.source ?? metadataText(pass?.metadata, ['source', 'purchaseSource']) ?? null,
+    purchasedAt: order?.created_at ?? reservation?.created_at ?? pass?.issued_at ?? row.created_at ?? null,
+    orderTotal: numberOrNull(order?.total ?? reservation?.total),
+    validUntil,
+    passStatus: pass?.status ?? null,
     checkedInAt: row.checked_in_at,
     reversedAt: row.reversed_at ?? null,
     reversalReason: row.reversal_reason ?? null,

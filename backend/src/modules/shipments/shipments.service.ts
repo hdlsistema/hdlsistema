@@ -43,7 +43,16 @@ type ShipmentRow = {
   incident_count: number
   created_at: string
   updated_at: string
-  orders?: Relation<{ order_number: string; customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string; email?: string | null }> }>
+  orders?: Relation<{
+    order_number: string
+    status?: string | null
+    source?: string | null
+    requires_shipping?: boolean | null
+    total?: number | string | null
+    currency?: string | null
+    created_at?: string | null
+    customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string; email?: string | null }>
+  }>
   carriers?: Relation<{ name: string; carrier_type: string }>
 }
 type CarrierRow = {
@@ -71,11 +80,27 @@ type ShipmentOrderRow = {
   id: string
   requires_shipping?: boolean | null
 }
+type OrderItemSummaryRow = {
+  order_id: string
+  item_id?: string | null
+  item_type: string
+  name_snapshot: string
+  quantity: number
+  metadata?: Record<string, unknown> | null
+}
+type ShipmentOrderSummary = {
+  orderType: string
+  productSummary: string | null
+  productImageUrl: string | null
+  productTypes: string[]
+  itemCount: number
+  totalQuantity: number
+}
 
 const shipmentSelect = `
   id,shipment_number,order_id,carrier_id,carrier,service_level,tracking_number,tracking_url,tracking_assigned_at,status_text,origin,destination,
   shipping_cost,estimated_delivery_at,shipped_at,delivered_at,cancelled_at,cancellation_reason,incident_count,created_at,updated_at,
-  orders(order_number,customers(display_name,first_name,last_name,email)),
+  orders(order_number,status,source,requires_shipping,total,currency,created_at,customers(display_name,first_name,last_name,email)),
   carriers(name,carrier_type)
 `
 
@@ -94,6 +119,70 @@ function toNumber(value: number | string | null | undefined) {
 function customerName(row: ShipmentRow) {
   const customer = first(first(row.orders)?.customers)
   return customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+}
+
+function orderTypeFromItems(items: OrderItemSummaryRow[], requiresShipping?: boolean | null) {
+  const types = new Set(items.map((item) => item.item_type))
+  if (types.size > 1) return 'mixed'
+  const [type] = [...types]
+  if (!type) return requiresShipping ? 'physical_order' : 'service_order'
+  if (type === 'wine') return 'wine'
+  if (type === 'event' || type === 'ticket' || type === 'event_ticket') return 'event'
+  if (type === 'experience' || type === 'experience_reservation') return 'experience'
+  if (type === 'lodging' || type === 'cabin') return 'lodging'
+  if (type === 'restaurant' || type === 'food') return 'restaurant'
+  return type
+}
+
+function stringFromMetadata(metadata: Record<string, unknown> | null | undefined, keys: string[]) {
+  if (!metadata) return null
+  for (const key of keys) {
+    const value = metadata[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
+}
+
+function itemImageUrl(row: OrderItemSummaryRow, wineImages: Map<string, string | null>) {
+  const snapshotImage = stringFromMetadata(row.metadata, ['imageUrl', 'image_url', 'coverImageUrl', 'cover_image_url'])
+  if (snapshotImage) return snapshotImage
+  if (row.item_type === 'wine' && row.item_id) return wineImages.get(row.item_id) ?? null
+  return null
+}
+
+async function loadShipmentOrderSummaries(orderIds: string[], requiresShippingByOrderId = new Map<string, boolean | null | undefined>()) {
+  const uniqueOrderIds = [...new Set(orderIds.filter(Boolean))]
+  if (uniqueOrderIds.length === 0) return new Map<string, ShipmentOrderSummary>()
+  const result = await supabaseAdminClient
+    .from('order_items')
+    .select('order_id,item_id,item_type,name_snapshot,quantity,metadata')
+    .in('order_id', uniqueOrderIds)
+    .order('name_snapshot', { ascending: true })
+  const rows = assertNoError<OrderItemSummaryRow[]>(result).data ?? []
+  const wineIds = [...new Set(rows.filter((item) => item.item_type === 'wine' && item.item_id).map((item) => item.item_id as string))]
+  const wineImages = wineIds.length
+    ? new Map((assertNoError<{ id: string; cover_image_url?: string | null }[]>(await supabaseAdminClient.from('wines').select('id,cover_image_url').in('id', wineIds)).data ?? []).map((row) => [row.id, row.cover_image_url ?? null]))
+    : new Map<string, string | null>()
+  const grouped = new Map<string, OrderItemSummaryRow[]>()
+  for (const row of rows) {
+    grouped.set(row.order_id, [...(grouped.get(row.order_id) ?? []), row])
+  }
+  const summaries = new Map<string, ShipmentOrderSummary>()
+  for (const orderId of uniqueOrderIds) {
+    const items = grouped.get(orderId) ?? []
+    const names = items.map((item) => item.name_snapshot).filter(Boolean)
+    const visibleNames = names.slice(0, 2).join(' + ')
+    const extraCount = Math.max(names.length - 2, 0)
+    summaries.set(orderId, {
+      orderType: orderTypeFromItems(items, requiresShippingByOrderId.get(orderId)),
+      productSummary: visibleNames ? `${visibleNames}${extraCount ? ` + ${extraCount} más` : ''}` : null,
+      productImageUrl: items.map((item) => itemImageUrl(item, wineImages)).find(Boolean) ?? null,
+      productTypes: [...new Set(items.map((item) => item.item_type).filter(Boolean))],
+      itemCount: items.length,
+      totalQuantity: items.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0),
+    })
+  }
+  return summaries
 }
 
 async function assertOrderAcceptsShipment(orderId: string) {
@@ -117,7 +206,7 @@ async function assertOrderAcceptsShipment(orderId: string) {
   throw httpError(422, 'Esta orden no requiere envío')
 }
 
-function mapShipment(row: ShipmentRow) {
+function mapShipment(row: ShipmentRow, summary?: ShipmentOrderSummary) {
   const order = first(row.orders)
   const carrier = first(row.carriers)
   return {
@@ -125,6 +214,18 @@ function mapShipment(row: ShipmentRow) {
     shipmentNumber: row.shipment_number ?? null,
     orderId: row.order_id,
     orderNumber: order?.order_number ?? null,
+    orderStatus: order?.status ?? null,
+    orderSource: order?.source ?? null,
+    orderCreatedAt: order?.created_at ?? null,
+    orderRequiresShipping: order?.requires_shipping ?? null,
+    orderTotal: order?.total === undefined || order?.total === null ? null : toNumber(order.total),
+    currency: order?.currency?.trim() ?? 'MXN',
+    orderType: summary?.orderType ?? orderTypeFromItems([], order?.requires_shipping),
+    productSummary: summary?.productSummary ?? null,
+    productImageUrl: summary?.productImageUrl ?? null,
+    productTypes: summary?.productTypes ?? [],
+    itemCount: summary?.itemCount ?? 0,
+    totalQuantity: summary?.totalQuantity ?? 0,
     customerName: customerName(row),
     carrierId: row.carrier_id ?? null,
     carrierName: carrier?.name ?? row.carrier ?? null,
@@ -186,8 +287,11 @@ export async function listShipments(query: ShipmentListQuery, user: UserContext)
       .order(query.orderBy, { ascending: query.orderDirection === 'asc' }),
     query,
   ).range(from, to)
+  const rows = assertNoError<ShipmentRow[]>(result).data ?? []
+  const requiresShippingByOrderId = new Map(rows.map((row) => [row.order_id, first(row.orders)?.requires_shipping]))
+  const summaries = await loadShipmentOrderSummaries(rows.map((row) => row.order_id), requiresShippingByOrderId)
   return {
-    data: (assertNoError<ShipmentRow[]>(result).data ?? []).map(mapShipment),
+    data: rows.map((row) => mapShipment(row, summaries.get(row.order_id))),
     count: result.count ?? 0,
   }
 }
@@ -197,7 +301,8 @@ export async function getShipment(id: string, user: UserContext) {
   const result = await supabaseAdminClient.from('shipments').select(shipmentSelect).eq('id', id).maybeSingle()
   const row = assertNoError<ShipmentRow | null>(result).data
   if (!row) throw httpError(404, 'Envío no encontrado')
-  return { data: mapShipment(row) }
+  const summaries = await loadShipmentOrderSummaries([row.order_id], new Map([[row.order_id, first(row.orders)?.requires_shipping]]))
+  return { data: mapShipment(row, summaries.get(row.order_id)) }
 }
 
 export async function createShipment(payload: CreateShipmentPayload, user: UserContext) {
@@ -353,11 +458,13 @@ export async function createCarrier(payload: CreateCarrierPayload, user: UserCon
 export async function exportShipments(query: ShipmentListQuery, user: UserContext) {
   requireOperationRole(user, exportRoles)
   const { data } = await listShipments({ ...query, page: 1, perPage: 100 }, user)
-  const headers = ['shipment_number', 'order_number', 'customer', 'carrier', 'tracking_number', 'status', 'estimated_delivery', 'delivered_at']
+  const headers = ['shipment_number', 'order_number', 'customer', 'order_type', 'products', 'carrier', 'tracking_number', 'status', 'estimated_delivery', 'delivered_at']
   const rows = data.map((item) => [
     item.shipmentNumber ?? '',
     item.orderNumber ?? '',
     item.customerName ?? '',
+    item.orderType ?? '',
+    item.productSummary ?? '',
     item.carrierName ?? '',
     item.trackingNumber ?? '',
     item.status,

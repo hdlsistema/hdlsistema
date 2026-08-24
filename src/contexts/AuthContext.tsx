@@ -46,7 +46,7 @@ type AuthContextValue = {
   mustChangePassword: boolean
   hasRole: (role: UserRole | UserRole[]) => boolean
   hasPermission: (permission: string | string[]) => boolean
-  signIn: (email: string, password: string) => Promise<UserRole[]>
+  signIn: (email: string, password: string, options?: { rememberSession?: boolean }) => Promise<UserRole[]>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
   completeInitialPasswordChange: (password: string) => Promise<void>
@@ -130,10 +130,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadIdentity])
 
   const signIn = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, options?: { rememberSession?: boolean }) => {
       setIsLoading(true)
       try {
-        const data = await signInService(email, password)
+        const data = await signInService(email, password, options)
         const nextRoles = await loadIdentity(data.session)
         if (data.session?.user) {
           trackAppActivity({

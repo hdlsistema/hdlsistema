@@ -63,9 +63,9 @@ html.hdl-mobile-app {
   --color-line: rgba(180, 138, 85, 0.34);
   --color-line-strong: #B48A55;
   --color-ink: #252F37;
-  --color-burgundy: #681126;
-  --color-burgundy-deep: #3f0818;
-  --color-burgundy-soft: #7d2037;
+  --color-burgundy: #5B0B1F;
+  --color-burgundy-deep: #33040F;
+  --color-burgundy-soft: #742139;
   --color-gold: #B48A55;
   --color-muted: #675f59;
   --color-muted-strong: #252F37;
@@ -207,7 +207,7 @@ html.hdl-mobile-app .native-app-header {
   padding: max(2rem, env(safe-area-inset-top)) 2rem max(2rem, env(safe-area-inset-bottom));
   background:
     radial-gradient(ellipse at 50% 38%, rgba(130,27,59,.42), transparent 48%),
-    #681126;
+    #5B0B1F;
   color: #F7F2EA;
   text-align: center;
 }
@@ -495,12 +495,12 @@ html.hdl-mobile-app .native-auth-screen__content {
   padding: 4px;
   border: 0;
   background: transparent;
-  color: #681126;
+  color: #5B0B1F;
 }
 
 .native-auth-form__link,
 .native-auth-screen__footnote a {
-  color: #681126;
+  color: #5B0B1F;
   font-size: 12px;
   font-weight: 700;
 }
@@ -589,8 +589,8 @@ html.hdl-mobile-app .native-auth-screen__content {
 }
 
 .native-auth-primary {
-  border: 1px solid #681126;
-  background: #681126;
+  border: 1px solid #5B0B1F;
+  background: #5B0B1F;
   color: #FFFDF8;
 }
 
@@ -602,7 +602,7 @@ html.hdl-mobile-app .native-auth-screen__content {
   margin-top: 22px;
   border: 1px solid #B48A55;
   background: transparent;
-  color: #681126;
+  color: #5B0B1F;
 }
 
 .native-auth-screen__footnote {
@@ -643,8 +643,8 @@ html.hdl-mobile-app .native-auth-screen__content {
 }
 
 .native-auth-check input:checked + .native-auth-check__mark {
-  border-color: #681126;
-  background: #681126;
+  border-color: #5B0B1F;
+  background: #5B0B1F;
   color: #FFFDF8;
   box-shadow: 0 3px 8px rgba(105,13,43,.22);
 }
@@ -711,8 +711,8 @@ html.hdl-mobile-app .native-auth-screen__content {
   border-bottom: 0;
   border-left: 0;
   border-radius: 24px 24px 0 0;
-  background: linear-gradient(135deg, rgba(104,17,38,.98), rgba(125,24,48,.98) 52%, rgba(104,17,38,.96));
-  box-shadow: 0 -16px 40px rgba(104,17,38,.24), inset 0 1px 0 rgba(180,138,85,.28);
+  background: linear-gradient(135deg, rgba(51,4,15,.98), rgba(91,11,31,.98) 58%, rgba(51,4,15,.96));
+  box-shadow: 0 -16px 40px rgba(51,4,15,.24), inset 0 1px 0 rgba(180,138,85,.28);
   -webkit-backdrop-filter: blur(24px) saturate(1.16);
   backdrop-filter: blur(24px) saturate(1.16);
 }
@@ -733,8 +733,8 @@ html.hdl-mobile-app .app-bottom-nav {
   border-bottom: 0;
   border-left: 0;
   border-radius: 24px 24px 0 0;
-  background: linear-gradient(135deg, rgba(104,17,38,.98), rgba(125,24,48,.98) 52%, rgba(104,17,38,.96));
-  box-shadow: 0 -16px 40px rgba(104,17,38,.24), inset 0 1px 0 rgba(180,138,85,.28);
+  background: linear-gradient(135deg, rgba(51,4,15,.98), rgba(91,11,31,.98) 58%, rgba(51,4,15,.96));
+  box-shadow: 0 -16px 40px rgba(51,4,15,.24), inset 0 1px 0 rgba(180,138,85,.28);
 }
 
 html.hdl-mobile-app .app-bottom-nav > a {
@@ -775,7 +775,7 @@ html.hdl-mobile-app .app-bottom-nav > a {
 
 .app-bottom-nav__item.is-active .app-bottom-nav__content {
   background: rgba(180,138,85,.16);
-  box-shadow: 0 8px 22px rgba(104,17,38,.24), inset 0 0 0 1px rgba(247,242,234,.34);
+  box-shadow: 0 8px 22px rgba(51,4,15,.24), inset 0 0 0 1px rgba(247,242,234,.34);
 }
 
 .app-bottom-nav__icon {
@@ -1474,7 +1474,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
   border: 1px solid rgba(198, 160, 101, 0.72);
   border-radius: 999px;
   background: linear-gradient(145deg, #fffaf1, #f3e2ca);
-  color: #681126;
+  color: #5B0B1F;
   box-shadow: 0 7px 18px rgba(52, 8, 20, 0.18), inset 0 1px 0 rgba(255,255,255,.9);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -1892,7 +1892,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-dashboard-hero::before {
   inset: 0 auto 0 0;
   width: 0.38rem;
-  background: linear-gradient(180deg, #252F37, #681126 58%, #B48A55);
+  background: linear-gradient(180deg, #252F37, #5B0B1F 58%, #B48A55);
 }
 
 .control-dashboard-hero::after {
@@ -1911,7 +1911,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
   opacity: 0.16;
   background:
     linear-gradient(135deg, transparent 44%, rgba(37, 47, 55, 0.18) 44.5%, transparent 45%),
-    linear-gradient(45deg, transparent 62%, rgba(104, 17, 38, 0.12) 62.5%, transparent 63%);
+    linear-gradient(45deg, transparent 62%, rgba(91, 11, 31, 0.12) 62.5%, transparent 63%);
   background-size: 64px 64px, 84px 84px;
   mask-image: linear-gradient(90deg, transparent, #000);
 }
@@ -1927,7 +1927,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
   display: inline-flex;
   align-items: center;
   gap: 0.42rem;
-  color: #681126;
+  color: #5B0B1F;
   font-size: 0.61rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -1989,8 +1989,8 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 .control-dashboard-hero__actions button {
-  border-color: rgba(104, 17, 38, 0.24);
-  background: #681126;
+  border-color: rgba(91, 11, 31, 0.24);
+  background: #5B0B1F;
   color: #fff9ef;
   transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
 }
@@ -2060,9 +2060,9 @@ html.hdl-mobile-app .crystal-date-popover__day {
   opacity: 0.08;
 }
 
-.control-executive-metric--wine { --metric-accent: #edc6cf; --metric-glow: #b22d51; }
-.control-executive-metric--gold { --metric-accent: #e6c488; --metric-glow: #d8a14e; }
-.control-executive-metric--forest { --metric-accent: #d6dde2; --metric-glow: #252F37; }
+.control-executive-metric--wine { --metric-accent: #e6bec8; --metric-glow: #5B0B1F; }
+.control-executive-metric--gold { --metric-accent: #B48A55; --metric-glow: #B48A55; }
+.control-executive-metric--ink { --metric-accent: #d6dde2; --metric-glow: #252F37; }
 .control-executive-metric--clay { --metric-accent: #e5b7a5; --metric-glow: #c46c4d; }
 
 .control-executive-metric__heading {
@@ -2320,9 +2320,9 @@ html.hdl-mobile-app .crystal-date-popover__day {
   transition: width 420ms ease;
 }
 
-.control-journey-bars__track i.is-wine { background: linear-gradient(90deg, #5a1025, #9b3350); }
-.control-journey-bars__track i.is-gold { background: linear-gradient(90deg, #a87636, #d7ad65); }
-.control-journey-bars__track i.is-forest { background: linear-gradient(90deg, #252F37, #566371); }
+.control-journey-bars__track i.is-wine { background: linear-gradient(90deg, #33040F, #5B0B1F); }
+.control-journey-bars__track i.is-gold { background: linear-gradient(90deg, #8E693D, #B48A55); }
+.control-journey-bars__track i.is-ink { background: linear-gradient(90deg, #252F37, #566371); }
 
 .control-performance-grid {
   display: grid;
@@ -2642,11 +2642,11 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-executive-assistant-card__mark span { font-family: var(--font-display); font-size: 0.86rem; letter-spacing: 0.08em; }
 .control-executive-assistant-card__mark i { width: 1.25rem; height: 1px; background: #B48A55; }
 .control-executive-assistant-card__copy { z-index: 1; display: grid; gap: 0.18rem; }
-.control-executive-assistant-card__copy p { color: #681126; font-size: 0.52rem; font-weight: 800; letter-spacing: 0.2em; }
+.control-executive-assistant-card__copy p { color: #5B0B1F; font-size: 0.52rem; font-weight: 800; letter-spacing: 0.2em; }
 .control-main .control-executive-assistant-card__copy h2 { color: #252F37; font-family: var(--font-body); font-size: 1.18rem; font-weight: 800; }
 .control-executive-assistant-card__copy > span { color: rgba(37, 47, 55, 0.8); font-size: 0.66rem; }
 .control-executive-assistant-card__copy small { color: rgba(37, 47, 55, 0.55); font-size: 0.53rem; }
-.control-executive-assistant-card > button { z-index: 1; display: flex; align-items: center; gap: 0.6rem; min-height: 2.5rem; padding: 0.65rem 0.95rem; border: 1px solid rgba(104, 17, 38, 0.2); border-radius: 999px; background: #681126; color: #fff9f0; font-size: 0.62rem; font-weight: 800; }
+.control-executive-assistant-card > button { z-index: 1; display: flex; align-items: center; gap: 0.6rem; min-height: 2.5rem; padding: 0.65rem 0.95rem; border: 1px solid rgba(91, 11, 31, 0.22); border-radius: 999px; background: #5B0B1F; color: #fff9f0; font-size: 0.62rem; font-weight: 800; }
 .control-executive-assistant-card > button:hover { background: #252F37; }
 
 .control-assistant-overlay {
@@ -2678,7 +2678,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-main .control-assistant-dialog > header h2 { color: #5f1024; font-family: var(--font-display); font-size: 1.55rem; font-weight: 400; }
 .control-assistant-dialog > header button { padding: 0.5rem 0.7rem; border: 1px solid rgba(108, 17, 42, 0.24); border-radius: 999px; color: #661127; font-size: 0.58rem; font-weight: 700; }
 .control-assistant-dialog__body { display: grid; height: 100%; grid-template-columns: 15rem minmax(0, 1fr); min-height: 0; overflow: hidden; }
-.control-assistant-dialog__body > aside { display: flex; flex-direction: column; gap: 1rem; padding: 1.2rem; background: linear-gradient(165deg, #252F37, #681126); color: #fff8ed; }
+.control-assistant-dialog__body > aside { display: flex; flex-direction: column; gap: 1rem; padding: 1.2rem; background: linear-gradient(165deg, #252F37, #5B0B1F); color: #fff8ed; }
 .control-assistant-identity { display: grid; gap: 0.18rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(230, 190, 127, 0.26); }
 .control-assistant-identity span { color: #dcb26d; font-family: var(--font-display); font-size: 1.05rem; }
 .control-assistant-identity strong { font-size: 0.52rem; letter-spacing: 0.18em; text-transform: uppercase; }
@@ -2867,17 +2867,17 @@ html.hdl-mobile-app .crystal-date-popover__day {
 .control-orders-list-header,
 .control-orders-list-row {
   display: grid;
-  grid-template-columns: minmax(15rem, 1.35fr) minmax(11rem, 0.9fr) minmax(7rem, 0.55fr) minmax(8.5rem, 0.7fr);
+  grid-template-columns: minmax(12rem, 1.25fr) minmax(10rem, 0.9fr) minmax(6rem, 0.5fr) minmax(7rem, 0.55fr) 1.25rem;
   align-items: center;
-  gap: 1rem;
+  gap: 0.7rem;
 }
 
 .control-orders-list-header {
-  min-height: 2.15rem;
-  padding: 0.42rem 1.25rem;
+  min-height: 1.85rem;
+  padding: 0.36rem 1rem;
   background: rgba(232, 216, 200, 0.48);
   color: rgba(37, 47, 55, 0.68);
-  font-size: 0.54rem;
+  font-size: 0.5rem;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2885,8 +2885,8 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
 .control-orders-list-row {
   width: 100%;
-  min-height: 4.45rem !important;
-  padding: 0.8rem 1.25rem !important;
+  min-height: 3.35rem !important;
+  padding: 0.55rem 1rem !important;
   text-align: left;
 }
 
@@ -2894,15 +2894,611 @@ html.hdl-mobile-app .crystal-date-popover__day {
   background: rgba(37, 47, 55, 0.045) !important;
 }
 
-.control-page--customers .control-master-list > div:last-child > button {
-  padding: 0.6rem;
+.control-orders-expanded {
+  background: #f7f2ea;
 }
 
-.control-page--customers .control-detail-pane > div {
-  gap: var(--control-space-md);
+.control-logistics-select-trigger {
+  min-height: 2.15rem !important;
+  height: auto !important;
+  padding: 0.32rem 0.58rem !important;
+  font-size: 0.56rem !important;
+  line-height: 1.08 !important;
+  white-space: normal !important;
 }
 
-.control-page--customers .control-detail-pane [class*="rounded-lg"][class*="border"] {
+.control-logistics-select-trigger span {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.control-logistics-select-menu {
+  min-height: 8.5rem !important;
+  max-height: 13rem !important;
+}
+
+.control-compact-select-trigger {
+  min-height: 2.05rem !important;
+  padding: 0.28rem 0.55rem !important;
+  font-size: 0.62rem !important;
+  line-height: 1.08 !important;
+  white-space: normal !important;
+}
+
+.control-compact-select-trigger span {
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.control-compact-select-menu {
+  min-height: 8rem !important;
+  max-height: 12.5rem !important;
+}
+
+.control-customers-filters {
+  padding: 0.75rem !important;
+}
+
+.control-customers-board {
+  padding: 0.9rem !important;
+}
+
+.control-customers-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.control-checkin-event-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: 0.75rem;
+  align-items: stretch;
+}
+
+.control-checkin-event-card {
+  display: flex;
+  min-width: 0;
+  aspect-ratio: 1 / 1;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(232, 216, 200, 0.92);
+  border-radius: 0.65rem;
+  background: rgba(255, 252, 247, 0.86);
+  color: #252F37;
+  text-align: left;
+  box-shadow: 0 14px 34px rgba(37, 47, 55, 0.08);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.control-checkin-event-card:hover,
+.control-checkin-event-card.is-active {
+  border-color: rgba(104, 17, 38, 0.48);
+  box-shadow: 0 18px 38px rgba(37, 47, 55, 0.12);
+}
+
+.control-checkin-event-card.is-active {
+  outline: 2px solid #B48A55;
+  outline-offset: 2px;
+}
+
+.control-checkin-event-card__image {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  flex: 1 1 50%;
+  place-items: center;
+  overflow: hidden;
+  background: #E8D8C8;
+  color: #681126;
+}
+
+.control-checkin-event-card__image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.control-checkin-event-card__status {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  border-radius: 999px;
+  background: #252F37;
+  padding: 0.22rem 0.5rem;
+  color: #F7F2EA;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.control-checkin-event-card__body {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.7rem;
+}
+
+.control-checkin-event-card__title {
+  overflow: hidden;
+  color: #252F37;
+  display: -webkit-box;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.12;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.control-checkin-event-card__meta {
+  overflow: hidden;
+  margin-top: 0.25rem;
+  color: rgba(37, 47, 55, 0.62);
+  font-size: 0.62rem;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-checkin-event-card__count {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #681126;
+}
+
+.control-checkin-event-card__count span {
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.control-checkin-event-card__count small {
+  color: rgba(37, 47, 55, 0.62);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.control-checkin-occupancy {
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(232, 216, 200, 0.75);
+}
+
+.control-checkin-occupancy.is-compact {
+  height: 0.35rem;
+}
+
+.control-checkin-occupancy span {
+  display: block;
+  height: 100%;
+  min-width: 0.3rem;
+  border-radius: inherit;
+  transition: width 180ms ease;
+}
+
+.control-checkin-attendee-row,
+.control-checkin-pass-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid rgba(232, 216, 200, 0.92);
+  border-radius: 0.65rem;
+  background: rgba(255, 252, 247, 0.76);
+  padding: 0.72rem;
+}
+
+.control-checkin-pass-row {
+  width: 100%;
+  text-align: left;
+}
+
+.control-checkin-pass-row.is-active {
+  border-color: rgba(104, 17, 38, 0.42);
+  background: rgba(232, 216, 200, 0.5);
+}
+
+.control-payment-row {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: 2rem minmax(0, 1fr) 7.5rem 8.5rem 7.25rem 8.5rem;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1rem;
+  background: #fffdfa;
+  color: #252F37;
+  text-align: left;
+  transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.control-payment-row:hover,
+.control-payment-row.is-active {
+  background: #F7F2EA;
+}
+
+.control-payment-row__icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(180, 138, 85, 0.42);
+  border-radius: 0.45rem;
+  background: #E8D8C8;
+  color: #681126;
+}
+
+.control-payment-row__folio,
+.control-payment-row__meta,
+.control-payment-row__source,
+.control-payment-row__date,
+.control-payment-row__amount {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-payment-row__folio {
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.control-payment-row__meta,
+.control-payment-row__source,
+.control-payment-row__date {
+  color: rgba(37, 47, 55, 0.64);
+  font-size: 0.64rem;
+  line-height: 1.2;
+}
+
+.control-payment-row__source {
+  color: #681126;
+  font-weight: 800;
+}
+
+.control-payment-row__amount {
+  color: #252F37;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-align: right;
+}
+
+.control-payment-pill {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 47, 55, 0.18);
+  padding: 0.25rem 0.55rem;
+  color: #252F37;
+  font-size: 0.58rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.control-payment-pill.is-paid {
+  border-color: rgba(37, 47, 55, 0.28);
+  background: #252F37;
+  color: #F7F2EA;
+}
+
+.control-payment-pill.is-refunded {
+  border-color: rgba(180, 138, 85, 0.58);
+  background: #E8D8C8;
+  color: #681126;
+}
+
+.control-payment-pill.is-failed {
+  border-color: rgba(104, 17, 38, 0.36);
+  background: rgba(104, 17, 38, 0.08);
+  color: #681126;
+}
+
+.control-payment-pill.is-pending {
+  border-color: rgba(180, 138, 85, 0.52);
+  background: #F7F2EA;
+  color: #252F37;
+}
+
+.control-order-payment-chip {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 47, 55, 0.22);
+  padding: 0.24rem 0.55rem;
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.control-order-payment-chip.is-paid {
+  border-color: #252F37;
+  background: #252F37;
+  color: #F7F2EA;
+}
+
+.control-order-payment-chip.is-pending {
+  border-color: rgba(180, 138, 85, 0.56);
+  background: #E8D8C8;
+  color: #681126;
+}
+
+.control-order-payment-chip.is-refunded {
+  border-color: rgba(180, 138, 85, 0.7);
+  background: #F7F2EA;
+  color: #252F37;
+}
+
+.control-order-payment-chip.is-cancelled {
+  border-color: rgba(104, 17, 38, 0.42);
+  background: rgba(104, 17, 38, 0.08);
+  color: #681126;
+}
+
+.control-order-payment-chip.is-neutral {
+  border-color: rgba(37, 47, 55, 0.24);
+  background: #F7F2EA;
+  color: #252F37;
+}
+
+@media (max-width: 767px) {
+  .control-checkin-event-grid {
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  }
+
+  .control-checkin-event-card__title {
+    font-size: 0.72rem;
+  }
+
+  .control-payment-row {
+    grid-template-columns: 2rem minmax(0, 1fr) 5.5rem;
+  }
+
+  .control-payment-row__source,
+  .control-payment-row__date {
+    display: none;
+  }
+}
+
+.control-customer-card {
+  display: grid;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 11.5rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(232, 216, 200, 0.95);
+  border-radius: var(--control-radius-md);
+  background: #fffdfa;
+  color: #252f37;
+  text-align: left;
+  box-shadow: 0 10px 22px rgba(37, 47, 55, 0.07);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.control-customer-card:hover,
+.control-customer-card.is-active {
+  border-color: rgba(104, 17, 38, 0.66);
+  background: #f7f2ea;
+  box-shadow: 0 12px 24px rgba(37, 47, 55, 0.1);
+}
+
+.control-customer-card__topline,
+.control-customer-card__chips,
+.control-customer-card__contact span,
+.control-customer-card__footer,
+.control-customer-card__footer span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.control-customer-card__topline {
+  gap: 0.55rem;
+}
+
+.control-customer-card__classmark {
+  display: inline-flex;
+  width: 2.45rem;
+  height: 2.45rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(180, 138, 85, 0.5);
+  border-radius: 0.45rem;
+  background: #681126;
+  color: #f7f2ea;
+}
+
+.control-customer-card__number {
+  display: block;
+  overflow: hidden;
+  color: #756a61;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.control-customer-card__name {
+  display: block;
+  overflow: hidden;
+  margin-top: 0.1rem;
+  color: #252f37;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.12;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-customer-card__initials {
+  display: inline-flex;
+  width: 1.9rem;
+  height: 1.9rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(232, 216, 200, 0.95);
+  border-radius: 0.4rem;
+  background: #f7f2ea;
+  color: #681126;
+  font-size: 0.58rem;
+  font-weight: 900;
+}
+
+.control-customer-card__chips {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.control-customer-card__segment,
+.control-customer-card__source {
+  display: inline-flex;
+  min-height: 1.35rem;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  padding: 0.18rem 0.45rem;
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.control-customer-card__segment {
+  border: 1px solid rgba(104, 17, 38, 0.22);
+  background: #fff;
+  color: #681126;
+}
+
+.control-customer-card__source {
+  border: 1px solid rgba(180, 138, 85, 0.38);
+  background: #f7f2ea;
+  color: #252f37;
+}
+
+.control-customer-card__contact {
+  display: grid;
+  gap: 0.22rem;
+  color: #675f59;
+  font-size: 0.68rem;
+  line-height: 1.15;
+}
+
+.control-customer-card__contact span {
+  gap: 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-customer-card__contact svg {
+  flex: 0 0 auto;
+  color: #681126;
+}
+
+.control-customer-card__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.control-customer-card__stats span {
+  display: grid;
+  min-width: 0;
+  gap: 0.05rem;
+  border: 1px solid rgba(232, 216, 200, 0.9);
+  border-radius: 0.38rem;
+  background: #fff;
+  padding: 0.38rem;
+}
+
+.control-customer-card__stats strong {
+  overflow: hidden;
+  color: #252f37;
+  font-size: 0.68rem;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-customer-card__stats small,
+.control-customer-card__tags {
+  color: #756a61;
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.control-customer-card__footer {
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: #675f59;
+  font-size: 0.58rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.control-customer-card__footer span {
+  gap: 0.25rem;
+}
+
+.control-customer-card__footer .is-on {
+  color: #681126;
+}
+
+.control-customer-card__tags {
+  overflow: hidden;
+  padding-top: 0.2rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.control-customer-detail-pane {
+  padding: 0.9rem !important;
+}
+
+.control-customer-detail-pane > div {
+  gap: 0.85rem !important;
+}
+
+.control-customer-detail-pane h2 {
+  font-size: 1.05rem !important;
+  line-height: 1.14 !important;
+}
+
+.control-customer-detail-pane h3 {
+  font-size: 0.78rem !important;
+}
+
+.control-customer-detail-pane p,
+.control-customer-detail-pane span,
+.control-customer-detail-pane a,
+.control-customer-detail-pane button,
+.control-customer-detail-pane textarea {
+  font-size: 0.68rem !important;
+}
+
+.control-customer-detail-pane [class*="rounded-lg"][class*="border"] {
   border-radius: var(--control-radius-sm);
 }
 
@@ -3395,8 +3991,28 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
 [data-control-floating-menu] {
   isolation: isolate;
+  min-height: 8.25rem !important;
+  max-height: min(13rem, calc(100vh - 1.5rem)) !important;
+  overflow-y: auto !important;
   scrollbar-color: rgba(108, 16, 42, 0.34) transparent;
   scrollbar-width: thin;
+}
+
+[data-control-floating-menu] [role="listbox"] {
+  max-height: none !important;
+}
+
+[data-control-floating-menu] button,
+[data-control-floating-menu] [role="option"] {
+  min-height: 1.55rem !important;
+  font-size: 0.56rem !important;
+  line-height: 1.08 !important;
+}
+
+[data-control-floating-menu] button span,
+[data-control-floating-menu] [role="option"] span {
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 
 [data-control-floating-menu]::-webkit-scrollbar,
@@ -3408,6 +4024,52 @@ html.hdl-mobile-app .crystal-date-popover__day {
 [data-control-floating-menu] *::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(108, 16, 42, 0.3);
+}
+
+.control-shell,
+.control-shell * {
+  scrollbar-color: rgba(63, 8, 23, 0.88) rgba(244, 231, 214, 0.42);
+  scrollbar-width: thin;
+}
+
+.control-shell::-webkit-scrollbar,
+.control-shell *::-webkit-scrollbar {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+.control-shell::-webkit-scrollbar-track,
+.control-shell *::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(232, 216, 200, 0.64);
+  box-shadow: inset 0 0 0 1px rgba(108, 16, 42, 0.08);
+}
+
+.control-shell::-webkit-scrollbar-thumb,
+.control-shell *::-webkit-scrollbar-thumb {
+  border: 2px solid rgba(247, 237, 224, 0.95);
+  border-radius: 999px;
+  background: #681126;
+  box-shadow: inset 0 1px 0 rgba(233, 195, 132, 0.42), 0 0 0 1px rgba(91, 11, 31, 0.14);
+}
+
+.control-shell::-webkit-scrollbar-thumb:hover,
+.control-shell *::-webkit-scrollbar-thumb:hover {
+  background: #252f37;
+}
+
+.control-sidebar__nav {
+  scrollbar-color: rgba(255, 242, 222, 0.48) rgba(255, 255, 255, 0.08);
+}
+
+.control-sidebar__nav::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.control-sidebar__nav::-webkit-scrollbar-thumb {
+  border-color: rgba(57, 5, 17, 0.9);
+  background: linear-gradient(180deg, rgba(255, 244, 226, 0.9), rgba(202, 160, 98, 0.74));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .control-form-overlay {
@@ -3566,7 +4228,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
   color: #fffdf8;
   padding: 0 1rem;
   font-size: 0.875rem;
-  box-shadow: 0 14px 28px rgba(104, 17, 38, 0.18);
+  box-shadow: 0 14px 28px rgba(91, 11, 31, 0.18);
 }
 
 .control-users-primary-button:disabled,
@@ -3588,7 +4250,7 @@ html.hdl-mobile-app .crystal-date-popover__day {
 
 .control-users-primary-button:not(:disabled):hover {
   background: #5e0b25;
-  box-shadow: 0 16px 32px rgba(104, 17, 38, 0.24);
+  box-shadow: 0 16px 32px rgba(91, 11, 31, 0.24);
 }
 
 .control-users-secondary-button:not(:disabled):hover {

@@ -104,15 +104,27 @@ export async function downloadAccessCredentialPdf(pass: AccessCredential, locale
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = fileName
+  anchor.target = '_blank'
+  anchor.rel = 'noopener noreferrer'
+  anchor.style.display = 'none'
+  document.body.appendChild(anchor)
   anchor.click()
-  window.setTimeout(() => URL.revokeObjectURL(url), 1500)
+  window.setTimeout(() => {
+    anchor.remove()
+    URL.revokeObjectURL(url)
+  }, 4000)
+  return { fileName }
 }
 
 export async function shareAccessCredential(pass: AccessCredential, locale = 'es-MX') {
   const { blob, fileName } = await buildAccessCredentialPdf(pass, locale)
   const file = new File([blob], fileName, { type: 'application/pdf' })
-  if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-    await navigator.share({ title: pass.title || 'Hacienda de Letras', text: 'Tu acceso de Hacienda de Letras', files: [file] })
+  if (navigator.share) {
+    if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+      await navigator.share({ title: pass.title || 'Hacienda de Letras', text: 'Tu acceso de Hacienda de Letras', files: [file] })
+      return 'shared'
+    }
+    await navigator.share({ title: pass.title || 'Hacienda de Letras', text: `Acceso Hacienda de Letras ${pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber ?? ''}`.trim() })
     return 'shared'
   }
   await downloadAccessCredentialPdf(pass, locale)

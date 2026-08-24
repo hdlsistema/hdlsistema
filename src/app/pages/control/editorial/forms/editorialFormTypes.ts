@@ -69,7 +69,9 @@ export type EditorialFormProps = {
   saving: boolean
   isBusy: boolean
   success: string | null
+  isPublishedRecord?: boolean
   onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  onStepSave?: () => Promise<boolean>
   onChange: (key: string, value: string) => void
   onPreview: () => void
   onVersions: () => void

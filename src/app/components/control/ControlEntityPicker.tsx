@@ -44,7 +44,7 @@ export function ControlEntityPicker({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const anchorRef = useRef<HTMLSpanElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
-  const floatingMenu = useFloatingControlMenu(anchorRef, open, 360, 280, menuRef)
+  const floatingMenu = useFloatingControlMenu(anchorRef, open, 240, 220, menuRef)
   const selected = options.find((option) => option.id === value) ?? null
   const visible = useMemo(() => {
     const term = normalized(query.trim())
@@ -62,7 +62,7 @@ export function ControlEntityPicker({
 
   useEffect(() => {
     if (!open) return
-    const closeOutside = (event: MouseEvent) => {
+    const closeOutside = (event: PointerEvent) => {
       const target = event.target as Node
       if (!containerRef.current?.contains(target) && !menuRef.current?.contains(target)) {
         setOpen(false)
@@ -71,10 +71,10 @@ export function ControlEntityPicker({
     const closeWithEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
-    window.addEventListener('mousedown', closeOutside)
+    window.addEventListener('pointerdown', closeOutside)
     window.addEventListener('keydown', closeWithEscape)
     return () => {
-      window.removeEventListener('mousedown', closeOutside)
+      window.removeEventListener('pointerdown', closeOutside)
       window.removeEventListener('keydown', closeWithEscape)
     }
   }, [open])
@@ -84,7 +84,7 @@ export function ControlEntityPicker({
       <span className="mb-2 block text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">
         {label}{required ? ' *' : ''}
       </span>
-      <span ref={anchorRef} className="flex min-h-11 items-center rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-3 focus-within:border-[var(--color-line-strong)] focus-within:ring-[3px] focus-within:ring-[rgba(170,125,67,0.12)]">
+      <span ref={anchorRef} className="flex min-h-10 items-center rounded-lg border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-3 focus-within:border-[var(--color-line-strong)] focus-within:ring-[3px] focus-within:ring-[rgba(170,125,67,0.12)]">
         <Search size={15} className="shrink-0 text-[var(--color-muted)]" />
         <input
           value={open ? query : selected?.label ?? ''}
@@ -97,12 +97,11 @@ export function ControlEntityPicker({
             setQuery('')
             setOpen(true)
           }}
-          onBlur={() => window.setTimeout(() => setOpen(false), 140)}
           placeholder={placeholder}
           required={required}
           disabled={disabled}
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent px-2 text-sm text-[var(--color-ink)] outline-none disabled:opacity-50"
+          className="min-w-0 flex-1 bg-transparent px-2 text-[11px] text-[var(--color-ink)] outline-none disabled:opacity-50"
         />
         {selected && !disabled ? (
           <button
@@ -123,7 +122,8 @@ export function ControlEntityPicker({
           data-control-floating-menu
           data-placement={floatingMenu.placement}
           style={{ ...floatingMenu.style, overflowY: 'auto' }}
-          className="overscroll-contain rounded-xl border border-[var(--color-line)] bg-[rgba(255,252,247,0.99)] p-1 shadow-[0_22px_50px_rgba(45,22,14,0.22)] backdrop-blur-xl"
+          onMouseDown={(event) => event.preventDefault()}
+          className="overscroll-contain rounded-lg border border-[var(--color-line)] bg-[#F7F2EA] p-1 shadow-[0_16px_30px_rgba(45,22,14,0.16)]"
         >
           {visible.map((option) => (
             <button
@@ -131,16 +131,16 @@ export function ControlEntityPicker({
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => choose(option.id)}
-              className="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-[var(--color-soft)]"
+              className="flex w-full items-start gap-2 rounded-md px-2 py-1 text-left hover:bg-[var(--color-soft)]"
             >
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-[var(--color-ink)]">{option.label}</span>
-                {option.description ? <span className="mt-0.5 block truncate text-xs text-[var(--color-muted)]">{option.description}</span> : null}
+                <span className="block truncate text-[9px] font-semibold leading-[1.15] text-[var(--color-ink)]">{option.label}</span>
+                {option.description ? <span className="mt-0.5 block truncate text-[8px] leading-[1.1] text-[var(--color-muted)]">{option.description}</span> : null}
               </span>
-              {option.id === value ? <Check size={15} className="mt-1 shrink-0 text-[var(--color-burgundy)]" /> : null}
+              {option.id === value ? <Check size={12} className="mt-0.5 shrink-0 text-[var(--color-burgundy)]" /> : null}
             </button>
           ))}
-          {visible.length === 0 ? <span className="block px-3 py-4 text-center text-xs text-[var(--color-muted)]">{emptyMessage}</span> : null}
+          {visible.length === 0 ? <span className="block px-3 py-4 text-center text-[10px] text-[var(--color-muted)]">{emptyMessage}</span> : null}
           {onAction ? (
             <button
               type="button"
@@ -149,9 +149,9 @@ export function ControlEntityPicker({
                 setOpen(false)
                 onAction()
               }}
-              className="mt-1 flex min-h-10 w-full items-center gap-2 rounded-lg border-t border-[var(--color-line)] px-3 text-left text-xs font-semibold text-[var(--color-burgundy)] hover:bg-[var(--color-soft)]"
+              className="mt-1 flex min-h-8 w-full items-center gap-2 rounded-lg border-t border-[var(--color-line)] px-2 text-left text-[9px] font-semibold text-[var(--color-burgundy)] hover:bg-[var(--color-soft)]"
             >
-              <Plus size={14} /> {actionLabel ?? 'Crear nuevo'}
+              <Plus size={13} /> {actionLabel ?? 'Crear nuevo'}
             </button>
           ) : null}
         </div>,

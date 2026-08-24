@@ -90,7 +90,7 @@ export function CrystalDateField({
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const popoverRef = useRef<HTMLDivElement | null>(null)
   const [visibleMonth, setVisibleMonth] = useState(() => toDate(value) ?? new Date())
-  const floatingMenu = useFloatingControlMenu(triggerRef, open, 430, 336, popoverRef)
+  const floatingMenu = useFloatingControlMenu(triggerRef, open, 360, 296, popoverRef)
 
   useEffect(() => {
     const nextDate = toDate(value)
@@ -98,7 +98,9 @@ export function CrystalDateField({
   }, [value])
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event: PointerEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node) &&
@@ -110,13 +112,13 @@ export function CrystalDateField({
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
     }
-    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('pointerdown', handlePointerDown)
     window.addEventListener('keydown', handleEscape)
     return () => {
-      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('pointerdown', handlePointerDown)
       window.removeEventListener('keydown', handleEscape)
     }
-  }, [])
+  }, [open])
 
   const days = useMemo(() => monthDays(visibleMonth), [visibleMonth])
   const monthFormatter = useMemo(() => new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }), [locale])
@@ -141,8 +143,8 @@ export function CrystalDateField({
         disabled={disabled}
         onClick={() => setOpen((current) => !current)}
         className={joinClasses(
-          'control-date-trigger flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[rgba(220,202,181,0.9)] bg-[rgba(255,252,247,0.74)] px-4 text-left text-sm text-[var(--color-ink)] shadow-[0_12px_28px_rgba(90,49,28,0.08)] backdrop-blur-xl transition hover:border-[rgba(180,138,85,0.55)] hover:bg-[rgba(255,252,247,0.86)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-55',
-          open && 'border-[rgba(104,17,38,0.36)] bg-[rgba(255,250,244,0.92)] shadow-[0_16px_30px_rgba(104,17,38,0.12)]',
+          'control-date-trigger flex min-h-10 w-full items-center justify-between gap-2 rounded-lg border border-[rgba(220,202,181,0.9)] bg-[#F7F2EA] px-3 text-left text-[10px] text-[var(--color-ink)] shadow-[0_8px_18px_rgba(90,49,28,0.06)] transition hover:border-[rgba(180,138,85,0.55)] hover:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-55',
+          open && 'border-[rgba(91,11,31,0.36)] bg-white shadow-[0_12px_24px_rgba(91,11,31,0.1)]',
           buttonClassName,
         )}
       >
@@ -156,18 +158,18 @@ export function CrystalDateField({
           data-control-floating-menu
           data-placement={floatingMenu.placement}
           style={floatingMenu.style}
-          className="crystal-date-popover overflow-x-hidden overflow-y-auto overscroll-contain rounded-[1.15rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.98),rgba(247,239,229,0.98))] p-3 shadow-[0_24px_48px_rgba(58,23,18,0.18)] backdrop-blur-2xl"
+          className="crystal-date-popover overflow-x-hidden overflow-y-auto overscroll-contain rounded-lg border border-[rgba(220,202,181,0.9)] bg-[#F7F2EA] p-2 shadow-[0_16px_28px_rgba(58,23,18,0.14)]"
         >
           <div className="flex items-center justify-between gap-2">
-            <button type="button" onClick={() => moveMonth(-1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label={isEnglish ? 'Previous month' : 'Mes anterior'}>
+            <button type="button" onClick={() => moveMonth(-1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(91,11,31,0.08)]" aria-label={isEnglish ? 'Previous month' : 'Mes anterior'}>
               <ChevronLeft size={18} />
             </button>
-            <p className="crystal-date-popover__month text-center text-sm font-semibold capitalize text-[var(--color-ink)]">{monthFormatter.format(visibleMonth)}</p>
-            <button type="button" onClick={() => moveMonth(1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(104,17,38,0.08)]" aria-label={isEnglish ? 'Next month' : 'Mes siguiente'}>
+            <p className="crystal-date-popover__month text-center text-[11px] font-semibold capitalize text-[var(--color-ink)]">{monthFormatter.format(visibleMonth)}</p>
+            <button type="button" onClick={() => moveMonth(1)} className="crystal-date-popover__nav rounded-full p-2 text-[var(--color-burgundy)] hover:bg-[rgba(91,11,31,0.08)]" aria-label={isEnglish ? 'Next month' : 'Mes siguiente'}>
               <ChevronRight size={18} />
             </button>
           </div>
-          <div className="crystal-date-popover__weekdays mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-[var(--color-gold)]">
+          <div className="crystal-date-popover__weekdays mt-2 grid grid-cols-7 gap-1 text-center text-[9px] font-semibold text-[var(--color-gold)]">
             {weekdays.map((day, index) => <span key={`${day}-${index}`}>{day}</span>)}
           </div>
           <div className="crystal-date-popover__grid mt-1 grid grid-cols-7 gap-1">
@@ -179,12 +181,12 @@ export function CrystalDateField({
                   type="button"
                   onClick={() => selectDate(day.value)}
                   className={joinClasses(
-                    'crystal-date-popover__day aspect-square rounded-full text-xs transition focus:outline-none',
+                    'crystal-date-popover__day aspect-square rounded-full text-[10px] transition focus:outline-none',
                     selected
-                      ? 'bg-[var(--color-burgundy)] font-semibold text-white shadow-[0_8px_18px_rgba(104,17,38,0.24)]'
+                      ? 'bg-[var(--color-burgundy)] font-semibold text-white shadow-[0_8px_18px_rgba(91,11,31,0.24)]'
                       : day.inMonth
-                        ? 'text-[var(--color-ink)] hover:bg-[rgba(104,17,38,0.08)]'
-                        : 'text-[rgba(122,99,82,0.42)] hover:bg-[rgba(104,17,38,0.05)]',
+                        ? 'text-[var(--color-ink)] hover:bg-[rgba(91,11,31,0.08)]'
+                        : 'text-[rgba(122,99,82,0.42)] hover:bg-[rgba(91,11,31,0.05)]',
                   )}
                 >
                   {day.label}

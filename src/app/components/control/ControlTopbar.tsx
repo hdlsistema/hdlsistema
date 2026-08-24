@@ -299,7 +299,7 @@ export function ControlTopbar() {
                     <span
                       className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                         item.status === 'failed'
-                          ? 'bg-[rgba(104,17,38,0.12)] text-[var(--color-burgundy)]'
+                          ? 'bg-[rgba(91,11,31,0.12)] text-[var(--color-burgundy)]'
                           : 'bg-[rgba(180,138,85,0.14)] text-[var(--color-gold)]'
                       }`}
                     >
@@ -331,7 +331,7 @@ export function ControlTopbar() {
                     onClick={() => void openAlert(item)}
                     className={`block w-full rounded-[1.1rem] border p-4 text-left transition hover:-translate-y-0.5 hover:bg-white/70 ${
                       unread
-                        ? 'border-[rgba(104,17,38,0.28)] bg-[rgba(255,255,255,0.68)] shadow-[0_10px_24px_rgba(104,17,38,0.08)]'
+                        ? 'border-[rgba(91,11,31,0.28)] bg-[rgba(255,255,255,0.68)] shadow-[0_10px_24px_rgba(91,11,31,0.08)]'
                         : 'border-[rgba(200,171,136,0.28)] bg-[rgba(255,255,255,0.38)] opacity-80'
                     }`}
                   >

@@ -45,7 +45,7 @@ export function EventVenuesScreen() {
                 >
                   <span className="relative block h-[172px] bg-[var(--color-ink)]">
                     <img src={venue.image} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08),rgba(104,17,38,0.68))]" />
+                    <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08),rgba(91,11,31,0.74))]" />
                     <span className="absolute bottom-3 left-3 inline-flex min-h-8 items-center gap-2 rounded-full border border-[rgba(247,242,234,0.38)] bg-[rgba(37,47,55,0.38)] px-3 text-[11px] font-semibold text-[#F7F2EA] backdrop-blur-xl">
                       <CalendarDays size={14} />
                       {count} {isEnglish ? 'events' : 'eventos'}

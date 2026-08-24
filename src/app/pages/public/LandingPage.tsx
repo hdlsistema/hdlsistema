@@ -109,9 +109,9 @@ export function LandingPage() {
           <footer className="mt-10 flex flex-col gap-5 text-[11px] text-[#7c6b61] sm:flex-row sm:items-center sm:justify-between">
             <p>© 2026 Hacienda de Letras. Todos los derechos reservados.</p>
             <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Información legal">
-              <Link to="/politica-de-privacidad" className="hover:text-[#681126]">Política de Privacidad</Link>
-              <Link to="/terminos-y-condiciones" className="hover:text-[#681126]">Términos y Condiciones</Link>
-              <Link to="/eliminar-cuenta" className="hover:text-[#681126]">Eliminar cuenta</Link>
+              <Link to="/politica-de-privacidad" className="hover:text-[#5B0B1F]">Política de Privacidad</Link>
+              <Link to="/terminos-y-condiciones" className="hover:text-[#5B0B1F]">Términos y Condiciones</Link>
+              <Link to="/eliminar-cuenta" className="hover:text-[#5B0B1F]">Eliminar cuenta</Link>
             </nav>
           </footer>
         </div>

@@ -70,7 +70,7 @@ export function MobileLoginPage() {
     setLoading(true)
     const form = new FormData(event.currentTarget)
     try {
-      await withAuthTimeout(signIn(String(form.get('email') ?? ''), String(form.get('password') ?? '')))
+      await withAuthTimeout(signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''), { rememberSession: form.get('remember') === 'on' }))
       navigate(destination, { replace: true })
     } catch (err) {
       setError(getErrorMessage(err, language))

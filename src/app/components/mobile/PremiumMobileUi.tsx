@@ -88,9 +88,9 @@ export function HeroEditorial({
       {image ? (
         <img src={image} alt={alt ?? title} className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#252F37_0%,#681126_55%,#B48A55_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#252F37_0%,#5B0B1F_58%,#B48A55_100%)]" />
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.16),rgba(104,17,38,0.78))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.16),rgba(91,11,31,0.8))]" />
       <div className="relative flex min-h-[inherit] flex-col justify-end px-[var(--app-pad)] pb-6 pt-8">
         {eyebrow ? (
           <p className="max-w-full text-[10px] font-semibold uppercase tracking-[0.2em] text-[#F7DFAE]">
@@ -185,35 +185,6 @@ export function SearchField({ placeholder, value, onChange }: {
         className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--color-ink)] outline-none placeholder:text-[var(--color-muted)]"
       />
     </label>
-  )
-}
-
-export function PillRow({ items, activeIndex = 0, onSelect }: {
-  items: string[]
-  activeIndex?: number
-  onSelect?: (index: number) => void
-}) {
-  return (
-    <div className="app-scrollbar-none -mx-[var(--app-pad)] flex gap-1.5 overflow-x-auto px-[var(--app-pad)] pb-1.5 [-webkit-overflow-scrolling:touch]">
-      {items.map((item, index) => {
-        const active = index === activeIndex
-        return (
-          <button
-            key={item}
-            type="button"
-            onClick={() => onSelect?.(index)}
-            className={cx(
-              'min-h-8 shrink-0 rounded-[11px] px-3 text-[10px] font-semibold tracking-[0.015em] transition-all',
-              active
-                ? 'border border-[rgba(180,138,85,0.52)] bg-[linear-gradient(135deg,#252F37,#681126)] text-[#F7F2EA] shadow-[0_9px_18px_rgba(37,47,55,0.18),inset_0_1px_0_rgba(255,255,255,0.16)]'
-                : 'border border-[rgba(180,138,85,0.28)] bg-[rgba(247,242,234,0.78)] text-[var(--color-ink)] shadow-[0_6px_14px_rgba(37,47,55,0.05),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl',
-            )}
-          >
-            {item}
-          </button>
-        )
-      })}
-    </div>
   )
 }
 
@@ -520,7 +491,7 @@ export function WineCard({
   const detailPath = appPath(`/vinos/${wine.id}`)
   return (
     <article className="group min-w-0">
-      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#252F37,#681126)]">
+      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#252F37,#5B0B1F)]">
         {badge ? (
           <span className="absolute left-2.5 top-2.5 z-10 max-w-[calc(100%-1.25rem)] truncate rounded-full bg-[rgba(247,242,234,0.92)] px-2 py-1 text-[8px] font-bold uppercase text-[var(--color-burgundy)]">
             {badge}

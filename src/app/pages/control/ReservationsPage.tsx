@@ -9,8 +9,10 @@ import {
   MessageSquarePlus,
   RefreshCw,
   Search,
+  UserRound,
   Users,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -114,21 +116,22 @@ function canWrite(roles: string[]) {
   return roles.some((role) => ['super_admin', 'admin', 'operations'].includes(role))
 }
 
-function formatDateTime(value: string | null | undefined) {
-  return value ? dateTime(value) : 'Sin horario'
+function formatDateTime(value: string | null | undefined, locale?: string) {
+  if (!value) return locale?.startsWith('en') ? 'No time' : 'Sin horario'
+  return dateTime(value, locale)
 }
 
-function currency(value: number, code = 'MXN') {
-  return money(value, code)
+function currency(value: number, code = 'MXN', locale?: string) {
+  return money(value, code, locale)
 }
 
-function statusLabel(status: ReservationRecord['status']) {
-  return safeStatusLabel(status)
+function statusLabel(status?: string | null, locale?: string) {
+  return safeStatusLabel(status, locale)
 }
 
-function historyStatusLabel(status?: string | null) {
-  if (!status) return 'Inicio'
-  return safeStatusLabel(status)
+function historyStatusLabel(status?: string | null, locale?: string) {
+  if (!status) return locale?.startsWith('en') ? 'Start' : 'Inicio'
+  return safeStatusLabel(status, locale)
 }
 
 function channelLabel(source?: string | null) {
@@ -203,7 +206,7 @@ type PendingReservationAction = {
 }
 
 export function ReservationsPage() {
-  const { isEnglish } = useAppPreferences()
+  const { isEnglish, locale } = useAppPreferences()
   const { session, roles } = useAuth()
   const [searchParams] = useSearchParams()
   const token = session?.access_token
@@ -212,6 +215,7 @@ export function ReservationsPage() {
   const [slots, setSlots] = useState<AvailabilitySlot[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [history, setHistory] = useState<ReservationHistoryItem[]>([])
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<ReservationHistoryItem | null>(null)
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('')
   const [reservationType, setReservationType] = useState('')
@@ -297,8 +301,10 @@ export function ReservationsPage() {
   useEffect(() => {
     if (!selected?.id) {
       setHistory([])
+      setSelectedHistoryItem(null)
       return
     }
+    setSelectedHistoryItem(null)
     reservationsClient.history(token, selected.id)
       .then((response) => setHistory(response.data))
       .catch(() => setHistory([]))
@@ -661,10 +667,13 @@ export function ReservationsPage() {
               <h4 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-ink)]"><FileClock size={16} /> Historial</h4>
               <div className="mt-4 space-y-3">
                 {history.length === 0 ? <p className="text-sm text-[var(--color-muted)]">Sin historial registrado.</p> : history.map((item) => (
-                  <div key={item.id} className="rounded-xl bg-[var(--color-soft)] p-3">
-                    <p className="text-xs font-semibold text-[var(--color-ink)]">{historyStatusLabel(item.previousStatus)} → {historyStatusLabel(item.newStatus)}</p>
-                    <p className="mt-1 text-[10px] text-[var(--color-muted)]">{formatDateTime(item.createdAt)} · {item.notes ?? 'Cambio de estado'}</p>
-                  </div>
+                  <button key={item.id} type="button" onClick={() => setSelectedHistoryItem(item)} className="grid w-full grid-cols-[2rem_minmax(0,1fr)] gap-3 rounded-xl bg-[var(--color-soft)] p-3 text-left transition hover:bg-white">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[linear-gradient(145deg,#5B0B1F,#33040F)] text-[#fff6e8]"><FileClock size={15} /></span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold text-[var(--color-ink)]">{historyStatusLabel(item.previousStatus, locale)} → {historyStatusLabel(item.newStatus, locale)}</span>
+                      <span className="mt-1 block truncate text-[10px] text-[var(--color-muted)]">{formatDateTime(item.createdAt, locale)} · {historyActorName(item.actorName, item.actorUserId, isEnglish)} · {item.notes ?? (isEnglish ? 'Status change' : 'Cambio de estado')}</span>
+                    </span>
+                  </button>
                 ))}
               </div>
             </article>
@@ -744,6 +753,56 @@ export function ReservationsPage() {
         onCancel={() => setPendingAction(null)}
         onConfirm={confirmPendingAction}
       />
+      {selectedHistoryItem ? <ReservationHistoryDialog item={selectedHistoryItem} reservation={selected} isEnglish={isEnglish} locale={locale} onClose={() => setSelectedHistoryItem(null)} /> : null}
+    </div>
+  )
+}
+
+function historyActorName(actorName?: string | null, actorUserId?: string | null, isEnglish = false) {
+  if (actorName?.trim()) return actorName.trim()
+  if (actorUserId) return isEnglish ? 'Registered user' : 'Usuario registrado'
+  return isEnglish ? 'System' : 'Sistema'
+}
+
+function ReservationHistoryDialog({ item, reservation, isEnglish, locale, onClose }: { item: ReservationHistoryItem; reservation: ReservationRecord | null; isEnglish: boolean; locale: string; onClose: () => void }) {
+  const changeLabel = `${historyStatusLabel(item.previousStatus, locale)} → ${historyStatusLabel(item.newStatus, locale)}`
+  return (
+    <div className="control-form-overlay fixed inset-0 z-[150] flex items-center justify-center bg-[#210711]/68 p-4 backdrop-blur-sm">
+      <button type="button" aria-label="Cerrar" onClick={onClose} className="absolute inset-0 cursor-default" />
+      <section className="control-form-surface relative z-10 max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.25rem] border border-[var(--color-line)] bg-[var(--color-page)] p-6 shadow-2xl" role="dialog" aria-modal="true" aria-label="Detalle de historial de reservación">
+        <div className="control-form-header mb-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Reservation history' : 'Historial de reservación'}</p>
+            <h2 className="mt-1 text-xl font-semibold text-[var(--color-burgundy)]">{changeLabel}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]" aria-label="Cerrar"><X size={18} /></button>
+        </div>
+        <div className="grid gap-3 text-xs md:grid-cols-2">
+          <HistorySummary icon={FileClock} label={isEnglish ? 'What happened' : 'Qué pasó'} value={changeLabel} />
+          <HistorySummary icon={UserRound} label={isEnglish ? 'Who did it' : 'Quién lo hizo'} value={historyActorName(item.actorName, item.actorUserId, isEnglish)} />
+          <HistorySummary icon={Clock3} label={isEnglish ? 'When' : 'Cuándo'} value={formatDateTime(item.createdAt, locale)} />
+          <HistorySummary icon={CalendarDays} label={isEnglish ? 'Reservation' : 'Reservación'} value={reservation?.reservationNumber ?? (isEnglish ? 'Linked reservation' : 'Reservación vinculada')} />
+          <HistorySummary icon={Users} label={isEnglish ? 'Guest' : 'Cliente'} value={reservation?.customerName ?? (isEnglish ? 'Linked customer' : 'Cliente vinculado')} />
+          <HistorySummary icon={CheckCircle2} label={isEnglish ? 'Previous status' : 'Estado anterior'} value={historyStatusLabel(item.previousStatus, locale)} />
+          <HistorySummary icon={CheckCircle2} label={isEnglish ? 'New status' : 'Estado nuevo'} value={historyStatusLabel(item.newStatus, locale)} />
+        </div>
+        <div className="mt-4 rounded-xl border border-[var(--color-line)] bg-white p-4 text-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-muted)]">{isEnglish ? 'Detail' : 'Detalle'}</p>
+          <p className="mt-2 text-[var(--color-ink)]">{item.notes ?? (isEnglish ? 'Status change recorded without an additional note.' : 'Cambio de estado registrado sin nota adicional.')}</p>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function HistorySummary({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-[var(--color-soft)] p-3">
+      <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[linear-gradient(145deg,#5B0B1F,#33040F)] text-[#fff6e8]">
+        <Icon size={15} />
+      </div>
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--color-muted)]">{label}</p>
+      <p className="mt-1 break-words text-sm font-semibold text-[var(--color-ink)]">{value}</p>
     </div>
   )
 }

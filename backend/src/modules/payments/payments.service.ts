@@ -62,8 +62,13 @@ type PaymentRow = {
     id: string
     order_number: string
     total: number | string
+    currency?: string | null
     status: string
-    customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string }>
+    source?: string | null
+    metadata?: Record<string, unknown> | null
+    created_at?: string | null
+    reservation_id?: string | null
+    customers?: Relation<{ display_name?: string | null; first_name: string; last_name: string; email?: string | null }>
   }>
 }
 
@@ -96,8 +101,14 @@ type CustomerOrderRow = {
 }
 
 type OrderItemRow = {
+  id?: string
+  order_id?: string | null
   subtotal: number | string
   item_type?: string | null
+  name_snapshot?: string | null
+  sku_snapshot?: string | null
+  quantity?: number | string | null
+  unit_price?: number | string | null
 }
 
 type OrderShippingAddressRow = {
@@ -157,7 +168,7 @@ const paymentSelect = `
   id,order_id,provider,provider_payment_id,amount,currency,status,payment_method_type,payment_reference,
   receipt_storage_path,paid_at,failed_at,refunded_amount,refunded_at,refund_reason,provider_environment,
   notes,created_at,updated_at,
-  orders(id,order_number,total,status,customers(display_name,first_name,last_name))
+  orders(id,order_number,total,currency,status,source,metadata,created_at,reservation_id,customers(display_name,first_name,last_name,email))
 `
 
 function rpcClient(user: UserContext) {
@@ -467,14 +478,49 @@ async function writeStripePaymentFromIntent(order: CustomerOrderRow, intent: Str
   return assertNoError<PaymentRow>(insert).data
 }
 
-function mapPayment(row: PaymentRow) {
+async function itemsForPaymentOrders(orderIds: string[]) {
+  const uniqueIds = Array.from(new Set(orderIds.filter(Boolean)))
+  if (!uniqueIds.length) return new Map<string, OrderItemRow[]>()
+  const result = await supabaseAdminClient
+    .from('order_items')
+    .select('id,order_id,item_type,name_snapshot,sku_snapshot,quantity,unit_price,subtotal')
+    .in('order_id', uniqueIds)
+    .order('created_at', { ascending: true })
+  const rows = assertNoError<OrderItemRow[]>(result).data ?? []
+  const map = new Map<string, OrderItemRow[]>()
+  for (const item of rows) {
+    if (!item.order_id) continue
+    const current = map.get(item.order_id) ?? []
+    current.push(item)
+    map.set(item.order_id, current)
+  }
+  return map
+}
+
+function itemSummary(items: OrderItemRow[]) {
+  if (!items.length) return null
+  const names = items.map((item) => item.name_snapshot).filter(Boolean) as string[]
+  if (!names.length) return null
+  return names.length > 2 ? `${names.slice(0, 2).join(' + ')} + ${names.length - 2} más` : names.join(' + ')
+}
+
+function mapPayment(row: PaymentRow, items: OrderItemRow[] = []) {
   const order = firstRelation(row.orders)
   const customer = firstRelation(order?.customers)
   return {
     id: row.id,
     orderId: row.order_id,
+    providerPaymentId: row.provider_payment_id ?? null,
     orderNumber: order?.order_number ?? null,
+    orderStatus: order?.status ?? null,
+    orderSource: order?.source ?? null,
+    orderTotal: order ? toNumber(order.total) : null,
+    orderCurrency: order?.currency?.trim() ?? null,
+    orderCreatedAt: order?.created_at ?? null,
+    orderReservationId: order?.reservation_id ?? null,
+    orderMetadata: order?.metadata ?? null,
     customerName: customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim(),
+    customerEmail: customer?.email ?? null,
     provider: row.provider,
     providerEnvironment: row.provider_environment ?? 'manual',
     status: row.status,
@@ -485,9 +531,20 @@ function mapPayment(row: PaymentRow) {
     paymentReference: row.payment_reference ?? null,
     hasReceipt: Boolean(row.receipt_storage_path),
     paidAt: row.paid_at ?? null,
+    failedAt: row.failed_at ?? null,
     refundedAt: row.refunded_at ?? null,
     refundReason: row.refund_reason ?? null,
     notes: row.notes ?? null,
+    itemSummary: itemSummary(items),
+    items: items.map((item) => ({
+      id: item.id ?? `${row.id}:${item.name_snapshot ?? 'partida'}`,
+      itemType: item.item_type ?? null,
+      name: item.name_snapshot ?? 'Partida',
+      sku: item.sku_snapshot ?? null,
+      quantity: toNumber(item.quantity),
+      unitPrice: toNumber(item.unit_price),
+      subtotal: toNumber(item.subtotal),
+    })),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -521,8 +578,9 @@ export async function listPayments(query: PaymentListQuery, user: UserContext) {
   ).range(from, to)
 
   const rows = assertNoError<PaymentRow[]>(result).data ?? []
+  const itemsByOrder = await itemsForPaymentOrders(rows.map((row) => row.order_id))
   return {
-    data: rows.map(mapPayment),
+    data: rows.map((row) => mapPayment(row, itemsByOrder.get(row.order_id) ?? [])),
     count: result.count ?? rows.length,
   }
 }
@@ -536,7 +594,8 @@ export async function getPayment(id: string, user: UserContext) {
     .maybeSingle()
   const row = assertNoError<PaymentRow | null>(result).data
   if (!row) throw httpError(404, 'Pago no encontrado')
-  return { data: mapPayment(row) }
+  const itemsByOrder = await itemsForPaymentOrders([row.order_id])
+  return { data: mapPayment(row, itemsByOrder.get(row.order_id) ?? []) }
 }
 
 export async function recordManualPayment(payload: ManualPaymentPayload, user: UserContext) {

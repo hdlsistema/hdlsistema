@@ -38,17 +38,24 @@ export type InventoryRecord = {
   id: string
   locationId: string
   wineName: string
+  imageUrl?: string | null
   sku?: string | null
   productName?: string | null
   lotCode?: string | null
   locationName?: string | null
+  locationCode?: string | null
+  locationType?: string | null
+  unitOfMeasure?: string | null
   onHand: number
   reserved: number
   available: number
   minimum: number
+  maximum?: number | null
   lowStock: boolean
   status: string
   unitCost?: number | null
+  createdAt?: string
+  updatedAt?: string
 }
 
 export type InventoryLocationRecord = {
@@ -61,29 +68,62 @@ export type InventoryLocationRecord = {
 
 export type InventoryMovementRecord = {
   id: string
+  inventoryItemId?: string
   movementType: string
   quantity: number
+  referenceType?: string | null
+  referenceId?: string | null
   product?: string | null
   sku?: string | null
   location?: string | null
+  fromLocationId?: string | null
+  fromLocationName?: string | null
+  toLocationId?: string | null
+  toLocationName?: string | null
   reason?: string | null
+  actorUserId?: string | null
+  actorName?: string | null
+  idempotencyKey?: string | null
+  metadata?: Record<string, unknown>
   createdAt: string
 }
 
 export type ShipmentRecord = {
   id: string
   shipmentNumber?: string | null
+  orderId?: string | null
   orderNumber?: string | null
+  orderStatus?: string | null
+  orderSource?: string | null
+  orderCreatedAt?: string | null
+  orderRequiresShipping?: boolean | null
+  orderTotal?: number | null
+  currency?: string | null
+  orderType?: string | null
+  productSummary?: string | null
+  productImageUrl?: string | null
+  productTypes?: string[]
+  itemCount?: number
+  totalQuantity?: number
   customerName?: string | null
+  carrierId?: string | null
   carrierName?: string | null
+  carrierType?: string | null
+  serviceLevel?: string | null
   trackingNumber?: string | null
   trackingUrl?: string | null
+  origin?: string | null
   destination?: string | null
   status: string
   shippingCost: number | null
   estimatedDeliveryAt?: string | null
+  shippedAt?: string | null
   deliveredAt?: string | null
+  cancelledAt?: string | null
+  cancellationReason?: string | null
   incidentCount: number
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 export type DistributorRecord = {
@@ -186,6 +226,13 @@ export const inventoryClient = {
   createItem(token: string | null | undefined, payload: Record<string, unknown>) {
     return apiFetch<{ ok: true; data: InventoryRecord }>('/api/admin/inventory/items', {
       method: 'POST',
+      headers: adminHeaders(token),
+      body: JSON.stringify(payload),
+    })
+  },
+  updateItem(token: string | null | undefined, id: string, payload: Record<string, unknown>) {
+    return apiFetch<{ ok: true; data: InventoryRecord }>(`/api/admin/inventory/items/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
       headers: adminHeaders(token),
       body: JSON.stringify(payload),
     })

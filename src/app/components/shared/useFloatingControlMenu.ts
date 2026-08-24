@@ -9,6 +9,7 @@ type FloatingMenuPosition = {
 const VIEWPORT_MARGIN = 12
 const MENU_GAP = 8
 const DEFAULT_MAX_HEIGHT = 304
+const MIN_USABLE_HEIGHT = 96
 
 export function useFloatingControlMenu(
   anchorRef: RefObject<HTMLElement | null>,
@@ -31,10 +32,20 @@ export function useFloatingControlMenu(
       if (!anchor) return
 
       const rect = anchor.getBoundingClientRect()
-      const viewportHeight = window.visualViewport?.height ?? window.innerHeight
-      const availableBelow = viewportHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN
-      const availableAbove = rect.top - MENU_GAP - VIEWPORT_MARGIN
-      const measuredHeight = floatingRef?.current?.scrollHeight ?? preferredMaxHeight
+      const viewportHeight = Math.max(
+        window.innerHeight || 0,
+        document.documentElement.clientHeight || 0,
+        MIN_USABLE_HEIGHT + (VIEWPORT_MARGIN * 2),
+      )
+      const viewportWidth = Math.max(
+        window.innerWidth || 0,
+        document.documentElement.clientWidth || 0,
+        preferredMinWidth + (VIEWPORT_MARGIN * 2),
+      )
+      const availableBelow = Math.max(0, viewportHeight - rect.bottom - MENU_GAP - VIEWPORT_MARGIN)
+      const availableAbove = Math.max(0, rect.top - MENU_GAP - VIEWPORT_MARGIN)
+      const rawMeasuredHeight = Math.max(floatingRef?.current?.scrollHeight ?? 0, preferredMaxHeight)
+      const measuredHeight = rawMeasuredHeight > 24 ? rawMeasuredHeight : preferredMaxHeight
       const desiredHeight = Math.min(preferredMaxHeight, measuredHeight)
       const placement = availableBelow >= desiredHeight
         ? 'bottom'
@@ -44,24 +55,30 @@ export function useFloatingControlMenu(
             ? 'bottom'
             : 'top'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const maxHeight = Math.max(0, Math.min(desiredHeight, availableHeight))
+      const viewportMaxHeight = Math.max(MIN_USABLE_HEIGHT, viewportHeight - (VIEWPORT_MARGIN * 2))
+      const minimumHeight = Math.min(Math.max(48, Math.min(MIN_USABLE_HEIGHT, desiredHeight)), viewportMaxHeight)
+      const maxHeight = Math.min(
+        viewportMaxHeight,
+        Math.max(minimumHeight, Math.min(desiredHeight, availableHeight || desiredHeight)),
+      )
       const width = Math.min(
         Math.max(rect.width, preferredMinWidth),
-        window.innerWidth - (VIEWPORT_MARGIN * 2),
+        viewportWidth - (VIEWPORT_MARGIN * 2),
       )
       const left = Math.min(
         Math.max(rect.left, VIEWPORT_MARGIN),
-        window.innerWidth - VIEWPORT_MARGIN - width,
+        viewportWidth - VIEWPORT_MARGIN - width,
       )
 
       setPosition({
         placement,
-        contentMaxHeight: Math.max(0, maxHeight - 16),
+        contentMaxHeight: Math.max(32, maxHeight - 12),
         style: {
           position: 'fixed',
           zIndex: 500,
           left,
           width,
+          minHeight: minimumHeight,
           maxHeight,
           boxSizing: 'border-box',
           ...(placement === 'bottom'

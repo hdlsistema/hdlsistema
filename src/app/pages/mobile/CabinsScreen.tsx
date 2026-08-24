@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Check, Clock3, Coffee, Grape, Loader2, MapPin, MoonStar, Navigation, Users, Utensils } from 'lucide-react'
+import { Check, Clock3, Coffee, Grape, Loader2, MapPin, Moon, Navigation, Users, Utensils } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
 import { EmptyState, ErrorState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
@@ -210,7 +210,7 @@ export function CabinsScreen() {
             <p className="mt-1 text-[12px] leading-5 text-[#5F493D]">{HACIENDA_ADDRESS}</p>
           </div>
         </div>
-        <button type="button" onClick={() => setShowDirections(true)} className="app-burgundy-cta mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#7d1435,#57071d)] px-4 text-[12px] font-semibold text-white">
+        <button type="button" onClick={() => setShowDirections(true)} className="app-burgundy-cta mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#5B0B1F,#33040F)] px-4 text-[12px] font-semibold text-white">
           <Navigation size={15} />
           {isEnglish ? 'How to get to the cabins' : 'Cómo llegar a las cabañas'}
         </button>
@@ -229,7 +229,7 @@ export function CabinsScreen() {
               key={item.id}
               type="button"
               onClick={() => selectPackage(item.id)}
-              className={`min-w-0 max-w-full overflow-hidden rounded-[18px] border text-left ${selectedPackage === item.id ? 'border-[#681126] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}
+              className={`min-w-0 max-w-full overflow-hidden rounded-[18px] border text-left ${selectedPackage === item.id ? 'border-[#5B0B1F] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}
             >
               {item.coverImageUrl ? (
                 <span className="block h-40 bg-[var(--color-ink)]">
@@ -249,7 +249,7 @@ export function CabinsScreen() {
                 </span>
                 <span className="mt-3 block text-[12px] leading-5 text-[var(--color-muted)]">{item.description}</span>
                 <span className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-y border-[#E8D7C2] py-2.5 text-[10px] font-semibold text-[#6B4A3B]">
-                  <span className="inline-flex items-center gap-1.5"><MoonStar size={13} />{item.nights ?? 1} {isEnglish ? 'night' : 'noche'}</span>
+                  <span className="inline-flex items-center gap-1.5"><Moon size={13} />{item.nights ?? 1} {isEnglish ? 'night' : 'noche'}</span>
                   <span className="inline-flex items-center gap-1.5"><Users size={13} />{item.minGuests === item.maxGuests ? item.minGuests : `${item.minGuests ?? 1}–${item.maxGuests ?? 1}`} {isEnglish ? 'guests' : 'personas'}</span>
                   <span>{isEnglish ? 'Breakfast included' : 'Desayuno incluido'}</span>
                 </span>
@@ -286,7 +286,7 @@ export function CabinsScreen() {
         {selectedPackageRecord && nightCount > 0 ? (
           <div className="mt-3 rounded-[16px] border border-[rgba(180,138,85,0.42)] bg-[linear-gradient(145deg,rgba(255,255,255,.84),rgba(244,234,228,.72))] p-3">
             <div className="flex items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#4B2C22]"><MoonStar size={15} />{nightCount} {nightCount === 1 ? (isEnglish ? 'night' : 'noche') : (isEnglish ? 'nights' : 'noches')}</span>
+              <span className="inline-flex items-center gap-2 text-[12px] font-semibold text-[#4B2C22]"><Moon size={15} />{nightCount} {nightCount === 1 ? (isEnglish ? 'night' : 'noche') : (isEnglish ? 'nights' : 'noches')}</span>
               <strong className="text-[16px] text-[var(--color-burgundy)]">{formatCurrency(estimatedTotal, locale)}</strong>
             </div>
             <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">
@@ -339,7 +339,7 @@ export function CabinsScreen() {
                     key={option.value}
                     type="button"
                     onClick={() => setMainCourseValue(option.value)}
-                    className={`min-h-11 rounded-[14px] border px-3 text-left text-[12px] font-semibold ${active ? 'border-[#681126] bg-[#681126] text-white shadow-[0_12px_26px_rgba(104,17,38,0.2)]' : 'border-[rgba(180,138,85,0.36)] bg-[#FFFDF8] text-[var(--color-burgundy)]'}`}
+                    className={`min-h-11 rounded-[14px] border px-3 text-left text-[12px] font-semibold ${active ? 'border-[#5B0B1F] bg-[#5B0B1F] text-white shadow-[0_12px_26px_rgba(91,11,31,0.2)]' : 'border-[rgba(180,138,85,0.36)] bg-[#FFFDF8] text-[var(--color-burgundy)]'}`}
                   >
                     {option.label}
                   </button>
@@ -367,7 +367,7 @@ export function CabinsScreen() {
               type="checkbox"
               checked={contractAccepted}
               onChange={(event) => setContractAccepted(event.target.checked)}
-              className="mt-1 h-5 w-5 rounded border-[rgba(104,17,38,0.28)] accent-[#681126]"
+              className="mt-1 h-5 w-5 rounded border-[rgba(91,11,31,0.28)] accent-[#5B0B1F]"
             />
             <span className="text-[11px] leading-5 text-[var(--color-muted)]">
               <strong className="block text-[12px] text-[var(--color-ink)]">{cabinContractTerms.title}</strong>
@@ -375,7 +375,7 @@ export function CabinsScreen() {
             </span>
           </label>
         ) : null}
-        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#681126] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request cabin' : 'Solicitar cabaña')}
         </button>
         {message ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-burgundy)]">{message}</p> : null}

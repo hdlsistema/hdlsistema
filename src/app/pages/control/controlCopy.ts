@@ -62,6 +62,7 @@ const STATUS_LABELS: Record<string, string> = {
   confirmado: 'Confirmado',
   contactada: 'Contactada',
   contacted: 'Contactada',
+  correcto: 'Correcto',
   converted: 'Convertido',
   delivered: 'Entregado',
   entregada: 'Entregada',
@@ -125,6 +126,7 @@ const STATUS_LABELS: Record<string, string> = {
   sent: 'Enviado',
   shipped: 'Enviado',
   succeeded: 'Correcto',
+  'stock bajo': 'Stock bajo',
   tracking_assigned: 'Guía asignada',
   returned: 'Devuelto',
   used: 'Usado',
@@ -135,14 +137,14 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_LABELS_EN: Record<string, string> = {
   active: 'Active', archived: 'Archived', awaiting_tracking: 'Tracking pending', blocked: 'Blocked',
   cancelled: 'Cancelled', closed: 'Closed', completed: 'Completed', confirmed: 'Confirmed', contacted: 'Contacted',
-  converted: 'Converted', delivered: 'Delivered', draft: 'Draft', failed: 'Failed', fulfilled: 'Completed',
+  correcto: 'Healthy', converted: 'Converted', delivered: 'Delivered', draft: 'Draft', failed: 'Failed', fulfilled: 'Completed',
   in_progress: 'In progress', in_transit: 'In transit', inactive: 'Inactive', lost: 'Lost', new: 'New', no_show: 'No show',
   not_required: 'Shipping not required', open: 'Open', paid: 'Payment confirmed', partially_refunded: 'Partially refunded',
   paused: 'Paused', pending: 'Pending', pending_payment: 'Payment pending', pending_preparation: 'Preparing',
   preparing: 'Preparing', processing: 'In progress', prospect: 'Prospect', published: 'Published', quoted: 'Quoted', ready: 'Ready to ship',
   'por preparar': 'Preparing',
   refunded: 'Refunded', revoked: 'Revoked', sent: 'Sent', shipped: 'Shipped', started: 'Started',
-  returned: 'Returned', succeeded: 'Successful', tracking_assigned: 'Tracking assigned', used: 'Used', won: 'Won',
+  returned: 'Returned', succeeded: 'Successful', 'stock bajo': 'Low stock', tracking_assigned: 'Tracking assigned', used: 'Used', won: 'Won',
   enviada: 'Shipped',
   enviado: 'Shipped',
   entregada: 'Delivered',
@@ -172,6 +174,8 @@ export function statusLabel(value?: string | null, locale?: string) {
 }
 
 const EVENT_LABELS: Record<string, string> = {
+  insert: 'Registro creado',
+  update: 'Registro actualizado',
   app_session_started: 'Sesión iniciada en la app',
   cart_abandoned: 'Carrito sin finalizar',
   cart_created: 'Carrito creado',
@@ -213,15 +217,60 @@ const EVENT_LABELS: Record<string, string> = {
   wine_club_viewed: 'Wine Club consultado',
 }
 
-export function eventLabel(value?: string | null) {
-  if (!value) return 'Movimiento registrado'
+const EVENT_LABELS_EN: Record<string, string> = {
+  insert: 'Record created',
+  update: 'Record updated',
+  app_session_started: 'App session started',
+  cart_abandoned: 'Cart left unfinished',
+  cart_created: 'Cart created',
+  cart_item_added: 'Item added to cart',
+  cart_item_removed: 'Item removed from cart',
+  checkout_payment_attempted: 'Payment attempt started',
+  checkout_payment_form_viewed: 'Payment form opened',
+  checkout_started: 'Checkout started',
+  customer_login: 'Customer signed in',
+  customer_created: 'Customer created',
+  customer_updated: 'Customer updated',
+  customer_archived: 'Customer archived',
+  customer_restored: 'Customer restored',
+  customer_logout: 'Customer signed out',
+  customer_profile_updated: 'Profile updated',
+  order_created: 'Order created',
+  order_cancelled: 'Order cancelled',
+  order_delivered: 'Order delivered',
+  order_fulfilled: 'Order completed',
+  order_pending_payment: 'Order awaiting payment',
+  order_paid: 'Payment confirmed',
+  order_processing: 'Order in progress',
+  order_shipped: 'Order shipped',
+  order_updated: 'Order updated',
+  payment_processing: 'Payment in progress',
+  payment_failed: 'Payment failed',
+  payment_succeeded: 'Payment confirmed',
+  quote_requested: 'Quote requested',
+  quote_email_sent: 'Quote sent by email',
+  reservation_created: 'Reservation created',
+  reservation_cancelled: 'Reservation cancelled',
+  reservation_confirmed: 'Reservation confirmed',
+  reservation_rescheduled: 'Reservation rescheduled',
+  reservation_started: 'Reservation started',
+  reservation_submitted: 'Reservation requested',
+  shipping_prepared: 'Order prepared',
+  tag_assigned: 'Tag assigned',
+  tag_removed: 'Tag removed',
+  wine_club_viewed: 'Wine Club viewed',
+}
+
+export function eventLabel(value?: string | null, locale?: string) {
+  const resolvedLocale = currentLocale(locale)
+  if (!value) return resolvedLocale.startsWith('en') ? 'Movement recorded' : 'Movimiento registrado'
   const normalized = value.toLowerCase().replaceAll('.', '_')
-  const label = EVENT_LABELS[normalized]
+  const label = resolvedLocale.startsWith('en') ? EVENT_LABELS_EN[normalized] : EVENT_LABELS[normalized]
   if (label) return label
   if (import.meta.env.DEV) {
     console.warn('Evento no mapeado en Centro de Control', value)
   }
-  return 'Movimiento registrado'
+  return resolvedLocale.startsWith('en') ? 'Movement recorded' : 'Movimiento registrado'
 }
 
 export function areaLabel(value?: string | null) {

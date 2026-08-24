@@ -39,7 +39,7 @@ type InventoryItemRow = {
   status: string
   created_at: string
   updated_at: string
-  wines?: Relation<{ sku: string; name: string; slug: string; price?: number | string | null; cost?: number | string | null }>
+  wines?: Relation<{ sku: string; name: string; slug: string; cover_image_url?: string | null; price?: number | string | null; cost?: number | string | null }>
   inventory_locations?: Relation<{ name: string; code?: string | null; type: string }>
 }
 type LocationRow = {
@@ -57,9 +57,15 @@ type MovementRow = {
   inventory_item_id: string
   movement_type: string
   quantity: number
+  from_location_id?: string | null
+  to_location_id?: string | null
   reference_type?: string | null
+  reference_id?: string | null
   notes?: string | null
   reason?: string | null
+  created_by?: string | null
+  idempotency_key?: string | null
+  metadata?: Record<string, unknown> | null
   created_at: string
   inventory_items?: Relation<{
     sku?: string | null
@@ -67,12 +73,20 @@ type MovementRow = {
     wines?: Relation<{ sku: string; name: string }>
     inventory_locations?: Relation<{ name: string }>
   }>
+  from_location?: Relation<{ name: string; code?: string | null; type?: string | null }>
+  to_location?: Relation<{ name: string; code?: string | null; type?: string | null }>
+}
+type ProfileRow = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
 }
 
 const itemSelect = `
   id,wine_id,location_id,quantity,reserved_quantity,reorder_point,sku,product_name,lot_code,unit_of_measure,
   minimum_quantity,maximum_quantity,unit_cost,status,created_at,updated_at,
-  wines(sku,name,slug,price,cost),
+  wines(sku,name,slug,cover_image_url,price,cost),
   inventory_locations(name,code,type)
 `
 
@@ -102,12 +116,14 @@ function mapItem(row: InventoryItemRow, showCosts: boolean) {
     id: row.id,
     wineId: row.wine_id,
     wineName: wine?.name ?? row.product_name ?? 'Producto sin nombre',
+    imageUrl: wine?.cover_image_url ?? null,
     sku: row.sku ?? wine?.sku ?? null,
     productName: row.product_name ?? wine?.name ?? null,
     lotCode: row.lot_code ?? null,
     locationId: row.location_id,
     locationName: location?.name ?? null,
     locationCode: location?.code ?? null,
+    locationType: location?.type ?? null,
     unitOfMeasure: row.unit_of_measure,
     onHand,
     reserved,
@@ -135,20 +151,50 @@ function mapLocation(row: LocationRow) {
   }
 }
 
-function mapMovement(row: MovementRow) {
+function profileName(row: ProfileRow | null | undefined) {
+  return row?.display_name || [row?.first_name, row?.last_name].filter(Boolean).join(' ').trim() || null
+}
+
+async function loadActorNames(rows: MovementRow[]) {
+  const actorIds = Array.from(new Set(rows.map((row) => row.created_by).filter((value): value is string => Boolean(value))))
+  if (actorIds.length === 0) return new Map<string, string>()
+  const result = await supabaseAdminClient
+    .from('profiles')
+    .select('id,first_name,last_name,display_name')
+    .in('id', actorIds)
+  if (result.error) return new Map<string, string>()
+  return new Map(
+    ((result.data ?? []) as ProfileRow[])
+      .map((profile) => [profile.id, profileName(profile)])
+      .filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
+}
+
+function mapMovement(row: MovementRow, actorNames = new Map<string, string>()) {
   const item = first(row.inventory_items)
   const wine = first(item?.wines)
   const location = first(item?.inventory_locations)
+  const fromLocation = first(row.from_location)
+  const toLocation = first(row.to_location)
   return {
     id: row.id,
     inventoryItemId: row.inventory_item_id,
     movementType: row.movement_type,
     quantity: row.quantity,
     referenceType: row.reference_type ?? null,
+    referenceId: row.reference_id ?? null,
     product: item?.product_name ?? wine?.name ?? null,
     sku: item?.sku ?? wine?.sku ?? null,
     location: location?.name ?? null,
+    fromLocationId: row.from_location_id ?? null,
+    fromLocationName: fromLocation?.name ?? null,
+    toLocationId: row.to_location_id ?? null,
+    toLocationName: toLocation?.name ?? null,
     reason: row.reason ?? row.notes ?? null,
+    actorUserId: row.created_by ?? null,
+    actorName: row.created_by ? actorNames.get(row.created_by) ?? null : null,
+    idempotencyKey: row.idempotency_key ?? null,
+    metadata: row.metadata ?? {},
     createdAt: row.created_at,
   }
 }
@@ -159,6 +205,7 @@ function applyItemFilters(request: any, query: InventoryListQuery) {
   if (query.wineId) next = next.eq('wine_id', query.wineId)
   if (query.sku) next = next.eq('sku', query.sku)
   if (query.status) next = next.eq('status', query.status)
+  else next = next.neq('status', 'archived')
   if (query.withReservation !== undefined) next = query.withReservation ? next.gt('reserved_quantity', 0) : next.eq('reserved_quantity', 0)
   if (query.outOfStock) next = next.eq('quantity', 0)
   if (query.search) {
@@ -313,14 +360,18 @@ export async function listInventoryMovements(query: MovementListQuery, user: Use
     supabaseAdminClient
       .from('inventory_movements')
       .select(`
-        id,inventory_item_id,movement_type,quantity,reference_type,notes,reason,created_at,
-        inventory_items(sku,product_name,wines(sku,name),inventory_locations(name))
+        id,inventory_item_id,movement_type,quantity,from_location_id,to_location_id,reference_type,reference_id,notes,reason,created_by,idempotency_key,metadata,created_at,
+        inventory_items(sku,product_name,wines(sku,name),inventory_locations(name)),
+        from_location:inventory_locations!inventory_movements_from_location_id_fkey(name,code,type),
+        to_location:inventory_locations!inventory_movements_to_location_id_fkey(name,code,type)
       `, { count: 'exact' })
       .order('created_at', { ascending: false }),
     query,
   ).range(from, to)
+  const rows = assertNoError<MovementRow[]>(result).data ?? []
+  const actorNames = await loadActorNames(rows)
   return {
-    data: (assertNoError<MovementRow[]>(result).data ?? []).map(mapMovement),
+    data: rows.map((row) => mapMovement(row, actorNames)),
     count: result.count ?? 0,
   }
 }
@@ -361,7 +412,7 @@ export async function exportInventoryMovements(query: MovementListQuery, user: U
   requireOperationRole(user, exportRoles)
   const { data } = await listInventoryMovements({ ...query, page: 1, perPage: 100 }, user)
   const headers = ['movement_number', 'type', 'product', 'location', 'quantity', 'reference', 'actor', 'created_at']
-  const rows = data.map((item) => [item.id.slice(0, 8), item.movementType, item.product ?? '', item.location ?? '', String(item.quantity), item.referenceType ?? '', '', item.createdAt])
+  const rows = data.map((item) => [item.id.slice(0, 8), item.movementType, item.product ?? '', item.location ?? item.fromLocationName ?? '', String(item.quantity), item.referenceType ?? '', item.actorName ?? 'No registrado', item.createdAt])
   return [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
 }
 

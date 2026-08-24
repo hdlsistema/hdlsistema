@@ -126,8 +126,16 @@ type HistoryRow = {
   reservation_id: string
   previous_status?: string | null
   new_status: string
+  changed_by?: string | null
   notes?: string | null
   created_at: string
+}
+
+type ProfileRow = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
 }
 
 const reservationSelect = `
@@ -157,6 +165,25 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 function customerName(row: ReservationRow) {
   const customer = firstRelation(row.customers)
   return [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+}
+
+function profileName(row: ProfileRow | null | undefined) {
+  return row?.display_name || [row?.first_name, row?.last_name].filter(Boolean).join(' ').trim() || null
+}
+
+async function loadActorNames(rows: HistoryRow[]) {
+  const actorIds = Array.from(new Set(rows.map((row) => row.changed_by).filter((value): value is string => Boolean(value))))
+  if (actorIds.length === 0) return new Map<string, string>()
+  const result = await supabaseAdminClient
+    .from('profiles')
+    .select('id,first_name,last_name,display_name')
+    .in('id', actorIds)
+  if (result.error) return new Map<string, string>()
+  return new Map(
+    ((result.data ?? []) as ProfileRow[])
+      .map((profile) => [profile.id, profileName(profile)])
+      .filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
 }
 
 function mapReservation(row: ReservationRow) {
@@ -441,17 +468,20 @@ export async function listReservationHistory(id: string, user: UserContext) {
   requireOperationRole(user, readRoles)
   const result = await supabaseAdminClient
     .from('reservation_status_history')
-    .select('id,reservation_id,previous_status,new_status,notes,created_at')
+    .select('id,reservation_id,previous_status,new_status,changed_by,notes,created_at')
     .eq('reservation_id', id)
     .order('created_at', { ascending: true })
 
   const rows = assertNoError<HistoryRow[]>(result).data ?? []
+  const actorNames = await loadActorNames(rows)
   return {
     data: rows.map((row) => ({
       id: row.id,
       reservationId: row.reservation_id,
       previousStatus: row.previous_status ?? null,
       newStatus: row.new_status,
+      actorUserId: row.changed_by ?? null,
+      actorName: row.changed_by ? actorNames.get(row.changed_by) ?? null : null,
       notes: row.notes ?? null,
       createdAt: row.created_at,
     })),

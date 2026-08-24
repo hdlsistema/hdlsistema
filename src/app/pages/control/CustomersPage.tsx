@@ -2,10 +2,18 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { Link, useSearchParams } from 'react-router-dom'
 import {
   Archive,
+  AlertTriangle,
   BadgeCheck,
+  Building2,
+  Clock3,
+  Crown,
   Download,
   FileClock,
+  Gem,
+  Globe2,
   Mail,
+  MapPin,
+  Megaphone,
   MessageSquarePlus,
   Pencil,
   Phone,
@@ -14,9 +22,12 @@ import {
   RotateCcw,
   Save,
   Search,
+  Smartphone,
   Tag,
+  UserPlus,
   UserRound,
   Users,
+  Wine,
   X,
 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -89,6 +100,27 @@ const segments: Array<{ value: CustomerSegment; label: string }> = [
   { value: 'customer', label: 'Cliente' },
 ]
 
+type CustomerSourceGroup = '' | 'app' | 'web' | 'hacienda'
+
+const segmentProfiles: Record<CustomerSegment, { label: string; icon: typeof Users; campaignKey: string }> = {
+  customer: { label: 'Cliente', icon: UserRound, campaignKey: 'CLIENTE' },
+  new: { label: 'Nuevo', icon: UserPlus, campaignKey: 'NUEVO' },
+  recurrente: { label: 'Recurrente', icon: RotateCcw, campaignKey: 'RECURRENTE' },
+  vip: { label: 'VIP', icon: Crown, campaignKey: 'VIP' },
+  alto_valor: { label: 'Alto valor', icon: Gem, campaignKey: 'ALTO VALOR' },
+  en_riesgo: { label: 'En riesgo', icon: AlertTriangle, campaignKey: 'EN RIESGO' },
+  inactivo: { label: 'Inactivo', icon: Clock3, campaignKey: 'INACTIVO' },
+  wine_club: { label: 'Wine Club', icon: Wine, campaignKey: 'WINE CLUB' },
+  corporativo: { label: 'Corporativo', icon: Building2, campaignKey: 'CORPORATIVO' },
+}
+
+const sourceOptions: Array<{ value: CustomerSourceGroup; label: string; labelEn: string }> = [
+  { value: '', label: 'Todos los orígenes', labelEn: 'All sources' },
+  { value: 'app', label: 'App', labelEn: 'App' },
+  { value: 'web', label: 'Web', labelEn: 'Web' },
+  { value: 'hacienda', label: 'Hacienda / manual', labelEn: 'Hacienda / manual' },
+]
+
 function canWrite(roles: string[]) {
   return roles.some((role) => ['super_admin', 'admin', 'operations', 'marketing'].includes(role))
 }
@@ -102,7 +134,39 @@ function canExport(roles: string[]) {
 }
 
 function segmentLabel(value: string) {
-  return segments.find((item) => item.value === value)?.label ?? value
+  return segmentProfiles[value as CustomerSegment]?.label ?? segments.find((item) => item.value === value)?.label ?? value
+}
+
+function segmentProfile(value: CustomerSegment) {
+  return segmentProfiles[value] ?? segmentProfiles.customer
+}
+
+function normalizeValue(value?: string | null) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function sourceGroup(value?: string | null): Exclude<CustomerSourceGroup, ''> {
+  const normalized = normalizeValue(value)
+  if (normalized.includes('app') || normalized.includes('mobile') || normalized.includes('android') || normalized.includes('ios')) return 'app'
+  if (normalized.includes('web') || normalized.includes('landing') || normalized.includes('ecommerce') || normalized.includes('checkout')) return 'web'
+  return 'hacienda'
+}
+
+function sourceLabel(value?: string | null, isEnglish = false) {
+  const group = sourceGroup(value)
+  if (group === 'app') return 'App'
+  if (group === 'web') return 'Web'
+  return isEnglish ? 'Hacienda / manual' : 'Hacienda / manual'
+}
+
+function sourceIcon(value?: string | null) {
+  const group = sourceGroup(value)
+  if (group === 'app') return Smartphone
+  if (group === 'web') return Globe2
+  return MapPin
 }
 
 function operationalStatusLabel(value?: string | null) {
@@ -229,7 +293,7 @@ export function CustomersPage() {
   const [history, setHistory] = useState<CustomerHistoryItem[]>([])
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState('')
-  const [tagFilter, setTagFilter] = useState('')
+  const [sourceFilter, setSourceFilter] = useState<CustomerSourceGroup>('')
   const [consentFilter, setConsentFilter] = useState('')
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -240,7 +304,7 @@ export function CustomersPage() {
   const [note, setNote] = useState('')
   const [editingNote, setEditingNote] = useState<CustomerNote | null>(null)
   const [tagName, setTagName] = useState('')
-  const [tagColor, setTagColor] = useState('#681126')
+  const [tagColor, setTagColor] = useState('#5B0B1F')
   const [assignTagId, setAssignTagId] = useState('')
   const [pendingAction, setPendingAction] = useState<PendingCustomerAction | null>(null)
   const [tagEdit, setTagEdit] = useState<CustomerTag | null>(null)
@@ -251,7 +315,14 @@ export function CustomersPage() {
     return customers.map((customer) => customer.id === selectedDetail.id ? { ...customer, ...selectedDetail } : customer)
   }, [customers, selectedDetail])
 
-  const selected = selectedDetail ?? visibleCustomers.find((item) => item.id === selectedId) ?? visibleCustomers[0] ?? null
+  const filteredCustomers = useMemo(
+    () => visibleCustomers.filter((customer) => !sourceFilter || sourceGroup(customer.source) === sourceFilter),
+    [sourceFilter, visibleCustomers],
+  )
+
+  const selected = selectedDetail && filteredCustomers.some((item) => item.id === selectedDetail.id)
+    ? selectedDetail
+    : filteredCustomers.find((item) => item.id === selectedId) ?? filteredCustomers[0] ?? null
 
   const loadCustomers = useCallback(async () => {
     setLoading(true)
@@ -261,7 +332,6 @@ export function CustomersPage() {
         customersClient.list(token, {
           search: search || undefined,
           segment: segmentFilter || undefined,
-          tagId: tagFilter || undefined,
           consent: consentFilter || undefined,
           perPage: 100,
         }),
@@ -275,7 +345,7 @@ export function CustomersPage() {
     } finally {
       setLoading(false)
     }
-  }, [consentFilter, search, segmentFilter, tagFilter, token])
+  }, [consentFilter, search, segmentFilter, token])
 
   const loadDetail = useCallback(async (id: string) => {
     setDetailLoading(true)
@@ -311,6 +381,17 @@ export function CustomersPage() {
   }, [linkedCustomerId])
 
   useEffect(() => {
+    if (loading) return
+    if (!filteredCustomers.length) {
+      if (selectedId) setSelectedId(null)
+      return
+    }
+    if (!selectedId || !filteredCustomers.some((customer) => customer.id === selectedId)) {
+      setSelectedId(filteredCustomers[0].id)
+    }
+  }, [filteredCustomers, loading, selectedId])
+
+  useEffect(() => {
     if (!selectedId) {
       setSelectedDetail(null)
       setReservations([])
@@ -323,15 +404,22 @@ export function CustomersPage() {
   }, [loadDetail, selectedId])
 
   const metrics = useMemo(() => ({
-    total: visibleCustomers.length,
-    vip: visibleCustomers.filter((item) => item.segment === 'vip' || item.activeMembershipsCount > 0).length,
-    revenue: visibleCustomers.reduce((sum, item) => sum + item.totalSpend, 0),
-    consent: visibleCustomers.filter((item) => item.marketingEmailConsent || item.marketingPushConsent).length,
-  }), [visibleCustomers])
+    total: filteredCustomers.length,
+    vip: filteredCustomers.filter((item) => item.segment === 'vip' || item.activeMembershipsCount > 0).length,
+    revenue: filteredCustomers.reduce((sum, item) => sum + item.totalSpend, 0),
+    consent: filteredCustomers.filter((item) => item.marketingEmailConsent || item.marketingPushConsent).length,
+  }), [filteredCustomers])
 
   const openCreate = () => {
     setForm(emptyCustomerForm)
     setError('')
+  }
+
+  const clearFilters = () => {
+    setSearch('')
+    setSegmentFilter('')
+    setSourceFilter('')
+    setConsentFilter('')
   }
 
   const openEdit = (customer: CustomerRecord) => {
@@ -481,7 +569,6 @@ export function CustomersPage() {
       const response = await customersClient.exportCsv(token, {
         search: search || undefined,
         segment: segmentFilter || undefined,
-        tagId: tagFilter || undefined,
         consent: consentFilter || undefined,
       })
       if (!response.ok) throw new Error('No fue posible exportar clientes.')
@@ -568,97 +655,71 @@ export function CustomersPage() {
           <Metric label="Consentimiento marketing" value={String(metrics.consent)} icon={Mail} />
         </div>
 
-        <Panel className="rounded-lg">
-          <div className="grid gap-3 lg:grid-cols-[1fr_190px_190px_190px]">
+        <Panel className="control-customers-filters rounded-lg">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(250px,1fr)_170px_170px_170px_auto]">
             <label className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={17} />
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={15} />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className={`${inputClass()} pl-10`}
+                className={`${inputClass()} min-h-10 pl-9 text-[12px]`}
                 placeholder="Buscar por nombre, correo, teléfono o número"
               />
             </label>
-            <CrystalSelect value={segmentFilter} onChange={setSegmentFilter}>
-              <option value="">Todos los segmentos</option>
+            <CrystalSelect value={sourceFilter} onChange={(value) => setSourceFilter(value as CustomerSourceGroup)} buttonClassName="control-compact-select-trigger" menuClassName="control-compact-select-menu">
+              {sourceOptions.map((item) => (
+                <option key={item.value || 'all'} value={item.value}>{isEnglish ? item.labelEn : item.label}</option>
+              ))}
+            </CrystalSelect>
+            <CrystalSelect value={segmentFilter} onChange={setSegmentFilter} buttonClassName="control-compact-select-trigger" menuClassName="control-compact-select-menu">
+              <option value="">Todas las clasificaciones</option>
               {segments.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
               ))}
             </CrystalSelect>
-            <CrystalSelect value={tagFilter} onChange={setTagFilter}>
-              <option value="">Todas las etiquetas</option>
-              {tags.map((item) => (
-                <option key={item.id} value={item.id}>{item.name}</option>
-              ))}
-            </CrystalSelect>
-            <CrystalSelect value={consentFilter} onChange={setConsentFilter}>
+            <CrystalSelect value={consentFilter} onChange={setConsentFilter} buttonClassName="control-compact-select-trigger" menuClassName="control-compact-select-menu">
               <option value="">Todo consentimiento</option>
               <option value="email">Correo autorizado</option>
               <option value="push">Push autorizado</option>
               <option value="none">Sin consentimiento</option>
             </CrystalSelect>
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-[11px] font-semibold text-[var(--color-burgundy)] transition hover:border-[var(--color-burgundy)]"
+            >
+              <X size={14} />
+              Limpiar
+            </button>
           </div>
         </Panel>
 
-        <div className="control-master-detail grid gap-5 xl:grid-cols-[minmax(360px,0.4fr)_minmax(0,0.6fr)]">
-          <Panel className="control-master-list rounded-lg">
+        <div className="grid gap-4">
+          <Panel className="control-customers-board rounded-lg">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold text-[var(--color-ink)]">Directorio</h2>
-                <p className="text-sm text-[var(--color-muted)]">Información actualizada.</p>
+                <h2 className="text-base font-semibold text-[var(--color-ink)]">Directorio por clasificación</h2>
+                <p className="text-[11px] text-[var(--color-muted)]">{filteredCustomers.length} clientes visibles para segmentación y campañas.</p>
               </div>
               {loading ? <RefreshCw className="animate-spin text-[var(--color-burgundy)]" size={18} /> : null}
             </div>
 
             {loading ? (
-              <div className="grid gap-3">
-                {[0, 1, 2].map((item) => (
-                  <div key={item} className="h-24 animate-pulse rounded-lg bg-[var(--color-soft)]" />
+              <div className="control-customers-card-grid">
+                {[0, 1, 2, 3, 4, 5].map((item) => (
+                  <div key={item} className="h-40 animate-pulse rounded-lg border border-[var(--color-line)] bg-white" />
                 ))}
               </div>
-            ) : visibleCustomers.length ? (
-              <div className="grid gap-3">
-                {visibleCustomers.map((customer) => (
-                  <button
+            ) : filteredCustomers.length ? (
+              <div className="control-customers-card-grid">
+                {filteredCustomers.map((customer) => (
+                  <CustomerCard
                     key={customer.id}
-                    type="button"
-                    onClick={() => setSelectedId(customer.id)}
-                    className={`grid gap-3 rounded-lg border p-4 text-left transition hover:border-[var(--color-burgundy)] md:grid-cols-[auto_1fr_auto] md:items-center ${
-                      selected?.id === customer.id
-                        ? 'border-[var(--color-burgundy)] bg-[var(--color-soft)]'
-                        : 'border-[var(--color-line)] bg-white'
-                    }`}
-                  >
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-md bg-[var(--color-burgundy)] text-sm font-bold text-white">
-                      {initials(customer.displayName)}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-[var(--color-ink)]">{customer.displayName}</span>
-                        <span className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-[var(--color-burgundy)]">
-                          {segmentLabel(customer.segment)}
-                        </span>
-                      </span>
-                      <span className="mt-2 grid gap-2 text-sm text-[var(--color-muted)]">
-                        <span className="inline-flex min-w-0 items-center gap-2">
-                          <Mail size={14} className="shrink-0" />
-                          <span className="truncate">{customer.email ?? 'Sin correo'}</span>
-                        </span>
-                        <span className={`inline-flex min-w-0 items-center gap-2 rounded-md px-2 py-1 ${
-                          customer.phone
-                            ? 'bg-[var(--color-panel-strong)] font-semibold text-[var(--color-ink)]'
-                            : 'bg-white/70 text-[var(--color-muted)]'
-                        }`}>
-                          <Phone size={14} className="shrink-0" />
-                          <span className="truncate">{customer.phone ?? 'Sin teléfono'}</span>
-                        </span>
-                      </span>
-                    </span>
-                    <span className="grid gap-1 text-right text-sm">
-                      <span className="font-semibold text-[var(--color-ink)]">{money(customer.totalSpend)}</span>
-                      <span className="text-[var(--color-muted)]">{customer.reservationsCount} reservaciones</span>
-                    </span>
-                  </button>
+                    customer={customer}
+                    active={selected?.id === customer.id}
+                    isEnglish={isEnglish}
+                    onSelect={() => setSelectedId(customer.id)}
+                  />
                 ))}
               </div>
             ) : (
@@ -672,7 +733,7 @@ export function CustomersPage() {
             )}
           </Panel>
 
-          <Panel className="control-detail-pane rounded-lg">
+          <Panel className="control-customer-detail-pane rounded-lg">
             {selected ? (
               <div className="grid gap-5">
                 <div className="flex items-start justify-between gap-3">
@@ -707,7 +768,8 @@ export function CustomersPage() {
                 <div className="grid gap-2 text-sm">
                   <InfoRow icon={Mail} label="Correo" value={selected.email ?? 'Sin correo'} />
                   <InfoRow icon={Phone} label="Teléfono" value={selected.phone ?? 'Sin teléfono'} />
-                  <InfoRow icon={Tag} label="Origen" value={selected.source ?? 'Sin origen'} />
+                  <InfoRow icon={sourceIcon(selected.source)} label="Origen" value={sourceLabel(selected.source, isEnglish)} />
+                  <InfoRow icon={Megaphone} label="Audiencia campañas" value={segmentProfile(selected.segment).campaignKey} />
                   <InfoRow icon={BadgeCheck} label="Consentimiento" value={[
                     selected.marketingEmailConsent ? 'correo' : '',
                     selected.marketingPushConsent ? 'push' : '',
@@ -724,6 +786,13 @@ export function CustomersPage() {
                     <Pencil size={15} />
                     Editar
                   </button>
+                  <Link
+                    to={`/control/campanas?segmento=${encodeURIComponent(selected.segment)}`}
+                    className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold text-[var(--color-burgundy)] transition hover:border-[var(--color-burgundy)]"
+                  >
+                    <Megaphone size={15} />
+                    Campañas
+                  </Link>
                   {selected.archivedAt ? (
                     <button
 	                      type="button"
@@ -1076,4 +1145,78 @@ function historyEntityLabel(item: CustomerHistoryItem) {
   if (item.entityType === 'reservation') return 'reservación'
   if (item.entityType === 'membership') return 'membresía'
   return 'registro'
+}
+
+function CustomerCard({
+  customer,
+  active,
+  isEnglish,
+  onSelect,
+}: {
+  customer: CustomerRecord
+  active: boolean
+  isEnglish: boolean
+  onSelect: () => void
+}) {
+  const segment = segmentProfile(customer.segment)
+  const segmentText = segmentLabel(customer.segment)
+  const SegmentIcon = segment.icon
+  const SourceIcon = sourceIcon(customer.source)
+  const hasMarketing = customer.marketingEmailConsent || customer.marketingPushConsent
+  const tagNames = customer.tags.slice(0, 2).map((item) => item.name).join(' · ')
+  const hiddenTags = customer.tags.length > 2 ? ` +${customer.tags.length - 2}` : ''
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`control-customer-card ${active ? 'is-active' : ''}`}
+      aria-pressed={active}
+    >
+      <span className="control-customer-card__topline">
+        <span className="control-customer-card__classmark" title={`Clasificación: ${segment.label}`}>
+          <SegmentIcon size={18} strokeWidth={1.8} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="control-customer-card__number">{customer.customerNumber}</span>
+          <span className="control-customer-card__name">{customer.displayName}</span>
+        </span>
+        <span className="control-customer-card__initials">{initials(customer.displayName) || 'CL'}</span>
+      </span>
+
+      <span className="control-customer-card__chips">
+        <span className="control-customer-card__segment">
+          <SegmentIcon size={12} strokeWidth={1.75} />
+          {segmentText}
+        </span>
+        <span className="control-customer-card__source">
+          <SourceIcon size={12} strokeWidth={1.75} />
+          {sourceLabel(customer.source, isEnglish)}
+        </span>
+      </span>
+
+      <span className="control-customer-card__contact">
+        <span><Mail size={12} />{customer.email ?? 'Sin correo'}</span>
+        <span><Phone size={12} />{customer.phone ?? 'Sin teléfono'}</span>
+      </span>
+
+      <span className="control-customer-card__stats">
+        <span><strong>{money(customer.totalSpend)}</strong><small>{isEnglish ? 'value' : 'valor'}</small></span>
+        <span><strong>{customer.reservationsCount}</strong><small>{isEnglish ? 'reservations' : 'reservas'}</small></span>
+        <span><strong>{customer.ordersCount}</strong><small>{isEnglish ? 'orders' : 'órdenes'}</small></span>
+      </span>
+
+      <span className="control-customer-card__footer">
+        <span>
+          <Megaphone size={12} />
+          {isEnglish ? 'Audience' : 'Audiencia'}: {segment.campaignKey}
+        </span>
+        <span className={hasMarketing ? 'is-on' : ''}>{hasMarketing ? 'Marketing autorizado' : 'Sin autorización'}</span>
+      </span>
+
+      <span className="control-customer-card__tags">
+        {tagNames ? `${tagNames}${hiddenTags}` : 'Sin etiquetas'}
+      </span>
+    </button>
+  )
 }

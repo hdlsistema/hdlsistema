@@ -1,0 +1,40 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, expect, it } from 'vitest'
+
+describe('LogisticsPage layout operativo', () => {
+  it('presenta ordenes en tarjetas compactas con filtros, miniatura y total real', () => {
+    const source = readFileSync(resolve(__dirname, '../app/pages/control/LogisticsPage.tsx'), 'utf8')
+
+    expect(source).toContain('ShipmentCard')
+    expect(source).toContain('mergeLogisticsRecords')
+    expect(source).toContain('ordersClient.list')
+    expect(source).toContain('shipmentsClient.list')
+    expect(source).toContain('productImageUrl')
+    expect(source).toContain('orderTotal')
+    expect(source).toContain('ticketTotal')
+    expect(source).toContain('sourceLabel')
+    expect(source).toContain("type SortKey = 'updatedAt' | 'status' | 'orderType' | 'product' | 'month' | 'customer' | 'carrier'")
+    expect(source).toContain('orderTypeOptions')
+    expect(source).toContain('productOptions')
+    expect(source).toContain('monthOptions')
+    expect(source).toContain('matchesQuickFilter')
+    expect(source).toContain('Logística y entregas')
+    expect(source).toContain('Tipo de pedido')
+    expect(source).toContain('Producto')
+    expect(source).toContain('Mes')
+    expect(source).toContain('Estatus')
+    expect(source).toContain('Seguimiento operativo')
+    expect(source).toContain('#681126')
+    expect(source).toContain('#F7F2EA')
+    expect(source).toContain('#B48A55')
+    expect(source).toContain('#252F37')
+    expect(source).toContain('#E8D8C8')
+    expect(source).toContain('ScanBarcode')
+    expect(source).toContain('PackageOpen')
+    expect(source).toContain('SlidersHorizontal')
+    expect(source).not.toContain('color-positive')
+    expect(source).not.toContain('linear-gradient')
+    expect(source.toLowerCase()).not.toContain('green')
+  })
+})

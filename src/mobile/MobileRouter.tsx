@@ -16,6 +16,7 @@ import { HomeScreen } from '../app/pages/mobile/HomeScreen'
 import { MapScreen } from '../app/pages/mobile/MapScreen'
 import { PaymentStatusScreen } from '../app/pages/mobile/PaymentStatusScreen'
 import { ProfileScreen } from '../app/pages/mobile/ProfileScreen'
+import { PromotionsScreen } from '../app/pages/mobile/PromotionsScreen'
 import { QuoteRequestScreen } from '../app/pages/mobile/QuoteRequestScreen'
 import { ReservationScreen } from '../app/pages/mobile/ReservationScreen'
 import { RestaurantsScreen } from '../app/pages/mobile/RestaurantsScreen'
@@ -74,6 +75,7 @@ export function MobileRouter() {
         <Route path="nuestros-eventos/:venueId" element={<EventsScreen />} />
         <Route path="eventos-magnos" element={<EventsScreen />} />
         <Route path="eventos-magnos/:eventId" element={<EventDetailScreen />} />
+        <Route path="promociones" element={<PromotionsScreen />} />
         <Route path="cabanas" element={<CabinsScreen />} />
         <Route path="restaurantes" element={<RestaurantsScreen />} />
         <Route path="celebra" element={protectedScreen(<QuoteRequestScreen />)} />

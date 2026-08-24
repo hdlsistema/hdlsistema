@@ -116,6 +116,8 @@ export type ReservationHistoryItem = {
   reservationId: string
   previousStatus?: string | null
   newStatus: string
+  actorUserId?: string | null
+  actorName?: string | null
   notes?: string | null
   createdAt: string
 }

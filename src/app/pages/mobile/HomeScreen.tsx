@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { BedDouble, CalendarDays, ChevronRight, Compass, FileText, Grape, Languages, MapPin, MessagesSquare, UtensilsCrossed } from 'lucide-react'
+import { BadgePercent, BedDouble, CalendarDays, ChevronRight, Compass, FileText, Grape, Languages, MapPin, MessagesSquare, UtensilsCrossed } from 'lucide-react'
 import {
   EditorialCard,
   EmptyState,
@@ -24,6 +24,7 @@ export function HomeScreen() {
   const { t, locale, language, isEnglish, setLanguage } = useAppPreferences()
   const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
+  const { records: promotions } = usePublicContent('promotions')
   const { records: plans } = usePublicContent('membership-plans')
   const {
     services: commercial,
@@ -45,6 +46,15 @@ export function HomeScreen() {
       eyebrow: isEnglish ? 'Venues and tickets' : 'Sedes y boletos',
       title: isEnglish ? 'Our events' : 'Nuestros eventos',
       copy: isEnglish ? 'Choose a venue and review grand events published by Hacienda.' : 'Elige una sede y revisa los eventos magnos publicados por Hacienda.',
+    },
+    {
+      to: appPath('/promociones'),
+      icon: BadgePercent,
+      eyebrow: isEnglish ? 'Current benefits' : 'Beneficios vigentes',
+      title: promotions[0] ? textField(promotions[0], 'name', isEnglish ? 'Promotions' : 'Promociones') : (isEnglish ? 'Promotions' : 'Promociones'),
+      copy: promotions[0]
+        ? textField(promotions[0], 'description', isEnglish ? 'Published offers from Hacienda de Letras.' : 'Ofertas publicadas por Hacienda de Letras.')
+        : (isEnglish ? 'Published offers from Hacienda de Letras.' : 'Ofertas publicadas por Hacienda de Letras.'),
     },
     {
       to: appPath('/cabanas'),
@@ -100,7 +110,7 @@ export function HomeScreen() {
           alt="Hacienda de Letras"
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08)_18%,rgba(104,17,38,0.78)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08)_18%,rgba(91,11,31,0.82)_100%)]" />
         <div className="absolute right-[var(--app-pad)] top-4 z-10">
           <button
             type="button"

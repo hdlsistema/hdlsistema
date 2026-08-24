@@ -19,7 +19,7 @@ type ControlSidebarProps = {
 export function ControlSidebar({ groups, onNavigate }: ControlSidebarProps) {
   const { t } = useAppPreferences()
   return (
-    <aside id="control-navigation" className="control-sidebar sticky flex flex-col overflow-hidden border border-[rgba(216,182,128,0.18)] bg-[linear-gradient(180deg,#320812,#4f0f1f_48%,#681126)] text-white shadow-[var(--shadow-soft)]">
+    <aside id="control-navigation" className="control-sidebar sticky flex flex-col overflow-hidden border border-[rgba(216,182,128,0.18)] bg-[linear-gradient(180deg,#33040F,#4A0717_48%,#5B0B1F)] text-white shadow-[var(--shadow-soft)]">
       <div className="control-sidebar__brand border-b border-white/10">
         <div className="flex items-center gap-3">
           <img

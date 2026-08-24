@@ -57,7 +57,7 @@ function ChoiceSheet({
                 }}
                 className={`mb-2 flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[18px] px-4 py-3 text-left ${
                   active
-                    ? 'bg-[#681126] text-white shadow-[0_12px_26px_rgba(104,17,38,0.18)]'
+                    ? 'bg-[#5B0B1F] text-white shadow-[0_12px_26px_rgba(91,11,31,0.18)]'
                     : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(226,204,174,0.82)]'
                 }`}
               >
@@ -163,7 +163,7 @@ export function QuoteRequestScreen() {
       <section className="rounded-[22px] border border-[rgba(180,138,85,0.32)] bg-[var(--color-panel)] p-4">
         <div className="grid grid-cols-2 gap-2">
           {(['social', 'business'] as const).map((value) => (
-            <button key={value} type="button" onClick={() => setCategory(value)} className={`min-h-11 rounded-full text-[13px] font-semibold ${category === value ? 'bg-[#681126] text-white' : 'bg-white/70 text-[var(--color-burgundy)]'}`}>
+            <button key={value} type="button" onClick={() => setCategory(value)} className={`min-h-11 rounded-full text-[13px] font-semibold ${category === value ? 'bg-[#5B0B1F] text-white' : 'bg-white/70 text-[var(--color-burgundy)]'}`}>
               {value === 'social' ? 'Social' : (isEnglish ? 'Business' : 'Empresarial')}
             </button>
           ))}
@@ -177,7 +177,7 @@ export function QuoteRequestScreen() {
             <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Event type' : 'Tipo de evento'}</span>
             <span className="mt-1 block text-[15px] font-semibold text-[var(--color-ink)]">{selectedEventLabel}</span>
           </span>
-          <ChevronDown size={18} className="shrink-0 text-[#681126]" />
+          <ChevronDown size={18} className="shrink-0 text-[#5B0B1F]" />
         </button>
         {loading ? (
           <div className="mt-4 rounded-[16px] border border-[rgba(180,138,85,0.42)] bg-white/70 px-3 py-3 text-[12px] text-[var(--color-burgundy)]">{isEnglish ? 'Loading spaces...' : 'Cargando espacios...'}</div>
@@ -192,13 +192,13 @@ export function QuoteRequestScreen() {
             className="mt-4 flex min-h-[58px] w-full items-center justify-between gap-3 rounded-[18px] border border-[rgba(180,138,85,0.42)] bg-white/74 px-4 text-left shadow-[0_12px_28px_rgba(90,49,28,0.08)] backdrop-blur-xl"
           >
             <span className="flex min-w-0 items-center gap-3">
-              <MapPinned size={18} className="shrink-0 text-[#681126]" />
+              <MapPinned size={18} className="shrink-0 text-[#5B0B1F]" />
               <span className="min-w-0">
                 <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{isEnglish ? 'Space' : 'Espacio'}</span>
                 <span className="mt-1 block truncate text-[15px] font-semibold text-[var(--color-ink)]">{selectedSpaceRecord?.name ?? (isEnglish ? 'Choose space' : 'Elegir espacio')}</span>
               </span>
             </span>
-            <ChevronDown size={18} className="shrink-0 text-[#681126]" />
+            <ChevronDown size={18} className="shrink-0 text-[#5B0B1F]" />
           </button>
         )}
         <div className="mt-4 grid grid-cols-2 gap-3">
@@ -222,7 +222,7 @@ export function QuoteRequestScreen() {
         </div>
         <input placeholder={isEnglish ? 'Phone' : 'Teléfono'} value={phone} onChange={(event) => setPhone(event.target.value)} className="mt-3 w-full rounded-[16px] border border-[rgba(180,138,85,0.42)] bg-white/70 px-3 py-3 text-[13px] outline-none" />
         <textarea placeholder={isEnglish ? 'Event notes' : 'Notas del evento'} value={notes} onChange={(event) => setNotes(event.target.value)} className="mt-3 min-h-24 w-full rounded-[16px] border border-[rgba(180,138,85,0.42)] bg-white/70 px-3 py-3 text-[13px] outline-none" />
-        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#681126] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request quote' : 'Solicitar cotización')}
         </button>
         {message ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-burgundy)]">{message}</p> : null}

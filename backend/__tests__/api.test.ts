@@ -2002,7 +2002,16 @@ describe('Fase 7D orders, payments and check-in API', () => {
     const exported = await request(app).get('/api/admin/orders/export').set('Authorization', 'Bearer viewer-token')
 
     expect(list.status).toBe(200)
-    expect(list.body.data[0]).toMatchObject({ orderNumber: 'ORD-FASE7D', paidAmount: null, financialRestricted: true })
+    expect(list.body.data[0]).toMatchObject({
+      orderNumber: 'ORD-FASE7D',
+      paidAmount: null,
+      financialRestricted: true,
+      itemSummary: 'Precioso Regalo',
+      itemImageUrl: 'https://cdn.haciendadeletras.test/precioso-regalo.webp',
+      itemTypes: ['wine'],
+      itemCount: 1,
+      totalQuantity: 2,
+    })
     expect(items.status).toBe(200)
     expect(items.body.data[0].nameSnapshot).toBe('Precioso Regalo')
     expect(items.body.data[0].imageUrl).toBe('https://cdn.haciendadeletras.test/precioso-regalo.webp')
@@ -2268,6 +2277,7 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
   const locationId = '44444444-4444-4444-8444-444444444006'
   const locationTwoId = '44444444-4444-4444-8444-444444444007'
   const inventoryItemId = '44444444-4444-4444-8444-444444444008'
+  const archivedInventoryItemId = '44444444-4444-4444-8444-444444444019'
   const orderId = '44444444-4444-4444-8444-444444444009'
   const shipmentId = '44444444-4444-4444-8444-444444444010'
   const distributorId = '44444444-4444-4444-8444-444444444011'
@@ -2326,36 +2336,62 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
   }
 
   function seedInventory() {
+    supabaseMock.tableData.profiles = [
+      { id: adminUser.id, first_name: 'Operador', last_name: 'QA', display_name: 'Operador QA' },
+    ]
     supabaseMock.tableData.inventory_locations = [
       { id: locationId, name: 'Cava principal', code: 'CAVA', type: 'warehouse', active: true, created_at: '2026-08-03T00:00:00.000Z' },
       { id: locationTwoId, name: 'Tienda', code: 'SHOP', type: 'store', active: true, created_at: '2026-08-03T00:00:00.000Z' },
     ]
-    supabaseMock.tableData.inventory_items = [{
-      id: inventoryItemId,
-      wine_id: wineId,
-      location_id: locationId,
-      sku: 'QA-FASE7E-WINE',
-      product_name: 'Vino Fase 7E',
-      lot_code: 'L-7E',
-      quantity: 12,
-      reserved_quantity: 2,
-      minimum_quantity: 4,
-      unit_cost: 250,
-      status: 'active',
-      updated_at: '2026-08-03T00:00:00.000Z',
-      wines: { name: 'Vino Fase 7E', sku: 'QA-FASE7E-WINE' },
-      inventory_locations: { name: 'Cava principal', code: 'CAVA', type: 'warehouse' },
-    }]
+    supabaseMock.tableData.inventory_items = [
+      {
+        id: inventoryItemId,
+        wine_id: wineId,
+        location_id: locationId,
+        sku: 'QA-FASE7E-WINE',
+        product_name: 'Vino Fase 7E',
+        lot_code: 'L-7E',
+        quantity: 12,
+        reserved_quantity: 2,
+        minimum_quantity: 4,
+        unit_cost: 250,
+        status: 'active',
+        updated_at: '2026-08-03T00:00:00.000Z',
+        wines: { name: 'Vino Fase 7E', sku: 'QA-FASE7E-WINE', cover_image_url: 'https://cdn.haciendadeletras.test/vino-fase7e.webp' },
+        inventory_locations: { name: 'Cava principal', code: 'CAVA', type: 'warehouse' },
+      },
+      {
+        id: archivedInventoryItemId,
+        wine_id: wineId,
+        location_id: locationTwoId,
+        sku: 'QA-ARCHIVED-WINE',
+        product_name: 'Vino archivado',
+        lot_code: 'L-ARCH',
+        quantity: 1,
+        reserved_quantity: 0,
+        minimum_quantity: 1,
+        unit_cost: 200,
+        status: 'archived',
+        updated_at: '2026-08-03T00:00:00.000Z',
+        wines: { name: 'Vino archivado', sku: 'QA-ARCHIVED-WINE', cover_image_url: null },
+        inventory_locations: { name: 'Tienda', code: 'SHOP', type: 'store' },
+      },
+    ]
     supabaseMock.tableData.inventory_movements = [{
       id: '44444444-4444-4444-8444-444444444015',
       inventory_item_id: inventoryItemId,
       location_id: locationId,
       movement_type: 'receive',
       quantity: 12,
+      from_location_id: null,
+      to_location_id: locationId,
       reason: 'Recepción inicial',
+      created_by: adminUser.id,
+      metadata: { origin: 'control_center', module: 'Inventario' },
       created_at: '2026-08-03T00:00:00.000Z',
       inventory_items: { product_name: 'Vino Fase 7E', sku: 'QA-FASE7E-WINE', wines: { name: 'Vino Fase 7E' } },
       inventory_locations: { name: 'Cava principal', code: 'CAVA' },
+      to_location: { name: 'Cava principal', code: 'CAVA', type: 'warehouse' },
     }]
   }
 
@@ -2367,6 +2403,8 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
       requires_shipping: true,
       shipping_status: 'pending_preparation',
       total: 900,
+      currency: 'MXN',
+      source: 'control_center',
       customers: { display_name: 'Cliente Wine Club', first_name: 'Cliente', last_name: 'Wine Club' },
     }]
     supabaseMock.tableData.shipments = [{
@@ -2381,8 +2419,24 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
       incident_count: 0,
       created_at: '2026-08-03T00:00:00.000Z',
       updated_at: '2026-08-03T00:00:00.000Z',
-      orders: { order_number: 'ORD-FASE7E', status: 'paid', customers: { display_name: 'Cliente Wine Club' } },
+      orders: { order_number: 'ORD-FASE7E', status: 'paid', requires_shipping: true, source: 'control_center', total: 900, currency: 'MXN', created_at: '2026-08-03T00:00:00.000Z', customers: { display_name: 'Cliente Wine Club' } },
       carriers: null,
+    }]
+    supabaseMock.tableData.order_items = [{
+      id: '44444444-4444-4444-8444-444444444091',
+      order_id: orderId,
+      item_id: wineId,
+      item_type: 'wine',
+      name_snapshot: 'Vino Fase 7E',
+      quantity: 2,
+      unit_price: 450,
+      subtotal: 900,
+      metadata: {},
+      created_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.wines = [{
+      id: wineId,
+      cover_image_url: 'https://cdn.haciendadeletras.test/vino-fase7e.webp',
     }]
     supabaseMock.tableData.shipment_events = [{
       id: '44444444-4444-4444-8444-444444444016',
@@ -2514,12 +2568,28 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
     const exported = await request(app).get('/api/admin/inventory/export').set('Authorization', 'Bearer viewer-token')
 
     expect(summary.status).toBe(200)
-    expect(summary.body.data.items[0]).toMatchObject({ productName: 'Vino Fase 7E', available: 10 })
+    expect(summary.body.data.items[0]).toMatchObject({
+      productName: 'Vino Fase 7E',
+      imageUrl: 'https://cdn.haciendadeletras.test/vino-fase7e.webp',
+      available: 10,
+    })
+    expect(summary.body.data.items).toHaveLength(1)
+    expect(JSON.stringify(summary.body.data.items)).not.toContain('Vino archivado')
     expect(items.status).toBe(200)
+    expect(items.body.data).toHaveLength(1)
     expect(movements.status).toBe(200)
+    expect(movements.body.data[0]).toMatchObject({
+      actorName: 'Operador QA',
+      toLocationName: 'Cava principal',
+      metadata: { origin: 'control_center', module: 'Inventario' },
+    })
     expect(exported.status).toBe(200)
     expect(exported.text).toContain('product')
     expect(exported.text).not.toContain(inventoryItemId)
+
+    const archived = await request(app).get('/api/admin/inventory/items?status=archived').set('Authorization', 'Bearer viewer-token')
+    expect(archived.status).toBe(200)
+    expect(archived.body.data[0]).toMatchObject({ id: archivedInventoryItemId, status: 'archived' })
   })
 
   it('crea ubicaciones, productos y movimientos de inventario mediante RPC', async () => {
@@ -2540,6 +2610,10 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
       .post('/api/admin/inventory/items')
       .set('Authorization', 'Bearer operations-token')
       .send({ wineId, locationId, sku: 'QA-FASE7E-WINE', minimumQuantity: 2 })
+    const archived = await request(app)
+      .patch(`/api/admin/inventory/items/${inventoryItemId}`)
+      .set('Authorization', 'Bearer operations-token')
+      .send({ status: 'archived', metadata: { archivedFrom: 'control_center' } })
     const receive = await request(app)
       .post('/api/admin/inventory/receive')
       .set('Authorization', 'Bearer operations-token')
@@ -2563,6 +2637,8 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
 
     expect(location.status).toBe(201)
     expect(item.status).toBe(201)
+    expect(archived.status).toBe(200)
+    expect(archived.body.data.status).toBe('archived')
     expect(receive.status).toBe(201)
     expect(reserve.status).toBe(201)
     expect(release.status).toBe(200)
@@ -2598,6 +2674,16 @@ describe('Fase 7E Wine Club, inventario, logística y distribuidores API', () =>
       .send({ notes: 'Entregado' })
 
     expect(list.status).toBe(200)
+    expect(list.body.data[0]).toMatchObject({
+      orderType: 'wine',
+      productSummary: 'Vino Fase 7E',
+      productImageUrl: 'https://cdn.haciendadeletras.test/vino-fase7e.webp',
+      productTypes: ['wine'],
+      itemCount: 1,
+      totalQuantity: 2,
+      orderTotal: 900,
+      currency: 'MXN',
+    })
     expect(history.status).toBe(200)
     expect(created.status).toBe(201)
     expect(shipped.status).toBe(200)

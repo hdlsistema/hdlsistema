@@ -84,6 +84,8 @@ const passSelect = `
   event_ticket_types(name,events(title,start_at,end_at))
 `
 
+export const ACCESS_QR_EXPIRY_HOURS = 12
+
 function first<T>(value: Relation<T> | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null
 }
@@ -121,6 +123,17 @@ function cabinDate(date?: string | null) {
   return date ? `${date}T12:00:00-06:00` : null
 }
 
+function addHoursIso(value: string | null | undefined, hours: number) {
+  if (!value) return null
+  const timestamp = new Date(value).getTime()
+  if (!Number.isFinite(timestamp)) return null
+  return new Date(timestamp + (hours * 60 * 60 * 1000)).toISOString()
+}
+
+export function accessExpiryFromWindow(startsAt?: string | null, endsAt?: string | null) {
+  return addHoursIso(endsAt ?? startsAt ?? null, ACCESS_QR_EXPIRY_HOURS)
+}
+
 function numericMetadata(value: unknown) {
   const parsed = Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
@@ -156,6 +169,7 @@ function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
   const endsAt = reservationType === 'cabin'
     ? cabinDate(reservation?.check_out)
     : slot?.end_at ?? reservationEvent?.end_at ?? ticketEvent?.end_at ?? row.valid_until ?? null
+  const validUntil = row.valid_until ?? accessExpiryFromWindow(startsAt, endsAt)
 
   return {
     id: row.id,
@@ -182,7 +196,7 @@ function mapAccessPass(row: AccessPassRow, presentedToken?: string) {
       ?? reservation?.people_count
       ?? numericMetadata(row.metadata?.itemCount),
     validFrom: row.valid_from ?? null,
-    validUntil: row.valid_until ?? null,
+    validUntil,
     usedAt: row.used_at ?? null,
     issuedAt: row.issued_at ?? row.created_at,
     revokedAt: row.revoked_at ?? null,
@@ -327,9 +341,11 @@ async function upsertAccessPass(payload: {
 }
 
 function reservationAccessWindow(reservation: ReservationAccessSource) {
+  const validFrom = reservation.startAt ?? cabinDate(reservation.checkIn) ?? restaurantDateTime(reservation.reservationDate, reservation.reservationTime)
+  const windowEndsAt = reservation.endAt ?? cabinDate(reservation.checkOut) ?? null
   return {
-    validFrom: reservation.startAt ?? cabinDate(reservation.checkIn) ?? restaurantDateTime(reservation.reservationDate, reservation.reservationTime),
-    validUntil: reservation.endAt ?? cabinDate(reservation.checkOut) ?? null,
+    validFrom,
+    validUntil: accessExpiryFromWindow(validFrom, windowEndsAt),
   }
 }
 
@@ -462,10 +478,11 @@ export async function ensureEventTicketAccessPassesForPaidOrder(orderId: string)
         orderId: order.id,
         eventTicketTypeId: item.item_id,
         validFrom: eventStartsAt,
-        validUntil: eventEndsAt,
+        validUntil: accessExpiryFromWindow(eventStartsAt, eventEndsAt),
         idempotencyKey: `event-ticket-access:${order.id}:${item.id}:${index}`,
         metadata: {
           accessType: 'event_ticket',
+          qrExpiryHoursAfterEvent: ACCESS_QR_EXPIRY_HOURS,
           ticketSequence: index,
           ticketTotal: Number(item.quantity ?? 0),
           orderItemId: item.id,

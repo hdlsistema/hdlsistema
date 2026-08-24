@@ -7,6 +7,8 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
@@ -52,7 +54,7 @@ export function CrystalSelect({
   const menuRef = useRef<HTMLDivElement | null>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
   const listboxId = useId()
-  const floatingMenu = useFloatingControlMenu(triggerRef, open, 304, 220, menuRef)
+  const floatingMenu = useFloatingControlMenu(triggerRef, open, 190, 156, menuRef)
 
   const childOptions = useMemo(() => {
     return Children.toArray(children).flatMap((child) => {
@@ -71,11 +73,14 @@ export function CrystalSelect({
   )
 
   useEffect(() => {
-    const handlePointerDown = (event: MouseEvent) => {
+    if (!open) return undefined
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node) &&
-        !menuRef.current?.contains(event.target as Node)
+        !containerRef.current.contains(target) &&
+        !menuRef.current?.contains(target)
       ) {
         setOpen(false)
       }
@@ -87,20 +92,20 @@ export function CrystalSelect({
       }
     }
 
-    window.addEventListener('mousedown', handlePointerDown)
+    window.addEventListener('pointerdown', handlePointerDown)
     window.addEventListener('keydown', handleEscape)
 
     return () => {
-      window.removeEventListener('mousedown', handlePointerDown)
+      window.removeEventListener('pointerdown', handlePointerDown)
       window.removeEventListener('keydown', handleEscape)
     }
-  }, [])
+  }, [open])
 
   useEffect(() => {
     if (!open) return
     const selectedIndex = Math.max(0, options.findIndex((option) => option.value === value))
     setActiveIndex(selectedIndex)
-    requestAnimationFrame(() => optionRefs.current[selectedIndex]?.focus())
+    requestAnimationFrame(() => optionRefs.current[selectedIndex]?.scrollIntoView({ block: 'nearest' }))
   }, [open, options, value])
 
   function selectOption(index: number) {
@@ -108,6 +113,7 @@ export function CrystalSelect({
     if (!option) return
     onChange(option.value)
     setOpen(false)
+    triggerRef.current?.focus({ preventScroll: true })
   }
 
   function handleTriggerKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
@@ -117,7 +123,27 @@ export function CrystalSelect({
       setOpen(true)
       return
     }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      if (open) {
+        selectOption(activeIndex)
+        return
+      }
+      setOpen(true)
+      return
+    }
     if (event.key === 'Escape') setOpen(false)
+  }
+
+  function handleTriggerPointerDown(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (disabled) return
+    event.preventDefault()
+    triggerRef.current?.focus({ preventScroll: true })
+    setOpen((current) => !current)
+  }
+
+  function handleTriggerClick(event: ReactMouseEvent<HTMLButtonElement>) {
+    event.preventDefault()
   }
 
   function handleOptionKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, index: number) {
@@ -154,20 +180,21 @@ export function CrystalSelect({
         ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => setOpen((current) => !current)}
+        onPointerDown={handleTriggerPointerDown}
+        onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listboxId}
         aria-label={ariaLabel ?? 'Seleccionar opción'}
-        className={joinClasses(
-          'control-select flex min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[rgba(220,202,181,0.9)] bg-[rgba(255,252,247,0.74)] px-4 text-left text-sm text-[var(--color-muted-strong)] shadow-[0_12px_28px_rgba(90,49,28,0.08)] backdrop-blur-xl transition hover:border-[rgba(180,138,85,0.55)] hover:bg-[rgba(255,252,247,0.86)] focus:outline-none disabled:cursor-not-allowed disabled:opacity-55',
+          className={joinClasses(
+          'control-select flex min-h-9 w-full items-center justify-between gap-2 rounded-lg border border-[rgba(220,202,181,0.9)] bg-[#F7F2EA] px-3 text-left text-[10px] text-[var(--color-muted-strong)] shadow-[0_8px_18px_rgba(90,49,28,0.06)] transition hover:border-[rgba(180,138,85,0.55)] hover:bg-white focus:outline-none disabled:cursor-not-allowed disabled:opacity-55',
           open &&
-            'border-[rgba(104,17,38,0.36)] bg-[rgba(255,250,244,0.92)] shadow-[0_16px_30px_rgba(104,17,38,0.12)]',
+            'border-[rgba(91,11,31,0.36)] bg-white shadow-[0_12px_24px_rgba(91,11,31,0.1)]',
           buttonClassName,
         )}
       >
-        <span className="truncate">{selected?.label ?? value}</span>
+        <span className="min-w-0 flex-1 break-words leading-[1.05]">{selected?.label ?? value}</span>
 
         <ChevronDown
           size={16}
@@ -184,8 +211,9 @@ export function CrystalSelect({
           data-control-floating-menu
           data-placement={floatingMenu.placement}
           style={floatingMenu.style}
+          onMouseDown={(event) => event.preventDefault()}
           className={joinClasses(
-            'overflow-hidden rounded-[1rem] border border-[rgba(220,202,181,0.9)] bg-[linear-gradient(180deg,rgba(255,251,246,0.98),rgba(247,239,229,0.98))] p-2 shadow-[0_24px_48px_rgba(58,23,18,0.2)] backdrop-blur-2xl',
+            'overflow-hidden rounded-lg border border-[rgba(220,202,181,0.9)] bg-[#F7F2EA] p-1 shadow-[0_16px_28px_rgba(58,23,18,0.14)]',
             menuClassName,
           )}
         >
@@ -208,18 +236,19 @@ export function CrystalSelect({
                   aria-selected={active}
                   tabIndex={activeIndex === index ? 0 : -1}
                   onKeyDown={(event) => handleOptionKeyDown(event, index)}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => selectOption(index)}
                   className={joinClasses(
-                    'flex w-full items-center justify-between gap-3 rounded-[0.85rem] px-3 py-2.5 text-left text-sm transition focus:outline-none',
+                    'flex w-full items-center justify-between gap-2 rounded-md px-2 py-1 text-left text-[9px] transition focus:outline-none',
                     active
-                      ? 'bg-[linear-gradient(135deg,rgba(104,17,38,0.96),rgba(79,15,31,0.88))] text-white shadow-[0_10px_22px_rgba(79,15,31,0.22)]'
-                      : 'text-[var(--color-muted-strong)] hover:bg-[rgba(104,17,38,0.08)] hover:text-[var(--color-burgundy)]',
+                      ? 'bg-[#681126] text-[#F7F2EA] shadow-none'
+                      : 'text-[var(--color-muted-strong)] hover:bg-[rgba(91,11,31,0.08)] hover:text-[var(--color-burgundy)]',
                   )}
                 >
-                  <span className="truncate">{option.label}</span>
+                  <span className="min-w-0 flex-1 break-words leading-[1.05]">{option.label}</span>
 
                   <Check
-                    size={15}
+                    size={13}
                     className={joinClasses(
                       'shrink-0',
                       active ? 'opacity-100' : 'opacity-0',

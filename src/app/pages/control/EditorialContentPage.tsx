@@ -1,5 +1,6 @@
 import {
   Archive,
+  ChevronDown,
   CheckCircle2,
   Clock3,
   Copy,
@@ -15,6 +16,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   adminContentClient,
@@ -137,9 +139,30 @@ function notifyContentUpdated(entity: ContentEntity, record: ContentRecord | nul
   }))
 }
 
+export function keepPublishedStateForSave(
+  config: { publishStatus: string },
+  currentRecord: ContentRecord | null,
+  payload: Record<string, unknown>,
+) {
+  if (!currentRecord || currentRecord.status !== config.publishStatus) return payload
+
+  const nextPayload: Record<string, unknown> = {
+    ...payload,
+    status: config.publishStatus,
+  }
+
+  if ('visible_in_app' in currentRecord && currentRecord.visible_in_app === true && nextPayload.visible_in_app === undefined) {
+    nextPayload.visible_in_app = true
+  }
+
+  return nextPayload
+}
+
 export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const config = editorialDefinitions[entity]
   const { session, roles } = useAuth()
+  const [searchParams] = useSearchParams()
+  const linkedRecordId = searchParams.get('recordId') ?? searchParams.get('eventId')
   const token = session?.access_token
   const [records, setRecords] = useState<ContentRecord[]>([])
   const [selected, setSelected] = useState<ContentRecord | null>(null)
@@ -163,12 +186,13 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const [approvalNote, setApprovalNote] = useState('')
   const [approvalError, setApprovalError] = useState('')
   const [approvalBusy, setApprovalBusy] = useState('')
+  const [isPublicationsOpen, setIsPublicationsOpen] = useState(true)
 
   const statusOptions = useMemo(() => getStatusOptions(entity), [entity])
   const isGrandEvents = entity === 'grand-events'
   const isAdminUser = roles.some((role) => ['super_admin', 'admin'].includes(role))
 
-  const loadRecords = useCallback(async () => {
+  const loadRecords = useCallback(async (preferredRecord?: ContentRecord | null) => {
     setLoading(true)
     setError(null)
     try {
@@ -181,10 +205,17 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
         orderBy: config.orderBy,
         orderDirection: 'asc',
       })
-      setRecords(response.data)
+      const nextRecords = preferredRecord
+        ? response.data.some((item) => item.id === preferredRecord.id)
+          ? response.data.map((item) => item.id === preferredRecord.id ? { ...item, ...preferredRecord } : item)
+          : [preferredRecord, ...response.data]
+        : response.data
+      setRecords(nextRecords)
       setSelected((current) => {
-        if (!current) return response.data[0] ?? null
-        return response.data.find((item) => item.id === current.id) ?? response.data[0] ?? null
+        if (preferredRecord) return nextRecords.find((item) => item.id === preferredRecord.id) ?? preferredRecord
+        if (linkedRecordId) return nextRecords.find((item) => item.id === linkedRecordId) ?? current ?? nextRecords[0] ?? null
+        if (!current) return nextRecords[0] ?? null
+        return nextRecords.find((item) => item.id === current.id) ?? nextRecords[0] ?? null
       })
     } catch (loadError) {
       setError(getSafeError(loadError))
@@ -193,7 +224,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     } finally {
       setLoading(false)
     }
-  }, [config.orderBy, entity, search, statusFilter, token])
+  }, [config.orderBy, entity, linkedRecordId, search, statusFilter, token])
 
   useEffect(() => {
     void loadRecords()
@@ -272,8 +303,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     }
   }
 
-  async function saveRecord(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  async function persistRecord() {
     setSaving(true)
     setError(null)
     setSuccess(null)
@@ -284,24 +314,32 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       if (!validation.valid) {
         setFieldErrors(validation.fieldErrors)
         setError({ message: validation.generalMessage ?? 'Revisa los campos marcados antes de guardar.' })
-        return
+        return false
       }
 
-      const payload = serializeEditorialPayload(config, form)
+      const payload = keepPublishedStateForSave(config, selected, serializeEditorialPayload(config, form))
       const response = selected
         ? await adminContentClient.update(entity, selected.id, payload, token)
         : await adminContentClient.create(entity, payload, token)
+      const wasPublished = Boolean(selected && selected.status === config.publishStatus)
       setSelected(response.data)
       notifyContentUpdated(entity, response.data)
-      setSuccess(selected ? 'Cambios guardados.' : 'Registro creado.')
-      await loadRecords()
+      setSuccess(selected ? (wasPublished ? 'Cambios guardados en la publicación.' : 'Cambios guardados.') : 'Registro creado.')
+      await loadRecords(response.data)
+      return true
     } catch (saveError) {
       const apiFieldErrors = extractFieldErrorsFromBackend(saveError, config)
       setFieldErrors(apiFieldErrors)
       setError(getSafeError(saveError, apiFieldErrors))
+      return false
     } finally {
       setSaving(false)
     }
+  }
+
+  async function saveRecord(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await persistRecord()
   }
 
   async function executePublicationAction(action: PublicationAction) {
@@ -324,7 +362,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       setSelected(response.data)
       notifyContentUpdated(entity, response.data)
       setSuccess(action === 'publish' ? 'Publicado y visible en app.' : 'Acción completada.')
-      await loadRecords()
+      await loadRecords(response.data)
     } catch (actionError) {
       const apiFieldErrors = extractFieldErrorsFromBackend(actionError, config)
       setFieldErrors(apiFieldErrors)
@@ -388,7 +426,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       setSelected(response.data.content)
       setApprovalNote('')
       setSuccess('Preview enviado para autorización.')
-      await loadRecords()
+      await loadRecords(response.data.content)
     } catch (requestError) {
       setApprovalError(requestError instanceof Error ? requestError.message : 'No fue posible solicitar autorización.')
     } finally {
@@ -411,7 +449,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       setSelected(response.data.content)
       setApprovalNote('')
       setSuccess(decision === 'approved' ? 'Publicación autorizada.' : 'Publicación rechazada.')
-      await loadRecords()
+      await loadRecords(response.data.content)
     } catch (decisionError) {
       setApprovalError(decisionError instanceof Error ? decisionError.message : 'No fue posible actualizar la autorización.')
     } finally {
@@ -501,7 +539,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       const response = await adminContentClient.duplicate(entity, selected.id, token)
       setSelected(response.data)
       setSuccess('Duplicado creado.')
-      await loadRecords()
+      await loadRecords(response.data)
     } catch (duplicateError) {
       setError(getSafeError(duplicateError))
       throw duplicateError
@@ -523,17 +561,17 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     })
   }
 
-  async function executeRemoveRecord() {
-    if (!selected) return
+  async function executeRemoveRecord(targetRecord: ContentRecord | null = selected) {
+    if (!targetRecord) return
     setBusyAction('remove')
     setError(null)
     setSuccess(null)
 
     try {
-      const response = await adminContentClient.remove(entity, selected.id, token)
+      const response = await adminContentClient.remove(entity, targetRecord.id, token)
       setSelected(response.data)
       setSuccess('Registro retirado.')
-      await loadRecords()
+      await loadRecords(response.data)
     } catch (removeError) {
       setError(getSafeError(removeError))
       throw removeError
@@ -542,16 +580,16 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     }
   }
 
-  function requestRemoveRecord() {
-    if (!selected) return
+  function requestRemoveRecord(targetRecord: ContentRecord | null = selected) {
+    if (!targetRecord) return
     setConfirmationError(null)
     setPendingConfirmation({
       ...buildEditorialConfirmState({
         action: 'retire',
-        contentLabel: selectedTitle,
-        currentStatus: statusLabel(config, selected.status),
+        contentLabel: getRecordTitle(targetRecord, config),
+        currentStatus: statusLabel(config, targetRecord.status),
       }),
-      execute: executeRemoveRecord,
+      execute: () => executeRemoveRecord(targetRecord),
     })
   }
 
@@ -581,7 +619,7 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
       const response = await adminContentClient.restoreVersion(entity, selected.id, version, token)
       setSelected(response.data)
       setSuccess('Versión restaurada.')
-      await loadRecords()
+      await loadRecords(response.data)
       await loadVersions()
     } catch (restoreError) {
       setError(getSafeError(restoreError))
@@ -624,6 +662,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
   const createLabel = config.createLabel ?? `Nuevo ${config.singularLabel}`
   const selectedTitle = selected ? getRecordTitle(selected, config) : createLabel
   const isBusy = saving || busyAction !== null
+  const publicationGridClass = isAdminUser
+    ? 'grid-cols-[minmax(0,1fr)_120px_120px_132px]'
+    : 'grid-cols-[minmax(0,1fr)_120px_120px]'
   const FormComponent = {
     wines: WineEditorialForm,
     experiences: ExperienceEditorialForm,
@@ -844,7 +885,9 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
     saving,
     isBusy,
     success,
+    isPublishedRecord: selected?.status === config.publishStatus,
     onSubmit: saveRecord,
+    onStepSave: persistRecord,
     onChange: updateFormField,
     onPreview: openPreview,
     onVersions: loadVersions,
@@ -916,34 +959,79 @@ export function EditorialContentPage({ entity }: { entity: ContentEntity }) {
             </div>
           ) : (
             <div className="overflow-hidden rounded-[1rem] border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-              <div className="grid grid-cols-[minmax(0,1fr)_120px_120px] border-b border-[var(--color-line)] px-4 py-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">
-                <span>Registro</span>
-                <span>Estado</span>
-                <span>Actualizado</span>
-              </div>
-              <div className="divide-y divide-[var(--color-line)]">
-                {records.map((record) => (
-                  <button
-                    key={record.id}
-                    type="button"
-                    onClick={() => selectRecord(record)}
-                    className={`grid w-full grid-cols-[minmax(0,1fr)_120px_120px] items-center gap-3 px-4 py-4 text-left transition hover:bg-[rgba(104,17,38,0.04)] ${
-                      selected?.id === record.id ? 'bg-[rgba(104,17,38,0.06)]' : ''
-                    }`}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-[var(--color-ink)]">
-                        {getRecordTitle(record, config)}
-                      </span>
-                      <span className="mt-1 block truncate text-[13px] text-[var(--color-muted)]">
-                        {getRecordSubtitle(record, config)}
-                      </span>
-                    </span>
-                    <StatusPill status={record.status} label={statusLabel(config, record.status)} />
-                    <span className="text-[13px] text-[var(--color-muted)]">{formatDate(record.updated_at)}</span>
-                  </button>
-                ))}
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsPublicationsOpen((current) => !current)}
+                className="flex min-h-14 w-full items-center justify-between gap-3 border-b border-[var(--color-line)] px-4 py-3 text-left transition hover:bg-[rgba(104,17,38,0.04)]"
+                aria-expanded={isPublicationsOpen}
+              >
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-semibold uppercase tracking-[0.18em] text-[var(--color-gold)]">
+                    Publicaciones
+                  </span>
+                  <span className="mt-1 block text-[12px] text-[var(--color-muted)]">
+                    {records.length} {records.length === 1 ? 'edición disponible' : 'ediciones disponibles'}
+                  </span>
+                </span>
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--color-line)] bg-white text-[var(--color-burgundy)]">
+                  <ChevronDown size={18} className={`transition-transform ${isPublicationsOpen ? 'rotate-180' : ''}`} />
+                </span>
+              </button>
+
+              {isPublicationsOpen ? (
+                <>
+                  <div className={`grid ${publicationGridClass} border-b border-[var(--color-line)] px-4 py-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]`}>
+                    <span>Publicación</span>
+                    <span>Estado</span>
+                    <span>Actualizado</span>
+                    {isAdminUser ? <span className="text-right">Acción</span> : null}
+                  </div>
+                  <div className="divide-y divide-[var(--color-line)]">
+                    {records.map((record) => (
+                      <div
+                        key={record.id}
+                        className={`grid w-full ${publicationGridClass} items-stretch transition hover:bg-[rgba(104,17,38,0.04)] ${
+                          selected?.id === record.id ? 'bg-[rgba(104,17,38,0.06)]' : ''
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => selectRecord(record)}
+                          className="col-span-3 grid min-w-0 grid-cols-[minmax(0,1fr)_120px_120px] items-center gap-3 px-4 py-4 text-left"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold text-[var(--color-ink)]">
+                              {getRecordTitle(record, config)}
+                            </span>
+                            <span className="mt-1 block truncate text-[13px] text-[var(--color-muted)]">
+                              {getRecordSubtitle(record, config)}
+                            </span>
+                          </span>
+                          <StatusPill status={record.status} label={statusLabel(config, record.status)} />
+                          <span className="text-[13px] text-[var(--color-muted)]">{formatDate(record.updated_at)}</span>
+                        </button>
+                        {isAdminUser ? (
+                          <div className="flex items-center justify-end px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation()
+                                requestRemoveRecord(record)
+                              }}
+                              disabled={isBusy}
+                              className="inline-flex min-h-9 items-center justify-center gap-2 rounded-xl border border-[rgba(104,17,38,0.24)] bg-white/85 px-3 text-[12px] font-semibold text-[var(--color-burgundy)] transition hover:bg-[rgba(104,17,38,0.08)] disabled:opacity-45"
+                              aria-label={`Retirar ${getRecordTitle(record, config)}`}
+                            >
+                              <Trash2 size={14} />
+                              Retirar
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
           )}
         </div>

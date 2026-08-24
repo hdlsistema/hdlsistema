@@ -81,6 +81,14 @@ type OrderItemRow = {
   created_at: string
 }
 
+type OrderItemSummary = {
+  itemSummary: string | null
+  itemImageUrl: string | null
+  itemTypes: string[]
+  itemCount: number
+  totalQuantity: number
+}
+
 type WineImageRow = {
   id: string
   cover_image_url?: string | null
@@ -103,7 +111,17 @@ type AuditRow = {
   id: string
   action: string
   entity_type: string
+  actor_user_id?: string | null
+  before_data?: Record<string, unknown> | null
+  after_data?: Record<string, unknown> | null
   created_at: string
+}
+
+type ProfileRow = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
 }
 
 type OrderShippingAddressRow = {
@@ -170,7 +188,7 @@ function stringFromMetadata(metadata: Record<string, unknown> | null | undefined
   return null
 }
 
-function itemImageUrl(row: OrderItemRow, wineImages: Map<string, string | null>) {
+function itemImageUrl(row: Pick<OrderItemRow, 'item_id' | 'item_type' | 'metadata'>, wineImages: Map<string, string | null>) {
   const snapshotImage = stringFromMetadata(row.metadata, ['imageUrl', 'image_url', 'coverImageUrl', 'cover_image_url'])
   if (snapshotImage) return snapshotImage
   if (row.item_type === 'wine' && row.item_id) return wineImages.get(row.item_id) ?? null
@@ -180,6 +198,25 @@ function itemImageUrl(row: OrderItemRow, wineImages: Map<string, string | null>)
 function customerName(row: OrderRow) {
   const customer = firstRelation(row.customers)
   return customer?.display_name || [customer?.first_name, customer?.last_name].filter(Boolean).join(' ').trim()
+}
+
+function profileName(row: ProfileRow | null | undefined) {
+  return row?.display_name || [row?.first_name, row?.last_name].filter(Boolean).join(' ').trim() || null
+}
+
+async function loadActorNames(rows: AuditRow[]) {
+  const actorIds = Array.from(new Set(rows.map((row) => row.actor_user_id).filter((value): value is string => Boolean(value))))
+  if (actorIds.length === 0) return new Map<string, string>()
+  const result = await supabaseAdminClient
+    .from('profiles')
+    .select('id,first_name,last_name,display_name')
+    .in('id', actorIds)
+  if (result.error) return new Map<string, string>()
+  return new Map(
+    ((result.data ?? []) as ProfileRow[])
+      .map((profile) => [profile.id, profileName(profile)])
+      .filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
 }
 
 function mapShippingAddress(row?: OrderShippingAddressRow | null) {
@@ -227,6 +264,7 @@ function mapOrder(
   payments: PaymentSummaryRow[] = [],
   shipping?: { address?: OrderShippingAddressRow | null; shipment?: ShipmentRow | null },
   canSeeMoney = true,
+  itemSummary?: OrderItemSummary,
 ) {
   const reservation = firstRelation(row.reservations)
   const paidAmount = payments
@@ -254,6 +292,11 @@ function mapOrder(
     shippingStatus: row.requires_shipping ? row.shipping_status ?? 'pending_preparation' : 'not_required',
     shippingAddress: mapShippingAddress(shipping?.address),
     shipment: mapShipment(shipping?.shipment, canSeeMoney),
+    itemSummary: itemSummary?.itemSummary ?? null,
+    itemImageUrl: itemSummary?.itemImageUrl ?? null,
+    itemTypes: itemSummary?.itemTypes ?? [],
+    itemCount: itemSummary?.itemCount ?? 0,
+    totalQuantity: itemSummary?.totalQuantity ?? 0,
     source: row.source ?? 'Centro de control',
     paidAt: row.paid_at ?? null,
     cancelledAt: row.cancelled_at ?? null,
@@ -262,6 +305,40 @@ function mapOrder(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
+}
+
+async function itemSummariesForOrders(orderIds: string[]) {
+  const uniqueOrderIds = [...new Set(orderIds.filter(Boolean))]
+  const map = new Map<string, OrderItemSummary>()
+  if (!uniqueOrderIds.length) return map
+  const result = await supabaseAdminClient
+    .from('order_items')
+    .select('order_id,item_id,item_type,name_snapshot,quantity,metadata')
+    .in('order_id', uniqueOrderIds)
+    .order('name_snapshot', { ascending: true })
+  const rows = assertNoError<Pick<OrderItemRow, 'order_id' | 'item_id' | 'item_type' | 'name_snapshot' | 'quantity' | 'metadata'>[]>(result).data ?? []
+  const wineIds = [...new Set(rows.filter((item) => item.item_type === 'wine' && item.item_id).map((item) => item.item_id as string))]
+  const wineImages = wineIds.length
+    ? new Map((assertNoError<WineImageRow[]>(await supabaseAdminClient.from('wines').select('id,cover_image_url').in('id', wineIds)).data ?? []).map((row) => [row.id, row.cover_image_url ?? null]))
+    : new Map<string, string | null>()
+  const grouped = new Map<string, Pick<OrderItemRow, 'order_id' | 'item_id' | 'item_type' | 'name_snapshot' | 'quantity' | 'metadata'>[]>()
+  for (const row of rows) {
+    grouped.set(row.order_id, [...(grouped.get(row.order_id) ?? []), row])
+  }
+  for (const orderId of uniqueOrderIds) {
+    const items = grouped.get(orderId) ?? []
+    const names = items.map((item) => item.name_snapshot).filter(Boolean)
+    const visibleNames = names.slice(0, 2).join(' + ')
+    const extraCount = Math.max(names.length - 2, 0)
+    map.set(orderId, {
+      itemSummary: visibleNames ? `${visibleNames}${extraCount ? ` + ${extraCount} más` : ''}` : null,
+      itemImageUrl: items.map((item) => itemImageUrl(item, wineImages)).find(Boolean) ?? null,
+      itemTypes: [...new Set(items.map((item) => item.item_type).filter(Boolean))],
+      itemCount: items.length,
+      totalQuantity: items.reduce((sum, item) => sum + Number(item.quantity ?? 0), 0),
+    })
+  }
+  return map
 }
 
 function mapItem(row: OrderItemRow, canSeeMoney = true, wineImages = new Map<string, string | null>()) {
@@ -388,12 +465,16 @@ export async function listOrders(query: OrderListQuery, user: UserContext) {
 
   const result = await request
   let rows = assertNoError<OrderRow[]>(result).data ?? []
-  const payments = canSeeMoney ? await paymentsForOrders(rows.map((row) => row.id)) : new Map<string, PaymentSummaryRow[]>()
-  const shipping = await shippingForOrders(rows.map((row) => row.id))
+  const orderIds = rows.map((row) => row.id)
+  const [payments, shipping, itemSummaries] = await Promise.all([
+    canSeeMoney ? paymentsForOrders(orderIds) : Promise.resolve(new Map<string, PaymentSummaryRow[]>()),
+    shippingForOrders(orderIds),
+    itemSummariesForOrders(orderIds),
+  ])
   if (query.payment === 'with_payment') rows = rows.filter((row) => (payments.get(row.id) ?? []).length > 0)
   if (query.payment === 'without_payment') rows = rows.filter((row) => (payments.get(row.id) ?? []).length === 0)
   return {
-    data: rows.map((row) => mapOrder(row, payments.get(row.id) ?? [], shipping.get(row.id), canSeeMoney)),
+    data: rows.map((row) => mapOrder(row, payments.get(row.id) ?? [], shipping.get(row.id), canSeeMoney, itemSummaries.get(row.id))),
     count: query.payment ? rows.length : result.count ?? rows.length,
   }
 }
@@ -408,9 +489,12 @@ export async function getOrder(id: string, user: UserContext) {
     .maybeSingle()
   const row = assertNoError<OrderRow | null>(result).data
   if (!row) throw httpError(404, 'Orden no encontrada')
-  const payments = canSeeMoney ? await paymentsForOrders([id]) : new Map<string, PaymentSummaryRow[]>()
-  const shipping = await shippingForOrders([id])
-  return { data: mapOrder(row, payments.get(id) ?? [], shipping.get(id), canSeeMoney) }
+  const [payments, shipping, itemSummaries] = await Promise.all([
+    canSeeMoney ? paymentsForOrders([id]) : Promise.resolve(new Map<string, PaymentSummaryRow[]>()),
+    shippingForOrders([id]),
+    itemSummariesForOrders([id]),
+  ])
+  return { data: mapOrder(row, payments.get(id) ?? [], shipping.get(id), canSeeMoney, itemSummaries.get(id)) }
 }
 
 export async function createOrder(payload: CreateOrderPayload, user: UserContext) {
@@ -493,15 +577,21 @@ export async function listOrderHistory(id: string, user: UserContext) {
   await getOrder(id, user)
   const result = await supabaseAdminClient
     .from('audit_logs')
-    .select('id,action,entity_type,created_at')
+    .select('id,action,entity_type,actor_user_id,before_data,after_data,created_at')
     .eq('entity_id', id)
     .order('created_at', { ascending: false })
     .limit(50)
+  const rows = assertNoError<AuditRow[]>(result).data ?? []
+  const actorNames = await loadActorNames(rows)
   return {
-    data: (assertNoError<AuditRow[]>(result).data ?? []).map((row) => ({
+    data: rows.map((row) => ({
       id: row.id,
       action: row.action,
       entityType: row.entity_type,
+      actorUserId: row.actor_user_id ?? null,
+      actorName: row.actor_user_id ? actorNames.get(row.actor_user_id) ?? null : null,
+      beforeData: row.before_data ?? {},
+      afterData: row.after_data ?? {},
       createdAt: row.created_at,
     })),
   }

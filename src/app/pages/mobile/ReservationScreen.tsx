@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import QRCode from 'qrcode'
-import { CalendarDays, Check, ChevronDown, Clock3, Download, Minus, Plus, QrCode, RefreshCw, Share2, Sparkles, Ticket, Users, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, Clock3, Download, Lightbulb, Minus, Plus, QrCode, RefreshCw, Share2, Ticket, Users, X } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { AppSelect } from '../../components/mobile/AppSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -10,7 +10,7 @@ import { contentRouteId, formatCurrency, imageField, numberField, textField } fr
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient, type CustomerAccessPass, type CustomerAvailabilitySlot, type CustomerReservation } from '../../../services/customer.service'
 import { appPath } from '../../utils/appRoutes'
-import { downloadAccessCredentialPdf, shareAccessCredential } from '../../utils/accessCredentialPdf'
+import { downloadAccessCredentialPdf, shareAccessCredential, type AccessCredential } from '../../utils/accessCredentialPdf'
 import { acceptedContractMetadata, buildMenuSelection, contractTermsFromMetadata, menuConfigFromMetadata, menuSelectionFromMetadata } from '../../utils/reservationContract'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
@@ -279,12 +279,22 @@ function AccessQr({ payload, alt }: { payload: string; alt: string }) {
   }, [payload])
 
   return source ? (
-    <img src={source} alt={alt} className="mx-auto aspect-square w-full max-w-[260px] rounded-[1.2rem] border border-[rgba(184,138,74,0.26)] bg-[#fff9f1] p-3" />
+    <img src={source} alt={alt} className="mx-auto aspect-square w-full max-w-[244px] rounded-[1.2rem] border border-[rgba(184,138,74,0.26)] bg-[#fff9f1] p-3" />
   ) : (
-    <div className="mx-auto flex aspect-square w-full max-w-[260px] items-center justify-center rounded-[1.2rem] border border-[rgba(184,138,74,0.26)] bg-[#fff9f1] text-[var(--color-burgundy)]">
+    <div className="mx-auto flex aspect-square w-full max-w-[244px] items-center justify-center rounded-[1.2rem] border border-[rgba(184,138,74,0.26)] bg-[#fff9f1] text-[var(--color-burgundy)]">
       <QrCode size={42} strokeWidth={1.5} />
     </div>
   )
+}
+
+function ticketStatusLabel(pass: CustomerAccessPass, t: (key: string, fallback?: string) => string) {
+  if (pass.usedAt) return t('app.premium.ticket.used', 'Utilizado')
+  if (pass.revokedAt) return t('app.premium.ticket.cancelled', 'Cancelado')
+  const status = String(pass.status ?? '').toLocaleLowerCase('es-MX')
+  if (['published', 'valid', 'confirmed', 'active'].includes(status)) return t('app.premium.ticket.valid', 'Vigente')
+  if (['pending', 'reserved'].includes(status)) return t('common.pending', 'Pendiente')
+  if (['cancelled', 'canceled', 'revoked'].includes(status)) return t('app.premium.ticket.cancelled', 'Cancelado')
+  return pass.status ?? t('common.toBeConfirmed')
 }
 
 function TicketSheet({
@@ -298,14 +308,39 @@ function TicketSheet({
   onClose: () => void
   t: (key: string, fallback?: string) => string
 }) {
+  const [ticketAction, setTicketAction] = useState<'download' | 'share' | ''>('')
+  const [ticketActionMessage, setTicketActionMessage] = useState('')
+  const credentialState: AccessCredential['state'] = pass.usedAt ? 'used' : pass.revokedAt ? 'cancelled' : 'valid'
+  const credential: AccessCredential = { ...pass, state: credentialState }
+
+  const runTicketAction = async (action: 'download' | 'share') => {
+    setTicketAction(action)
+    setTicketActionMessage('')
+    try {
+      if (action === 'download') {
+        await downloadAccessCredentialPdf(credential, locale)
+        setTicketActionMessage(t('app.premium.ticket.downloadReady', 'PDF generado.'))
+      } else {
+        const result = await shareAccessCredential(credential, locale)
+        setTicketActionMessage(result === 'shared'
+          ? t('app.premium.ticket.shared', 'Listo para compartir.')
+          : t('app.premium.ticket.downloadReady', 'PDF generado.'))
+      }
+    } catch {
+      setTicketActionMessage(t('app.premium.ticket.actionError', 'No fue posible preparar el boleto en este dispositivo.'))
+    } finally {
+      setTicketAction('')
+    }
+  }
+
   return (
     <div
-      className="fixed inset-0 z-[180] flex items-end overflow-y-auto bg-[rgba(45,24,17,0.46)] px-3 pb-[calc(env(safe-area-inset-bottom)+118px)] pt-[calc(env(safe-area-inset-top)+12px)] backdrop-blur-md"
+      className="fixed inset-0 z-[180] flex items-center justify-center overflow-y-auto bg-[rgba(45,24,17,0.46)] px-4 backdrop-blur-md"
       role="dialog"
       aria-modal="true"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom)+86px)', margin: 4 }}
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 18px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 104px)' }}
     >
-      <section className="max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-142px)] w-full overflow-y-auto overscroll-contain rounded-[2rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.92)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
+      <section className="max-h-[calc(100dvh-132px)] w-full max-w-[28rem] overflow-y-auto overscroll-contain rounded-[1.75rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.94)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.ticket.eyebrow', 'Mi boleto')}</p>
@@ -323,16 +358,17 @@ function TicketSheet({
           <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.folio', 'Folio')}</span><strong className="text-right text-[var(--color-ink)]">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</strong></div>
           <div className="flex justify-between gap-3"><span>{t('app.premium.reservation.date')}</span><strong className="text-right text-[var(--color-ink)]">{formatDateTime(pass.startsAt, locale, t('common.toBeConfirmed'))}</strong></div>
           <div className="flex justify-between gap-3"><span>{pass.accessType === 'event_ticket' ? t('app.premium.events.ticket') : t('app.premium.reservation.guests')}</span><strong className="text-right text-[var(--color-ink)]">{pass.ticketTypeName ?? pass.peopleCount ?? t('common.toBeConfirmed')}</strong></div>
-          <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.status', 'Estado')}</span><strong className="text-right text-[var(--color-ink)]">{pass.usedAt ? t('app.premium.ticket.used', 'Utilizado') : pass.status}</strong></div>
+          <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.status', 'Estado')}</span><strong className="text-right text-[var(--color-ink)]">{ticketStatusLabel(pass, t)}</strong></div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={() => void downloadAccessCredentialPdf({ ...pass, state: pass.usedAt ? 'used' : pass.revokedAt ? 'cancelled' : 'valid' }, locale)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-[var(--color-burgundy)]">
-            <Download size={15} />{t('app.premium.ticket.download', 'Descargar PDF')}
+          <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('download')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-[var(--color-burgundy)] disabled:opacity-60">
+            <Download size={15} />{ticketAction === 'download' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.download', 'Descargar PDF')}
           </button>
-          <button type="button" onClick={() => void shareAccessCredential({ ...pass, state: pass.usedAt ? 'used' : pass.revokedAt ? 'cancelled' : 'valid' }, locale)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
-            <Share2 size={15} />{t('app.premium.ticket.share', 'Compartir')}
+          <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('share')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white disabled:opacity-60">
+            <Share2 size={15} />{ticketAction === 'share' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.share', 'Compartir')}
           </button>
         </div>
+        {ticketActionMessage ? <p className="mt-3 text-center text-[11px] font-semibold text-[var(--color-muted)]">{ticketActionMessage}</p> : null}
       </section>
     </div>
   )
@@ -783,25 +819,25 @@ export function ReservationScreen() {
       </section>
 
       {activeRomanticSignConfig ? (
-        <section className="rounded-[1.25rem] border border-[rgba(180,138,85,0.28)] bg-[linear-gradient(145deg,rgba(247,242,234,0.96),rgba(232,216,200,0.72))] p-4 shadow-[0_14px_30px_rgba(37,47,55,0.07)]">
-          <div className="flex items-start justify-between gap-4">
+        <section className="rounded-[1.15rem] border border-[rgba(180,138,85,0.24)] bg-[linear-gradient(145deg,rgba(247,242,234,0.92),rgba(232,216,200,0.58))] p-3.5 shadow-[0_12px_24px_rgba(37,47,55,0.06)]">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[var(--color-gold)]">{activeRomanticSignConfig.serviceLabel}</p>
-              <h3 className="mt-1 flex items-center gap-2 text-[18px] font-semibold leading-tight text-[var(--color-ink)]"><Sparkles size={17} className="shrink-0 text-[var(--color-burgundy)]" />{activeRomanticSignConfig.label}</h3>
-              <p className="mt-1 text-[12px] leading-5 text-[var(--color-muted)]">
+              <h3 className="mt-1 flex items-center gap-2 text-[16px] font-semibold leading-tight text-[var(--color-ink)]"><Lightbulb size={15} className="shrink-0 text-[var(--color-burgundy)]" />{activeRomanticSignConfig.label}</h3>
+              <p className="mt-1 text-[11px] leading-5 text-[var(--color-muted)]">
                 Agrega el letrero a la reservación por {formatCurrency(activeRomanticSignConfig.price, locale)}.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setRomanticSignRequired((current) => !current)}
-              className={`inline-flex min-h-10 shrink-0 items-center justify-center rounded-full px-4 text-[12px] font-semibold transition ${romanticSignRequired ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_24px_rgba(104,17,38,0.18)]' : 'border border-[rgba(180,138,85,0.34)] bg-white/72 text-[var(--color-burgundy)]'}`}
+              className={`inline-flex min-h-9 shrink-0 items-center justify-center rounded-full px-3 text-[11px] font-semibold transition ${romanticSignRequired ? 'bg-[var(--color-burgundy)] text-white shadow-[0_10px_20px_rgba(91,11,31,0.16)]' : 'border border-[rgba(180,138,85,0.34)] bg-white/72 text-[var(--color-burgundy)]'}`}
             >
               {romanticSignRequired ? 'Agregado' : 'Agregar'}
             </button>
           </div>
           {romanticSignRequired ? (
-            <div className="mt-4 grid gap-2">
+            <div className="mt-3 grid gap-2">
               {activeRomanticSignConfig.options.map((option) => {
                 const active = romanticSignMessage === option
                 return (
@@ -809,7 +845,7 @@ export function ReservationScreen() {
                     key={option}
                     type="button"
                     onClick={() => setRomanticSignMessage(option)}
-                    className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${active ? 'bg-white text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_var(--color-burgundy)]' : 'bg-white/58 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.22)]'}`}
+                    className={`flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[0.9rem] px-3.5 py-2 text-left text-[12px] font-semibold transition ${active ? 'bg-[rgba(91,11,31,0.08)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(91,11,31,0.34)]' : 'bg-white/62 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
                   >
                     <span className="min-w-0 break-words">{option}</span>
                     {active ? <Check size={16} className="shrink-0" /> : null}
@@ -836,7 +872,7 @@ export function ReservationScreen() {
                   key={option.value}
                   type="button"
                   onClick={() => setMainCourseValue(option.value)}
-                  className={`flex min-h-[52px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                  className={`flex min-h-[46px] w-full items-center justify-between gap-3 rounded-[0.9rem] px-3.5 py-2 text-left text-[12px] font-semibold transition ${active ? 'bg-[rgba(91,11,31,0.08)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(91,11,31,0.34)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
                 >
                   <span className="min-w-0 break-words">{option.label}</span>
                   {active ? <Check size={16} className="shrink-0" /> : null}
@@ -861,7 +897,7 @@ export function ReservationScreen() {
               <button
                 type="button"
                 onClick={() => setMenuValue('')}
-                className={`flex min-h-[58px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left transition ${menuValue === '' ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                className={`grid min-h-[64px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.05rem] px-5 py-3 text-left transition ${menuValue === '' ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(91,11,31,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
               >
                 <span className="min-w-0 text-[13px] font-semibold">Sin menú</span>
                 {menuValue === '' ? <Check size={16} className="shrink-0" /> : null}
@@ -875,14 +911,14 @@ export function ReservationScreen() {
                   key={option.value}
                   type="button"
                   onClick={() => setMenuValue(option.value)}
-                  className={`flex min-h-[72px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                  className={`grid min-h-[92px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.05rem] px-5 py-4 text-left transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(91,11,31,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
                 >
                   <span className="min-w-0">
                     {option.category ? <span className={`mb-1 block text-[9px] font-semibold uppercase tracking-[0.13em] ${active ? 'text-white/70' : 'text-[var(--color-gold)]'}`}>{option.category}</span> : null}
                     <span className="block break-words text-[13px] font-semibold">{option.label}</span>
-                    {option.description ? <span className={`mt-1 block break-words text-[11px] leading-4 ${active ? 'text-white/76' : 'text-[var(--color-muted)]'}`}>{option.description}</span> : null}
+                    {option.description ? <span className={`mt-1.5 block break-words pr-1 text-[11px] leading-5 ${active ? 'text-white/76' : 'text-[var(--color-muted)]'}`}>{option.description}</span> : null}
                   </span>
-                  <span className="shrink-0 text-right">
+                  <span className="min-w-[96px] shrink-0 text-right">
                     <span className="block text-[12px] font-semibold">{formatCurrency(option.price * quantity, locale)}</span>
                     {active ? <Check size={16} className="ml-auto mt-2" /> : null}
                   </span>
@@ -905,7 +941,7 @@ export function ReservationScreen() {
           <button
             type="button"
             onClick={() => setContractAccepted((current) => !current)}
-            className={`mt-4 flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${contractAccepted ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(104,17,38,0.16)]' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.24)]'}`}
+            className={`mt-4 flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${contractAccepted ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(91,11,31,0.16)]' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.24)]'}`}
           >
             <span className="min-w-0 break-words">{activeContractTerms.confirmationMessage}</span>
             <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${contractAccepted ? 'bg-white/18 text-white' : 'bg-[rgba(37,47,55,0.08)] text-[var(--color-muted)]'}`}>
@@ -988,7 +1024,7 @@ export function ReservationScreen() {
               const menu = menuSelectionFromMetadata(reservation.metadata)
               const isRequestedReservation = requestedReservationId === reservation.id
               return (
-              <article id={`reservation-${reservation.id}`} key={reservation.id} className={`rounded-[1.2rem] border bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)] ${isRequestedReservation ? 'border-[var(--color-burgundy)] ring-2 ring-[rgba(104,17,38,0.14)]' : 'border-[rgba(220,202,181,0.78)]'}`}>
+              <article id={`reservation-${reservation.id}`} key={reservation.id} className={`rounded-[1.2rem] border bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)] ${isRequestedReservation ? 'border-[var(--color-burgundy)] ring-2 ring-[rgba(91,11,31,0.14)]' : 'border-[rgba(220,202,181,0.78)]'}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>

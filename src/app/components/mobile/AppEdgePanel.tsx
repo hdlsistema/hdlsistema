@@ -1,4 +1,5 @@
 import {
+  BadgePercent,
   CalendarDays,
   ChevronRight,
   BedDouble,
@@ -52,6 +53,7 @@ export function AppEdgePanel() {
       items: [
         { to: appPath('/home'), label: t('app.nav.home'), icon: Home },
         { to: appPath('/vinos'), label: t('app.nav.store'), icon: ShoppingBasket },
+        { to: appPath('/promociones'), label: isEnglish ? 'Promotions' : 'Promociones', icon: BadgePercent },
         { to: appPath('/experiencias'), label: t('app.nav.experiences'), icon: Wine },
         { to: appPath('/nuestros-eventos'), label: t('app.nav.events'), icon: Ticket },
       ],
@@ -149,7 +151,7 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        className={`app-edge-panel-handle ${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/58 bg-[linear-gradient(155deg,rgba(37,47,55,.96),rgba(104,17,38,.92))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(46,4,17,.28),inset_0_1px_0_rgba(255,255,255,.16)] backdrop-blur-2xl touch-none`}
+        className={`app-edge-panel-handle ${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/46 bg-[linear-gradient(155deg,rgba(37,47,55,.98),rgba(37,47,55,.88))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(37,47,55,.26),inset_0_1px_0_rgba(255,255,255,.14)] backdrop-blur-2xl touch-none`}
         style={{ right: handleRight, transition: dragOffset === null ? 'right 260ms cubic-bezier(.2,.8,.2,1)' : 'none' }}
       >
         <PanelRightOpen size={17} strokeWidth={1.4} aria-hidden="true" />

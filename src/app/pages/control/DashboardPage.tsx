@@ -4,11 +4,11 @@ import {
   CalendarDays,
   ChevronRight,
   CircleDollarSign,
+  Gauge,
   Clock3,
   FileText,
   RefreshCw,
   ShoppingBag,
-  Sparkles,
   Users,
   WalletCards,
 } from 'lucide-react'
@@ -35,7 +35,7 @@ function clampPercent(value: number) {
   return Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0))
 }
 
-type Tone = 'wine' | 'gold' | 'forest' | 'clay'
+type Tone = 'wine' | 'gold' | 'ink' | 'clay'
 
 function ExecutiveMetric({
   label,
@@ -89,9 +89,9 @@ function DashboardPanel({
   )
 }
 
-function RadialGauge({ label, value, tone }: { label: string; value: number; tone: 'wine' | 'forest' }) {
+function RadialGauge({ label, value, tone }: { label: string; value: number; tone: 'wine' | 'ink' }) {
   const percentage = clampPercent(value)
-  const color = tone === 'forest' ? '#252F37' : '#681126'
+  const color = tone === 'ink' ? '#252F37' : '#5B0B1F'
   return (
     <div className="control-radial-gauge">
       <div
@@ -190,14 +190,14 @@ export function DashboardPage() {
     const confirmedStop = clampPercent((confirmedReservations / total) * 100)
     const pendingStop = clampPercent(((confirmedReservations + pendingReservations) / total) * 100)
     return {
-      background: `conic-gradient(#681126 0 ${confirmedStop}%, #bd8c47 ${confirmedStop}% ${pendingStop}%, #d9cbbc ${pendingStop}% 100%)`,
+      background: `conic-gradient(#5B0B1F 0 ${confirmedStop}%, #B48A55 ${confirmedStop}% ${pendingStop}%, #d9cbbc ${pendingStop}% 100%)`,
     }
   }, [activeReservations, confirmedReservations, otherReservations, pendingReservations])
 
   const journey = [
     { label: copy.carts, value: metrics?.activeCarts ?? 0, tone: 'wine' },
     { label: copy.checkouts, value: metrics?.checkoutStarted ?? 0, tone: 'gold' },
-    { label: copy.converted, value: metrics?.convertedCarts ?? 0, tone: 'forest' },
+    { label: copy.converted, value: metrics?.convertedCarts ?? 0, tone: 'ink' },
   ]
   const journeyMax = Math.max(1, ...journey.map((item) => item.value))
 
@@ -207,7 +207,7 @@ export function DashboardPage() {
         <div className="control-dashboard-hero__ornament" aria-hidden="true" />
         <div className="control-dashboard-hero__header">
           <div>
-            <div className="control-dashboard-hero__eyebrow"><Sparkles size={13} /><span>{copy.eyebrow}</span></div>
+            <div className="control-dashboard-hero__eyebrow"><Gauge size={13} /><span>{copy.eyebrow}</span></div>
             <h1>{copy.title}</h1>
             <p>{copy.subtitle}</p>
           </div>
@@ -222,7 +222,7 @@ export function DashboardPage() {
         <div className="control-dashboard-hero__metrics">
           <ExecutiveMetric label={copy.customers} value={loading ? '—' : String(metrics?.customers ?? 0)} detail={copy.customerDetail} icon={Users} tone="gold" />
           <ExecutiveMetric label={copy.reservations} value={loading ? '—' : String(activeReservations)} detail={loading ? copy.loading : `${confirmedReservations} ${copy.confirmed} · ${pendingReservations} ${copy.pending}`} icon={CalendarDays} tone="wine" />
-          <ExecutiveMetric label={copy.collected} value={loading ? '—' : collectedValue} detail={loading ? copy.loading : `${metrics?.confirmedPayments ?? 0} ${copy.paymentsConfirmed}`} icon={CircleDollarSign} tone="forest" />
+          <ExecutiveMetric label={copy.collected} value={loading ? '—' : collectedValue} detail={loading ? copy.loading : `${metrics?.confirmedPayments ?? 0} ${copy.paymentsConfirmed}`} icon={CircleDollarSign} tone="ink" />
           <ExecutiveMetric label={copy.ordersDue} value={loading ? '—' : String(metrics?.pendingPaymentOrders ?? 0)} detail={copy.ordersDueDetail} icon={ShoppingBag} tone="clay" />
         </div>
       </section>
@@ -237,8 +237,8 @@ export function DashboardPage() {
             <div className="control-booking-mix__chart" style={bookingMix}><div><strong>{loading ? '—' : activeReservations}</strong><span>{copy.reservations}</span></div></div>
             <div className="control-booking-mix__legend">
               {[
-                { label: copy.confirmed, value: confirmedReservations, color: '#681126' },
-                { label: copy.pending, value: pendingReservations, color: '#bd8c47' },
+                { label: copy.confirmed, value: confirmedReservations, color: '#5B0B1F' },
+                { label: copy.pending, value: pendingReservations, color: '#B48A55' },
                 { label: copy.other, value: otherReservations, color: '#d9cbbc' },
               ].map((item) => <div key={item.label}><i style={{ background: item.color }} /><span>{item.label}</span><strong>{loading ? '—' : item.value}</strong></div>)}
             </div>
@@ -258,7 +258,7 @@ export function DashboardPage() {
 
         <DashboardPanel eyebrow={copy.performanceDetail} title={copy.performance} className="control-dashboard-panel--performance">
           <div className="control-performance-grid">
-            <RadialGauge label={copy.occupancy} value={loading ? 0 : metrics?.occupancyRate ?? 0} tone="forest" />
+            <RadialGauge label={copy.occupancy} value={loading ? 0 : metrics?.occupancyRate ?? 0} tone="ink" />
             <RadialGauge label={copy.conversion} value={loading ? 0 : metrics?.conversionRate ?? 0} tone="wine" />
           </div>
           <div className="control-digital-reach">

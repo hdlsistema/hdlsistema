@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, User } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, User } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
+import { shouldRememberAuthSession } from '../../../lib/supabase'
 import {
   resetPassword,
   establishPasswordRecoverySession,
@@ -71,6 +72,7 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberSession, setRememberSession] = useState(() => shouldRememberAuthSession())
 
   const appMode = location.pathname.startsWith('/app/')
   const recoverPath = appMode ? '/app/recuperar' : '/recuperar'
@@ -92,7 +94,7 @@ export function LoginPage() {
     setLoading(true)
     const form = new FormData(event.currentTarget)
     try {
-      const nextRoles = await signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''))
+      const nextRoles = await signIn(String(form.get('email') ?? ''), String(form.get('password') ?? ''), { rememberSession })
       const adminRole = nextRoles.some((role) => role !== 'customer')
       navigate(hasRequestedDestination ? destination : (!appMode && adminRole ? '/control/dashboard' : destination), { replace: true })
     } catch (err) {
@@ -142,7 +144,8 @@ export function LoginPage() {
             <form className="mt-7 min-w-0 space-y-4" onSubmit={submit}>
               <ControlField icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" autoComplete="email" />
               <ControlPasswordField show={showPassword} setShow={setShowPassword} />
-              <div className="flex justify-end">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <ControlRememberSession checked={rememberSession} onChange={setRememberSession} label="Mantener sesión iniciada" />
                 <Link to={recoverPath} className="text-[11px] font-semibold text-[#f0d1a0] transition hover:text-white">
                   {t('auth.forgotPassword')}
                 </Link>
@@ -173,14 +176,24 @@ export function LoginPage() {
 	      <form className="mt-7 space-y-4" onSubmit={submit}>
         <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
         <PasswordField show={showPassword} setShow={setShowPassword} />
-        <Link to={recoverPath} className="block text-[12px] font-semibold text-[#681126]">
+        <label className="flex items-center gap-3 text-[12px] font-semibold text-[#5B0B1F]">
+          <input
+            name="remember"
+            type="checkbox"
+            checked={rememberSession}
+            onChange={(event) => setRememberSession(event.currentTarget.checked)}
+            className="accent-[#5B0B1F]"
+          />
+          <span>{t('auth.rememberMe')}</span>
+        </label>
+        <Link to={recoverPath} className="block text-[12px] font-semibold text-[#5B0B1F]">
           {t('auth.forgotPassword')}
         </Link>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
         <SubmitButton loading={loading}>{t('auth.login')}</SubmitButton>
       </form>
       <p className="mt-6 text-center text-[12px] text-[#7f6a59]">
-        {t('auth.noAccount')} <Link className="font-bold text-[#681126]" to="/app/registro">{t('auth.createAccount')}</Link>
+        {t('auth.noAccount')} <Link className="font-bold text-[#5B0B1F]" to="/app/registro">{t('auth.createAccount')}</Link>
       </p>
     </AuthShell>
   )
@@ -222,6 +235,25 @@ function ControlPasswordField({ show, setShow }: { show: boolean; setShow: (valu
           {show ? <EyeOff size={17} /> : <Eye size={17} />}
         </button>
       </span>
+    </label>
+  )
+}
+
+function ControlRememberSession({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
+  return (
+    <label className="inline-flex min-w-0 items-center gap-2 text-[11px] font-semibold text-white/72">
+      <span className="relative inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-white/22 bg-black/16 text-[#2b0a14] transition">
+        <input
+          name="remember"
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onChange(event.currentTarget.checked)}
+          className="peer absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        />
+        <span className="absolute inset-0 rounded-md transition peer-checked:bg-[#f4e4cf]" />
+        <Check size={13} className="relative opacity-0 transition peer-checked:opacity-100" strokeWidth={3} />
+      </span>
+      <span>{label}</span>
     </label>
   )
 }
@@ -290,7 +322,7 @@ export function RegisterPage() {
         <PasswordField show={showPassword} setShow={setShowPassword} />
         <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
         <label className="flex items-start gap-3 text-[11px] leading-5 text-[#6f5a4d]">
-          <input required name="terms" type="checkbox" className="mt-1 accent-[#681126]" />
+          <input required name="terms" type="checkbox" className="mt-1 accent-[#5B0B1F]" />
           <span>{t('auth.terms')}</span>
         </label>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
@@ -484,7 +516,7 @@ function PasswordField({
         <button
           type="button"
           onClick={() => setShow(!show)}
-          className="text-[#681126]"
+          className="text-[#5B0B1F]"
           aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
         >
           {show ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -506,7 +538,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={loading}
-	      className="inline-flex min-h-[53px] w-full min-w-0 items-center justify-center gap-3 rounded-full bg-[#681126] px-4 text-[14px] font-bold text-white disabled:opacity-60"
+	      className="inline-flex min-h-[53px] w-full min-w-0 items-center justify-center gap-3 rounded-full bg-[#5B0B1F] px-4 text-[14px] font-bold text-white disabled:opacity-60"
     >
       {loading ? t('auth.processing') : children}
       <ArrowRight size={17} />
