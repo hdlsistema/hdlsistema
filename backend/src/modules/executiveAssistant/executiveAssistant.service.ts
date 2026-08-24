@@ -312,8 +312,10 @@ async function answerEventAttendanceQuestion(question: string) {
   const capacityText = selectedCapacity ? `cupo ${selectedCapacity}` : `${activeQr} QR activos`
   const latestText = latest.length ? `\n\nÚltimos ingresos:\n${latest.join('\n')}` : '\n\nTodavía no hay ingresos registrados para ese alcance.'
   const eventDate = startAt ? ` Fecha: ${formatAssistantDate(startAt)}.` : ''
+  const personText = enteredQr === 1 ? 'persona' : 'personas'
+  const pendingText = pendingQr === 1 ? 'pendiente' : 'pendientes'
 
-  return `${scope}: han ingresado ${enteredQr} personas por QR leído. Hay ${activeQr} pases activos, ${pendingQr} pendientes y ${occupancy}% de ocupación sobre ${capacityText}.${eventDate}\n\nRevisé datos reales de Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins.${latestText}`
+  return `${scope}: han ingresado ${enteredQr} ${personText} por QR leído. Hay ${activeQr} pases activos, ${pendingQr} ${pendingText} y ${occupancy}% de ocupación sobre ${capacityText}.${eventDate}\n\nRevisé datos reales de Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins.${latestText}`
 }
 
 function groupByField(rows: Row[], field: string) {

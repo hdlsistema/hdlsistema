@@ -1359,8 +1359,8 @@ describe('Trazabilidad App a Centro de Control', () => {
 
     expect(response.status).toBe(200)
     expect(response.body.data.answer).toContain('Para Noche de salsa, vino y terraza')
-    expect(response.body.data.answer).toContain('han ingresado 1 personas por QR leído')
-    expect(response.body.data.answer).toContain('Hay 2 pases activos, 1 pendientes')
+    expect(response.body.data.answer).toContain('han ingresado 1 persona por QR leído')
+    expect(response.body.data.answer).toContain('Hay 2 pases activos, 1 pendiente')
     expect(response.body.data.answer).toContain('Recepción Hacienda')
     expect(response.body.data.answer).toContain('Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins')
     expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
