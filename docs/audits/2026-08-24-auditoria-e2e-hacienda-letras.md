@@ -3,7 +3,8 @@
 Fecha: 2026-08-24
 Repositorio auditado: `/Users/pattyg/Developer/HaciendaDemo-rescate`
 Rama: `main`
-Commit productivo verificado: `89278056f70151fb1dbf9d80b150f03019c79853`
+Commit base E2E verificado: `89278056f70151fb1dbf9d80b150f03019c79853`
+Correccion de entrega email/campanas enviada a Git: `7a1e267aa81659f9b5ac561ea9d151dea26e091c`
 Usuario QA principal: `mau@alqia.tech`
 Usuario OAuth Google: `pcgaribayg@gmail.com`
 
