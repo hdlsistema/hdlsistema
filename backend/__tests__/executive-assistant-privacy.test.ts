@@ -29,6 +29,17 @@ describe('executive assistant privacy and access contract', () => {
     expect(plainText).toContain('No uses Markdown, asteriscos')
   })
 
+  it('keeps formatting instructions out of precise event matching', () => {
+    expect(service).toContain("'responde'")
+    expect(service).toContain("'asteriscos'")
+    expect(service).toContain("'resumen'")
+    expect(service).toContain("'asistencia'")
+    expect(service).toContain('function preciseTermScore')
+    expect(service).toContain('aforo|asist')
+    expect(service).toContain('Math.ceil(terms.length * 0.6)')
+    expect(service).toContain('rankByPreciseTerms(events')
+  })
+
   it('is read-only and restricted to the three approved real identities', () => {
     expect(service).toContain('No puedes crear, editar, confirmar, cancelar ni eliminar registros')
     expect(migration).toContain('5d816bfe-1ff3-40ae-ab45-5f0e7ef9a62b')

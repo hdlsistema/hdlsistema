@@ -87,9 +87,12 @@ const assistantCheckinSelect = 'id,access_pass_id,checked_in_by,checked_in_at,re
 const assistantStopWords = new Set([
   'ahi', 'ahí', 'app', 'asi', 'así', 'busca', 'buscar', 'centro', 'como', 'con', 'control', 'cual', 'cuál',
   'cuando', 'cuándo', 'cuanta', 'cuánta', 'cuantas', 'cuántas', 'cuanto', 'cuánto', 'cuantos', 'cuántos',
-  'ceo', 'dame', 'datos', 'del', 'direccion', 'dirección', 'director', 'directora', 'dime', 'donde', 'dónde', 'evento', 'eventos', 'han', 'hay', 'hoy', 'ingresado',
+  'ceo', 'conteo', 'cuenta', 'datos', 'del', 'direccion', 'dirección', 'director', 'directora', 'dame', 'dime',
+  'donde', 'dónde', 'evento', 'eventos', 'exacta', 'exacto', 'favor', 'han', 'hay', 'hoy', 'ingresado',
   'ingresaron', 'ingreso', 'ingresos', 'las', 'leido', 'leído', 'leidos', 'leídos', 'los', 'para', 'personas',
-  'puede', 'puedes', 'que', 'qué', 'quien', 'quién', 'revisa', 'sobre', 'todo', 'una', 'ver',
+  'porfa', 'porfavor', 'precisa', 'preciso', 'puede', 'puedes', 'que', 'qué', 'quien', 'quién', 'revisa',
+  'responde', 'respuesta', 'resumen', 'sin', 'sobre', 'todo', 'total', 'una', 'ver', 'asterisco', 'asteriscos',
+  'asistencia', 'asistentes',
 ])
 
 function normalizeAssistantText(value: unknown) {
@@ -131,10 +134,25 @@ function preciseFolios(question: string) {
   return Array.from(new Set(matches.map((match) => match.toUpperCase())))
 }
 
+function preciseTermScore(row: Row, terms: string[], fields: string[]) {
+  const haystack = normalizeAssistantText(fields.map((field) => textField(row, field)).join(' '))
+  return terms.filter((term) => haystack.includes(term)).length
+}
+
 function matchesPreciseTerms(row: Row, terms: string[], fields: string[]) {
   if (!terms.length) return false
-  const haystack = normalizeAssistantText(fields.map((field) => textField(row, field)).join(' '))
-  return terms.every((term) => haystack.includes(term))
+  const score = preciseTermScore(row, terms, fields)
+  const minimum = terms.length <= 2 ? terms.length : Math.max(2, Math.ceil(terms.length * 0.6))
+  return score >= minimum
+}
+
+function rankByPreciseTerms(rows: Row[], terms: string[], fields: string[]) {
+  if (!terms.length) return []
+  return rows
+    .map((row) => ({ row, score: preciseTermScore(row, terms, fields) }))
+    .filter((item) => item.score > 0 && matchesPreciseTerms(item.row, terms, fields))
+    .sort((left, right) => right.score - left.score)
+    .map((item) => item.row)
 }
 
 function rowKey(row: Row, fallback: number) {
@@ -207,7 +225,7 @@ async function profileNames(userIds: string[]) {
 }
 
 function isAttendanceQuestion(question: string) {
-  return /ingres|entrada|check.?in|escane|qr|ocupaci|aforo|pase|boleto/.test(normalizeAssistantText(question))
+  return /ingres|entrada|check.?in|escane|qr|ocupaci|aforo|asist|pase|boleto/.test(normalizeAssistantText(question))
 }
 
 async function assertExecutiveAccess(user: UserContext) {
@@ -235,12 +253,8 @@ async function answerEventAttendanceQuestion(question: string) {
     safeRows(supabaseAdminClient.from('checkins').select(assistantCheckinSelect).order('checked_in_at', { ascending: false }).limit(420)),
   ])
 
-  const matchedEvents = terms.length
-    ? events.filter((row) => matchesPreciseTerms(row, terms, ['title', 'slug', 'subtitle', 'description', 'venue'])).slice(0, 5)
-    : []
-  const matchedExperiences = terms.length
-    ? experiences.filter((row) => matchesPreciseTerms(row, terms, ['title', 'slug', 'subtitle', 'description', 'location'])).slice(0, 5)
-    : []
+  const matchedEvents = rankByPreciseTerms(events, terms, ['title', 'slug', 'subtitle', 'description', 'venue']).slice(0, 5)
+  const matchedExperiences = rankByPreciseTerms(experiences, terms, ['title', 'slug', 'subtitle', 'description', 'location']).slice(0, 5)
 
   const eventIds = ids(matchedEvents)
   const experienceIds = ids(matchedExperiences)
