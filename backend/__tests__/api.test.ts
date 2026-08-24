@@ -1251,6 +1251,209 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(response.body.data.answer).toContain('mobile_app')
     expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
   })
+
+  it('responde ingresos de un evento con QR y check-ins reales sin usar mocks de respuesta', async () => {
+    authenticateAs('admin')
+    const eventId = 'event-salsa'
+    const ticketTypeId = 'ticket-salsa'
+    const reservationId = 'reservation-salsa'
+    const operatorId = 'operator-scan'
+    const eventRelation = {
+      id: eventId,
+      title: 'Noche de salsa, vino y terraza',
+      start_at: '2026-08-24T03:00:00.000Z',
+      end_at: '2026-08-24T07:00:00.000Z',
+      capacity: 80,
+      sold_count: 2,
+      reserved_count: 2,
+      cover_image_url: null,
+    }
+    const customerRelation = {
+      display_name: 'Patty Garibay',
+      first_name: 'Patty',
+      last_name: 'Garibay',
+    }
+    const ticketTypeRelation = {
+      id: ticketTypeId,
+      name: 'Acceso general',
+      capacity: 80,
+      sold_count: 2,
+      reserved_count: 2,
+      events: eventRelation,
+    }
+    const reservationRelation = {
+      id: reservationId,
+      reservation_number: 'RES-SALSA-001',
+      reservation_type: 'event',
+      people_count: 2,
+      status: 'confirmed',
+      source: 'mobile_app',
+      total: 400,
+      currency: 'MXN',
+      created_at: '2026-08-23T20:00:00.000Z',
+      customers: customerRelation,
+      events: eventRelation,
+      event_ticket_types: ticketTypeRelation,
+    }
+    const firstPass = {
+      id: 'pass-salsa-1',
+      reservation_id: reservationId,
+      event_ticket_type_id: ticketTypeId,
+      pass_number: 'PASS-SALSA-001',
+      status: 'issued',
+      valid_until: '2026-08-24T19:00:00.000Z',
+      issued_at: '2026-08-23T20:10:00.000Z',
+      created_at: '2026-08-23T20:10:00.000Z',
+      reservations: reservationRelation,
+      event_ticket_types: ticketTypeRelation,
+    }
+    supabaseMock.tableData.executive_ai_access = [{
+      user_id: customerUser.id,
+      feature_code: 'executive_ai_assistant',
+      active: true,
+    }]
+    supabaseMock.tableData.executive_ai_queries = []
+    supabaseMock.tableData.events = [{
+      ...eventRelation,
+      slug: 'noche-salsa-vino-terraza',
+      subtitle: 'Salsa y vino',
+      description: 'Evento de salsa en terraza',
+      venue: 'Restaurante Centro',
+      status: 'published',
+      visible_in_app: true,
+      sales_enabled: true,
+      created_at: '2026-08-20T00:00:00.000Z',
+      updated_at: '2026-08-20T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.experiences = []
+    supabaseMock.tableData.reservations = [reservationRelation]
+    supabaseMock.tableData.event_ticket_types = [ticketTypeRelation]
+    supabaseMock.tableData.access_passes = [
+      firstPass,
+      {
+        ...firstPass,
+        id: 'pass-salsa-2',
+        pass_number: 'PASS-SALSA-002',
+      },
+    ]
+    supabaseMock.tableData.checkins = [{
+      id: 'checkin-salsa-1',
+      access_pass_id: 'pass-salsa-1',
+      checked_in_by: operatorId,
+      checked_in_at: '2026-08-24T03:30:00.000Z',
+      reversed_at: null,
+      created_at: '2026-08-24T03:30:00.000Z',
+      access_passes: firstPass,
+    }]
+    supabaseMock.tableData.profiles = [{
+      id: operatorId,
+      display_name: 'Recepción Hacienda',
+      first_name: 'Recepción',
+      last_name: 'Hacienda',
+    }]
+
+    const response = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ message: 'CEO: ¿cuántas personas han ingresado al evento salsa?', history: [] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.answer).toContain('Para Noche de salsa, vino y terraza')
+    expect(response.body.data.answer).toContain('han ingresado 1 personas por QR leído')
+    expect(response.body.data.answer).toContain('Hay 2 pases activos, 1 pendientes')
+    expect(response.body.data.answer).toContain('Recepción Hacienda')
+    expect(response.body.data.answer).toContain('Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins')
+    expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
+  })
+
+  it('responde folios exactos de órdenes con partidas, pago y logística reales', async () => {
+    authenticateAs('admin')
+    const orderId = 'order-direct-1'
+    supabaseMock.tableData.executive_ai_access = [{
+      user_id: customerUser.id,
+      feature_code: 'executive_ai_assistant',
+      active: true,
+    }]
+    supabaseMock.tableData.executive_ai_queries = []
+    supabaseMock.tableData.orders = [{
+      id: orderId,
+      order_number: 'ORD-20260824-REAL001',
+      customer_id: 'customer-real-1',
+      reservation_id: null,
+      subtotal: 900,
+      discount_total: 0,
+      tax_total: 0,
+      shipping_total: 0,
+      total: 900,
+      currency: 'MXN',
+      status: 'paid',
+      source: 'mobile_app',
+      paid_at: '2026-08-24T02:00:00.000Z',
+      requires_shipping: true,
+      shipping_status: 'assigned',
+      created_at: '2026-08-24T01:50:00.000Z',
+      updated_at: '2026-08-24T02:00:00.000Z',
+      customers: {
+        display_name: 'Marlén Molina',
+        first_name: 'Marlén',
+        last_name: 'Molina',
+        source: 'mobile_app',
+        segment: 'cliente',
+      },
+    }]
+    supabaseMock.tableData.order_items = [{
+      id: 'item-direct-1',
+      order_id: orderId,
+      item_type: 'wine',
+      name_snapshot: 'Dulce Apapacho',
+      sku_snapshot: 'DULCE-001',
+      quantity: 2,
+      unit_price: 450,
+      subtotal: 900,
+      created_at: '2026-08-24T01:51:00.000Z',
+    }]
+    supabaseMock.tableData.payments = [{
+      id: 'payment-direct-1',
+      order_id: orderId,
+      provider: 'stripe',
+      amount: 900,
+      currency: 'MXN',
+      status: 'paid',
+      payment_method_type: 'card',
+      payment_reference: 'Pago app',
+      paid_at: '2026-08-24T02:00:00.000Z',
+      refunded_amount: 0,
+      provider_environment: 'test',
+      created_at: '2026-08-24T01:59:00.000Z',
+      updated_at: '2026-08-24T02:00:00.000Z',
+    }]
+    supabaseMock.tableData.shipments = [{
+      id: 'shipment-direct-1',
+      order_id: orderId,
+      shipment_number: 'SHIP-REAL001',
+      carrier: 'Estafeta',
+      tracking_number: 'GUIA-REAL-001',
+      status_text: 'guía asignada',
+      created_at: '2026-08-24T02:10:00.000Z',
+      updated_at: '2026-08-24T02:10:00.000Z',
+    }]
+
+    const response = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ message: 'Dime todo de la orden ORD-20260824-REAL001', history: [] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.answer).toContain('Orden ORD-20260824-REAL001')
+    expect(response.body.data.answer).toContain('cliente Marlén Molina')
+    expect(response.body.data.answer).toContain('origen App')
+    expect(response.body.data.answer).toContain('total $900.00')
+    expect(response.body.data.answer).toContain('2 x Dulce Apapacho')
+    expect(response.body.data.answer).toContain('stripe: paid')
+    expect(response.body.data.answer).toContain('Estafeta GUIA-REAL-001')
+    expect(response.body.data.answer).toContain('Consulta local de solo lectura')
+    expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
+  })
 })
 
 describe('Fase 4B content API', () => {

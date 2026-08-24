@@ -6,9 +6,16 @@ const migration = readFileSync(new URL('../migrations/059_carlos_executive_ai_as
 const accessExpansionMigration = readFileSync(new URL('../migrations/060_add_carlos_aleman_executive_ai_access.sql', import.meta.url), 'utf8')
 
 describe('executive assistant privacy and access contract', () => {
-  it('sends only aggregate operational fields and excludes identifying customer fields', () => {
+  it('keeps precise operational lookups local and excludes raw sensitive payloads', () => {
+    expect(service).toContain('answerPreciseLocalQuestion')
+    expect(service).toContain('answerEventAttendanceQuestion')
+    expect(service).toContain('Revisé datos reales de Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins')
+    expect(service).toMatch(/const preciseAnswer = await answerPreciseLocalQuestion\(payload\.message\)[\s\S]*return \{ answer: preciseAnswer/)
     expect(service).toContain('Resumen agregado sin datos personales')
-    expect(service).not.toMatch(/select\([^)]*(email|phone|first_name|last_name|address|notes|reservation_number|order_number)/)
+    expect(service).not.toContain('provider_response')
+    expect(service).not.toContain('qr_token_hash')
+    expect(service).not.toContain('device_info')
+    expect(service).not.toContain('auth.users')
     expect(service).not.toContain('recentAppActivity')
     expect(service).not.toContain('recentReservations: dashboard')
     expect(service).not.toContain('recentOrders: dashboard')
