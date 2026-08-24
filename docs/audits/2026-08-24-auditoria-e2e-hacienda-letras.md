@@ -86,6 +86,7 @@ Resultado:
 Estado: flujo real probado con `mau@alqia.tech`; entrega final de email/push queda condicionada a proveedores y dispositivo.
 
 Archivos:
+- `backend/src/modules/communications/communications.service.ts`
 - `backend/src/modules/content/content.schemas.ts`
 - `backend/src/modules/content/content.service.ts`
 - `src/services/content.service.ts`
@@ -95,6 +96,8 @@ Resultado:
 - La audiencia de campana acepta lista exacta de correos.
 - La prueba con `mau@alqia.tech` no expandio audiencia por segmento ni filtros generales.
 - La campana genero destinatario real y entregas por canal.
+- El backend ahora refresca el outbox despues de procesar Resend, para no reportar como pendiente un correo que ya quedo `sent`.
+- Los webhooks de Resend actualizan tambien `campaign_recipient_deliveries` para email cuando llega `delivered`, `bounced`, `complained`, `failed`, `opened` o `clicked`.
 - Se restauro el consentimiento QA despues de la prueba controlada.
 
 Evidencia:
@@ -105,12 +108,17 @@ Evidencia:
 - Metricas observadas: email pendiente de confirmacion final, push fallido por token/proveedor/dispositivo, in-app entregado.
 - Consulta posterior a Supabase para `mau@alqia.tech`: el outbox de `campaign.marketing` quedo en `sent`, con 1 intento, proveedor `resend`, referencia de proveedor presente, `failed_at` nulo y `error_code` nulo.
 - `email_deliveries` contiene evento `email.sent` para esa campaña.
-- `campaign_recipient_deliveries` conserva el canal email como `pending`, sin `delivered_at`, `opened_at` ni `clicked_at`.
+- La fila historica de `campaign_recipient_deliveries` de email para Mau conserva `pending`, sin `delivered_at`, `opened_at` ni `clicked_at`, porque se genero antes del ajuste de sincronizacion del outbox.
+- En el historial de Mau existe un rebote duro/permanente anterior: `customer.welcome` del 17 ago 2026 termino en `email.bounced`.
+- El rebote duro anterior venia del proveedor receptor de `mau@alqia.tech`; eso puede dejar la direccion suprimida o castigada en Resend aunque el envio posterior sea aceptado.
+- La llave actual de Resend esta restringida a envio; no permite consultar ni limpiar supresiones por API.
 
 Lectura honesta:
 - El flujo de campana funciona y no esta mockeado.
 - Lo que esta probado es envio aceptado por Resend, no recepcion en bandeja.
+- El dominio remitente probado es Hacienda de Letras; `alqia.tech` es solo dominio receptor para Mau.
 - Falta confirmar `delivered`, `open` o `click` real del correo cuando el proveedor reporte evento o Mau lo confirme desde inbox.
+- Falta revisar en Resend la supresion/lista de rebotes de `mau@alqia.tech` con una llave o usuario que tenga permisos de lectura.
 - Falta token fisico valido para confirmar push real en movil.
 
 ## E2E real ejecutado

@@ -1664,6 +1664,65 @@ describe('Fase 4B content API', () => {
     expect(publicCampaigns.status).toBe(404)
   })
 
+  it('marca el canal email como enviado cuando Resend acepta la campaña', async () => {
+    ;(env as Record<string, string>).RESEND_API_KEY = 'test_resend_key'
+    ;(env as Record<string, string>).RESEND_FROM_EMAIL = 'Hacienda de Letras <notificaciones@admhaciendadeletras.com>'
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: 'email_campaign_123' }),
+    })))
+
+    const adminUser = {
+      id: '00000000-0000-0000-0000-000000000275',
+      email: 'marketing@alqia.tech',
+      created_at: '2026-08-12T00:00:00.000Z',
+      email_confirmed_at: '2026-08-12T00:00:00.000Z',
+    }
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: 'marketing' } }]
+    supabaseMock.tableData.campaigns = [{
+      id: '00000000-0000-0000-0000-000000000276',
+      name: 'QA Resend aceptado',
+      channel: 'email',
+      status: 'draft',
+      visible_in_app: false,
+      audience_definition: { emails: ['mau@alqia.tech'] },
+      content: { subject: 'Prueba real de campaña', body: 'Validación de estado real del outbox.' },
+      created_at: '2026-08-12T00:00:00.000Z',
+      updated_at: '2026-08-12T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.customers = [{
+      id: '00000000-0000-0000-0000-000000000277',
+      email: 'mau@alqia.tech',
+      first_name: 'Mau',
+      segment: 'cliente',
+      marketing_email_consent: true,
+      preferred_language: 'es-MX',
+      status: 'published',
+      created_at: '2026-08-01T00:00:00.000Z',
+    }]
+
+    const send = await request(app)
+      .post('/api/admin/campaigns/00000000-0000-0000-0000-000000000276/send')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ audience: { emails: ['mau@alqia.tech'] }, channels: ['email'] })
+
+    const outbox = supabaseMock.tableData.email_outbox[0] as { id?: string; status?: string; provider_message_id?: string }
+    expect(send.status).toBe(202)
+    expect(send.body.data).toMatchObject({ recipients: 1, pending: 0, sent: 1, failed: 0, channels: ['email'] })
+    expect(outbox).toMatchObject({ status: 'sent', provider_message_id: 'email_campaign_123' })
+    expect(supabaseMock.tableData.campaign_recipient_deliveries).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        channel: 'email',
+        customer_id: '00000000-0000-0000-0000-000000000277',
+        provider_reference: outbox.id,
+        status: 'sent',
+        error_code: null,
+      }),
+    ]))
+  })
+
   it('permite probar campañas con una lista exacta de correos sin ampliar audiencia', async () => {
     const adminUser = {
       id: '00000000-0000-0000-0000-000000000270',
@@ -1697,8 +1756,8 @@ describe('Fase 4B content API', () => {
       },
       {
         id: '00000000-0000-0000-0000-000000000273',
-        email: 'mav@alqia.tech',
-        first_name: 'Mav',
+        email: 'mau@alqia.tech',
+        first_name: 'Mau',
         segment: 'cliente',
         marketing_email_consent: true,
         preferred_language: 'es-MX',
@@ -1718,7 +1777,7 @@ describe('Fase 4B content API', () => {
     ]
 
     const audience = {
-      emails: ['pcgaribayg@gmail.com', 'mav@alqia.tech'],
+      emails: ['pcgaribayg@gmail.com', 'mau@alqia.tech'],
       channels: ['email'],
     }
     const preview = await request(app)
@@ -1737,13 +1796,13 @@ describe('Fase 4B content API', () => {
       channelTotals: { email: 2 },
     })
     expect(preview.body.data.sample.map((item: { email: string }) => item.email).sort()).toEqual([
-      'mav@alqia.tech',
+      'mau@alqia.tech',
       'pcgaribayg@gmail.com',
     ])
     expect(send.status).toBe(202)
     expect(send.body.data).toMatchObject({ recipients: 2, pending: 2, sent: 0, channels: ['email'] })
     expect(supabaseMock.tableData.email_outbox.map((item) => (item as { recipient_email: string }).recipient_email).sort()).toEqual([
-      'mav@alqia.tech',
+      'mau@alqia.tech',
       'pcgaribayg@gmail.com',
     ])
     expect(supabaseMock.tableData.campaign_recipient_deliveries).toEqual(expect.arrayContaining([
@@ -3729,7 +3788,7 @@ describe('Fase 8E communications API', () => {
     }))
     vi.stubGlobal('fetch', fetchMock)
 
-    await enqueueAndProcessTransactionalEmail({
+    const result = await enqueueAndProcessTransactionalEmail({
       eventType: 'order.pending_payment',
       aggregateType: 'orders',
       aggregateId: '11111111-1111-4111-8111-111111111113',
@@ -3746,6 +3805,7 @@ describe('Fase 8E communications API', () => {
     const outbox = supabaseMock.tableData.email_outbox?.[0] as { status?: string; provider_message_id?: string }
     expect(outbox.status).toBe('sent')
     expect(outbox.provider_message_id).toBe('email_123')
+    expect(result.outbox).toMatchObject({ status: 'sent', provider_message_id: 'email_123' })
   })
 
   it('deja reintento programado cuando el proveedor falla', async () => {
@@ -3757,7 +3817,7 @@ describe('Fase 8E communications API', () => {
       text: async () => JSON.stringify({ name: 'validation_error' }),
     })))
 
-    await enqueueAndProcessTransactionalEmail({
+    const result = await enqueueAndProcessTransactionalEmail({
       eventType: 'membership.activated',
       aggregateType: 'memberships',
       aggregateId: '11111111-1111-4111-8111-111111111114',
@@ -3770,6 +3830,7 @@ describe('Fase 8E communications API', () => {
     expect(outbox.status).toBe('queued')
     expect(outbox.attempts).toBe(1)
     expect(outbox.error_code).toBe('validation_error')
+    expect(result.outbox).toMatchObject({ status: 'queued', attempts: 1, error_code: 'validation_error' })
   })
 
   it('renderiza plantillas por locale y no expone tokens del payload', () => {
@@ -3857,6 +3918,18 @@ describe('Fase 8E communications API', () => {
       created_at: '2026-08-04T00:00:00.000Z',
       updated_at: '2026-08-04T00:00:00.000Z',
     }]
+    supabaseMock.tableData.campaign_recipient_deliveries = [{
+      id: '33333333-3333-4333-8333-333333333334',
+      campaign_id: '55555555-5555-4555-8555-555555555555',
+      customer_id: '66666666-6666-4666-8666-666666666666',
+      channel: 'email',
+      status: 'sent',
+      provider_reference: '33333333-3333-4333-8333-333333333333',
+      delivered_at: null,
+      error_code: null,
+      created_at: '2026-08-04T00:00:00.000Z',
+      updated_at: '2026-08-04T00:00:00.000Z',
+    }]
     const body = JSON.stringify({ type: 'email.delivered', data: { email_id: 'email_123' } })
     const id = 'msg_phase8e'
     const timestamp = String(Math.floor(Date.now() / 1000))
@@ -3880,6 +3953,11 @@ describe('Fase 8E communications API', () => {
     expect(second.status).toBe(202)
     expect(supabaseMock.tableData.email_deliveries).toHaveLength(1)
     expect((supabaseMock.tableData.email_outbox[0] as { status?: string }).status).toBe('delivered')
+    expect(supabaseMock.tableData.campaign_recipient_deliveries[0]).toMatchObject({
+      status: 'delivered',
+      error_code: null,
+    })
+    expect((supabaseMock.tableData.campaign_recipient_deliveries[0] as { delivered_at?: string | null }).delivered_at).toBeTruthy()
   })
 })
 

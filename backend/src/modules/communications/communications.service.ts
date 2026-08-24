@@ -148,6 +148,15 @@ async function findOutboxByKey(idempotencyKey: string) {
   return assertNoError<EmailOutboxRow | null>(result).data
 }
 
+async function findOutboxById(id: string) {
+  const result = await supabaseAdminClient
+    .from('email_outbox')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+  return assertNoError<EmailOutboxRow | null>(result).data
+}
+
 export async function enqueueTransactionalEmail(input: EnqueueTransactionalEmailInput) {
   const recipientEmail = normalizeEmail(input.recipientEmail)
   const payload = safePayload(input.payload)
@@ -212,8 +221,42 @@ export async function enqueueAndProcessTransactionalEmail(input: EnqueueTransact
   const { event, outbox } = await enqueueTransactionalEmail(input)
   if (outbox.status === 'queued') {
     await processOutboxItem(outbox.id).catch(() => undefined)
+    const refreshed = await findOutboxById(outbox.id)
+    return { event, outbox: refreshed ?? outbox }
   }
   return { event, outbox }
+}
+
+async function updateCampaignEmailDeliveryFromWebhook(outboxId: string, normalizedStatus: string, eventType: string) {
+  const now = new Date().toISOString()
+  const patch: Record<string, unknown> = { updated_at: now }
+
+  if (eventType.includes('clicked')) {
+    patch.status = 'delivered'
+    patch.delivered_at = now
+    patch.opened_at = now
+    patch.clicked_at = now
+  } else if (eventType.includes('opened')) {
+    patch.status = 'delivered'
+    patch.delivered_at = now
+    patch.opened_at = now
+  } else if (normalizedStatus === 'delivered') {
+    patch.status = 'delivered'
+    patch.delivered_at = now
+    patch.error_code = null
+  } else if (['bounced', 'complained', 'failed'].includes(normalizedStatus)) {
+    patch.status = 'failed'
+    patch.delivered_at = null
+    patch.error_code = `email.${normalizedStatus}`
+  } else {
+    patch.status = 'sent'
+  }
+
+  await supabaseAdminClient
+    .from('campaign_recipient_deliveries')
+    .update(patch)
+    .eq('channel', 'email')
+    .eq('provider_reference', outboxId)
 }
 
 export async function processOutboxItem(id: string) {
@@ -393,6 +436,9 @@ export async function recordResendWebhookEvent(input: {
     if (normalizedStatus === 'delivered') patch.delivered_at = new Date().toISOString()
     if (normalizedStatus === 'failed') patch.failed_at = new Date().toISOString()
     await supabaseAdminClient.from('email_outbox').update(patch).eq('id', outboxId)
+  }
+  if (outboxId) {
+    await updateCampaignEmailDeliveryFromWebhook(outboxId, normalizedStatus, input.eventType)
   }
 
   return { ok: true }
