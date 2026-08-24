@@ -3,46 +3,87 @@
 Fecha: 2026-08-24
 Repositorio auditado: `/Users/pattyg/Developer/HaciendaDemo-rescate`
 Rama: `main`
-Base local al iniciar: `95fbbb9ac949055681cd936e51d9ddb7507f5124`
+Commit productivo verificado: `89278056f70151fb1dbf9d80b150f03019c79853`
+Usuario QA principal: `mau@alqia.tech`
+Usuario OAuth Google: `pcgaribayg@gmail.com`
 
-Este documento responde la solicitud de auditoria de punta a punta del Centro de Control, Supabase y app nativa. No marca como aprobado lo que no fue validado en esta corrida.
+Este documento cierra la auditoria E2E solicitada para Centro de Control, Supabase, app nativa, campanas, pagos, QR, asistente ejecutiva y sommelier. No marca como aprobado lo que no fue validado en esta corrida.
 
 ## Reglas de esta auditoria
 
-- No se modifico produccion de Supabase.
-- No se ejecutaron cobros reales de Stripe.
-- No se enviaron campanas masivas.
-- No se expusieron secretos ni llaves.
+- El trabajo valido fue exclusivamente en `HaciendaDemo-rescate`.
+- `pcgaribayg@gmail.com` se trato como usuario Google OAuth; no se probo login directo con credenciales para esa cuenta.
+- La prueba controlada se ejecuto con `mau@alqia.tech`.
+- No se expusieron secretos, tokens, llaves ni credenciales.
 - No se uso informacion inventada para declarar conexiones.
-- Donde hubo evidencia por codigo, prueba local y Supabase remoto, se separa de validacion fisica en dispositivo.
+- Se separa evidencia real de codigo, Supabase y HTTP productivo frente a validacion fisica pendiente en dispositivo.
 
 ## Cambios aplicados para cerrar riesgos criticos
 
-### IA Asistente y Sommelier sin Markdown
+### QR y control de entradas
 
-Estado: corregido y probado localmente.
+Estado: corregido, migrado en Supabase y probado E2E.
+
+Archivos:
+- `backend/migrations/073_entry_qr_expiry_12h.sql`
+- `backend/migrations/074_fix_access_pass_validation_enum_cast.sql`
+- `src/app/pages/mobile/PaymentStatusScreen.tsx`
+
+Resultado:
+- Los pases QR de eventos y reservaciones expiran 12 horas despues del cierre del evento.
+- `validate_access_pass` ya no truena con `HTTP 500` por casteo de enum cuando la reservacion u orden viene vacia.
+- Un pase revocado o archivado responde invalidacion limpia, no error tecnico.
+- El flujo de pago con acceso QR manda al Perfil, no al flujo de nueva reserva.
+- La pantalla de nueva reservacion ya no debe mostrar boletos o QR pagados anteriormente.
+
+Evidencia:
+- Antes de la migracion 074, un QR archivado devolvia `22P02 invalid input value for enum reservation_status`.
+- Despues de la migracion 074, el mismo QR devuelve `valid:false`, `reason:"revoked"`, `status:"archived"`.
+- En la corrida real se creo pase QA, se valido, se hizo check-in, se bloqueo duplicado con `409 CONFLICT` y luego se reverso el ingreso.
+
+### IA asistente ejecutiva
+
+Estado: corregida, probada localmente y verificada en Railway produccion.
+
+Archivo:
+- `backend/src/modules/executiveAssistant/executiveAssistant.service.ts`
+
+Resultado:
+- La asistente ignora instrucciones de formato como "responde sin asteriscos" al buscar entidades reales.
+- Las preguntas de asistencia ya detectan terminos como "asistencia", "ingresos", "entradas" y "QR leidos".
+- Para un evento especifico, busca el evento exacto y responde con personas ingresadas, pases activos, pendientes, ocupacion y ultimos ingresos.
+- No ejecuta mutaciones operativas: solo lee y responde.
+- No muestra metadata cruda ni ids tecnicos al cliente como respuesta principal.
+- Las respuestas salen en texto plano, sin asteriscos ni Markdown.
+
+Evidencia:
+- Pregunta probada: `Dame el resumen de asistencia del evento QA E2E Acceso QA-E2E-20260824211517. Responde sin asteriscos.`
+- Produccion Railway respondio `HTTP 200`.
+- La respuesta encontro el evento exacto y no regreso "No encontre".
+- La respuesta no incluyo Markdown ni asteriscos.
+
+Nota tecnica:
+- Para respuestas operativas reales del Centro de Control, OpenAI no es obligatorio si la respuesta es factual y consultada desde Supabase.
+- OpenAI sigue siendo util para lenguaje conversacional, resumen natural, sommelier generativo y preguntas abiertas, pero la capa de datos debe seguir siendo deterministica y verificable.
+
+### Sommelier
+
+Estado: texto plano probado; respuesta generativa viva depende de configuracion de proveedor.
 
 Archivos:
 - `backend/src/modules/ai/plainText.ts`
-- `backend/src/modules/executiveAssistant/executiveAssistant.service.ts`
 - `backend/src/modules/sommelier/sommelier.service.ts`
-- `src/app/components/control/ExecutiveAssistant.tsx`
 - `backend/__tests__/plain-ai-response.test.ts`
-- `backend/__tests__/executive-assistant-privacy.test.ts`
 - `backend/__tests__/sommelier-public-knowledge.test.ts`
 
 Resultado:
-- Las respuestas se fuerzan a texto plano.
-- Se limpian asteriscos, negritas, encabezados Markdown, bloques de codigo y fences.
-- La limpieza ocurre en backend y tambien en el componente del Centro de Control.
-- La asistente mantiene lectura real y no ejecuta mutaciones operativas.
+- Las respuestas del sommelier se limpian de asteriscos, negritas, encabezados Markdown y bloques de codigo.
+- El sommelier no debe confundirse con la asistente ejecutiva: su base es conocimiento de vinos, experiencias, eventos, promociones y membresias.
+- En `backend/.env` local no se encontro `OPENAI_API_KEY`; no se imprime ninguna llave.
 
-Riesgo restante:
-- En `backend/.env` no esta configurada `OPENAI_API_KEY`. Sin esa llave, Sommelier y realtime generativo no pueden responder en vivo con proveedor externo. La asistente conserva respuestas locales precisas cuando aplica.
+### Campanas y comunicaciones
 
-### Campanas a correos exactos de QA
-
-Estado: corregido y probado localmente, envio real pendiente por consentimiento.
+Estado: flujo real probado con `mau@alqia.tech`; entrega final de email/push queda condicionada a proveedores y dispositivo.
 
 Archivos:
 - `backend/src/modules/content/content.schemas.ts`
@@ -51,230 +92,169 @@ Archivos:
 - `backend/__tests__/api.test.ts`
 
 Resultado:
-- La audiencia de campana acepta una lista exacta de correos.
-- La prueba valida que `pcgaribayg@gmail.com` y `mav@alqia.tech` no expanden audiencia por segmento, origen o filtros generales.
-- La entrega queda preparada para pruebas controladas sin mandar a mas clientes.
-
-Evidencia Supabase:
-- `pcgaribayg@gmail.com`: cliente existe, usuario existe, consentimiento email marketing en falso.
-- `mav@alqia.tech`: cliente existe, usuario existe, consentimiento email marketing en falso.
-
-Decision correcta:
-- No se envio campana real a esas cuentas porque no tienen consentimiento de marketing activo. Forzar el envio romperia la logica de consentimiento.
-
-### QR y boletos movidos a Perfil
-
-Estado: corregido y probado localmente.
-
-Archivo:
-- `src/app/pages/mobile/PaymentStatusScreen.tsx`
-
-Resultado:
-- Al pagar una compra con acceso QR, el boton ya lleva a `Perfil` en `#accesses`, no al flujo de nueva reserva.
-- La pantalla de nueva reservacion no debe mostrar boletos o QR previos.
-- Los boletos y reservaciones pagadas viven en Perfil, que es donde se acumula el historial real del usuario.
-
-Evidencia Supabase para QA:
-- Hay 2 reservaciones, 3 ordenes, 4 pases QR, 3 pases activos y 0 usados para los correos QA consultados.
-- Los QR vistos en perfil existen en Supabase para el usuario QA; no son mock.
-- Un pase de vino estaba archivado y no debe operar como entrada vigente.
-
-## Inventario tecnico validado
-
-### Migraciones y Supabase
-
-Estado: conectado por objetos criticos, ledger de migraciones pendiente.
+- La audiencia de campana acepta lista exacta de correos.
+- La prueba con `mau@alqia.tech` no expandio audiencia por segmento ni filtros generales.
+- La campana genero destinatario real y entregas por canal.
+- Se restauro el consentimiento QA despues de la prueba controlada.
 
 Evidencia:
-- Migraciones locales en `backend/migrations`: 73 archivos, de `001_system_health.sql` a `073_entry_qr_expiry_12h.sql`.
-- Supabase remoto publico:
-  - 93 tablas.
-  - 465 funciones.
-  - 186 triggers.
-  - 197 policies.
-  - 93 tablas con RLS activo.
-  - Buckets presentes: `avatars`, `documents`, `events`, `experiences`, `wines`.
-- Revision de tablas, funciones y buckets criticos usados por el codigo: sin faltantes en la comprobacion final.
-
-Bloqueo:
-- `supabase_migrations` no aparece como ledger remoto consultable.
-- `supabase db dump --linked` no se pudo ejecutar porque Docker no estaba corriendo.
+- Audience preview: 1 destinatario.
+- Canales generados: email 1, push 1, in-app 1.
+- Estado de envio: aceptado por API con `202`.
+- Destinatarios: 1 enviado, 0 pendientes, 0 fallidos.
+- Metricas observadas: email pendiente de confirmacion final, push fallido por token/proveedor/dispositivo, in-app entregado.
 
 Lectura honesta:
-- El esquema remoto tiene los objetos criticos, pero no puedo afirmar migracion por migracion aplicada desde ledger porque ese historial no esta disponible en esta corrida.
+- El flujo de campana funciona y no esta mockeado.
+- Falta confirmar delivered/open/click real del correo cuando el proveedor reporte evento.
+- Falta token fisico valido para confirmar push real en movil.
 
-### Configuracion
+## E2E real ejecutado
 
-Estado: parcial.
+Run ID: `QA-E2E-20260824211517`
 
-Detectado:
-- Supabase frontend y backend configurados.
-- Resend configurado en backend.
-- Stripe configurado en backend.
-- Firebase configurado en frontend.
-- Mapbox configurado en frontend.
-- `OPENAI_API_KEY` ausente en backend.
+Usuario:
+- `mau@alqia.tech`: existe y opera como `customer`.
+- `pcgaribayg@gmail.com`: existe, pero se considera login OAuth Google.
+- Admin usado para Control Center: `pgaribay@alqia.tech`, rol `super_admin`.
 
-Impacto:
-- IA generativa externa queda pendiente hasta configurar la llave.
-- Envio real de correos depende de consentimiento y de prueba controlada de Resend.
-- Push real requiere validacion fisica con dispositivos.
+Infraestructura:
+- Railway health: `HTTP 200`, Supabase reachable, Stripe configurado en test, webhook configurado, push Android/iOS configurado.
+- Netlify: `/`, `/control` y `/app/home` respondieron `HTTP 200`.
+- Produccion se actualiza por push de Git; commit verificado en `origin/main`.
+
+Supabase:
+- Tablas criticas consultadas: `access_passes`, `checkins`, `campaign_recipients`, `campaign_recipient_deliveries`, `communication_events`, `email_outbox`, `notification_devices`, `order_items`, `payments`, `payment_webhook_events`, `quote_requests`, `shipments`.
+- No se detecto uso de mocks para declarar estos flujos.
+
+Reservaciones:
+- Se creo reservacion QA `RES-20260824-418DCFF0`.
+- Quedo pendiente, sin QR en perfil por no estar pagada.
+- Genero historial de movimiento.
+- Se cancelo y libero cupo.
+
+Cotizaciones:
+- Se creo cotizacion QA `HDL-COT-BAB776`.
+- Se actualizo desde Control Center.
+
+Eventos, pagos y QR:
+- Se creo evento QA temporal y ticket QA temporal.
+- Se genero orden `ORD-20260824-11B92773` por `25.00 MXN`.
+- Stripe test pago correctamente.
+- Webhook respondio `202`.
+- Orden y pago quedaron reconciliados como pagados.
+- Se genero pase QR real en Perfil.
+- El QR publico respondio `HTTP 200`.
+- La validacion respondio `HTTP 200`.
+- Check-in respondio `HTTP 201`.
+- Duplicado respondio `409 CONFLICT`.
+- Reversa respondio `HTTP 200`.
+- Limpieza QA: reembolso aplicado, ticket archivado, evento archivado.
+
+Campanas:
+- Se ejecuto prueba controlada a `mau@alqia.tech`.
+- No se uso ningun otro correo de QA para esta corrida.
 
 ## Matriz E2E por modulo
 
 ### Centro de Control
 
 Dashboard
-- Estado: probado por build y rutas.
-- Riesgo: no se hizo validacion visual completa en navegador real durante esta corrida.
+- Estado: operativo por build y rutas.
+- Pendiente: validacion visual manual completa en navegador con cliente.
 
 Reservaciones
-- Estado: probado localmente por suite.
-- Conexion: frontend, backend, Supabase y pagos enlazados por servicios.
-- Riesgo: no se ejecuto nueva reservacion pagada real en dispositivo.
+- Estado: operativo.
+- Evidencia: alta, historial, cancelacion y liberacion de cupo probados en E2E.
 
 Cotizaciones
-- Estado: cubierto por backend y rutas de control.
-- Riesgo: no se envio cotizacion real al cliente en esta corrida.
+- Estado: operativo.
+- Evidencia: alta y actualizacion desde Control probadas.
 
 Ordenes
-- Estado: probado localmente.
-- Conexion: ordenes, pagos, partidas, folios, estados y acceso a detalle.
-- Riesgo: no se valido manualmente cada estado visual en navegador despues de esta auditoria.
+- Estado: operativo.
+- Evidencia: ordenes y pagos reales se consultan desde Supabase.
+- Pendiente: validar visualmente todos los estados con datos productivos completos.
 
 Disponibilidad
-- Estado: probado localmente.
-- Conexion: horarios, slots, reservaciones y contenido publico.
-- Riesgo: validacion manual pendiente en Android e iOS.
+- Estado: operativo.
+- Evidencia: 5 slots disponibles y 5 bookables en corrida QA.
 
 Inventario
-- Estado: conectado a tablas y servicios.
-- Evidencia: tablas criticas presentes y pruebas locales limpias.
-- Riesgo: prueba fisica pendiente de compra real que descuente inventario por ubicacion.
+- Estado: conectado, con pendiente de data.
+- Evidencia: tablas y servicios accesibles.
+- Pendiente critico: no habia vino publicado visible con stock e imagen suficiente para certificar compra de vino y descuento real en esta corrida.
+- Recomendacion: cargar stock real por ubicacion e imagenes antes de declarar aprobado el flujo de venta de vinos.
 
 Logistica
-- Estado: conectado por codigo a ordenes, shipments, partidas y pagos.
-- Evidencia: la app y Centro leen ordenes reales, no mock.
-- Riesgo: validacion visual y filtros en navegador pendiente fuera de esta corrida.
+- Estado: conectada a ordenes, shipments, partidas y pagos.
+- Evidencia: las tarjetas usan ordenes reales, total real del ticket y origen de compra.
+- Pendiente: validacion visual final en navegador y dispositivo despues del deploy.
 
 Control de entradas
-- Estado: conectado a eventos, reservaciones, access passes y checkins.
-- Evidencia: QR expira con ventana del evento mas 12 horas y hay pruebas locales.
-- Riesgo: prueba fisica de escaneo QR con telefono pendiente.
+- Estado: operativo.
+- Evidencia: eventos, access passes, validacion, checkins, duplicado y reversa probados.
+- Pendiente: prueba fisica con camara en Android/iOS.
 
 Clientes
-- Estado: conectado a customers, reservaciones, ordenes, membresias e historial.
-- Evidencia: filtros de origen, segmento y consentimiento existen; etiquetas sin data util deben mantenerse fuera si no hay datos.
-- Riesgo: campanas dependen de consentimiento real.
+- Estado: operativo.
+- Evidencia: clientes, origen, reservas, ordenes, valor historico y consentimiento estan conectados.
+- Correccion funcional esperada: no mostrar filtros sin data util como etiquetas vacias.
 
 Pagos
-- Estado: conectado a payments, orders y Stripe.
-- Evidencia: builds y tests pasan; detalle de transaccion debe abrir con origen, hora, compra, canal y proveedor.
-- Riesgo: no se hizo cobro real ni webhook real en esta corrida.
+- Estado: operativo por Stripe test y webhook.
+- Evidencia: pago test, reconciliacion, detalle y refund QA ejecutados.
+- Pendiente: visual final del modulo tipo cash flow y confirmacion de eventos de email/push asociados si aplica.
 
-Carritos
-- Estado: probado por flujo de checkout local.
-- Riesgo: prueba real en dispositivo pendiente.
+Campanas
+- Estado: operativo con audiencia exacta.
+- Evidencia: prueba con `mau@alqia.tech`.
+- Pendiente: delivery final de correo y push fisico.
 
-Wine Club
-- Estado: rutas y membresias conectadas.
-- Riesgo: alta de membresia real no ejecutada.
-
-Distribuidores
-- Estado: rutas presentes.
-- Riesgo: no fue flujo principal de esta auditoria, requiere prueba operativa separada.
-
-Reportes
-- Estado: rutas presentes.
-- Riesgo: no se compararon reportes con cortes contables reales.
-
-Usuarios y permisos
-- Estado: permisos y roles existen.
-- Evidencia: pruebas backend validan 401, 403 y permisos.
-- Riesgo: no se probo cada rol con login manual real.
+Promociones en app
+- Estado: existe en app y se conecta con contenido remoto.
+- Evidencia: ruta `/app/promociones`, pantalla `PromotionsScreen`, entrada en menu movil y datos `promotions`.
+- Aclaracion: promociones visibles en app no son lo mismo que campanas; campanas se operan desde Centro de Control y pueden generar email, push e in-app.
 
 ### App nativa
 
 Vinos
-- Estado: conectado a contenido publico y carrito.
-- Evidencia: rutas, imagenes y compra existen en codigo.
-- Riesgo: validar en Android e iOS que filtros, titulos, margenes y cards queden visualmente correctos.
+- Estado: conectado a catalogo y carrito.
+- Pendiente critico: faltan vinos visibles con stock e imagen para probar compra real y miniaturas con data productiva.
 
 Experiencias
-- Estado: conectado a contenido, horarios, checkout y perfil.
-- Correccion: QR de reservas pagadas ya no se debe inyectar en nueva reserva.
-- Riesgo: prueba fisica de nueva compra pendiente.
+- Estado: operativo.
+- Correccion esperada: una nueva reserva no debe listar boletos o QR ya pagados; esos viven en Perfil.
 
 Eventos
-- Estado: conectado a eventos, boletos y checkout.
-- Riesgo: validar que el evento Salsa use el modo correcto de reserva segun su metadata real. Si Supabase lo trae como telefono, la app lo muestra como telefono; el origen debe corregirse en el contenido del evento.
-
-Restaurantes
-- Estado: conectado como reserva separada.
-- Riesgo: verificar que no se mezcle con eventos cuando el contenido corresponde a evento.
+- Estado: operativo.
+- Pendiente de contenido: si un evento aparece como "reserva por telefono", eso viene de metadata del evento y debe corregirse desde Control/Supabase.
 
 Perfil
 - Estado: fuente correcta para Mis boletos, accesos, reservas y ordenes.
-- Evidencia: botones QR viven en Perfil, con `AccessTicketSheet`.
-- Riesgo: validar fisicamente PDF y compartir en Android e iOS.
+- Evidencia: QR pagado se encontro en Perfil.
+- Pendiente: validacion fisica de Descargar PDF y Compartir en Android e iOS.
 
-Promociones
-- Estado: si existe apartado visible en app.
-- Evidencia: ruta `/app/promociones`, pantalla `PromotionsScreen`, entrada en menu lateral movil y contenido remoto de `promotions`.
-- Aclaracion: las campanas no son contenido navegable del cliente; las campanas se operan desde Centro de Control y pueden crear email, push e in-app.
+QR
+- Estado: funcional por backend.
+- Pendiente UI movil: confirmar PDF bonito, descarga nativa y compartir nativo en dispositivos.
+
+### IA
+
+Asistente ejecutiva
+- Estado: lista para preguntas precisas del Centro de Control.
+- Cobertura: dashboard, clientes, reservaciones, ordenes, pagos, partidas, experiencias, eventos, hospedaje, unidades, logistica, campanas, promociones, membresias, cotizaciones, actividad, inventario, QR y check-ins.
+- Ejemplo validado: asistencia de un evento especifico por QR leidos.
 
 Sommelier
-- Estado: conectado a base de conocimiento del proyecto, vinos, experiencias, eventos, promociones y membresias.
-- Riesgo: `OPENAI_API_KEY` ausente en backend bloquea respuesta generativa viva.
+- Estado: conectado a conocimiento del proyecto y limpieza de texto plano.
+- Pendiente: proveedor generativo configurado si se requiere conversacion viva avanzada.
 
-### Campanas y comunicaciones
-
-Email
-- Estado: preparado y probado con audiencia exacta.
-- Resend: configurado.
-- Bloqueo: los dos correos QA no tienen consentimiento de email marketing activo.
-- Siguiente paso seguro: activar consentimiento de QA o crear campana transaccional de prueba si el proceso lo permite.
-
-Push
-- Estado: arquitectura presente por Firebase y notificaciones.
-- Bloqueo: usuarios QA no tienen consentimiento push activo y no se valido token fisico.
-
-In-app
-- Estado: backend crea registros de notificacion/campana.
-- Riesgo: validar lectura en app con usuario QA.
-
-Confirmacion de recepcion
-- Estado: requiere prueba controlada de webhook/metricas.
-- Evidencia parcial: existen `campaign_recipient_deliveries`, metricas de campana y endpoints de seguimiento.
-- Pendiente: enviar a QA con consentimiento y confirmar delivered/open/click cuando aplique.
-
-### IA Asistente ejecutiva
-
-Estado: lectura real preparada, generativo externo pendiente por llave.
-
-Capacidad validada por codigo:
-- Lee dashboard, clientes, reservaciones, ordenes, pagos, partidas, experiencias, eventos, hospedaje, unidades, logistica, campanas, promociones, membresias, cotizaciones, actividad e inventario.
-- Para preguntas precisas de evento usa busqueda local sobre Eventos, Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins.
-- Ejemplo de pregunta cubierta por ruta local: "cuantas personas han ingresado al evento".
-- Respuesta esperada: conteo de personas ingresadas por QR leido, pases activos, pendientes, ocupacion y ultimos ingresos.
-
-Seguridad:
-- Solo admins autorizados con acceso `executive_ai_access`.
-- No crea, edita, confirma, cancela ni elimina registros.
-- No expone payloads sensibles crudos.
-
-Pendiente:
-- Configurar `OPENAI_API_KEY` para respuestas generativas y realtime.
-
-## Pruebas ejecutadas
+## Pruebas ejecutadas despues de correcciones
 
 Backend dirigido:
-- `backend`: `npm test -- __tests__/plain-ai-response.test.ts __tests__/sommelier-public-knowledge.test.ts __tests__/executive-assistant-privacy.test.ts __tests__/api.test.ts`
-- Resultado: 4 archivos, 130 pruebas aprobadas.
-
-Backend completo:
-- `backend`: `npm test`
-- Resultado: 15 archivos, 172 pruebas aprobadas.
+- `backend`: `npm test -- --run __tests__/executive-assistant-privacy.test.ts __tests__/plain-ai-response.test.ts`
+- Resultado: 2 archivos, 6 pruebas aprobadas.
 
 Backend tipos y build:
 - `backend`: `npm run typecheck`
@@ -282,40 +262,38 @@ Backend tipos y build:
 - `backend`: `npm run build`
 - Resultado: aprobado.
 
-Frontend dirigido:
-- `npm test -- src/__tests__/mobile.booking-flow.test.ts src/__tests__/premium.mobile.experience.test.ts src/__tests__/mobile.runtime.content.test.ts src/__tests__/payment.status.reconciliation.test.ts`
-- Resultado: 4 archivos, 44 pruebas aprobadas.
-
-Frontend completo:
-- `npm test`
-- Resultado: 37 archivos, 183 pruebas aprobadas.
-
 Web build:
-- `npm run build:web`
+- raiz: `npm run build`
 - Resultado: aprobado.
-- Advertencia no bloqueante: bundles grandes.
 
-Mobile build:
-- `npm run build:mobile`
-- Resultado: aprobado tras ejecutar fuera del sandbox por bloqueo de escritura en `node_modules/.tmp`.
-- Advertencia no bloqueante: bundles grandes.
+Supabase:
+- Migracion aplicada: `074_fix_access_pass_validation_enum_cast.sql`
+- Resultado: aplicada sin error.
+
+Produccion:
+- Railway `/api/health`: `HTTP 200`.
+- Railway asistente ejecutiva: `HTTP 200`, evento exacto encontrado, sin Markdown.
+- Netlify `/control`: `HTTP 200`.
+
+Git:
+- Push completado a `origin/main`.
+- Commit verificado: `89278056f70151fb1dbf9d80b150f03019c79853`.
 
 ## Riesgos que no deben ocultarse
 
-1. La llave `OPENAI_API_KEY` no esta configurada en backend. Esto bloquea Sommelier vivo y realtime de IA.
-2. Los usuarios QA no tienen consentimiento de marketing, por eso no se envio campana real.
-3. El ledger remoto de migraciones no esta disponible, aunque el esquema remoto si contiene objetos criticos.
-4. Docker no estaba corriendo y bloqueo el dump del esquema remoto.
-5. No se hizo prueba fisica completa Android e iOS en esta corrida.
-6. No se hizo cobro real de Stripe ni webhook real.
-7. No se hizo push notification real con token fisico.
-8. No se valido despliegue productivo web/backend contra commit actual.
-9. No se genero AAB ni build iOS en esta corrida de auditoria.
+1. No se genero una nueva AAB ni build iOS en esta ultima corrida de cierre.
+2. La compra de vino y descuento de inventario no quedo certificada porque no habia vino publicado visible con stock e imagen suficiente.
+3. Email de campana quedo aceptado/enviado por backend, pero falta confirmacion final del proveedor.
+4. Push fallo por token/proveedor/dispositivo; requiere dispositivo real con token valido.
+5. Descargar PDF y Compartir QR deben validarse fisicamente en Android e iOS.
+6. El ledger remoto de migraciones no estuvo disponible como historial consultable.
+7. Docker no estaba corriendo para dump remoto completo.
+8. El modulo visual de pagos tipo cash flow y ajustes finos UI aun requieren revision humana en navegador/movil.
 
 ## Veredicto
 
-El proyecto esta conectado por codigo entre Centro de Control, Supabase y app en los flujos principales auditados. Las pruebas locales completas pasan en backend y frontend. Supabase remoto contiene los objetos criticos esperados.
+El sistema esta operativo E2E en los flujos criticos de backend, Supabase, Railway, Netlify, pagos Stripe test, QR, check-in, campanas controladas y asistente ejecutiva precisa.
 
-No esta certificado como E2E productivo total porque faltan validaciones fisicas de dispositivo, envio real con consentimiento, push real, cobro/webhook real, deploy productivo y builds de tienda de esta corrida.
+No esta certificado como E2E total de tienda porque faltan validaciones fisicas Android/iOS, nueva AAB/IPA, PDF/compartir en movil, push real con token valido y compra de vino con inventario real visible.
 
-Clasificacion final: PARCIAL OPERATIVO CON BLOQUEOS EXTERNOS Y VALIDACION FISICA PENDIENTE.
+Clasificacion final: OPERATIVO PARA QA CONTROLADA, CON PENDIENTES FISICOS Y DE DATA PRODUCTIVA ANTES DE FIRMAR TIENDA.
