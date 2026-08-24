@@ -379,13 +379,13 @@ describe('premium customer app experience', () => {
   })
 
   it('mantiene el boleto sobre la navegación, desplazable y con safe-area completa', () => {
-    const reservation = readFileSync(resolve(__dirname, '../app/pages/mobile/ReservationScreen.tsx'), 'utf8')
+    const ticketSheet = readFileSync(resolve(__dirname, '../app/components/mobile/AccessTicketSheet.tsx'), 'utf8')
 
-    expect(reservation).toContain('z-[180]')
-    expect(reservation).toContain('overflow-y-auto')
-    expect(reservation).toContain('env(safe-area-inset-bottom)+86px')
-    expect(reservation).toContain("margin: 4")
-    expect(reservation).toContain('aria-modal="true"')
+    expect(ticketSheet).toContain('z-[180]')
+    expect(ticketSheet).toContain('overflow-y-auto')
+    expect(ticketSheet).toContain('env(safe-area-inset-bottom) + 104px')
+    expect(ticketSheet).toContain("margin: 4")
+    expect(ticketSheet).toContain('aria-modal="true"')
   })
 
   it('captura QR con cámara en Check-in y conserva captura manual', () => {

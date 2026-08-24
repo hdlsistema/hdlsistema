@@ -1663,6 +1663,94 @@ describe('Fase 4B content API', () => {
     })
     expect(publicCampaigns.status).toBe(404)
   })
+
+  it('permite probar campañas con una lista exacta de correos sin ampliar audiencia', async () => {
+    const adminUser = {
+      id: '00000000-0000-0000-0000-000000000270',
+      email: 'marketing@alqia.tech',
+      created_at: '2026-08-12T00:00:00.000Z',
+      email_confirmed_at: '2026-08-12T00:00:00.000Z',
+    }
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: 'marketing' } }]
+    supabaseMock.tableData.campaigns = [{
+      id: '00000000-0000-0000-0000-000000000271',
+      name: 'QA campaña controlada',
+      channel: 'email',
+      status: 'draft',
+      visible_in_app: false,
+      audience_definition: { segment: 'cliente' },
+      content: { subject: 'Prueba QA Hacienda', body: 'Validación controlada de campaña.' },
+      created_at: '2026-08-12T00:00:00.000Z',
+      updated_at: '2026-08-12T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.customers = [
+      {
+        id: '00000000-0000-0000-0000-000000000272',
+        email: 'pcgaribayg@gmail.com',
+        first_name: 'Patricia',
+        segment: 'cliente',
+        marketing_email_consent: true,
+        preferred_language: 'es-MX',
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000273',
+        email: 'mav@alqia.tech',
+        first_name: 'Mav',
+        segment: 'cliente',
+        marketing_email_consent: true,
+        preferred_language: 'es-MX',
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000274',
+        email: 'otra.persona@example.com',
+        first_name: 'Otra',
+        segment: 'cliente',
+        marketing_email_consent: true,
+        preferred_language: 'es-MX',
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+
+    const audience = {
+      emails: ['pcgaribayg@gmail.com', 'mav@alqia.tech'],
+      channels: ['email'],
+    }
+    const preview = await request(app)
+      .post('/api/admin/campaigns/audience-preview')
+      .set('Authorization', 'Bearer marketing-token')
+      .send(audience)
+    const send = await request(app)
+      .post('/api/admin/campaigns/00000000-0000-0000-0000-000000000271/send')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ audience, channels: ['email'] })
+
+    expect(preview.status).toBe(200)
+    expect(preview.body.data).toMatchObject({
+      total: 2,
+      channels: ['email'],
+      channelTotals: { email: 2 },
+    })
+    expect(preview.body.data.sample.map((item: { email: string }) => item.email).sort()).toEqual([
+      'mav@alqia.tech',
+      'pcgaribayg@gmail.com',
+    ])
+    expect(send.status).toBe(202)
+    expect(send.body.data).toMatchObject({ recipients: 2, pending: 2, sent: 0, channels: ['email'] })
+    expect(supabaseMock.tableData.email_outbox.map((item) => (item as { recipient_email: string }).recipient_email).sort()).toEqual([
+      'mav@alqia.tech',
+      'pcgaribayg@gmail.com',
+    ])
+    expect(supabaseMock.tableData.campaign_recipient_deliveries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ channel: 'email', customer_id: '00000000-0000-0000-0000-000000000272', status: 'pending_configuration' }),
+      expect.objectContaining({ channel: 'email', customer_id: '00000000-0000-0000-0000-000000000273', status: 'pending_configuration' }),
+    ]))
+  })
 })
 
 describe('Fase 7B operations API', () => {

@@ -139,6 +139,7 @@ export type PreviewResponse = {
 
 export type CampaignAudienceFilters = {
   channels?: Array<'email' | 'push' | 'in_app'>
+  emails?: string[]
   search?: string
   segment?: string
   source?: string

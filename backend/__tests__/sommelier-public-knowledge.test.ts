@@ -14,5 +14,7 @@ describe('conocimiento público provisional del Sommelier', () => {
     expect(service).toContain('DATOS OPERATIVOS ACTUALES DEL BACKEND (prioridad máxima)')
     expect(service).toContain('una referencia web jamás los sustituye')
     expect(service).toContain('Nunca inventes parentescos')
+    expect(service).toContain('plainAiResponseInstruction')
+    expect(service).toContain('plainAiResponse(content)')
   })
 })

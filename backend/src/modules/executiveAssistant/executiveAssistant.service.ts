@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { env } from '../../config/env'
 import { supabaseAdminClient } from '../../config/supabase'
+import { plainAiResponse, plainAiResponseInstruction } from '../ai/plainText'
 import { getDashboardSummary } from '../dashboard/dashboard.service'
 import { httpError, requireOperationRole, type UserContext } from '../operations/operationErrors'
 import type { ExecutiveAssistantMessagePayload } from './executiveAssistant.schemas'
@@ -507,7 +508,7 @@ async function completeAudit(id: string | undefined, status: 'completed' | 'fail
 }
 
 function instructions(snapshot: unknown) {
-  return `Eres Mi asistente, consejera ejecutiva privada de la dirección de Hacienda de Letras. Responde en español mexicano, con tono adulto, cálido, sereno, profesional y directo. Tu lectura operativa debe ser completa, pero sólo puedes afirmar lo contenido en el resumen agregado. Distingue hechos, riesgos y recomendaciones; nunca inventes datos. Si falta detalle individual, indica en qué módulo del Centro de Control debe revisarse. Cero emojis. No puedes crear, editar, confirmar, cancelar ni eliminar registros.\n\nRESUMEN OPERATIVO ACTUAL:\n${JSON.stringify(snapshot)}`
+  return `Eres Mi asistente, consejera ejecutiva privada de la dirección de Hacienda de Letras. Responde en español mexicano, con tono adulto, cálido, sereno, profesional y directo. Tu lectura operativa debe ser completa, pero sólo puedes afirmar lo contenido en el resumen agregado. Distingue hechos, riesgos y recomendaciones; nunca inventes datos. Si falta detalle individual, indica en qué módulo del Centro de Control debe revisarse. Cero emojis. No puedes crear, editar, confirmar, cancelar ni eliminar registros. ${plainAiResponseInstruction}\n\nRESUMEN OPERATIVO ACTUAL:\n${JSON.stringify(snapshot)}`
 }
 
 function formatMoneyTotals(totals: Record<string, number> | undefined) {
@@ -578,13 +579,13 @@ export async function sendExecutiveAssistantMessage(payload: ExecutiveAssistantM
     const preciseAnswer = await answerPreciseLocalQuestion(payload.message)
     if (preciseAnswer) {
       await completeAudit(auditId, 'completed')
-      return { answer: preciseAnswer, generatedAt: new Date().toISOString(), mode: 'operational' as const }
+      return { answer: plainAiResponse(preciseAnswer), generatedAt: new Date().toISOString(), mode: 'operational' as const }
     }
     const snapshot = await buildExecutiveSnapshot(user)
     if (!env.OPENAI_API_KEY) {
       const answer = answerFromSnapshot(payload.message, snapshot)
       await completeAudit(auditId, 'completed')
-      return { answer, generatedAt: snapshot.generatedAt, mode: 'operational' as const }
+      return { answer: plainAiResponse(answer), generatedAt: snapshot.generatedAt, mode: 'operational' as const }
     }
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -605,7 +606,7 @@ export async function sendExecutiveAssistantMessage(payload: ExecutiveAssistantM
     const answer = body.choices?.[0]?.message?.content?.trim()
     if (!answer) throw new Error('openai_empty_response')
     await completeAudit(auditId, 'completed')
-    return { answer, generatedAt: snapshot.generatedAt }
+    return { answer: plainAiResponse(answer), generatedAt: snapshot.generatedAt }
   } catch (error) {
     await completeAudit(auditId, 'failed', error instanceof Error ? error.message.slice(0, 80) : 'unknown')
     throw httpError(503, 'La asistente no pudo responder en este momento')

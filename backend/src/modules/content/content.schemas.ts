@@ -34,6 +34,7 @@ const campaignStatus = z.enum(['draft', 'scheduled', 'active', 'paused', 'comple
 const campaignAudienceFiltersSchema = z
   .object({
     channels: z.array(z.enum(['email', 'push', 'in_app'])).min(1).max(3).optional(),
+    emails: z.array(z.string().trim().email()).min(1).max(25).optional(),
     search: z.string().trim().max(120).optional(),
     segment: z.string().trim().max(80).optional(),
     source: z.string().trim().max(80).optional(),

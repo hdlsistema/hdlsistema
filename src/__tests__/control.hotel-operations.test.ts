@@ -83,7 +83,7 @@ describe('centro unificado de disponibilidad y reservaciones', () => {
     expect(layout).toContain('icon: BadgeCheck')
     expect(layout).toContain('icon: WalletCards')
     expect(layout).not.toContain('Sparkles')
-    expect(editorial).toContain('BookOpenCheck')
+    expect(editorial).toContain('PanelRight')
     expect(editorial).not.toContain('Sparkles')
     expect(lodging).toContain('BrushCleaning')
     expect(wineClub).toContain('Coins')

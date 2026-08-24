@@ -29,6 +29,22 @@ type BrowserSpeechRecognition = {
 
 type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
 
+function stripAssistantFormatting(content: string) {
+  return content
+    .replace(/```[a-z]*\n?/gi, '')
+    .replace(/```/g, '')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*\*\s+/gm, '- ')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/__([^_]+)__/g, '$1')
+    .replace(/(^|[\s([{])\*([^*\n]+)\*(?=$|[\s.,;:!?)}\]])/g, '$1$2')
+    .replace(/\*/g, '')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
 export function ExecutiveAssistant() {
   const { session } = useAuth()
   const { isEnglish } = useAppPreferences()
@@ -144,9 +160,10 @@ export function ExecutiveAssistant() {
     setError('')
     try {
       const response = await executiveAssistantClient.message(session?.access_token, clean, history)
-      setMessages((current) => [...current, { role: 'assistant', content: response.data.answer, createdAt: new Date().toISOString() }])
+      const answer = stripAssistantFormatting(response.data.answer)
+      setMessages((current) => [...current, { role: 'assistant', content: answer, createdAt: new Date().toISOString() }])
       if (voiceReply && browserVoiceRef.current) {
-        speakBrowserAnswer(speechText(response.data.answer))
+        speakBrowserAnswer(speechText(answer))
       }
     } catch (requestError) {
       const status = typeof requestError === 'object' && requestError && 'status' in requestError
@@ -265,7 +282,7 @@ export function ExecutiveAssistant() {
         assistantDraftRef.current += payload.delta
       }
       if (payload.type === 'response.done') {
-        const answer = assistantDraftRef.current.trim()
+        const answer = stripAssistantFormatting(assistantDraftRef.current)
         if (answer) setMessages((current) => [...current, { role: 'assistant', content: answer, createdAt: new Date().toISOString() }])
         assistantDraftRef.current = ''
         setVoiceState('listening')

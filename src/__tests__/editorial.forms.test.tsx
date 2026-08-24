@@ -56,9 +56,10 @@ describe('formularios editoriales especializados', () => {
       </AppPreferencesProvider>,
     )
 
-    expect(html).toContain('Formulario especializado')
+    expect(html).toContain('Mapa de edición')
+    expect(html).toContain('Paso 1 de')
     expect(html).toContain(sectionLabel)
-    expect(html).toContain(entity === 'campaigns' ? 'Cómo se opera' : 'Qué verá el cliente')
+    expect(html).toContain(entity === 'campaigns' ? 'Operación de campaña' : 'Como lo verá el cliente')
   })
 
   it('valida campos requeridos y slug de vinos antes de guardar', () => {

@@ -118,7 +118,7 @@ export function PaymentStatusScreen({ mode }: { mode: PaymentStatusMode }) {
 
         <div className="mt-5 grid gap-3">
           {resolvedMode === 'success' && hasAccessFulfillment ? (
-            <PrimaryButton to={`${appPath('/reservacion')}#boletos`}>
+            <PrimaryButton to={`${appPath('/perfil')}#accesses`}>
               <Ticket size={16} />
               {t('app.premium.payment.viewTickets', 'Ver boletos y códigos QR')}
             </PrimaryButton>

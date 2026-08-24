@@ -1,5 +1,6 @@
 import { env } from '../../config/env'
 import { supabaseAdminClient } from '../../config/supabase'
+import { plainAiResponse, plainAiResponseInstruction } from '../ai/plainText'
 import { assertNoError, httpError, requireOperationRole, type UserContext } from '../operations/operationErrors'
 import type { SommelierMessagePayload } from './sommelier.schemas'
 
@@ -310,6 +311,7 @@ async function callOpenAi(payload: SommelierMessagePayload, customer: CustomerRo
             'No inventes precios, promociones, horarios, beneficios ni disponibilidad.',
             'Nunca inventes parentescos, romances, homenajes, fundadores, premios ni el origen de nombres o etiquetas. Si no está documentado, di claramente que Hacienda aún no ha proporcionado el origen oficial.',
             'No solicites datos sensibles ni recomiendes consumo a menores.',
+            plainAiResponseInstruction,
           ].join(' '),
         },
         {
@@ -325,7 +327,7 @@ async function callOpenAi(payload: SommelierMessagePayload, customer: CustomerRo
   const content = data.choices?.[0]?.message?.content?.trim()
   if (!content) throw httpError(503, 'Sommelier IA no disponible')
   return {
-    content,
+    content: plainAiResponse(content),
     promptTokens: data.usage?.prompt_tokens ?? 0,
     completionTokens: data.usage?.completion_tokens ?? 0,
     totalTokens: data.usage?.total_tokens ?? 0,

@@ -350,6 +350,7 @@ async function idsFromRelation(table: string, column = 'customer_id') {
 
 async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
   const limit = Math.min(filters.limit ?? 250, 500)
+  const exactEmails = Array.from(new Set((filters.emails ?? []).map(normalizeCustomerEmail).filter(Boolean)))
   let query: any = supabaseAdminClient
     .from('customers')
     .select('id,user_id,customer_number,first_name,last_name,email,birth_date,source,segment,total_spend,total_visits,preferred_language,marketing_email_consent,marketing_push_consent,metadata,status,created_at')
@@ -357,6 +358,7 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
     .order('created_at', { ascending: false })
     .limit(1000)
 
+  if (exactEmails.length) query = query.in('email', exactEmails)
   if (filters.segment) query = query.eq('segment', filters.segment)
   if (filters.source) query = query.eq('source', filters.source)
   if (filters.minTotalSpend !== undefined) query = query.gte('total_spend', filters.minTotalSpend)
@@ -373,6 +375,10 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
   const result = await query
   if (result.error) throw httpError(500, 'No fue posible consultar clientes')
   let rows = (result.data ?? []) as CustomerAudienceRow[]
+
+  if (exactEmails.length) {
+    rows = rows.filter((row) => exactEmails.includes(normalizeCustomerEmail(row.email)))
+  }
 
   if (filters.tagId) {
     const tagResult = await supabaseAdminClient.from('customer_tag_assignments').select('customer_id').eq('tag_id', filters.tagId)

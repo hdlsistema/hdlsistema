@@ -53,7 +53,7 @@ describe('flujo punta a punta de boletos y horarios comerciales', () => {
     expect(inventory).toContain('settle_event_ticket_after_order_status')
     expect(inventory).toContain('v_event.capacity - v_event.sold_count - v_event.reserved_count')
     expect(inventory).toContain("'eventEndsAt', v_event.end_at")
-    expect(passIssuer).toContain('validUntil: eventEndsAt')
+    expect(passIssuer).toContain('validUntil: accessExpiryFromWindow(eventStartsAt, eventEndsAt)')
     expect(passIssuer).toContain('`reservation-access:${reservation.id}:${index + 1}`')
     expect(passIssuer).toContain('`reservation-access:${reservation.id}:${index}`')
     expect(passIssuer).toContain('peopleCount: reservation.peopleCount ?? null')

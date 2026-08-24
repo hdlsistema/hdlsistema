@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const service = readFileSync(new URL('../src/modules/executiveAssistant/executiveAssistant.service.ts', import.meta.url), 'utf8')
+const plainText = readFileSync(new URL('../src/modules/ai/plainText.ts', import.meta.url), 'utf8')
 const migration = readFileSync(new URL('../migrations/059_carlos_executive_ai_assistant.sql', import.meta.url), 'utf8')
 const accessExpansionMigration = readFileSync(new URL('../migrations/060_add_carlos_aleman_executive_ai_access.sql', import.meta.url), 'utf8')
 
@@ -10,7 +11,7 @@ describe('executive assistant privacy and access contract', () => {
     expect(service).toContain('answerPreciseLocalQuestion')
     expect(service).toContain('answerEventAttendanceQuestion')
     expect(service).toContain('Revisé datos reales de Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins')
-    expect(service).toMatch(/const preciseAnswer = await answerPreciseLocalQuestion\(payload\.message\)[\s\S]*return \{ answer: preciseAnswer/)
+    expect(service).toMatch(/const preciseAnswer = await answerPreciseLocalQuestion\(payload\.message\)[\s\S]*return \{ answer: plainAiResponse\(preciseAnswer\)/)
     expect(service).toContain('Resumen agregado sin datos personales')
     expect(service).not.toContain('provider_response')
     expect(service).not.toContain('qr_token_hash')
@@ -19,6 +20,13 @@ describe('executive assistant privacy and access contract', () => {
     expect(service).not.toContain('recentAppActivity')
     expect(service).not.toContain('recentReservations: dashboard')
     expect(service).not.toContain('recentOrders: dashboard')
+  })
+
+  it('forces plain text answers without asterisks or Markdown formatting', () => {
+    expect(service).toContain('plainAiResponseInstruction')
+    expect(service).toContain('plainAiResponse(preciseAnswer)')
+    expect(service).toContain('plainAiResponse(answer)')
+    expect(plainText).toContain('No uses Markdown, asteriscos')
   })
 
   it('is read-only and restricted to the three approved real identities', () => {
