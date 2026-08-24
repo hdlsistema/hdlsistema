@@ -103,10 +103,14 @@ Evidencia:
 - Estado de envio: aceptado por API con `202`.
 - Destinatarios: 1 enviado, 0 pendientes, 0 fallidos.
 - Metricas observadas: email pendiente de confirmacion final, push fallido por token/proveedor/dispositivo, in-app entregado.
+- Consulta posterior a Supabase para `mau@alqia.tech`: el outbox de `campaign.marketing` quedo en `sent`, con 1 intento, proveedor `resend`, referencia de proveedor presente, `failed_at` nulo y `error_code` nulo.
+- `email_deliveries` contiene evento `email.sent` para esa campaña.
+- `campaign_recipient_deliveries` conserva el canal email como `pending`, sin `delivered_at`, `opened_at` ni `clicked_at`.
 
 Lectura honesta:
 - El flujo de campana funciona y no esta mockeado.
-- Falta confirmar delivered/open/click real del correo cuando el proveedor reporte evento.
+- Lo que esta probado es envio aceptado por Resend, no recepcion en bandeja.
+- Falta confirmar `delivered`, `open` o `click` real del correo cuando el proveedor reporte evento o Mau lo confirme desde inbox.
 - Falta token fisico valido para confirmar push real en movil.
 
 ## E2E real ejecutado
