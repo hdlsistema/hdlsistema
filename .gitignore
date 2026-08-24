@@ -22,6 +22,7 @@ public/qa/
 backend/node_modules
 backend/dist
 backend/supabase/.temp
+supabase/.temp/
 backend/.env
 backend/.env.local
 backend/.env.*.local
