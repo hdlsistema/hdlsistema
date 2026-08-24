@@ -170,21 +170,22 @@ export function StoreScreen() {
               {t('app.premium.wines.title')}
             </h1>
           </div>
-          <div className="relative shrink-0">
-            <CrystalSelect
+          <label className="relative block h-10 w-10 shrink-0">
+            <span className="pointer-events-none inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(184,138,74,0.22)] bg-[var(--color-panel)] text-[var(--color-burgundy)] shadow-[0_8px_20px_rgba(74,32,28,0.08)]">
+              <SlidersHorizontal size={16} />
+            </span>
+            <select
               value={order}
-              onChange={(value) => setOrder(value as typeof order)}
-              options={sortOptions}
-              className="w-11"
-              buttonClassName="h-10 min-h-10 w-11 justify-center rounded-full border-[rgba(184,138,74,0.2)] bg-[var(--color-panel)] px-0 text-[var(--color-burgundy)] shadow-none"
-              menuClassName="left-auto right-0 min-w-[15rem]"
-            />
-            <SlidersHorizontal
-              size={16}
-              className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--color-burgundy)]"
-            />
+              onChange={(event) => setOrder(event.target.value as typeof order)}
+              className="absolute inset-0 h-10 w-10 cursor-pointer opacity-0"
+              aria-label={t('app.premium.wines.sort')}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
             <span className="sr-only">{t('app.premium.wines.sort')}</span>
-          </div>
+          </label>
         </div>
         <SearchField
           placeholder={t('app.premium.wines.search')}

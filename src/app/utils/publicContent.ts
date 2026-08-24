@@ -149,6 +149,32 @@ export function eventMinimumTicketPrice(record: ContentRecord, fallback = 0) {
   return prices.length ? Math.min(...prices) : fallback
 }
 
+function normalizedCopy(value: string) {
+  return value
+    .toLocaleLowerCase('es-MX')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+export function isPhoneReservationInstruction(value: string) {
+  const normalized = normalizedCopy(value)
+  return normalized.includes('reserva por telefono')
+    || normalized.includes('reservacion por telefono')
+    || normalized.includes('reservation by phone')
+    || normalized.includes('reserve by phone')
+    || normalized.includes('se reserva directamente')
+}
+
+export function sanitizePublicEventCopy(value: string) {
+  const cleanLines = value
+    .split(/\n+|\.\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .filter((part) => !isPhoneReservationInstruction(part))
+
+  return cleanLines.join('. ')
+}
+
 export function publicEventHasEnded(record: ContentRecord) {
   const endAt = textField(record, 'end_at')
   if (!endAt) return false

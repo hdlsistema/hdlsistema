@@ -23,6 +23,7 @@ import {
   imageField,
   numberField,
   publicEventHasEnded,
+  sanitizePublicEventCopy,
   textField,
 } from '../../utils/publicContent'
 
@@ -150,9 +151,9 @@ export function EventsScreen() {
             const price = eventMinimumTicketPrice(event, numberField(event, 'price'))
             const venue = eventVenueForRecord(event)
             const kind = eventKindLabel(metadataField(event, 'event_kind'))
-            const reservationPhone = metadataField(event, 'reservation_phone')
             const salesDisabled = event.sales_enabled === false
             const eventEnded = publicEventHasEnded(event)
+            const description = sanitizePublicEventCopy(textField(event, 'short_description') || textField(event, 'description')) || t('app.premium.informationSoon')
 
             return (
               <EditorialCard
@@ -165,22 +166,16 @@ export function EventsScreen() {
                   t('common.datePending'),
                 )}
                 title={title}
-                description={
-                  textField(event, 'short_description') ||
-                  textField(event, 'description') ||
-                  t('app.premium.informationSoon')
-                }
+                description={description}
                 actionLabel={t('app.premium.events.details')}
                 meta={
                   <div className="flex flex-wrap items-center gap-2 text-[10px] text-[var(--color-muted)]">
                     <StatusBadge>{venue.title}</StatusBadge>
                     <StatusBadge>{kind}</StatusBadge>
                     <StatusBadge>
-                      {salesDisabled && reservationPhone
-                        ? (isEnglish ? 'Phone reservation' : 'Reserva por teléfono')
-                        : eventEnded
+                      {eventEnded
                           ? (isEnglish ? 'Closed sale' : 'Venta cerrada')
-                        : price > 0
+                        : price > 0 && !salesDisabled
                         ? formatCurrency(price, locale)
                         : t('app.premium.events.ticketPending')}
                     </StatusBadge>

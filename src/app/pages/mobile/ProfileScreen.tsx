@@ -3,6 +3,7 @@ import {
   CalendarDays,
   ChevronRight,
   CheckCircle2,
+  Clock3,
   ExternalLink,
   Gift,
   ImageUp,
@@ -10,6 +11,8 @@ import {
   MapPin,
   Pencil,
   PackageCheck,
+  QrCode,
+  RefreshCw,
   Settings2,
   ShieldCheck,
   Trash2,
@@ -23,8 +26,10 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { supabase } from '../../../lib/supabase'
 import {
   customerClient,
+  type CustomerAccessPass,
   type CustomerAddress,
   type CustomerAddressPayload,
+  type CustomerAvailabilitySlot,
   type CustomerMe,
   type CustomerMembership,
   type CustomerNotification,
@@ -33,6 +38,7 @@ import {
   type CustomerOrder,
   type CustomerPaymentMethod,
 } from '../../../services/customer.service'
+import { AccessTicketSheet, ticketStatusLabel } from '../../components/mobile/AccessTicketSheet'
 import { AppToast, SectionHeading, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { notifyProfileAvatarUpdated, useProfileAvatar } from '../../hooks/useProfileAvatar'
@@ -42,6 +48,7 @@ import {
   isCustomerAddressComplete,
   normalizeCustomerAddress,
 } from '../../utils/customerAddress'
+import { AppSelect } from '../../components/mobile/AppSelect'
 
 function isPendingPaymentOrder(order: CustomerOrder) {
   return order.status === 'pending_payment' || order.paymentStatus === 'pending_payment' || order.paymentStatus === 'pending'
@@ -62,6 +69,70 @@ function orderTimeline(order: CustomerOrder, t: (key: string, fallback?: string)
     { key: 'shipped', label: t('app.premium.profile.timelineShipped'), done: ['shipped', 'delivered'].includes(shipping) },
     { key: 'delivered', label: t('app.premium.profile.timelineDelivered'), done: shipping === 'delivered' },
   ]
+}
+
+function normalizeSlot(slot: CustomerAvailabilitySlot) {
+  return {
+    id: slot.id,
+    experienceId: slot.experienceId ?? slot.experience_id ?? '',
+    startAt: slot.startAt ?? slot.start_at ?? '',
+    available: Number(slot.available ?? 0),
+  }
+}
+
+function formatDateTime(value: string | null | undefined, locale: string, fallback: string) {
+  if (!value) return fallback
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return fallback
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+}
+
+function reservationSchedule(reservation: CustomerReservation, locale: string, fallback: string) {
+  if (reservation.reservationType === 'restaurant' && reservation.reservationDate) {
+    const date = new Date(`${reservation.reservationDate}T12:00:00`)
+    if (!Number.isNaN(date.getTime())) {
+      const formatted = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+      return reservation.reservationTime ? `${formatted} · ${reservation.reservationTime.slice(0, 5)}` : formatted
+    }
+  }
+  if (reservation.reservationType === 'cabin' && reservation.checkIn) {
+    const start = new Date(`${reservation.checkIn}T12:00:00`)
+    const end = reservation.checkOut ? new Date(`${reservation.checkOut}T12:00:00`) : null
+    if (!Number.isNaN(start.getTime())) {
+      const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+      return end && !Number.isNaN(end.getTime())
+        ? `${formatter.format(start)} – ${formatter.format(end)}`
+        : formatter.format(start)
+    }
+  }
+  return formatDateTime(reservation.startAt, locale, fallback)
+}
+
+function reservationAccessPasses(reservation: CustomerReservation, passes: CustomerAccessPass[]) {
+  const embeddedPasses = [
+    ...(reservation.accessPasses ?? []),
+    ...(reservation.accessPass ? [reservation.accessPass] : []),
+  ]
+  const relatedPasses = passes.filter((pass) => (
+    (pass.reservationId && pass.reservationId === reservation.id)
+    || (pass.reservationNumber && pass.reservationNumber === reservation.reservationNumber)
+  ))
+  const byId = new Map<string, CustomerAccessPass>()
+  for (const pass of [...embeddedPasses, ...relatedPasses]) {
+    if (isProfileAccessPass(pass)) byId.set(pass.id, pass)
+  }
+  return [...byId.values()]
+}
+
+function makeIdempotencyKey(prefix: string) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function isProfileAccessPass(pass: CustomerAccessPass) {
+  return !pass.revokedAt && Boolean(pass.qrPayload || pass.qrToken)
 }
 
 function PreferenceControl({ name, label, detail, defaultChecked }: { name: string; label: string; detail: string; defaultChecked: boolean }) {
@@ -86,6 +157,8 @@ export function ProfileScreen() {
   const [customerMe, setCustomerMe] = useState<CustomerMe | null>(null)
   const [reservations, setReservations] = useState<CustomerReservation[]>([])
   const [orders, setOrders] = useState<CustomerOrder[]>([])
+  const [accessPasses, setAccessPasses] = useState<CustomerAccessPass[]>([])
+  const [availabilitySlots, setAvailabilitySlots] = useState<ReturnType<typeof normalizeSlot>[]>([])
   const [notifications, setNotifications] = useState<CustomerNotification[]>([])
   const [unreadNotifications, setUnreadNotifications] = useState(0)
   const [addresses, setAddresses] = useState<CustomerAddress[]>([])
@@ -99,7 +172,13 @@ export function ProfileScreen() {
   const [isSaving, setIsSaving] = useState(false)
   const [loadingCustomer, setLoadingCustomer] = useState(true)
   const [language, setLanguage] = useState<'es' | 'en'>(appLanguage)
+  const [selectedTicket, setSelectedTicket] = useState<CustomerAccessPass | null>(null)
+  const [reservationBusyId, setReservationBusyId] = useState<string | null>(null)
   const pendingOrdersCount = orders.filter(isPendingPaymentOrder).length
+  const profileAccessPasses = useMemo(
+    () => accessPasses.filter(isProfileAccessPass),
+    [accessPasses],
+  )
 
   const handleSignOut = async () => {
     await signOut()
@@ -121,18 +200,22 @@ export function ProfileScreen() {
     Promise.allSettled([
       customerClient.me(token),
       customerClient.reservations(token, { perPage: 10 }),
+      customerClient.availability(token).catch(() => ({ ok: true as const, data: [] as CustomerAvailabilitySlot[] })),
 	      customerClient.orders(token),
+      customerClient.accessPasses(token).catch(() => ({ ok: true as const, data: [] as CustomerAccessPass[] })),
 	      customerClient.notifications(token),
 	      customerClient.addresses(token),
 	      customerClient.membership(token),
 	      customerClient.membershipLoyalty(token),
 	      customerClient.paymentMethods(token).catch(() => ({ ok: true as const, data: [] as CustomerPaymentMethod[] })),
 	    ])
-	      .then(([meResponse, reservationResponse, orderResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse, paymentMethodResponse]) => {
+	      .then(([meResponse, reservationResponse, availabilityResponse, orderResponse, accessPassResponse, notificationResponse, addressResponse, membershipResponse, loyaltyResponse, paymentMethodResponse]) => {
 	        if (!active) return
 	        if (meResponse.status === 'fulfilled') setCustomerMe(meResponse.value.data)
 	        if (reservationResponse.status === 'fulfilled') setReservations(reservationResponse.value.data)
+	        if (availabilityResponse.status === 'fulfilled') setAvailabilitySlots(availabilityResponse.value.data.map(normalizeSlot))
 	        if (orderResponse.status === 'fulfilled') setOrders(orderResponse.value.data)
+        if (accessPassResponse.status === 'fulfilled') setAccessPasses(accessPassResponse.value.data)
 	        if (notificationResponse.status === 'fulfilled') {
 	          setNotifications(notificationResponse.value.data)
 	          setUnreadNotifications(notificationResponse.value.unreadCount)
@@ -160,11 +243,17 @@ export function ProfileScreen() {
     const refreshCommerce = () => {
       if (document.visibilityState === 'hidden') return
       void Promise.allSettled([
+        customerClient.reservations(token, { perPage: 10 }),
+        customerClient.availability(token).catch(() => ({ ok: true as const, data: [] as CustomerAvailabilitySlot[] })),
         customerClient.orders(token),
+        customerClient.accessPasses(token).catch(() => ({ ok: true as const, data: [] as CustomerAccessPass[] })),
         customerClient.notifications(token),
-      ]).then(([orderResponse, notificationResponse]) => {
+      ]).then(([reservationResponse, availabilityResponse, orderResponse, accessPassResponse, notificationResponse]) => {
         if (!active) return
+        if (reservationResponse.status === 'fulfilled') setReservations(reservationResponse.value.data)
+        if (availabilityResponse.status === 'fulfilled') setAvailabilitySlots(availabilityResponse.value.data.map(normalizeSlot))
         if (orderResponse.status === 'fulfilled') setOrders(orderResponse.value.data)
+        if (accessPassResponse.status === 'fulfilled') setAccessPasses(accessPassResponse.value.data)
         if (notificationResponse.status === 'fulfilled') {
           setNotifications(notificationResponse.value.data)
           setUnreadNotifications(notificationResponse.value.unreadCount)
@@ -344,11 +433,57 @@ export function ProfileScreen() {
     }
   }
 
+  const refreshReservationsAndAccesses = async () => {
+    const token = session?.access_token
+    if (!token) return
+    const [reservationResponse, availabilityResponse, accessPassResponse] = await Promise.allSettled([
+      customerClient.reservations(token, { perPage: 10 }),
+      customerClient.availability(token).catch(() => ({ ok: true as const, data: [] as CustomerAvailabilitySlot[] })),
+      customerClient.accessPasses(token).catch(() => ({ ok: true as const, data: [] as CustomerAccessPass[] })),
+    ])
+    if (reservationResponse.status === 'fulfilled') setReservations(reservationResponse.value.data)
+    if (availabilityResponse.status === 'fulfilled') setAvailabilitySlots(availabilityResponse.value.data.map(normalizeSlot))
+    if (accessPassResponse.status === 'fulfilled') setAccessPasses(accessPassResponse.value.data)
+  }
+
+  const cancelProfileReservation = async (reservation: CustomerReservation) => {
+    if (!session?.access_token || reservationBusyId) return
+    setReservationBusyId(reservation.id)
+    setMessage('')
+    try {
+      await customerClient.cancelReservation(session.access_token, reservation.id, t('app.premium.reservation.cancel'))
+      setMessage(t('app.premium.reservation.cancelled'))
+      await refreshReservationsAndAccesses()
+    } catch {
+      setMessage(t('app.premium.reservation.cancelError'))
+    } finally {
+      setReservationBusyId(null)
+    }
+  }
+
+  const rescheduleProfileReservation = async (reservation: CustomerReservation, slotId: string) => {
+    if (!session?.access_token || !slotId || reservationBusyId) return
+    setReservationBusyId(reservation.id)
+    setMessage('')
+    try {
+      await customerClient.rescheduleReservation(session.access_token, reservation.id, {
+        experienceSlotId: slotId,
+        idempotencyKey: makeIdempotencyKey('profile_reschedule'),
+      })
+      setMessage(t('app.premium.reservation.rescheduled'))
+      await refreshReservationsAndAccesses()
+    } catch {
+      setMessage(t('app.premium.reservation.rescheduleError'))
+    } finally {
+      setReservationBusyId(null)
+    }
+  }
+
   const menuGroups = [
     {
       title: t('app.premium.profile.myActivity'),
       items: [
-        { label: t('app.premium.reservation.myBookings'), detail: reservations.length ? `${reservations.length}` : t('app.premium.profile.noBookings'), icon: CalendarDays, to: appPath('/reservacion') },
+        { label: t('app.premium.reservation.myBookings'), detail: reservations.length ? `${reservations.length}` : t('app.premium.profile.noBookings'), icon: CalendarDays, to: '#reservations' },
         { label: t('app.premium.profile.orders'), detail: pendingOrdersCount ? `${pendingOrdersCount} ${t('app.premium.profile.pendingPaymentShort')}` : orders.length ? `${orders.length}` : t('app.premium.profile.noOrders'), icon: WalletCards, to: appPath('/carrito') },
         { label: t('app.premium.profile.myBenefits'), detail: membership?.plan?.name ?? t('app.premium.profile.noMembership'), icon: Gift, to: appPath('/membresias') },
       ],
@@ -468,6 +603,119 @@ export function ProfileScreen() {
 	          {t('app.premium.profile.noMembershipYet')}
 	        </Link>
 	      )}
+
+      <section className="space-y-3 scroll-mt-24" id="accesses">
+        <SectionHeading eyebrow={t('app.premium.events.ticket', 'Accesos')} title={t('app.premium.ticket.myAccesses', 'Mis boletos y accesos')} />
+        {profileAccessPasses.length === 0 ? (
+          <div className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+            {t('app.premium.ticket.noEventPasses', 'Los boletos pagados aparecerán aquí con su código QR de entrada.')}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {profileAccessPasses.slice(0, 8).map((pass) => (
+              <article key={pass.id} className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</p>
+                    <h3 className="mt-1 break-words text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
+                    <p className="mt-1 text-[11px] leading-4 text-[var(--color-muted)]">
+                      {pass.startsAt ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(pass.startsAt)) : t('common.toBeConfirmed')}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[#f8eee5] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">
+                    {ticketStatusLabel(pass, t)}
+                  </span>
+                </div>
+                <button type="button" onClick={() => setSelectedTicket(pass)} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
+                  <QrCode size={15} />
+                  {t('app.premium.ticket.show', 'Ver boleto QR')}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-3 scroll-mt-24" id="reservations">
+        <div className="flex items-start justify-between gap-3">
+          <SectionHeading eyebrow={t('app.premium.reservation.myBookings')} title={t('app.premium.reservation.yourBookings')} />
+          <button type="button" onClick={() => void refreshReservationsAndAccesses()} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[var(--color-burgundy)] shadow-[0_10px_22px_rgba(74,32,28,0.08)]" aria-label={t('app.premium.reservation.refresh')}>
+            <RefreshCw size={15} />
+          </button>
+        </div>
+        {reservations.length === 0 ? (
+          <div className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+            {t('app.premium.reservation.noReservations')}
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {reservations.slice(0, 10).map((reservation) => {
+              const passes = reservationAccessPasses(reservation, profileAccessPasses)
+              const canManage = ['pending', 'confirmed'].includes(reservation.status)
+              const rescheduleSlots = availabilitySlots
+                .filter((slot) => slot.experienceId === reservation.experienceId && slot.id !== reservation.slotId)
+                .slice(0, 8)
+              return (
+                <article key={reservation.id} className="rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>
+                      <h3 className="mt-1 break-words text-[15px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.title ?? reservation.experienceTitle}</h3>
+                      <p className="mt-1 flex items-center gap-1.5 text-[11px] leading-4 text-[var(--color-muted)]">
+                        <Clock3 size={12} className="shrink-0" />
+                        {reservationSchedule(reservation, locale, t('common.toBeConfirmed'))}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-[#f8eee5] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">
+                      {translatedStatus(reservation.status, t)}
+                    </span>
+                  </div>
+
+                  {passes.length > 0 ? (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      {passes.map((pass, index) => (
+                        <button key={pass.id} type="button" onClick={() => setSelectedTicket(pass)} className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-full bg-[var(--color-burgundy)] px-3 text-[11px] font-semibold text-white">
+                          <QrCode size={13} />
+                          {passes.length > 1 ? `QR ${index + 1} de ${passes.length}` : t('app.premium.ticket.show', 'Ver boleto QR')}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {reservation.paymentStatus === 'pending' && reservation.paymentOrderId ? (
+                    <Link to={`${appPath('/checkout')}?orderId=${encodeURIComponent(reservation.paymentOrderId)}`} className="mt-3 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[11px] font-semibold text-white">
+                      {t('app.premium.reservation.completePayment', 'Completar pago')}
+                      <ChevronRight size={14} />
+                    </Link>
+                  ) : null}
+
+                  {canManage ? (
+                    <div className="mt-3 grid gap-2">
+                      {reservation.reservationType === 'experience' && rescheduleSlots.length > 0 ? (
+                        <AppSelect
+                          value=""
+                          onChange={(value) => value && void rescheduleProfileReservation(reservation, value)}
+                          disabled={reservationBusyId === reservation.id}
+                          options={[
+                            { value: '', label: t('app.premium.reservation.rescheduleTo') },
+                            ...rescheduleSlots.map((slot) => ({
+                              value: slot.id,
+                              label: `${formatDateTime(slot.startAt, locale, t('common.toBeConfirmed'))} · ${slot.available}`,
+                            })),
+                          ]}
+                        />
+                      ) : null}
+                      <button type="button" onClick={() => void cancelProfileReservation(reservation)} disabled={reservationBusyId === reservation.id} className="rounded-[0.9rem] border border-[rgba(157,71,63,0.28)] px-3 py-2 text-[11px] font-semibold text-[var(--color-alert)] disabled:opacity-50">
+                        {reservationBusyId === reservation.id ? t('app.premium.reservation.processing') : t('app.premium.reservation.cancel')}
+                      </button>
+                    </div>
+                  ) : null}
+                </article>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
       {menuGroups.map((group) => (
         <section key={group.title} className="space-y-3">
@@ -764,6 +1012,9 @@ export function ProfileScreen() {
         <LogOut size={16} />
         {t('app.premium.profile.signOut')}
       </button>
+      {selectedTicket ? (
+        <AccessTicketSheet pass={selectedTicket} locale={locale} t={t} onClose={() => setSelectedTicket(null)} />
+      ) : null}
     </div>
   )
 }

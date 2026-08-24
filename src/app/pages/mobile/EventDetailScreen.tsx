@@ -4,7 +4,7 @@ import { CalendarDays, Clock3, MapPin, Minus, Plus, ShoppingCart, Ticket } from 
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
 import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
-import { eventMinimumTicketPrice, formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, publicEventHasEnded, textField } from '../../utils/publicContent'
+import { eventMinimumTicketPrice, formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, publicEventHasEnded, sanitizePublicEventCopy, textField } from '../../utils/publicContent'
 import { appPath } from '../../utils/appRoutes'
 import { eventKindLabel, eventMetadata, eventVenueForRecord } from '../../utils/eventVenues'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -173,7 +173,7 @@ export function EventDetailScreen() {
   if (error || !event) return <div className="app-page"><ErrorState message={error ?? t('app.eventNotFound')} /></div>
 
   const title = textField(event, 'title', t('app.nav.events'))
-  const summary = textField(event, 'short_description') || textField(event, 'description') || t('app.premium.informationSoon')
+  const summary = sanitizePublicEventCopy(textField(event, 'short_description') || textField(event, 'description')) || t('app.premium.informationSoon')
   const price = eventMinimumTicketPrice(event, numberField(event, 'price'))
   const includedItems = summary.split('.').map((item) => item.trim()).filter(Boolean)
   const gallery = galleryImages(event, 'event_images', imageField(event, ''))
@@ -181,7 +181,6 @@ export function EventDetailScreen() {
   const locationValue = eventLocationValue(venue.title, textField(event, 'venue'))
   const metadata = eventMetadata(event)
   const kind = eventKindLabel(String(metadata.event_kind ?? ''))
-  const reservationPhone = typeof metadata.reservation_phone === 'string' ? metadata.reservation_phone : ''
   const salesEnabled = event.sales_enabled !== false
   const eventEnded = publicEventHasEnded(event)
   const eventPurchasable = salesEnabled && !eventEnded
@@ -245,9 +244,7 @@ export function EventDetailScreen() {
             label: t('app.premium.events.ticket'),
             value: eventEnded
               ? t('app.premium.events.salesClosed', 'Venta cerrada')
-              : !salesEnabled && reservationPhone
-              ? t('app.premium.events.phoneReservation', 'Reserva por teléfono')
-              : price > 0
+              : ticketTypes.length > 0 && price > 0
                 ? formatCurrency(price, locale)
                 : t('app.premium.events.ticketPending'),
           },
@@ -315,14 +312,10 @@ export function EventDetailScreen() {
           <EmptyState
             title={eventEnded
               ? t('app.premium.events.salesClosed', 'Venta cerrada')
-              : !salesEnabled && reservationPhone
-                ? t('app.premium.events.phoneReservation', 'Reserva por teléfono')
-                : t('app.premium.events.ticketPending')}
+              : t('app.premium.events.ticketPending')}
             description={eventEnded
               ? t('app.premium.events.eventEnded', 'Este evento ya terminó. Los boletos se cerraron automáticamente.')
-              : !salesEnabled && reservationPhone
-              ? `${t('app.premium.events.reserveByPhone', 'Este evento se reserva directamente con Hacienda de Letras.')} ${reservationPhone}`
-              : t('app.premium.events.noTicketsConfigured', 'La información de acceso se publicará cuando Hacienda confirme boletos, precios y capacidad.')}
+              : t('app.premium.events.noTicketsConfigured', 'Hacienda publicará aquí boletos, precios y capacidad para reservar desde la app.')}
           />
         ) : (
           <div className="grid gap-3">

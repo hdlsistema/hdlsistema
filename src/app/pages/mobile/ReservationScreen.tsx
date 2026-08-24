@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import QRCode from 'qrcode'
-import { CalendarDays, Check, ChevronDown, Clock3, Download, Lightbulb, Minus, Plus, QrCode, RefreshCw, Share2, Ticket, Users, X } from 'lucide-react'
+import { CalendarDays, Check, ChevronDown, Clock3, Lightbulb, Minus, Plus, Users, X } from 'lucide-react'
 import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
-import { AppSelect } from '../../components/mobile/AppSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
 import { useAuth } from '../../../contexts/AuthContext'
-import { customerClient, type CustomerAccessPass, type CustomerAvailabilitySlot, type CustomerReservation } from '../../../services/customer.service'
+import { customerClient, type CustomerAvailabilitySlot } from '../../../services/customer.service'
 import { appPath } from '../../utils/appRoutes'
-import { downloadAccessCredentialPdf, shareAccessCredential, type AccessCredential } from '../../utils/accessCredentialPdf'
-import { acceptedContractMetadata, buildMenuSelection, contractTermsFromMetadata, menuConfigFromMetadata, menuSelectionFromMetadata } from '../../utils/reservationContract'
+import { acceptedContractMetadata, buildMenuSelection, contractTermsFromMetadata, menuConfigFromMetadata } from '../../utils/reservationContract'
 
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
   return {
@@ -40,33 +37,8 @@ function formatDateTime(value: string | null | undefined, locale: string, fallba
   }).format(date)
 }
 
-function reservationSchedule(reservation: CustomerReservation, locale: string, fallback: string) {
-  if (reservation.reservationType === 'restaurant' && reservation.reservationDate) {
-    const date = new Date(`${reservation.reservationDate}T12:00:00`)
-    if (!Number.isNaN(date.getTime())) {
-      const formatted = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
-      return reservation.reservationTime ? `${formatted} · ${reservation.reservationTime.slice(0, 5)}` : formatted
-    }
-  }
-  if (reservation.reservationType === 'cabin' && reservation.checkIn) {
-    const start = new Date(`${reservation.checkIn}T12:00:00`)
-    const end = reservation.checkOut ? new Date(`${reservation.checkOut}T12:00:00`) : null
-    if (!Number.isNaN(start.getTime())) {
-      const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
-      return end && !Number.isNaN(end.getTime())
-        ? `${formatter.format(start)} – ${formatter.format(end)}`
-        : formatter.format(start)
-    }
-  }
-  return formatDateTime(reservation.startAt, locale, fallback)
-}
-
 function makeIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-function isTicketAccessPass(pass: CustomerAccessPass) {
-  return (pass.accessType === 'event_ticket' && Boolean(pass.eventTicketTypeId)) || pass.accessType === 'experience'
 }
 
 type ChoiceOption = {
@@ -180,35 +152,6 @@ function mainCourseConfig(record: Record<string, unknown> | null | undefined) {
   }
 }
 
-function romanticSignFromMetadata(metadata: Record<string, unknown> | null | undefined): RomanticSignSelection | null {
-  const sign = objectRecord(metadata?.romanticSign)
-  if (sign.required !== true) return null
-  const price = Number(sign.price)
-  const message = String(sign.message ?? '').trim()
-  if (!message) return null
-  return {
-    required: true,
-    label: String(sign.label ?? ROMANTIC_SIGN_LABEL),
-    message,
-    price: Number.isFinite(price) && price >= 0 ? price : ROMANTIC_SIGN_PRICE,
-    currency: 'MXN',
-  }
-}
-
-function mainCourseFromMetadata(metadata: Record<string, unknown> | null | undefined): MainCourseSelection | null {
-  const course = objectRecord(metadata?.mainCourse)
-  if (course.required !== true) return null
-  const option = String(course.option ?? '').trim()
-  const value = String(course.value ?? '').trim()
-  if (!option) return null
-  return {
-    required: true,
-    label: String(course.label ?? MAIN_COURSE_LABEL),
-    option,
-    value,
-  }
-}
-
 function MobileChoiceSheet({
   title,
   options,
@@ -255,125 +198,6 @@ function MobileChoiceSheet({
   )
 }
 
-function AccessQr({ payload, alt }: { payload: string; alt: string }) {
-  const [source, setSource] = useState('')
-
-  useEffect(() => {
-    let active = true
-    QRCode.toDataURL(payload, {
-      errorCorrectionLevel: 'M',
-      margin: 4,
-      width: 260,
-      color: {
-        dark: '#252F37',
-        light: '#F7F2EA',
-      },
-    }).then((nextSource) => {
-      if (active) setSource(nextSource)
-    }).catch(() => {
-      if (active) setSource('')
-    })
-    return () => {
-      active = false
-    }
-  }, [payload])
-
-  return source ? (
-    <img src={source} alt={alt} className="mx-auto aspect-square w-full max-w-[244px] rounded-[1.2rem] border border-[rgba(184,138,74,0.26)] bg-[#fff9f1] p-3" />
-  ) : (
-    <div className="mx-auto flex aspect-square w-full max-w-[244px] items-center justify-center rounded-[1.2rem] border border-[rgba(184,138,74,0.26)] bg-[#fff9f1] text-[var(--color-burgundy)]">
-      <QrCode size={42} strokeWidth={1.5} />
-    </div>
-  )
-}
-
-function ticketStatusLabel(pass: CustomerAccessPass, t: (key: string, fallback?: string) => string) {
-  if (pass.usedAt) return t('app.premium.ticket.used', 'Utilizado')
-  if (pass.revokedAt) return t('app.premium.ticket.cancelled', 'Cancelado')
-  const status = String(pass.status ?? '').toLocaleLowerCase('es-MX')
-  if (['published', 'valid', 'confirmed', 'active'].includes(status)) return t('app.premium.ticket.valid', 'Vigente')
-  if (['pending', 'reserved'].includes(status)) return t('common.pending', 'Pendiente')
-  if (['cancelled', 'canceled', 'revoked'].includes(status)) return t('app.premium.ticket.cancelled', 'Cancelado')
-  return pass.status ?? t('common.toBeConfirmed')
-}
-
-function TicketSheet({
-  pass,
-  locale,
-  onClose,
-  t,
-}: {
-  pass: CustomerAccessPass
-  locale: string
-  onClose: () => void
-  t: (key: string, fallback?: string) => string
-}) {
-  const [ticketAction, setTicketAction] = useState<'download' | 'share' | ''>('')
-  const [ticketActionMessage, setTicketActionMessage] = useState('')
-  const credentialState: AccessCredential['state'] = pass.usedAt ? 'used' : pass.revokedAt ? 'cancelled' : 'valid'
-  const credential: AccessCredential = { ...pass, state: credentialState }
-
-  const runTicketAction = async (action: 'download' | 'share') => {
-    setTicketAction(action)
-    setTicketActionMessage('')
-    try {
-      if (action === 'download') {
-        await downloadAccessCredentialPdf(credential, locale)
-        setTicketActionMessage(t('app.premium.ticket.downloadReady', 'PDF generado.'))
-      } else {
-        const result = await shareAccessCredential(credential, locale)
-        setTicketActionMessage(result === 'shared'
-          ? t('app.premium.ticket.shared', 'Listo para compartir.')
-          : t('app.premium.ticket.downloadReady', 'PDF generado.'))
-      }
-    } catch {
-      setTicketActionMessage(t('app.premium.ticket.actionError', 'No fue posible preparar el boleto en este dispositivo.'))
-    } finally {
-      setTicketAction('')
-    }
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[180] flex items-center justify-center overflow-y-auto bg-[rgba(45,24,17,0.46)] px-4 backdrop-blur-md"
-      role="dialog"
-      aria-modal="true"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 18px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 104px)' }}
-    >
-      <section className="max-h-[calc(100dvh-132px)] w-full max-w-[28rem] overflow-y-auto overscroll-contain rounded-[1.75rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.94)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.ticket.eyebrow', 'Mi boleto')}</p>
-            <h3 className="mt-1 text-[25px] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
-          </div>
-          <button type="button" onClick={onClose} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(45,24,17,0.2)] bg-white/70 text-[var(--color-ink)]" aria-label={t('common.close', 'Cerrar')}>
-            <X size={18} />
-          </button>
-        </div>
-        <div className="mt-5">
-          <AccessQr payload={pass.qrPayload || pass.qrToken} alt={pass.passNumber ?? t('app.premium.ticket.qrAlt', 'Código QR de acceso')} />
-        </div>
-        <p className="mt-4 text-center text-[13px] font-semibold text-[var(--color-burgundy)]">{t('app.premium.ticket.present', 'Presenta este código al ingresar')}</p>
-        <div className="mt-5 grid gap-2 rounded-[1.2rem] border border-[rgba(184,138,74,0.2)] bg-white/58 p-4 text-[12px] text-[var(--color-muted)]">
-          <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.folio', 'Folio')}</span><strong className="text-right text-[var(--color-ink)]">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</strong></div>
-          <div className="flex justify-between gap-3"><span>{t('app.premium.reservation.date')}</span><strong className="text-right text-[var(--color-ink)]">{formatDateTime(pass.startsAt, locale, t('common.toBeConfirmed'))}</strong></div>
-          <div className="flex justify-between gap-3"><span>{pass.accessType === 'event_ticket' ? t('app.premium.events.ticket') : t('app.premium.reservation.guests')}</span><strong className="text-right text-[var(--color-ink)]">{pass.ticketTypeName ?? pass.peopleCount ?? t('common.toBeConfirmed')}</strong></div>
-          <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.status', 'Estado')}</span><strong className="text-right text-[var(--color-ink)]">{ticketStatusLabel(pass, t)}</strong></div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('download')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-[var(--color-burgundy)] disabled:opacity-60">
-            <Download size={15} />{ticketAction === 'download' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.download', 'Descargar PDF')}
-          </button>
-          <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('share')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white disabled:opacity-60">
-            <Share2 size={15} />{ticketAction === 'share' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.share', 'Compartir')}
-          </button>
-        </div>
-        {ticketActionMessage ? <p className="mt-3 text-center text-[11px] font-semibold text-[var(--color-muted)]">{ticketActionMessage}</p> : null}
-      </section>
-    </div>
-  )
-}
-
 export function ReservationScreen() {
   const { t, locale, language } = useAppPreferences()
   const { session } = useAuth()
@@ -384,24 +208,16 @@ export function ReservationScreen() {
     const params = new URLSearchParams(location.search)
     return stateId || params.get('experienceId') || params.get('experience') || ''
   }, [location.search, location.state])
-  const requestedReservationId = useMemo(() => {
-    const params = new URLSearchParams(location.search)
-    return params.get('reservationId') || params.get('reservation') || ''
-  }, [location.search])
   const { records: experiences, loading, error, retry } = usePublicContent('experiences')
   const [selectedExperienceId, setSelectedExperienceId] = useState('')
   const [selectedSlotId, setSelectedSlotId] = useState('')
   const [people, setPeople] = useState(2)
   const [notes, setNotes] = useState('')
   const [slots, setSlots] = useState<ReturnType<typeof normalizeSlot>[]>([])
-  const [reservations, setReservations] = useState<CustomerReservation[]>([])
-  const [accessPasses, setAccessPasses] = useState<CustomerAccessPass[]>([])
   const [loadingSlots, setLoadingSlots] = useState(true)
-  const [loadingReservations, setLoadingReservations] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
   const [operationError, setOperationError] = useState('')
-  const [selectedTicket, setSelectedTicket] = useState<CustomerAccessPass | null>(null)
   const [experienceSheetOpen, setExperienceSheetOpen] = useState(false)
   const [appliedRequestedExperienceId, setAppliedRequestedExperienceId] = useState<string | null>(null)
   const [romanticSignRequired, setRomanticSignRequired] = useState(false)
@@ -453,56 +269,9 @@ export function ReservationScreen() {
     }
   }, [t, token])
 
-  const loadReservations = useCallback(async () => {
-    if (!token) return
-    setLoadingReservations(true)
-    try {
-      const [reservationResponse, passResponse] = await Promise.all([
-        customerClient.reservations(token, { perPage: 20 }),
-        customerClient.accessPasses(token).catch(() => ({ ok: true as const, data: [] as CustomerAccessPass[] })),
-      ])
-      setReservations(reservationResponse.data)
-      setAccessPasses(passResponse.data)
-      try {
-        localStorage.setItem(`hdl_access_cache_${session?.user.id ?? 'customer'}`, JSON.stringify({
-          reservations: reservationResponse.data,
-          accessPasses: passResponse.data,
-        }))
-      } catch {
-        // La app sigue funcionando aunque el dispositivo no permita almacenamiento local.
-      }
-    } catch {
-      try {
-        const cached = JSON.parse(localStorage.getItem(`hdl_access_cache_${session?.user.id ?? 'customer'}`) ?? 'null') as { reservations?: CustomerReservation[]; accessPasses?: CustomerAccessPass[] } | null
-        setReservations(cached?.reservations ?? [])
-        setAccessPasses(cached?.accessPasses ?? [])
-      } catch {
-        setReservations([])
-        setAccessPasses([])
-      }
-    } finally {
-      setLoadingReservations(false)
-    }
-  }, [session?.user.id, token])
-
   useEffect(() => {
     void loadSlots()
   }, [loadSlots])
-
-  useEffect(() => {
-    void loadReservations()
-  }, [loadReservations])
-
-  useEffect(() => {
-    if (!requestedReservationId || loadingReservations || reservations.length === 0) return
-    const handle = window.setTimeout(() => {
-      document.getElementById(`reservation-${requestedReservationId}`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
-    }, 120)
-    return () => window.clearTimeout(handle)
-  }, [loadingReservations, requestedReservationId, reservations.length])
 
   const selectedSlot = useMemo(
     () => slots.find((slot) => slot.id === selectedSlotId) ?? null,
@@ -620,11 +389,6 @@ export function ReservationScreen() {
   const menuTotal = menuSelection?.subtotal ?? 0
   const reservationTotal = selectedSlot ? (selectedSlot.price * people) + romanticSignTotal + menuTotal : 0
 
-  const standalonePasses = useMemo(
-    () => accessPasses.filter(isTicketAccessPass),
-    [accessPasses],
-  )
-
   useEffect(() => {
     setSelectedSlotId((current) => current && bookingSlots.some((slot) => slot.id === current)
       ? current
@@ -669,45 +433,12 @@ export function ReservationScreen() {
       }
       setMessage(t('app.premium.reservation.created'))
       setNotes('')
-      await Promise.all([loadSlots(), loadReservations()])
+      await loadSlots()
     } catch (err) {
       const status = err && typeof err === 'object' && 'status' in err ? Number((err as { status?: unknown }).status) : 0
       setOperationError(status === 409
         ? t('app.premium.reservation.capacityConflict')
         : t('app.premium.reservation.createError'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const cancelReservation = async (reservation: CustomerReservation) => {
-    if (!token) return
-    setSubmitting(true)
-    setOperationError('')
-    try {
-      await customerClient.cancelReservation(token, reservation.id, t('app.premium.reservation.cancel'))
-      setMessage(t('app.premium.reservation.cancelled'))
-      await Promise.all([loadSlots(), loadReservations()])
-    } catch {
-      setOperationError(t('app.premium.reservation.cancelError'))
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  const rescheduleReservation = async (reservation: CustomerReservation, slotId: string) => {
-    if (!token || !slotId) return
-    setSubmitting(true)
-    setOperationError('')
-    try {
-      await customerClient.rescheduleReservation(token, reservation.id, {
-        experienceSlotId: slotId,
-        idempotencyKey: makeIdempotencyKey('reschedule'),
-      })
-      setMessage(t('app.premium.reservation.rescheduled'))
-      await Promise.all([loadSlots(), loadReservations()])
-    } catch {
-      setOperationError(t('app.premium.reservation.rescheduleError'))
     } finally {
       setSubmitting(false)
     }
@@ -979,123 +710,6 @@ export function ReservationScreen() {
         {submitting ? t('app.premium.reservation.processing') : t('app.premium.reservation.continueToPayment', 'Continuar al pago')}
       </PrimaryButton>
 
-      <section id="boletos" className="scroll-mt-6 space-y-3">
-        <SectionHeading eyebrow={t('app.premium.events.ticket', 'Boletos')} title={t('app.premium.ticket.myAccesses', 'Mis boletos y accesos')} />
-        {standalonePasses.length === 0 ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">
-            {t('app.premium.ticket.noEventPasses', 'Los boletos pagados aparecerán aquí con su código QR de entrada.')}
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {standalonePasses.map((pass) => (
-              <article key={pass.id} className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{pass.orderNumber ?? pass.passNumber}</p>
-                <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{pass.title ?? t('app.premium.events.ticket')}</h3>
-                <p className="mt-1 text-[11px] text-[var(--color-muted)]">{formatDateTime(pass.startsAt, locale, t('common.toBeConfirmed'))}</p>
-                <button type="button" onClick={() => setSelectedTicket(pass)} className="mt-4 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
-                  <QrCode size={15} />
-                  {t('app.premium.ticket.show', 'Ver boleto QR')}
-                </button>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <SectionHeading eyebrow={t('app.premium.reservation.myBookings')} title={t('app.premium.reservation.yourBookings')} />
-          <button type="button" onClick={() => void loadReservations()} className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white text-[var(--color-burgundy)]" aria-label={t('app.premium.reservation.refresh')}>
-            <RefreshCw size={16} />
-          </button>
-        </div>
-        {loadingReservations ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.loadingReservations')}</div>
-        ) : reservations.length === 0 ? (
-          <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)]">{t('app.premium.reservation.noReservations')}</div>
-        ) : (
-          <div className="grid gap-3">
-            {reservations.map((reservation) => {
-              const reservationPasses = reservation.accessPasses?.length
-                ? reservation.accessPasses
-                : reservation.accessPass ? [reservation.accessPass] : []
-              const romanticSign = romanticSignFromMetadata(reservation.metadata)
-              const mainCourse = mainCourseFromMetadata(reservation.metadata)
-              const menu = menuSelectionFromMetadata(reservation.metadata)
-              const isRequestedReservation = requestedReservationId === reservation.id
-              return (
-              <article id={`reservation-${reservation.id}`} key={reservation.id} className={`rounded-[1.2rem] border bg-white p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)] ${isRequestedReservation ? 'border-[var(--color-burgundy)] ring-2 ring-[rgba(91,11,31,0.14)]' : 'border-[rgba(220,202,181,0.78)]'}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{reservation.reservationNumber}</p>
-                    <h3 className="mt-1 text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{reservation.title ?? reservation.experienceTitle}</h3>
-                    <p className="mt-1 text-[11px] text-[var(--color-muted)]">{reservationSchedule(reservation, locale, t('common.toBeConfirmed'))}</p>
-                    {romanticSign ? (
-                      <p className="mt-2 rounded-[0.85rem] bg-[rgba(180,138,85,0.16)] px-3 py-2 text-[11px] font-semibold leading-4 text-[var(--color-burgundy)]">
-                        {romanticSign.label}: {romanticSign.message}
-                      </p>
-                    ) : null}
-                    {mainCourse ? (
-                      <p className="mt-2 rounded-[0.85rem] bg-[rgba(37,47,55,0.08)] px-3 py-2 text-[11px] font-semibold leading-4 text-[#252F37]">
-                        {mainCourse.label}: {mainCourse.option}
-                      </p>
-                    ) : null}
-                    {menu ? (
-                      <p className="mt-2 rounded-[0.85rem] bg-[rgba(180,138,85,0.14)] px-3 py-2 text-[11px] font-semibold leading-4 text-[var(--color-ink)]">
-                        {menu.label}: {menu.option}
-                      </p>
-                    ) : null}
-                    {reservation.paymentStatus === 'pending' && reservation.paymentOrderId ? (
-                      <button type="button" onClick={() => navigate(`${appPath('/checkout')}?orderId=${encodeURIComponent(reservation.paymentOrderId ?? '')}`)} className="mt-3 inline-flex min-h-9 items-center justify-center rounded-full bg-[var(--color-burgundy)] px-4 text-[11px] font-semibold text-white">
-                        {t('app.premium.reservation.completePayment', 'Completar pago')}
-                      </button>
-                    ) : null}
-                  </div>
-                  <span className="rounded-full bg-[#f8eee5] px-3 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">{reservation.status}</span>
-                </div>
-                {['pending', 'confirmed'].includes(reservation.status) ? (
-                  <div className="mt-4 grid gap-2">
-                    {reservationPasses.length ? (
-                      <div className={reservationPasses.length > 1 ? 'grid grid-cols-2 gap-2' : 'grid gap-2'}>
-                        {reservationPasses.map((pass, index) => (
-                          <button key={pass.id} type="button" onClick={() => setSelectedTicket(pass)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white">
-                            <Ticket size={15} />
-                            {reservationPasses.length > 1 ? `QR ${index + 1} de ${reservationPasses.length}` : t('app.premium.ticket.show', 'Ver boleto QR')}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                    {reservation.reservationType === 'experience' ? (
-                      <AppSelect
-                        value=""
-                        onChange={(value) => value && void rescheduleReservation(reservation, value)}
-                        disabled={submitting}
-                        options={[
-                          { value: '', label: t('app.premium.reservation.rescheduleTo') },
-                          ...slots
-                            .filter((slot) => slot.experienceId === reservation.experienceId && slot.id !== reservation.slotId)
-                            .slice(0, 8)
-                            .map((slot) => ({
-                              value: slot.id,
-                              label: `${formatDateTime(slot.startAt, locale, t('common.toBeConfirmed'))} · ${slot.available}`,
-                            })),
-                        ]}
-                      />
-                    ) : null}
-                    <button type="button" onClick={() => void cancelReservation(reservation)} disabled={submitting} className="rounded-[0.9rem] border border-[rgba(157,71,63,0.28)] px-3 py-2 text-[12px] font-semibold text-[var(--color-alert)]">
-                      {t('app.premium.reservation.cancel')}
-                    </button>
-                  </div>
-                ) : null}
-              </article>
-              )
-            })}
-          </div>
-        )}
-      </section>
-      {selectedTicket ? (
-        <TicketSheet pass={selectedTicket} locale={locale} t={t} onClose={() => setSelectedTicket(null)} />
-      ) : null}
       {experienceSheetOpen ? (
         <MobileChoiceSheet
           title={t('app.premium.reservation.selectedExperience')}
