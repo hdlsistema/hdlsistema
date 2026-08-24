@@ -33,6 +33,7 @@ import {
   invalidCustomerAddressFields,
   isCustomerAddressComplete,
   normalizeCustomerAddress,
+  type RequiredCustomerAddressField,
 } from '../../utils/customerAddress'
 
 function money(value: number | string | null | undefined, locale: string) {
@@ -46,6 +47,27 @@ function translatedStatus(status: string | null | undefined, t: (key: string, fa
 
 function cartRequiresShipping(cart: CustomerCart | null) {
   return Boolean(cart?.items.some((item) => item.itemType === 'wine'))
+}
+
+const addressFieldLabelKeys: Record<RequiredCustomerAddressField, { key: string; fallback: string }> = {
+  label: { key: 'app.premium.profile.addressLabel', fallback: 'Nombre del domicilio' },
+  recipientName: { key: 'app.premium.profile.recipientName', fallback: 'Nombre de quien recibe' },
+  phone: { key: 'app.premium.profile.phone', fallback: 'Teléfono' },
+  email: { key: 'app.premium.profile.email', fallback: 'Correo electrónico' },
+  line1: { key: 'app.premium.profile.addressLine1', fallback: 'Calle y número' },
+  line2: { key: 'app.premium.profile.addressLine2', fallback: 'Interior o edificio' },
+  neighborhood: { key: 'app.premium.profile.neighborhood', fallback: 'Colonia' },
+  city: { key: 'app.premium.profile.city', fallback: 'Ciudad' },
+  state: { key: 'app.premium.profile.state', fallback: 'Estado' },
+  postalCode: { key: 'app.premium.profile.postalCode', fallback: 'Código postal' },
+  country: { key: 'app.premium.profile.country', fallback: 'País' },
+  references: { key: 'app.premium.profile.references', fallback: 'Referencias de entrega' },
+}
+
+function addressMissingMessage(fields: RequiredCustomerAddressField[], t: (key: string, fallback?: string) => string) {
+  if (!fields.length) return ''
+  const labels = fields.map((field) => t(addressFieldLabelKeys[field].key, addressFieldLabelKeys[field].fallback))
+  return t('app.premium.checkout.addressMissingFields', 'Falta completar: {{fields}}.').replace('{{fields}}', labels.join(', '))
 }
 
 function EmbeddedStripePaymentForm({
@@ -156,6 +178,7 @@ export function CheckoutScreen() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState('')
+  const [addressAttempted, setAddressAttempted] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -218,10 +241,12 @@ export function CheckoutScreen() {
     if (needsShipping) {
       const invalid = invalidCustomerAddressFields(shippingAddress)
       if (invalid.length) {
-        setMessage(t('app.premium.checkout.addressRequired'))
+        setAddressAttempted(true)
+        setMessage(addressMissingMessage(invalid, t))
         return
       }
     }
+    setAddressAttempted(false)
     setSubmitting(true)
     setMessage('')
     try {
@@ -253,7 +278,8 @@ export function CheckoutScreen() {
   const requiresShipping = cartRequiresShipping(cart)
   const selectedAddress = addresses.find((item) => item.id === selectedAddressId)
   const currentShippingAddress = normalizeCustomerAddress(selectedAddress ?? addressForm)
-  const addressIsComplete = !requiresShipping || isCustomerAddressComplete(currentShippingAddress)
+  const invalidAddressFields = requiresShipping ? invalidCustomerAddressFields(currentShippingAddress) : []
+  const addressIsComplete = !requiresShipping || invalidAddressFields.length === 0
   const stripeOptions = useMemo(() => paymentSession?.clientSecret
     ? {
         clientSecret: paymentSession.clientSecret,
@@ -407,10 +433,12 @@ export function CheckoutScreen() {
 	                        if (!isCustomerAddressComplete(address)) {
 	                          setSelectedAddressId('')
 	                          setAddressForm(normalizeCustomerAddress(address))
-	                          setMessage(t('app.premium.checkout.addressRequired'))
+	                          setAddressAttempted(true)
+	                          setMessage(addressMissingMessage(invalidCustomerAddressFields(address), t))
 	                          return
 	                        }
 	                        setSelectedAddressId(address.id)
+	                        setAddressAttempted(false)
 	                        setMessage('')
 	                      }}
 	                      className={`w-full rounded-[1rem] border px-4 py-3 text-left transition ${selectedAddressId === address.id ? 'border-[var(--color-burgundy)] bg-[#fff4f6]' : 'border-[rgba(220,202,181,0.72)] bg-white/76'}`}
@@ -433,7 +461,7 @@ export function CheckoutScreen() {
 
 	              {!selectedAddressId ? (
 	                <div className="mt-4 grid gap-3">
-	                  {[
+	                  {([
 	                    ['label', t('app.premium.profile.addressLabel')],
 	                    ['recipientName', t('app.premium.profile.recipientName')],
 	                    ['phone', t('app.premium.profile.phone')],
@@ -444,28 +472,50 @@ export function CheckoutScreen() {
 	                    ['city', t('app.premium.profile.city')],
 	                    ['state', t('app.premium.profile.state')],
 	                    ['postalCode', t('app.premium.profile.postalCode')],
-	                  ].map(([key, placeholder]) => (
-	                    <input
-	                      key={key}
-	                      value={String(addressForm[key as keyof CustomerAddressPayload] ?? '')}
-	                      onChange={(event) => setAddressForm((current) => ({ ...current, [key]: event.target.value }))}
-	                      type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
-	                      inputMode={key === 'postalCode' ? 'numeric' : undefined}
-	                      autoComplete={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'postalCode' ? 'postal-code' : undefined}
-	                      required
-	                      aria-required="true"
-	                      placeholder={`${placeholder} *`}
-	                      className="min-h-12 w-full rounded-[0.95rem] border border-[rgba(170,125,67,0.28)] bg-white/88 px-4 text-[13px] text-[var(--color-ink)] outline-none"
-	                    />
-	                  ))}
+	                  ] as Array<[RequiredCustomerAddressField, string]>).map(([key, placeholder]) => {
+	                    const hasError = addressAttempted && invalidAddressFields.includes(key)
+	                    return (
+	                      <div key={key} className="grid gap-1.5">
+	                        <input
+	                          value={String(addressForm[key as keyof CustomerAddressPayload] ?? '')}
+	                          onChange={(event) => {
+	                            setAddressForm((current) => ({ ...current, [key]: event.target.value }))
+	                            if (addressAttempted) setMessage('')
+	                          }}
+	                          type={key === 'email' ? 'email' : key === 'phone' ? 'tel' : 'text'}
+	                          inputMode={key === 'postalCode' ? 'numeric' : undefined}
+	                          autoComplete={key === 'email' ? 'email' : key === 'phone' ? 'tel' : key === 'postalCode' ? 'postal-code' : undefined}
+	                          required
+	                          aria-required="true"
+	                          aria-invalid={hasError}
+	                          placeholder={`${placeholder} *`}
+	                          className={`min-h-12 w-full rounded-[0.95rem] border bg-white/88 px-4 text-[13px] text-[var(--color-ink)] outline-none ${hasError ? 'border-[var(--color-alert)] shadow-[0_0_0_2px_rgba(157,71,63,0.12)]' : 'border-[rgba(170,125,67,0.28)]'}`}
+	                        />
+	                        {hasError ? (
+	                          <span className="px-1 text-[10px] font-semibold leading-4 text-[var(--color-alert)]">
+	                            {t('app.premium.checkout.fieldRequired')}
+	                          </span>
+	                        ) : null}
+	                      </div>
+	                    )
+	                  })}
 	                  <textarea
 	                    value={addressForm.references ?? ''}
-	                    onChange={(event) => setAddressForm((current) => ({ ...current, references: event.target.value }))}
+	                    onChange={(event) => {
+	                      setAddressForm((current) => ({ ...current, references: event.target.value }))
+	                      if (addressAttempted) setMessage('')
+	                    }}
 	                    required
 	                    aria-required="true"
+	                    aria-invalid={addressAttempted && invalidAddressFields.includes('references')}
 	                    placeholder={`${t('app.premium.profile.references')} *`}
-	                    className="min-h-[96px] w-full rounded-[0.95rem] border border-[rgba(170,125,67,0.28)] bg-white/88 px-4 py-3 text-[13px] text-[var(--color-ink)] outline-none"
+	                    className={`min-h-[96px] w-full rounded-[0.95rem] border bg-white/88 px-4 py-3 text-[13px] text-[var(--color-ink)] outline-none ${addressAttempted && invalidAddressFields.includes('references') ? 'border-[var(--color-alert)] shadow-[0_0_0_2px_rgba(157,71,63,0.12)]' : 'border-[rgba(170,125,67,0.28)]'}`}
 	                  />
+	                  {addressAttempted && invalidAddressFields.includes('references') ? (
+	                    <span className="-mt-1 px-1 text-[10px] font-semibold leading-4 text-[var(--color-alert)]">
+	                      {t('app.premium.checkout.fieldRequired')}
+	                    </span>
+	                  ) : null}
 	                  <button
 	                    type="button"
 	                    onClick={() => setSaveAddress((value) => !value)}
@@ -509,9 +559,14 @@ export function CheckoutScreen() {
             </div>
           </section>
 
-          <PrimaryButton onClick={createOrder} disabled={submitting || !addressIsComplete}>
+          <PrimaryButton onClick={createOrder} disabled={submitting}>
             {submitting ? t('app.premium.checkout.creatingOrder') : t('app.premium.checkout.createOrder')}
           </PrimaryButton>
+          {requiresShipping && !addressIsComplete ? (
+            <p className="text-center text-[11px] leading-5 text-[var(--color-muted)]">
+              {t('app.premium.checkout.addressBeforePayment')}
+            </p>
+          ) : null}
         </>
       )}
     </div>
