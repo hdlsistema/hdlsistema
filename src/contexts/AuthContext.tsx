@@ -20,7 +20,7 @@ import {
   type AuthProfile,
   type UserRole,
 } from '../services/auth.service'
-import { adminUsersClient } from '../services/adminUsers.service'
+import { adminUsersClient, type ControlScope } from '../services/adminUsers.service'
 import { appActivityEventKey, trackAppActivity } from '../services/appActivity.service'
 
 const ADMIN_ROLES: UserRole[] = [
@@ -39,6 +39,8 @@ type AuthContextValue = {
   profile: AuthProfile | null
   roles: UserRole[]
   permissions: string[]
+  controlScopes: ControlScope[]
+  controlScopeCodes: string[]
   financialAccess: boolean
   isAuthenticated: boolean
   isLoading: boolean
@@ -46,6 +48,7 @@ type AuthContextValue = {
   mustChangePassword: boolean
   hasRole: (role: UserRole | UserRole[]) => boolean
   hasPermission: (permission: string | string[]) => boolean
+  hasControlScope: (scopeCode: string | string[]) => boolean
   signIn: (email: string, password: string, options?: { rememberSession?: boolean }) => Promise<UserRole[]>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -60,6 +63,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [roles, setRoles] = useState<UserRole[]>([])
   const [permissions, setPermissions] = useState<string[]>([])
+  const [controlScopes, setControlScopes] = useState<ControlScope[]>([])
+  const [controlScopeCodes, setControlScopeCodes] = useState<string[]>([])
   const [financialAccess, setFinancialAccess] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [passwordChangeCompletedFor, setPasswordChangeCompletedFor] = useState<string | null>(null)
@@ -73,6 +78,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(null)
       setRoles([])
       setPermissions([])
+      setControlScopes([])
+      setControlScopeCodes([])
       setFinancialAccess(false)
       setPasswordChangeCompletedFor(null)
       return []
@@ -86,14 +93,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const elevatedAdmin = nextRoles.some((role) => ELEVATED_ADMIN_ROLES.includes(role))
     let nextPermissions: string[] = []
+    let nextControlScopes: ControlScope[] = []
+    let nextControlScopeCodes: string[] = []
     let nextFinancialAccess = elevatedAdmin
     if (nextRoles.some((role) => ADMIN_ROLES.includes(role))) {
       try {
         const access = await adminUsersClient.currentAccess(nextSession.access_token)
         nextPermissions = access.data.permissions
+        nextControlScopes = access.data.scopes ?? []
+        nextControlScopeCodes = access.data.scopeCodes ?? nextControlScopes.map((scope) => scope.code)
         nextFinancialAccess = access.data.financialAccess || elevatedAdmin
       } catch {
         nextPermissions = []
+        nextControlScopes = []
+        nextControlScopeCodes = []
         nextFinancialAccess = elevatedAdmin
       }
     }
@@ -102,6 +115,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setProfile(nextProfile)
       setRoles(nextRoles)
       setPermissions(nextPermissions)
+      setControlScopes(nextControlScopes)
+      setControlScopeCodes(nextControlScopeCodes)
       setFinancialAccess(nextFinancialAccess)
     }
     return nextRoles
@@ -170,6 +185,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null)
     setRoles([])
     setPermissions([])
+    setControlScopes([])
+    setControlScopeCodes([])
     setFinancialAccess(false)
   }, [session])
 
@@ -201,6 +218,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [permissions, roles],
   )
 
+  const hasControlScope = useCallback(
+    (scopeCode: string | string[]) => {
+      if (ELEVATED_ADMIN_ROLES.some((role) => roles.includes(role))) return true
+      if (controlScopeCodes.includes('all_sites')) return true
+      const required = Array.isArray(scopeCode) ? scopeCode : [scopeCode]
+      return required.some((item) => controlScopeCodes.includes(item))
+    },
+    [controlScopeCodes, roles],
+  )
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -208,6 +235,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       roles,
       permissions,
+      controlScopes,
+      controlScopeCodes,
       financialAccess,
       isAuthenticated: Boolean(session),
       isLoading,
@@ -215,12 +244,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       mustChangePassword: Boolean(user?.app_metadata?.must_change_password) && passwordChangeCompletedFor !== user?.id,
       hasRole,
       hasPermission,
+      hasControlScope,
       signIn,
       signOut,
       refreshProfile,
       completeInitialPasswordChange,
     }),
-    [completeInitialPasswordChange, financialAccess, hasPermission, hasRole, isLoading, passwordChangeCompletedFor, permissions, profile, roles, session, signIn, signOut, user, refreshProfile],
+    [completeInitialPasswordChange, controlScopeCodes, controlScopes, financialAccess, hasControlScope, hasPermission, hasRole, isLoading, passwordChangeCompletedFor, permissions, profile, roles, session, signIn, signOut, user, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -590,7 +590,7 @@ function EventMetadataField({
           <CrystalSelect value={textPart(parsed.location_kind) || 'estate'} onChange={(nextValue) => setCompositeValue('location_kind', nextValue)}>
             <option value="estate">Hacienda principal</option>
             <option value="restaurant_estate">Restaurante Hacienda</option>
-            <option value="restaurant_center">Restaurante Centro</option>
+            <option value="restaurant_center">Restaurante Nieto</option>
             <option value="cabins">Cabañas</option>
             <option value="boutique">Boutique</option>
           </CrystalSelect>

@@ -7,7 +7,7 @@ import {
   type CustomerMembership,
   type CustomerMembershipBenefit,
 } from '../../../services/customer.service'
-import { AppSectionHeader, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { formatCurrency, numberField, textField } from '../../utils/publicContent'
@@ -60,6 +60,8 @@ export function ClubScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <HeroEditorial
         eyebrow={t('app.premium.club.eyebrow')}
         title={t('app.premium.club.title')}

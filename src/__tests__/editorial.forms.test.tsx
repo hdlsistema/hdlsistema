@@ -136,7 +136,7 @@ describe('formularios editoriales especializados', () => {
       description: 'Noche de vino, terraza y baile.',
       start_at: '2026-08-21T19:00',
       end_at: '2026-08-22T01:00',
-      venue: 'Restaurante Hacienda de Letras Centro',
+      venue: 'Restaurante Hacienda de Letras Nieto',
       capacity: '120',
       metadata: JSON.stringify({ event_kind: 'sunset', location_kind: 'restaurant_center', reservation_phone: '449 192 2876' }),
     })

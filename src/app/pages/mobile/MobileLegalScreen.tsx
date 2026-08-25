@@ -1,6 +1,5 @@
-import { ArrowLeft, FileCheck2, ShieldCheck } from 'lucide-react'
-import { Link } from 'react-router-dom'
-import { AppSectionHeader } from '../../components/mobile/PremiumMobileUi'
+import { FileCheck2, ShieldCheck } from 'lucide-react'
+import { AppSectionHeader, BackButton } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 
@@ -72,9 +71,7 @@ export function MobileLegalScreen({ kind }: { kind: LegalKind }) {
 
   return (
     <div className="app-page space-y-5">
-      <Link to={appPath('/privacidad-cuenta')} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[12px] font-semibold text-[var(--color-burgundy)]">
-        <ArrowLeft size={15} /> {copy.back}
-      </Link>
+      <BackButton to={appPath('/privacidad-cuenta')} label={copy.back} />
 
       <section className="rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
         <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f8eee5] text-[var(--color-burgundy)]">

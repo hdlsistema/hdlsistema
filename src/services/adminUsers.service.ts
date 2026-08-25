@@ -32,6 +32,14 @@ export type ControlPermission = {
   sortOrder: number
 }
 
+export type ControlScope = {
+  code: string
+  label: string
+  type: 'estate' | 'restaurant' | 'boutique' | 'lodging' | 'site'
+  description?: string | null
+  sortOrder: number
+}
+
 export type AdminUserRecord = {
   id: string
   email: string | null
@@ -48,11 +56,15 @@ export type AdminUserRecord = {
   isStaff?: boolean
   accountType?: 'admin' | 'staff' | 'customer_staff'
   accountLabel?: string
+  scopes?: ControlScope[]
+  scopeCodes?: string[]
 }
 
 export type ControlAccessResponse = {
   permissions: string[]
   financialAccess: boolean
+  scopes?: ControlScope[]
+  scopeCodes?: string[]
 }
 
 export type CreateStaffUserPayload = {
@@ -63,6 +75,7 @@ export type CreateStaffUserPayload = {
   roles: string[]
   permissions: string[]
   financialAccess?: boolean
+  scopeCodes?: string[]
 }
 
 export const adminUsersClient = {
@@ -72,7 +85,7 @@ export const adminUsersClient = {
     })
   },
   catalog(token: string | null | undefined) {
-    return apiFetch<{ ok: true; data: ControlPermission[]; financialAccess: boolean }>('/api/admin/permissions/catalog', {
+    return apiFetch<{ ok: true; data: ControlPermission[]; scopes: ControlScope[]; financialAccess: boolean }>('/api/admin/permissions/catalog', {
       headers: adminHeaders(token),
     })
   },
@@ -92,6 +105,8 @@ export const adminUsersClient = {
       roles: string[]
       permissions: string[]
       financialAccess: boolean
+      scopes?: ControlScope[]
+      scopeCodes?: string[]
       isCustomer?: boolean
       isStaff?: boolean
       accountType?: AdminUserRecord['accountType']
@@ -111,7 +126,7 @@ export const adminUsersClient = {
       { headers: adminHeaders(token) },
     )
   },
-  updatePermissions(token: string | null | undefined, userId: string, payload: { roles: string[]; permissions: string[]; financialAccess?: boolean }) {
+  updatePermissions(token: string | null | undefined, userId: string, payload: { roles: string[]; permissions: string[]; financialAccess?: boolean; scopeCodes?: string[] }) {
     return apiFetch<{ ok: true; data: ControlAccessResponse & { roles: string[] } }>(
       `/api/admin/users/${encodeURIComponent(userId)}/permissions`,
       {

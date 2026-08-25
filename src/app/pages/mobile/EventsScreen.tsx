@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   AppSectionHeader,
+  BackButton,
   EditorialCard,
   EmptyState,
   ErrorState,
@@ -106,6 +107,8 @@ export function EventsScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton to={selectedVenue ? appPath('/nuestros-eventos') : undefined} />
+
       <HeroEditorial
         eyebrow={selectedVenue?.eyebrow ?? t('app.premium.events.eyebrow')}
         title={selectedVenue?.title ?? t('app.premium.events.title')}

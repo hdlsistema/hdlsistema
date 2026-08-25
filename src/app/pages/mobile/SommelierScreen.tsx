@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { MessageCircleMore, Send, Wine } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
-import { AppSectionHeader, EmptyState, ErrorState, HeroEditorial, LoadingState, WineCard } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, WineCard } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
@@ -105,6 +105,8 @@ export function SommelierScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <HeroEditorial
         compact
         eyebrow={t('app.premium.home.sommelierTitle')}

@@ -45,9 +45,9 @@ export const EVENT_VENUES: EventVenue[] = [
   },
   {
     key: 'restaurant_center',
-    title: 'Restaurante Centro',
-    eyebrow: 'Centro de Aguascalientes',
-    description: 'Atardeceres, música, terraza y experiencias urbanas.',
+    title: 'Restaurante Nieto',
+    eyebrow: 'Calle Nieto 106',
+    description: 'Atardeceres, música, terraza y experiencias urbanas en Calle Nieto.',
     image: '/hacienda 2.jpg',
     poi: OFFICIAL_CENTRO_RESTAURANT_POI,
     locationKinds: ['restaurant_center'],

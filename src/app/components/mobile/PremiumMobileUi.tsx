@@ -258,17 +258,43 @@ export function PrimaryButton({
   )
 }
 
-export function BackButton({ label }: { label?: string }) {
+export function BackButton({
+  label,
+  to,
+  className,
+}: {
+  label?: string
+  to?: string
+  className?: string
+}) {
   const navigate = useNavigate()
   const { isEnglish } = useAppPreferences()
+  const resolvedLabel = label ?? (isEnglish ? 'Back' : 'Volver')
+  const handleBack = () => {
+    if (to) {
+      navigate(to)
+      return
+    }
+    if (typeof window !== 'undefined' && window.history.length <= 1) {
+      navigate(appPath('/home'), { replace: true })
+      return
+    }
+    navigate(-1)
+  }
+
   return (
     <button
       type="button"
-      onClick={() => navigate(-1)}
-      className="inline-flex min-h-10 items-center gap-2 rounded-full bg-[rgba(255,250,242,0.86)] px-3 text-[12px] font-semibold text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(170,125,67,0.22)]"
+      onClick={handleBack}
+      aria-label={resolvedLabel}
+      className={cx(
+        'inline-flex h-10 min-h-10 min-w-10 items-center justify-center gap-2 rounded-full border border-[rgba(247,242,234,0.78)] bg-[rgba(255,250,242,0.74)] text-[var(--color-burgundy)] shadow-[0_12px_26px_rgba(74,32,28,0.09),inset_0_1px_0_rgba(255,255,255,0.82)] backdrop-blur-xl active:scale-[0.98]',
+        label ? 'w-auto px-3 text-[12px] font-semibold' : 'w-10',
+        className,
+      )}
     >
-      <ArrowLeft size={15} />
-      {label ?? (isEnglish ? 'Back' : 'Volver')}
+      <ArrowLeft size={16} strokeWidth={1.7} />
+      {label ? <span>{label}</span> : null}
     </button>
   )
 }

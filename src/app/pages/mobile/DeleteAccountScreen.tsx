@@ -1,9 +1,9 @@
-import { ArrowLeft, CheckCircle2, ShieldCheck, Trash2, X } from 'lucide-react'
+import { CheckCircle2, ShieldCheck, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerPrivacyClient } from '../../../services/privacy.service'
-import { AppSectionHeader } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 
@@ -65,9 +65,7 @@ export function DeleteAccountScreen() {
 
   return (
     <div className="app-page space-y-6">
-      <Link to={appPath('/privacidad-cuenta')} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[12px] font-semibold text-[var(--color-burgundy)]">
-        <ArrowLeft size={15} /> {isEnglish ? 'Privacy and account' : 'Privacidad y cuenta'}
-      </Link>
+      <BackButton to={appPath('/privacidad-cuenta')} label={isEnglish ? 'Privacy and account' : 'Privacidad y cuenta'} />
 
       <section className="rounded-[1.45rem] border border-[#e4c3ba] bg-white p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
         <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f7e5e1] text-[#963e32]"><Trash2 size={21} /></span>

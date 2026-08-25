@@ -15,6 +15,7 @@ import {
 import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
 import {
   AppToast,
+  BackButton,
   EmptyState,
   LoadingState,
   PrimaryButton,
@@ -304,6 +305,8 @@ export function CheckoutScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <SectionHeading
         eyebrow={t('app.premium.checkout.eyebrow')}
         title={t('app.premium.checkout.title')}

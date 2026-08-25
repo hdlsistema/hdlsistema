@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { LocateFixed, MapPin, Navigation, Search, Wine } from 'lucide-react'
 import { MapboxScene } from '../../components/shared/MapboxScene'
-import { AppSectionHeader, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton } from '../../components/mobile/PremiumMobileUi'
 import { OfficialDirectionsSheet } from '../../components/mobile/OfficialDirectionsSheet'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { publicMapClient, type PublicMapPoi } from '../../../services/customer.service'
@@ -117,12 +117,14 @@ export function MapScreen() {
     if (poi.slug === 'cabanas-hacienda-de-letras') return 'Hacienda de Letras Cabins'
     if (poi.slug === 'restaurante-hacienda-de-letras') return 'Hacienda de Letras Restaurant'
     if (poi.slug === 'boutique-hacienda-de-letras') return 'Hacienda de Letras Boutique'
-    if (poi.slug === 'restaurante-centro-aguascalientes') return 'Hacienda de Letras Downtown Restaurant'
+    if (poi.slug === 'restaurante-centro-aguascalientes') return 'Hacienda de Letras Nieto Restaurant'
     return poi.name
   }
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <HeroEditorial
         compact
         eyebrow={t('app.premium.home.mapTitle')}

@@ -1,6 +1,6 @@
 import { CalendarDays, ChevronRight, MapPinned } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { AppSectionHeader, ErrorState, HeroEditorial, LoadingState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton, ErrorState, HeroEditorial, LoadingState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
@@ -12,6 +12,8 @@ export function EventVenuesScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <HeroEditorial
         eyebrow="Hacienda de Letras"
         title={isEnglish ? 'Our events' : 'Nuestros eventos'}

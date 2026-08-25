@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Loader2, MapPin, Navigation } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
-import { EmptyState, ErrorState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { BackButton, EmptyState, ErrorState, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { CrystalSelect } from '../../components/shared/CrystalSelect'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
@@ -104,6 +104,8 @@ export function RestaurantsScreen() {
 
   return (
     <div className="space-y-5 px-[var(--app-pad)] pb-8 pt-5">
+      <BackButton />
+
       <header>
         <p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">{isEnglish ? 'Dining' : 'Gastronomía'}</p>
         <h1 className="mt-1 text-[clamp(26px,7vw,34px)] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
@@ -118,7 +120,7 @@ export function RestaurantsScreen() {
         ) : error ? (
           <ErrorState message={error} retryLabel={isEnglish ? 'Try again' : 'Reintentar'} onRetry={retry} />
         ) : restaurants.length === 0 ? (
-          <EmptyState title={isEnglish ? 'No restaurants published' : 'Sin restaurantes publicados'} description={isEnglish ? 'Hacienda de Letras will publish restaurants once they are available.' : 'Hacienda de Letras publicará restaurantes desde el Centro de Control.'} />
+          <EmptyState title={isEnglish ? 'No restaurants published' : 'Sin restaurantes publicados'} description={isEnglish ? 'New dining spaces will appear when they are available.' : 'Pronto estarán disponibles nuevos espacios gastronómicos.'} />
         ) : restaurants.map((item) => (
           <article key={item.id} className={`w-full overflow-hidden rounded-[18px] border ${selectedRestaurant === item.id ? 'border-[#5B0B1F] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}>
             <button type="button" onClick={() => setSelected(item.id)} className="block w-full text-left">
@@ -177,7 +179,7 @@ export function RestaurantsScreen() {
             </button>
           ) : null}
         </div>
-        {!canRequest && selectedRestaurantRecord ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-muted)]">{isEnglish ? 'This restaurant has no request times published from Control Center.' : 'Este restaurante aún no tiene horarios de solicitud publicados desde el Centro de Control.'}</p> : null}
+        {!canRequest && selectedRestaurantRecord ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-muted)]">{isEnglish ? 'This restaurant does not have available request times yet.' : 'Este restaurante aún no tiene horarios disponibles para solicitar.'}</p> : null}
         <button type="button" onClick={submit} disabled={submitting || !canRequest} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request table' : 'Solicitar mesa')}
         </button>

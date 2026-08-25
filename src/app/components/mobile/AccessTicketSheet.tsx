@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
+import { createPortal } from 'react-dom'
 import { Download, QrCode, Share2, X } from 'lucide-react'
 import type { CustomerAccessPass } from '../../../services/customer.service'
 import {
@@ -115,43 +116,80 @@ export function AccessTicketSheet({
     }
   }
 
-  return (
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+    const previousBodyOverflow = document.body.style.overflow
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    document.body.style.overflow = 'hidden'
+    document.documentElement.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      document.documentElement.style.overflow = previousHtmlOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onClose])
+
+  const sheet = (
     <div
-      className="fixed inset-0 z-[180] flex items-center justify-center overflow-y-auto bg-[rgba(45,24,17,0.46)] px-4 backdrop-blur-md"
+      className="fixed inset-0 z-[1200] isolate overflow-hidden bg-[rgba(45,24,17,0.58)] backdrop-blur-md"
       role="dialog"
       aria-modal="true"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 18px)', paddingBottom: 'calc(env(safe-area-inset-bottom) + 104px)' }}
+      aria-labelledby="access-ticket-title"
     >
-      <section className="max-h-[calc(100dvh-132px)] w-full max-w-[28rem] overflow-y-auto overscroll-contain rounded-[1.75rem] border border-[rgba(255,255,255,0.56)] bg-[rgba(255,249,241,0.94)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]">
-        <div className="flex items-start justify-between gap-4">
+      <button
+        type="button"
+        onClick={onClose}
+        className="absolute inset-0 z-0 cursor-default"
+        aria-label={t('common.close', 'Cerrar')}
+      />
+      <button
+        type="button"
+        onClick={onClose}
+        className="fixed right-[calc(env(safe-area-inset-right)+14px)] top-[calc(env(safe-area-inset-top)+14px)] z-30 inline-flex h-12 w-12 touch-manipulation items-center justify-center rounded-full border border-[rgba(247,242,234,0.72)] bg-[#fff9f1] text-[var(--color-ink)] shadow-[0_16px_34px_rgba(45,24,17,0.26)]"
+        aria-label={t('common.close', 'Cerrar')}
+      >
+        <X size={20} strokeWidth={1.8} />
+      </button>
+      <div
+        className="relative z-10 h-full touch-pan-y overflow-y-auto overscroll-contain px-4 pb-[calc(env(safe-area-inset-bottom)+112px)] pt-[calc(env(safe-area-inset-top)+74px)]"
+        onClick={onClose}
+        style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+      >
+        <section
+          className="mx-auto w-full max-w-[28rem] rounded-[1.75rem] border border-[rgba(255,255,255,0.64)] bg-[rgba(255,249,241,0.98)] p-5 shadow-[0_24px_70px_rgba(45,24,17,0.35)]"
+          onClick={(event) => event.stopPropagation()}
+        >
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-gold)]">{t('app.premium.ticket.eyebrow', 'Mi boleto')}</p>
-            <h3 className="mt-1 text-[25px] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
+            <h3 id="access-ticket-title" className="mt-1 pr-2 text-[25px] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
           </div>
-          <button type="button" onClick={onClose} className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(45,24,17,0.2)] bg-white/70 text-[var(--color-ink)]" aria-label={t('common.close', 'Cerrar')}>
-            <X size={18} />
-          </button>
-        </div>
-        <div className="mt-5">
-          <AccessQr payload={pass.qrPayload || pass.qrToken} alt={pass.passNumber ?? t('app.premium.ticket.qrAlt', 'Código QR de acceso')} />
-        </div>
-        <p className="mt-4 text-center text-[13px] font-semibold text-[var(--color-burgundy)]">{t('app.premium.ticket.present', 'Presenta este código al ingresar')}</p>
-        <div className="mt-5 grid gap-2 rounded-[1.2rem] border border-[rgba(184,138,74,0.2)] bg-white/58 p-4 text-[12px] text-[var(--color-muted)]">
-          <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.folio', 'Folio')}</span><strong className="text-right text-[var(--color-ink)]">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</strong></div>
-          <div className="flex justify-between gap-3"><span>{t('app.premium.reservation.date')}</span><strong className="text-right text-[var(--color-ink)]">{formatDateTime(pass.startsAt, locale, t('common.toBeConfirmed'))}</strong></div>
-          <div className="flex justify-between gap-3"><span>{pass.accessType === 'event_ticket' ? t('app.premium.events.ticket') : t('app.premium.reservation.guests')}</span><strong className="text-right text-[var(--color-ink)]">{pass.ticketTypeName ?? pass.peopleCount ?? t('common.toBeConfirmed')}</strong></div>
-          <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.status', 'Estado')}</span><strong className="text-right text-[var(--color-ink)]">{ticketStatusLabel(pass, t)}</strong></div>
-        </div>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('download')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-[var(--color-burgundy)] disabled:opacity-60">
-            <Download size={15} />{ticketAction === 'download' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.download', 'Descargar PDF')}
-          </button>
-          <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('share')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white disabled:opacity-60">
-            <Share2 size={15} />{ticketAction === 'share' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.share', 'Compartir')}
-          </button>
-        </div>
-        {ticketActionMessage ? <p className="mt-3 text-center text-[11px] font-semibold text-[var(--color-muted)]">{ticketActionMessage}</p> : null}
-      </section>
+          <div className="mt-5">
+            <AccessQr payload={pass.qrPayload || pass.qrToken} alt={pass.passNumber ?? t('app.premium.ticket.qrAlt', 'Código QR de acceso')} />
+          </div>
+          <p className="mt-4 text-center text-[13px] font-semibold text-[var(--color-burgundy)]">{t('app.premium.ticket.present', 'Presenta este código al ingresar')}</p>
+          <div className="mt-5 grid gap-2 rounded-[1.2rem] border border-[rgba(184,138,74,0.2)] bg-white/58 p-4 text-[12px] text-[var(--color-muted)]">
+            <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.folio', 'Folio')}</span><strong className="text-right text-[var(--color-ink)]">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</strong></div>
+            <div className="flex justify-between gap-3"><span>{t('app.premium.reservation.date')}</span><strong className="text-right text-[var(--color-ink)]">{formatDateTime(pass.startsAt, locale, t('common.toBeConfirmed'))}</strong></div>
+            <div className="flex justify-between gap-3"><span>{pass.accessType === 'event_ticket' ? t('app.premium.events.ticket') : t('app.premium.reservation.guests')}</span><strong className="text-right text-[var(--color-ink)]">{pass.ticketTypeName ?? pass.peopleCount ?? t('common.toBeConfirmed')}</strong></div>
+            <div className="flex justify-between gap-3"><span>{t('app.premium.ticket.status', 'Estado')}</span><strong className="text-right text-[var(--color-ink)]">{ticketStatusLabel(pass, t)}</strong></div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('download')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-[var(--color-burgundy)] disabled:opacity-60">
+              <Download size={15} />{ticketAction === 'download' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.download', 'Descargar PDF')}
+            </button>
+            <button type="button" disabled={Boolean(ticketAction)} onClick={() => void runTicketAction('share')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-burgundy)] px-4 text-[12px] font-semibold text-white disabled:opacity-60">
+              <Share2 size={15} />{ticketAction === 'share' ? t('common.loading', 'Preparando...') : t('app.premium.ticket.share', 'Compartir')}
+            </button>
+          </div>
+          {ticketActionMessage ? <p className="mt-3 text-center text-[11px] font-semibold text-[var(--color-muted)]">{ticketActionMessage}</p> : null}
+        </section>
+      </div>
     </div>
   )
+
+  return typeof document === 'undefined' ? sheet : createPortal(sheet, document.body)
 }

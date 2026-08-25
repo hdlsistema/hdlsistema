@@ -61,6 +61,7 @@ import { AccountDeletionRequestsPage } from '../pages/control/AccountDeletionReq
 import { PrivacyAccountScreen } from '../pages/mobile/PrivacyAccountScreen'
 import { DeleteAccountScreen } from '../pages/mobile/DeleteAccountScreen'
 import { MobileLegalScreen } from '../pages/mobile/MobileLegalScreen'
+import { firstPermittedControlRoute } from './controlNavigation'
 
 function TrackedMobileShell() {
   return <><AppActivityTracker /><MobileShell /></>
@@ -81,25 +82,9 @@ function RedirectEventVenue() {
   return <Navigate to={`/app/nuestros-eventos/${venueId ?? ''}`} replace />
 }
 
-const CONTROL_ENTRY_ROUTES = [
-  { to: 'dashboard', permission: 'dashboard.view' },
-  { to: 'reservaciones', permission: 'reservations.view' },
-  { to: 'cotizaciones', permission: 'quotes.view' },
-  { to: 'ordenes', permission: 'orders.view' },
-  { to: 'disponibilidad', permission: 'availability.view' },
-  { to: 'inventario', permission: 'inventory.view' },
-  { to: 'logistica', permission: 'logistics.view' },
-  { to: 'entradas', permission: 'entries.view' },
-  { to: 'clientes', permission: 'customers.view' },
-  { to: 'pagos', permission: 'payments.view' },
-  { to: 'carritos', permission: 'carts.view' },
-  { to: 'vinos', permission: 'content.wines.manage' },
-  { to: 'usuarios-permisos', permission: 'users.manage' },
-]
-
 function ControlIndexRedirect() {
   const { hasPermission } = useAuth()
-  const target = CONTROL_ENTRY_ROUTES.find((route) => hasPermission(route.permission))?.to ?? 'dashboard'
+  const target = firstPermittedControlRoute(hasPermission)?.to ?? 'dashboard'
   return <Navigate to={target} replace />
 }
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CalendarDays, Check, ChevronDown, Clock3, Lightbulb, Minus, Plus, Users, X } from 'lucide-react'
-import { PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
+import { BackButton, PrimaryButton, SectionHeading } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { contentRouteId, formatCurrency, imageField, numberField, textField } from '../../utils/publicContent'
@@ -446,6 +446,8 @@ export function ReservationScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <section className="space-y-3">
         <SectionHeading eyebrow={t('app.premium.reservation.eyebrow')} title={t('app.premium.reservation.title')} />
         <p className="text-[13px] leading-5 text-[var(--color-muted)]">

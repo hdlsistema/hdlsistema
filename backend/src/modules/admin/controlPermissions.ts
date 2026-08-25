@@ -12,6 +12,14 @@ export type ControlPermission = {
   sortOrder: number
 }
 
+export type ControlScope = {
+  code: string
+  label: string
+  type: 'estate' | 'restaurant' | 'boutique' | 'lodging' | 'site'
+  description?: string | null
+  sortOrder: number
+}
+
 export const CONTROL_PERMISSION_CATALOG: ControlPermission[] = [
   { code: 'dashboard.view', module: 'Operación', page: 'Dashboard', action: 'Ver', label: 'Dashboard', financial: false, sortOrder: 10 },
   { code: 'reservations.view', module: 'Operación', page: 'Reservaciones', action: 'Ver', label: 'Reservaciones', financial: false, sortOrder: 20 },
@@ -55,8 +63,40 @@ export const CONTROL_PERMISSION_CATALOG: ControlPermission[] = [
   { code: 'users.manage', module: 'Administración', page: 'Usuarios y permisos', action: 'Gestionar', label: 'Usuarios y permisos', financial: false, sortOrder: 250 },
 ]
 
+export const CONTROL_SCOPE_CATALOG: ControlScope[] = [
+  {
+    code: 'all_sites',
+    label: 'Todas las sedes',
+    type: 'site',
+    description: 'Acceso operativo a Hacienda, restaurantes y puntos de servicio.',
+    sortOrder: 0,
+  },
+  {
+    code: 'hacienda_teodoro',
+    label: 'Hacienda en Teodoro',
+    type: 'estate',
+    description: 'Viñedo, bodega, boutique y operación general en Teodoro Olivares.',
+    sortOrder: 10,
+  },
+  {
+    code: 'restaurante_teodoro',
+    label: 'Restaurante Teodoro',
+    type: 'restaurant',
+    description: 'Restaurante dentro de Hacienda de Letras en Teodoro Olivares.',
+    sortOrder: 20,
+  },
+  {
+    code: 'restaurante_nieto',
+    label: 'Restaurante Nieto',
+    type: 'restaurant',
+    description: 'Restaurante Hacienda de Letras en Calle Nieto 106.',
+    sortOrder: 30,
+  },
+]
+
 const catalogCodes = new Set(CONTROL_PERMISSION_CATALOG.map((item) => item.code))
 const financialCodes = new Set(CONTROL_PERMISSION_CATALOG.filter((item) => item.financial).map((item) => item.code))
+const scopeCatalogCodes = new Set(CONTROL_SCOPE_CATALOG.map((item) => item.code))
 
 const ROLE_DEFAULTS: Record<string, string[]> = {
   super_admin: CONTROL_PERMISSION_CATALOG.map((item) => item.code),
@@ -114,6 +154,26 @@ export function normalizePermissionCodes(values: unknown, allowFinancial: boolea
     .filter((code) => allowFinancial || !financialCodes.has(code))
 }
 
+function uniqueScopeCodes(values: string[]) {
+  return [...new Set(values.filter((value) => scopeCatalogCodes.has(value)))]
+}
+
+export function normalizeScopeCodes(values: unknown) {
+  if (!Array.isArray(values)) return []
+  return uniqueScopeCodes(values.filter((value): value is string => typeof value === 'string'))
+}
+
+export function controlScopesForCodes(codes: string[]) {
+  const selected = new Set(codes)
+  return CONTROL_SCOPE_CATALOG
+    .filter((scope) => selected.has(scope.code))
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
+export function controlScopeCatalogForActor() {
+  return [...CONTROL_SCOPE_CATALOG].sort((a, b) => a.sortOrder - b.sortOrder)
+}
+
 export function rolesGrantFinancialAccess(roles: string[] | undefined) {
   return Boolean(roles?.some((role) => role === 'super_admin' || role === 'admin'))
 }
@@ -139,6 +199,15 @@ export async function explicitUserPermissions(userId: string) {
   return unique((result.data ?? []).map((row) => row.permission_code).filter(Boolean))
 }
 
+export async function explicitUserScopeCodes(userId: string) {
+  const result = await supabaseAdminClient
+    .from('user_control_scopes')
+    .select('scope_code')
+    .eq('user_id', userId)
+  if (result.error) return []
+  return uniqueScopeCodes((result.data ?? []).map((row) => row.scope_code).filter(Boolean))
+}
+
 async function usesExplicitPermissionMode(userId?: string) {
   if (!userId) return false
   const { data, error } = await supabaseAdminClient.auth.admin.getUserById(userId)
@@ -152,9 +221,10 @@ export async function resolveControlAccess(user: UserContext) {
   const explicitMode = rolesGrantFinancialAccess(roles) ? false : await usesExplicitPermissionMode(user.userId)
   const defaults = explicitMode ? [] : roles.flatMap((role) => ROLE_DEFAULTS[role] ?? [])
   const explicit = user.userId ? await explicitUserPermissions(user.userId) : []
+  const scopeCodes = user.userId ? await explicitUserScopeCodes(user.userId) : []
   const permissions = unique([...defaults, ...explicit])
     .filter((code) => financialAccess || !financialCodes.has(code))
-  return { permissions, financialAccess }
+  return { permissions, financialAccess, scopeCodes, scopes: controlScopesForCodes(scopeCodes) }
 }
 
 export function permissionCatalogForActor(financialAccess: boolean) {

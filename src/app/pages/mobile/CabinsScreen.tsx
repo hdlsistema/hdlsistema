@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Clock3, Coffee, Grape, Loader2, MapPin, Moon, Navigation, Users, Utensils } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
-import { EmptyState, ErrorState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { BackButton, EmptyState, ErrorState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServices'
@@ -192,6 +192,8 @@ export function CabinsScreen() {
 
   return (
     <div className="space-y-5 px-[var(--app-pad)] pb-8 pt-5">
+      <BackButton />
+
       <header>
         <p className="text-[10px] font-semibold uppercase text-[var(--color-gold)]">{isEnglish ? 'Lodging' : 'Hospedaje'}</p>
         <h1 className="mt-1 text-[clamp(26px,7vw,34px)] font-medium leading-none text-[var(--color-ink)]" style={{ fontFamily: 'var(--font-display)' }}>
@@ -221,7 +223,7 @@ export function CabinsScreen() {
       ) : error ? (
         <ErrorState message={error} retryLabel={isEnglish ? 'Try again' : 'Reintentar'} onRetry={retry} />
       ) : packages.length === 0 ? (
-        <EmptyState title={isEnglish ? 'No packages published' : 'Sin paquetes publicados'} description={isEnglish ? 'Hacienda de Letras will publish cabin packages once they are available.' : 'Hacienda de Letras publicará paquetes de cabaña desde el Centro de Control.'} />
+        <EmptyState title={isEnglish ? 'No packages published' : 'Sin paquetes publicados'} description={isEnglish ? 'New cabin packages will appear when they are available.' : 'Pronto estarán disponibles nuevos paquetes de cabaña.'} />
       ) : (
         <div className="space-y-3">
           {packages.map((item) => (

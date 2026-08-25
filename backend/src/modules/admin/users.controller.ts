@@ -1,6 +1,9 @@
 import type { Request, Response } from 'express'
 import { supabaseAdminClient } from '../../config/supabase'
 import {
+  controlScopeCatalogForActor,
+  controlScopesForCodes,
+  normalizeScopeCodes,
   permissionCatalogForActor,
   normalizePermissionCodes,
   resolveControlAccess,
@@ -164,6 +167,23 @@ async function getExplicitPermissionsMap(userIds: string[]): Promise<Map<string,
   return permissions
 }
 
+async function getUserScopesMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_control_scopes')
+    .select('user_id,scope_code')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const scopes = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const scopeCode = typeof row.scope_code === 'string' ? row.scope_code : ''
+    if (!userId || !scopeCode) continue
+    scopes.set(userId, [...(scopes.get(userId) ?? []), scopeCode])
+  }
+  return scopes
+}
+
 function sortRoles(roles: string[]) {
   return [...new Set(roles)].sort((a, b) => {
     const priorityA = ROLE_PRIORITY.indexOf(a)
@@ -273,9 +293,10 @@ async function findAuthUserByEmail(email: string) {
   return users.find((user) => cleanEmail(user.email) === email) ?? null
 }
 
-function directoryRecord(user: AuthDirectoryUser, roles: string[], financialAccess: boolean, isCustomer: boolean, profile?: DirectoryIdentity, customer?: DirectoryIdentity) {
+function directoryRecord(user: AuthDirectoryUser, roles: string[], financialAccess: boolean, isCustomer: boolean, scopeCodes: string[], profile?: DirectoryIdentity, customer?: DirectoryIdentity) {
   const accountType = classifyStaffAccount(roles, isCustomer)
   const identity = mergeIdentity(user, profile, customer)
+  const scopes = controlScopesForCodes(scopeCodes)
   return {
     id: user.id,
     email: user.email ?? null,
@@ -292,6 +313,8 @@ function directoryRecord(user: AuthDirectoryUser, roles: string[], financialAcce
     isStaff: true,
     accountType,
     accountLabel: accountLabel(accountType, roles),
+    scopeCodes,
+    scopes,
   }
 }
 
@@ -325,6 +348,50 @@ async function replaceUserPermissions(userId: string, permissionCodes: string[],
       granted_by: actorUserId ?? null,
     })),
   )
+}
+
+function scopeStorageMessage(error: unknown) {
+  const code = typeof error === 'object' && error ? (error as { code?: unknown }).code : null
+  const message = typeof error === 'object' && error ? (error as { message?: unknown }).message : null
+  const normalizedCode = typeof code === 'string' ? code : ''
+  const normalizedMessage = typeof message === 'string' ? message.toLowerCase() : ''
+  if (
+    normalizedCode === '42P01' ||
+    normalizedCode === 'PGRST205' ||
+    normalizedMessage.includes('control_scope_catalog') ||
+    normalizedMessage.includes('user_control_scopes')
+  ) {
+    return 'Falta ejecutar la migración 075 para guardar sedes por usuario.'
+  }
+  return 'No fue posible guardar sedes asignadas.'
+}
+
+async function ensureScopeStorageReady(scopeCodes: string[]) {
+  if (!scopeCodes.length) return null
+  const catalogCheck = await supabaseAdminClient
+    .from('control_scope_catalog')
+    .select('code')
+    .limit(1)
+  if (catalogCheck.error) return scopeStorageMessage(catalogCheck.error)
+  const assignmentCheck = await supabaseAdminClient
+    .from('user_control_scopes')
+    .select('user_id')
+    .limit(1)
+  return assignmentCheck.error ? scopeStorageMessage(assignmentCheck.error) : null
+}
+
+async function replaceUserScopes(userId: string, scopeCodes: string[], actorUserId?: string) {
+  const deleted = await supabaseAdminClient.from('user_control_scopes').delete().eq('user_id', userId)
+  if (deleted.error) return scopeStorageMessage(deleted.error)
+  if (!scopeCodes.length) return null
+  const inserted = await supabaseAdminClient.from('user_control_scopes').insert(
+    scopeCodes.map((scopeCode) => ({
+      user_id: userId,
+      scope_code: scopeCode,
+      assigned_by: actorUserId ?? null,
+    })),
+  )
+  return inserted.error ? scopeStorageMessage(inserted.error) : null
 }
 
 async function setFinancialGrant(userId: string, enabled: boolean, actorUserId?: string) {
@@ -371,9 +438,10 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
   }
 
   const userIds = authUsers.map((user) => user.id)
-  const [rolesMap, explicitPermissionsMap, customerUserIds, customerIdentityMap, profileIdentityMap, financialGrantUserIds] = await Promise.all([
+  const [rolesMap, explicitPermissionsMap, scopesMap, customerUserIds, customerIdentityMap, profileIdentityMap, financialGrantUserIds] = await Promise.all([
     getUserRolesMap(userIds),
     getExplicitPermissionsMap(userIds),
+    getUserScopesMap(userIds),
     getCustomerUserIds(userIds),
     getCustomerIdentityMap(userIds),
     getProfileIdentityMap(userIds),
@@ -393,6 +461,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
       roles,
       financialAccess,
       customerUserIds.has(user.id) || roles.includes('customer'),
+      scopesMap.get(user.id) ?? [],
       profileIdentity,
       customerIdentity,
     )]
@@ -406,6 +475,7 @@ export async function listUsers(req: Request, res: Response): Promise<void> {
       user.lastName,
       user.email,
       user.accountLabel,
+      ...(user.scopes ?? []).map((scope) => scope.label),
     ].filter(Boolean).some((value) => String(value).toLowerCase().includes(normalizedSearch)))
   }
 
@@ -451,6 +521,8 @@ export async function getUserById(req: Request, res: Response): Promise<void> {
       roles,
       permissions: access.permissions,
       financialAccess: access.financialAccess,
+      scopeCodes: access.scopeCodes,
+      scopes: access.scopes,
       managedPasswordLocked: Boolean(data.user.app_metadata?.managed_password_locked),
       isCustomer,
       isStaff,
@@ -479,6 +551,12 @@ export async function createUser(req: Request, res: Response): Promise<void> {
   const financialAccess = actorCanGrantFinancial && Boolean(req.body.financialAccess)
   const requestedPermissions = normalizePermissionCodes(req.body.permissions, actorCanGrantFinancial)
     .filter((code) => code !== 'users.manage')
+  const requestedScopeCodes = normalizeScopeCodes(req.body.scopeCodes)
+  const scopeStorageError = await ensureScopeStorageReady(requestedScopeCodes)
+  if (scopeStorageError) {
+    res.status(424).json({ ok: false, error: { code: 'SCOPE_STORAGE_PENDING', message: scopeStorageError } })
+    return
+  }
 
   const existingUser = await findAuthUserByEmail(email)
   const timestamp = new Date().toISOString()
@@ -535,12 +613,22 @@ export async function createUser(req: Request, res: Response): Promise<void> {
   const identity = mergeIdentity(targetUser, profileIdentityMap.get(targetUser.id), customerIdentityMap.get(targetUser.id))
   await replaceUserRoles(targetUser.id, nextRoles)
   await replaceUserPermissions(targetUser.id, requestedPermissions, req.authUser?.id)
+  if (requestedScopeCodes.length) {
+    const saveScopesError = await replaceUserScopes(targetUser.id, requestedScopeCodes, req.authUser?.id)
+    if (saveScopesError) {
+      res.status(424).json({ ok: false, error: { code: 'SCOPE_STORAGE_PENDING', message: saveScopesError } })
+      return
+    }
+  }
   if (financialAccess) await setFinancialGrant(targetUser.id, true, req.authUser?.id)
+  const assignedScopes = controlScopesForCodes(requestedScopeCodes)
 
   await audit(req.authUser?.id, existingUser ? 'admin_customer_promoted_to_staff' : 'admin_user_created', 'auth.users', targetUser.id, {
     roles: nextRoles,
     permissions: requestedPermissions,
     financialAccess,
+    scopeCodes: requestedScopeCodes,
+    scopes: assignedScopes,
     managedPasswordLocked: true,
     accountType: classifyStaffAccount(nextRoles, isCustomer),
   })
@@ -553,6 +641,8 @@ export async function createUser(req: Request, res: Response): Promise<void> {
     roles: nextRoles,
     permissions: requestedPermissions,
     financialAccess,
+    scopeCodes: requestedScopeCodes,
+    scopes: assignedScopes,
     isCustomer,
     isStaff: true,
     accountType: classifyStaffAccount(nextRoles, isCustomer),
@@ -649,17 +739,23 @@ export async function getCurrentControlAccess(req: Request, res: Response): Prom
 
 export async function getControlPermissionCatalog(req: Request, res: Response): Promise<void> {
   const financialAccess = await userHasFinancialAccess(userContext(req))
-  res.json({ ok: true, data: permissionCatalogForActor(financialAccess), financialAccess })
+  res.json({ ok: true, data: permissionCatalogForActor(financialAccess), scopes: controlScopeCatalogForActor(), financialAccess })
 }
 
 export async function getUserPermissions(req: Request, res: Response): Promise<void> {
   const roles = await getUserRoles(req.params.id)
   const access = await resolveControlAccess({ userId: req.params.id, roles })
-  res.json({ ok: true, data: { roles, permissions: access.permissions, financialAccess: access.financialAccess } })
+  res.json({ ok: true, data: { roles, permissions: access.permissions, financialAccess: access.financialAccess, scopeCodes: access.scopeCodes, scopes: access.scopes } })
 }
 
 export async function updateUserPermissions(req: Request, res: Response): Promise<void> {
   const actorCanGrantFinancial = await userHasFinancialAccess(userContext(req))
+  const requestedScopeCodes = 'scopeCodes' in req.body ? normalizeScopeCodes(req.body.scopeCodes) : null
+  const scopeStorageError = requestedScopeCodes ? await ensureScopeStorageReady(requestedScopeCodes) : null
+  if (scopeStorageError) {
+    res.status(424).json({ ok: false, error: { code: 'SCOPE_STORAGE_PENDING', message: scopeStorageError } })
+    return
+  }
   const existingRoles = await getUserRoles(req.params.id)
   const targetIsElevatedAdmin = rolesGrantFinancialAccess(existingRoles)
   const requestedRoles = Array.isArray(req.body.roles)
@@ -671,6 +767,13 @@ export async function updateUserPermissions(req: Request, res: Response): Promis
 
   if (!targetIsElevatedAdmin) await replaceUserRoles(req.params.id, roles)
   await replaceUserPermissions(req.params.id, permissions, req.authUser?.id)
+  if (requestedScopeCodes) {
+    const saveScopesError = await replaceUserScopes(req.params.id, requestedScopeCodes, req.authUser?.id)
+    if (saveScopesError) {
+      res.status(424).json({ ok: false, error: { code: 'SCOPE_STORAGE_PENDING', message: saveScopesError } })
+      return
+    }
+  }
   if ('financialAccess' in req.body && actorCanGrantFinancial) {
     await setFinancialGrant(req.params.id, Boolean(req.body.financialAccess), req.authUser?.id)
   }
@@ -680,8 +783,10 @@ export async function updateUserPermissions(req: Request, res: Response): Promis
     roles,
     permissions,
     financialAccess: access.financialAccess,
+    scopeCodes: access.scopeCodes,
+    scopes: access.scopes,
   })
-  res.json({ ok: true, data: { roles, permissions: access.permissions, financialAccess: access.financialAccess } })
+  res.json({ ok: true, data: { roles, permissions: access.permissions, financialAccess: access.financialAccess, scopeCodes: access.scopeCodes, scopes: access.scopes } })
 }
 
 export async function rotateUserPassword(req: Request, res: Response): Promise<void> {

@@ -1,7 +1,8 @@
 import type { PublicMapPoi } from '../../services/customer.service'
 
 export const HACIENDA_ADDRESS = 'Teodoro Olivares S/N, 20668 San Luis de Letras, Ags.'
-export const CENTRO_RESTAURANT_ADDRESS = 'Calle Nieto #106, Zona Centro, Aguascalientes, Ags.'
+export const NIETO_RESTAURANT_ADDRESS = 'Calle Nieto #106, Zona Centro, Aguascalientes, Ags.'
+export const CENTRO_RESTAURANT_ADDRESS = NIETO_RESTAURANT_ADDRESS
 
 export const OFFICIAL_HACIENDA_POI: PublicMapPoi = {
   id: 'official-hacienda-de-letras',
@@ -34,12 +35,12 @@ export const OFFICIAL_CABINS_POI: PublicMapPoi = {
 export const OFFICIAL_CENTRO_RESTAURANT_POI: PublicMapPoi = {
   id: 'official-restaurant-centro-aguascalientes',
   slug: 'restaurante-centro-aguascalientes',
-  name: 'Restaurante Hacienda de Letras Centro',
-  description: 'Restaurante de Hacienda de Letras en el Centro de Aguascalientes',
+  name: 'Restaurante Hacienda de Letras Nieto',
+  description: 'Restaurante de Hacienda de Letras en Calle Nieto 106',
   category: 'restaurant',
   coordinates: [-102.2965412, 21.8799798],
   address: CENTRO_RESTAURANT_ADDRESS,
-  searchKeywords: ['restaurante', 'centro', 'nieto', 'hacienda de letras', 'aguascalientes'],
+  searchKeywords: ['restaurante', 'nieto', 'calle nieto', 'zona centro', 'hacienda de letras', 'aguascalientes'],
   metadata: { official: true, placeType: 'restaurant' },
   sortOrder: 30,
   updatedAt: '2026-08-13T00:00:00.000Z',
@@ -117,6 +118,7 @@ export function officialRestaurantPoi(reference: RestaurantReference) {
   const text = normalizeLocationText(restaurantReferenceText(reference))
   if (
     text.includes('restaurante-centro') ||
+    text.includes('restaurante-nieto') ||
     text.includes('zona centro') ||
     text.includes('calle nieto') ||
     text.includes('nieto 106') ||

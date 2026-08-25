@@ -1,5 +1,6 @@
 import {
   AppSectionHeader,
+  BackButton,
   EditorialCard,
   EmptyState,
   ErrorState,
@@ -31,6 +32,8 @@ export function PromotionsScreen() {
 
   return (
     <div className="app-page space-y-6">
+      <BackButton />
+
       <HeroEditorial
         eyebrow={isEnglish ? 'Published benefits' : 'Beneficios vigentes'}
         title={isEnglish ? 'Promotions' : 'Promociones'}
@@ -44,7 +47,6 @@ export function PromotionsScreen() {
         <AppSectionHeader
           eyebrow={isEnglish ? 'Editorial catalog' : 'Catálogo editorial'}
           title={isEnglish ? 'Available promotions' : 'Promociones disponibles'}
-          subtitle={isEnglish ? 'Only active publications authorized from Control Center appear here.' : 'Sólo aparecen publicaciones activas desde Centro de Control.'}
           action={<StatusBadge>{promotions.length}</StatusBadge>}
         />
 

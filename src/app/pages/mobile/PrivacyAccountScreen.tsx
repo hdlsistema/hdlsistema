@@ -1,6 +1,6 @@
-import { ArrowLeft, ChevronRight, FileText, LockKeyhole, ShieldCheck, Trash2 } from 'lucide-react'
+import { ChevronRight, FileText, LockKeyhole, ShieldCheck, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { AppSectionHeader } from '../../components/mobile/PremiumMobileUi'
+import { AppSectionHeader, BackButton } from '../../components/mobile/PremiumMobileUi'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 
@@ -9,9 +9,7 @@ export function PrivacyAccountScreen() {
   const en = language === 'en'
   return (
     <div className="app-page space-y-6">
-      <Link to={appPath('/perfil')} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[rgba(104,13,36,0.18)] bg-white px-4 text-[12px] font-semibold text-[var(--color-burgundy)]">
-        <ArrowLeft size={15} /> {en ? 'Profile' : 'Perfil'}
-      </Link>
+      <BackButton to={appPath('/perfil')} label={en ? 'Profile' : 'Perfil'} />
 
       <section className="rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
         <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f8eee5] text-[var(--color-burgundy)]"><LockKeyhole size={21} /></span>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Check, ChevronDown, KeyRound, Loader2, Save, Search, ShieldCheck, UserPlus, X } from 'lucide-react'
+import { Building2, Check, ChevronDown, KeyRound, Loader2, MapPin, Save, Search, ShieldCheck, Store, UserPlus, X } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   adminUsersClient,
   type AdminUserRecord,
   type ControlPermission,
+  type ControlScope,
   type CreateStaffUserPayload,
 } from '../../../services/adminUsers.service'
 import { SectionTitle } from '../../components/shared/SectionTitle'
@@ -15,6 +16,7 @@ type Preset = {
   label: string
   role: string
   permissions: string[]
+  scopeCodes?: string[]
 }
 
 type Draft = {
@@ -25,6 +27,7 @@ type Draft = {
   role: string
   permissions: string[]
   financialAccess: boolean
+  scopeCodes: string[]
 }
 
 const ROLE_OPTIONS = [
@@ -54,6 +57,41 @@ const PRESETS: Preset[] = [
       'orders.manage',
       'logistics.view',
     ],
+    scopeCodes: ['hacienda_teodoro'],
+  },
+  {
+    id: 'restaurante_teodoro',
+    label: 'Rest. Teodoro',
+    role: 'operations',
+    permissions: [
+      'reservations.view',
+      'reservations.manage',
+      'orders.view',
+      'orders.manage',
+      'logistics.view',
+      'logistics.manage',
+      'entries.view',
+      'entries.scan',
+      'customers.view',
+    ],
+    scopeCodes: ['restaurante_teodoro'],
+  },
+  {
+    id: 'restaurante_nieto',
+    label: 'Rest. Nieto',
+    role: 'operations',
+    permissions: [
+      'reservations.view',
+      'reservations.manage',
+      'orders.view',
+      'orders.manage',
+      'logistics.view',
+      'logistics.manage',
+      'entries.view',
+      'entries.scan',
+      'customers.view',
+    ],
+    scopeCodes: ['restaurante_nieto'],
   },
   {
     id: 'puerta',
@@ -103,7 +141,39 @@ const emptyDraft: Draft = {
   role: 'operations',
   permissions: [],
   financialAccess: false,
+  scopeCodes: [],
 }
+
+const FALLBACK_SCOPE_CATALOG: ControlScope[] = [
+  {
+    code: 'all_sites',
+    label: 'Todas las sedes',
+    type: 'site',
+    description: 'Acceso operativo a Hacienda, restaurantes y puntos de servicio.',
+    sortOrder: 0,
+  },
+  {
+    code: 'hacienda_teodoro',
+    label: 'Hacienda en Teodoro',
+    type: 'estate',
+    description: 'Viñedo, bodega, boutique y operación general en Teodoro Olivares.',
+    sortOrder: 10,
+  },
+  {
+    code: 'restaurante_teodoro',
+    label: 'Restaurante Teodoro',
+    type: 'restaurant',
+    description: 'Restaurante dentro de Hacienda de Letras en Teodoro Olivares.',
+    sortOrder: 20,
+  },
+  {
+    code: 'restaurante_nieto',
+    label: 'Restaurante Nieto',
+    type: 'restaurant',
+    description: 'Restaurante Hacienda de Letras en Calle Nieto 106.',
+    sortOrder: 30,
+  },
+]
 
 function groupedPermissions(catalog: ControlPermission[]) {
   return catalog.reduce<Record<string, Record<string, ControlPermission[]>>>((groups, permission) => {
@@ -116,6 +186,12 @@ function groupedPermissions(catalog: ControlPermission[]) {
 
 function togglePermission(current: string[], code: string) {
   return current.includes(code) ? current.filter((item) => item !== code) : [...current, code]
+}
+
+function toggleScope(current: string[], code: string) {
+  if (code === 'all_sites') return current.includes(code) ? [] : ['all_sites']
+  const withoutAllSites = current.filter((item) => item !== 'all_sites')
+  return withoutAllSites.includes(code) ? withoutAllSites.filter((item) => item !== code) : [...withoutAllSites, code]
 }
 
 function generatedPassword() {
@@ -193,6 +269,15 @@ function userOptionLabel(user: AdminUserRecord) {
   return userFullName(user) || userEmail(user) || 'Cuenta sin correo'
 }
 
+function scopeSummary(catalog: ControlScope[], scopeCodes: string[]) {
+  if (!scopeCodes.length) return 'Sin sede'
+  if (scopeCodes.includes('all_sites')) return 'Todas las sedes'
+  const labels = scopeCodes
+    .map((code) => catalog.find((scope) => scope.code === code)?.label)
+    .filter(Boolean)
+  return labels.length ? labels.join(', ') : `${scopeCodes.length} sedes`
+}
+
 function matchesUserSearch(user: AdminUserRecord, search: string) {
   const normalizedSearch = normalizeIdentity(search.trim())
   if (!normalizedSearch) return true
@@ -200,6 +285,7 @@ function matchesUserSearch(user: AdminUserRecord, search: string) {
     userFullName(user),
     userEmail(user),
     userAccountLabel(user),
+    ...(user.scopes ?? []).map((scope) => scope.label),
   ].filter(Boolean).join(' ')).includes(normalizedSearch)
 }
 
@@ -211,10 +297,12 @@ export function UserPermissionsPage() {
   const { session, financialAccess } = useAuth()
   const token = session?.access_token
   const [catalog, setCatalog] = useState<ControlPermission[]>([])
+  const [scopeCatalog, setScopeCatalog] = useState<ControlScope[]>(FALLBACK_SCOPE_CATALOG)
   const [users, setUsers] = useState<AdminUserRecord[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedRoles, setSelectedRoles] = useState<string[]>(['operations'])
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
+  const [selectedScopeCodes, setSelectedScopeCodes] = useState<string[]>([])
   const [selectedFinancialAccess, setSelectedFinancialAccess] = useState(false)
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [passwordDraft, setPasswordDraft] = useState('')
@@ -246,6 +334,7 @@ export function UserPermissionsPage() {
         adminUsersClient.list(token, { perPage: 100 }),
       ])
       setCatalog(catalogResponse.data)
+      setScopeCatalog(catalogResponse.scopes?.length ? catalogResponse.scopes : FALLBACK_SCOPE_CATALOG)
       const orderedUsers = sortAdminUsers(usersResponse.users)
         .filter(isStaffDirectoryUser)
         .filter((user) => matchesUserSearch(user, search))
@@ -266,6 +355,7 @@ export function UserPermissionsPage() {
     if (!selected?.id) {
       setSelectedRoles(['operations'])
       setSelectedPermissions([])
+      setSelectedScopeCodes([])
       setSelectedFinancialAccess(false)
       return
     }
@@ -273,11 +363,13 @@ export function UserPermissionsPage() {
       .then((response) => {
         setSelectedRoles(response.data.roles.length ? response.data.roles : ['operations'])
         setSelectedPermissions(response.data.permissions)
+        setSelectedScopeCodes(response.data.scopeCodes ?? selected.scopeCodes ?? [])
         setSelectedFinancialAccess(response.data.financialAccess)
       })
       .catch(() => {
         setSelectedRoles(selected.roles?.length ? selected.roles : ['operations'])
         setSelectedPermissions([])
+        setSelectedScopeCodes(selected.scopeCodes ?? [])
         setSelectedFinancialAccess(Boolean(selected.financialAccess))
       })
   }, [selected, token])
@@ -288,12 +380,14 @@ export function UserPermissionsPage() {
       role: preset.role,
       permissions: preset.permissions.filter((code) => catalog.some((permission) => permission.code === code)),
       financialAccess: false,
+      scopeCodes: preset.scopeCodes ?? current.scopeCodes,
     }))
   }
 
   const applyPresetToSelected = (preset: Preset) => {
     setSelectedRoles([preset.role])
     setSelectedPermissions(preset.permissions.filter((code) => catalog.some((permission) => permission.code === code)))
+    if (preset.scopeCodes) setSelectedScopeCodes(preset.scopeCodes)
     setSelectedFinancialAccess(false)
   }
 
@@ -311,6 +405,7 @@ export function UserPermissionsPage() {
         roles: [draft.role],
         permissions: draft.permissions,
         financialAccess: financialAccess && draft.financialAccess,
+        scopeCodes: draft.scopeCodes,
       }
       const response = await adminUsersClient.create(token, payload)
       setDraft(emptyDraft)
@@ -333,9 +428,11 @@ export function UserPermissionsPage() {
         roles: selectedRoles,
         permissions: selectedPermissions,
         financialAccess: financialAccess ? selectedFinancialAccess : undefined,
+        scopeCodes: selectedScopeCodes,
       })
       setSelectedRoles(response.data.roles.length ? response.data.roles : selectedRoles)
       setSelectedPermissions(response.data.permissions)
+      setSelectedScopeCodes(response.data.scopeCodes ?? selectedScopeCodes)
       setSelectedFinancialAccess(response.data.financialAccess)
       setToast('Permisos guardados.')
       await load()
@@ -378,6 +475,7 @@ export function UserPermissionsPage() {
         <Metric label="Staff" value={String(users.length)} />
         <Metric label="Seleccionado" value={selected ? userDisplayName(selected) : 'Sin cuenta'} />
         <Metric label="Permisos activos" value={String(selectedPermissionSet.size)} />
+        <Metric label="Sedes" value={scopeSummary(scopeCatalog, selectedScopeCodes)} />
         <Metric label="Finanzas" value={selectedFinancialAccess ? 'Permitido' : 'Restringido'} />
       </section>
 
@@ -411,6 +509,14 @@ export function UserPermissionsPage() {
                 {ROLE_OPTIONS.map((role) => <option key={role.value} value={role.value}>{role.label}</option>)}
               </CrystalSelect>
             </label>
+
+            <ScopeSelector
+              label="Sedes asignadas"
+              scopes={scopeCatalog}
+              selected={draft.scopeCodes}
+              onToggle={(code) => setDraft((current) => ({ ...current, scopeCodes: toggleScope(current.scopeCodes, code) }))}
+              compact
+            />
 
             <div>
               <p className="control-users-label">Plantilla</p>
@@ -506,6 +612,13 @@ export function UserPermissionsPage() {
                   </div>
                 </div>
 
+                <ScopeSelector
+                  label="Sedes asignadas"
+                  scopes={scopeCatalog}
+                  selected={selectedScopeCodes}
+                  onToggle={(code) => setSelectedScopeCodes((current) => toggleScope(current, code))}
+                />
+
                 {financialAccess ? (
                   <label className="control-users-finance-toggle">
                     <span>
@@ -599,6 +712,55 @@ function PermissionSelector({ catalog, selected, onToggle, compact = false }: { 
         )
       })}
     </div>
+  )
+}
+
+function ScopeSelector({
+  label,
+  scopes,
+  selected,
+  onToggle,
+  compact = false,
+}: {
+  label: string
+  scopes: ControlScope[]
+  selected: string[]
+  onToggle: (code: string) => void
+  compact?: boolean
+}) {
+  const selectedSet = new Set(selected)
+
+  if (scopes.length === 0) return <State text="Catálogo de sedes pendiente de sincronizar." />
+
+  return (
+    <section className={`control-users-scope-panel ${compact ? 'is-compact' : ''}`} aria-label={label}>
+      <header className="control-users-scope-header">
+        <span>{label}</span>
+        <strong>{selected.includes('all_sites') ? 'Todas' : selected.length ? `${selected.length} activas` : 'Sin sede'}</strong>
+      </header>
+      <div className="control-users-scope-grid">
+        {scopes.map((scope) => {
+          const checked = selectedSet.has(scope.code)
+          const Icon = scope.type === 'restaurant' ? Store : scope.type === 'estate' ? Building2 : MapPin
+          return (
+            <button
+              key={scope.code}
+              type="button"
+              onClick={() => onToggle(scope.code)}
+              className={`control-users-scope-option ${checked ? 'is-selected' : ''}`}
+              aria-pressed={checked}
+            >
+              <Icon size={15} />
+              <span>
+                <strong>{scope.label}</strong>
+                {compact ? null : <small>{scope.description}</small>}
+              </span>
+              {checked ? <Check size={14} /> : null}
+            </button>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 

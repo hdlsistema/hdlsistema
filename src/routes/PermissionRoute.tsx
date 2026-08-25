@@ -1,6 +1,7 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import type { ReactNode } from 'react'
+import { firstPermittedControlRoute } from '../app/routes/controlNavigation'
 
 type PermissionRouteProps = {
   permission: string | string[]
@@ -24,6 +25,13 @@ export function PermissionRoute({ permission, children }: PermissionRouteProps) 
   }
 
   if (!hasPermission(permission)) {
+    if (location.pathname.startsWith('/control')) {
+      const fallback = firstPermittedControlRoute(hasPermission)
+      if (fallback && fallback.path !== location.pathname) {
+        return <Navigate to={fallback.path} replace />
+      }
+    }
+
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#fffaf3] px-6 text-center text-[#681126]">
         <div>
