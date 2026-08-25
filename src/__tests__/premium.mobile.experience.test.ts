@@ -123,7 +123,9 @@ describe('premium customer app experience', () => {
     expect(edgePanel).toContain('backdrop-blur-[28px]')
     expect(edgePanel).toContain('PanelRightOpen')
     expect(edgePanel).toContain('onClick={() => closePanel()}')
-    expect(edgePanel).toContain('onPointerMove={onPointerMove}')
+    expect(edgePanel.match(/onPointerMove=\{onPointerMove\}/g) ?? []).toHaveLength(1)
+    expect(edgePanel).toContain("appPath('/privacidad-cuenta')")
+    expect(edgePanel).toContain("appPath('/eliminar-cuenta')")
     expect(edgePanel).toContain('/hacienda de letras logo 2.png')
     expect(edgePanel).not.toContain("|| 'HL'")
     expect(edgePanel).not.toContain('Sparkles')
@@ -381,9 +383,10 @@ describe('premium customer app experience', () => {
   it('mantiene el boleto sobre la navegación, desplazable y con safe-area completa', () => {
     const ticketSheet = readFileSync(resolve(__dirname, '../app/components/mobile/AccessTicketSheet.tsx'), 'utf8')
 
-    expect(ticketSheet).toContain('z-[180]')
+    expect(ticketSheet).toContain('z-[1200]')
     expect(ticketSheet).toContain('overflow-y-auto')
-    expect(ticketSheet).toContain('env(safe-area-inset-bottom) + 104px')
+    expect(ticketSheet).toContain('pb-[calc(env(safe-area-inset-bottom)+112px)]')
+    expect(ticketSheet).toContain('fixed right-[calc(env(safe-area-inset-right)+14px)]')
     expect(ticketSheet).toContain("margin: 4")
     expect(ticketSheet).toContain('aria-modal="true"')
   })

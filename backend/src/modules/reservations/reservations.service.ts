@@ -17,6 +17,12 @@ import type {
 } from './reservations.schemas'
 import { createCustomerNotification } from '../notifications/notifications.service'
 import { ensureReservationAccessPasses, revokeReservationAccessPasses } from '../checkin/accessPassIssuer'
+import {
+  assertControlDataScopeRecord,
+  controlDataScopeReservationOrFilter,
+  noRowsId,
+  type ControlDataScopeRecord,
+} from '../admin/controlDataScope'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer']
 const writeRoles = ['super_admin', 'admin', 'operations']
@@ -33,6 +39,7 @@ type ReservationRow = {
   user_id?: string | null
   reservation_type: string
   experience_id?: string | null
+  event_id?: string | null
   experience_slot_id?: string | null
   cabin_package_id?: string | null
   restaurant_location_id?: string | null
@@ -81,10 +88,27 @@ type ReservationRow = {
     id: string
     title: string
     slug: string
+    location?: string | null
+    metadata?: Record<string, unknown> | null
   } | Array<{
     id: string
     title: string
     slug: string
+    location?: string | null
+    metadata?: Record<string, unknown> | null
+  }> | null
+  events?: {
+    id: string
+    title: string
+    slug?: string | null
+    venue?: string | null
+    metadata?: Record<string, unknown> | null
+  } | Array<{
+    id: string
+    title: string
+    slug?: string | null
+    venue?: string | null
+    metadata?: Record<string, unknown> | null
   }> | null
   experience_slots?: {
     id: string
@@ -114,10 +138,12 @@ type ReservationRow = {
     id: string
     name: string
     slug: string
+    metadata?: Record<string, unknown> | null
   } | Array<{
     id: string
     name: string
     slug: string
+    metadata?: Record<string, unknown> | null
   }> | null
 }
 
@@ -139,16 +165,17 @@ type ProfileRow = {
 }
 
 const reservationSelect = `
-  id,reservation_number,customer_id,user_id,reservation_type,experience_id,experience_slot_id,cabin_package_id,restaurant_location_id,
+  id,reservation_number,customer_id,user_id,reservation_type,experience_id,event_id,experience_slot_id,cabin_package_id,restaurant_location_id,
   people_count,subtotal,discount_total,tax_total,total,currency,status,payment_status,payment_expires_at,customer_notes,internal_notes,
   reservation_date,reservation_time,check_in,check_out,occasion,metadata,
   source,booking_channel,operational_status,confirmed_at,cancelled_at,cancellation_reason,
   rescheduled_at,created_at,updated_at,
   customers(id,first_name,last_name,email,phone,source),
-  experiences(id,title,slug),
+  experiences(id,title,slug,location,metadata),
+  events(id,title,slug,venue,metadata),
   experience_slots(id,start_at,end_at,capacity,reserved_count,confirmed_count),
   cabin_packages(id,name,slug),
-  restaurant_locations(id,name,slug)
+  restaurant_locations(id,name,slug,metadata)
 `
 
 function normalizeText(value: string) {
@@ -189,6 +216,7 @@ async function loadActorNames(rows: HistoryRow[]) {
 function mapReservation(row: ReservationRow) {
   const customer = firstRelation(row.customers)
   const experience = firstRelation(row.experiences)
+  const event = firstRelation(row.events)
   const slot = firstRelation(row.experience_slots)
   const cabin = firstRelation(row.cabin_packages)
   const restaurant = firstRelation(row.restaurant_locations)
@@ -199,7 +227,9 @@ function mapReservation(row: ReservationRow) {
     ? cabin?.name ?? 'Cabaña'
     : row.reservation_type === 'restaurant'
       ? restaurant?.name ?? 'Restaurante'
-      : experience?.title ?? 'Experiencia'
+      : row.reservation_type === 'event'
+        ? event?.title ?? 'Evento'
+        : experience?.title ?? 'Experiencia'
   return {
     id: row.id,
     reservationNumber: row.reservation_number,
@@ -210,6 +240,7 @@ function mapReservation(row: ReservationRow) {
     phone: customer?.phone ?? null,
     reservationType: row.reservation_type,
     experienceId: row.experience_id ?? null,
+    eventId: row.event_id ?? null,
     experienceTitle,
     experienceSlotId: row.experience_slot_id ?? null,
     startAt: slot?.start_at ?? null,
@@ -221,6 +252,7 @@ function mapReservation(row: ReservationRow) {
     occasion: row.occasion ?? null,
     cabinPackage: cabin ? { id: cabin.id, name: cabin.name, slug: cabin.slug } : null,
     restaurantLocation: restaurant ? { id: restaurant.id, name: restaurant.name, slug: restaurant.slug } : null,
+    event: event ? { id: event.id, title: event.title, slug: event.slug ?? null, venue: event.venue ?? null } : null,
     peopleCount: row.people_count,
     subtotal: row.subtotal,
     total: row.total,
@@ -242,6 +274,26 @@ function mapReservation(row: ReservationRow) {
     rescheduledAt: row.rescheduled_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+function reservationScopeRecord(row: ReservationRow): ControlDataScopeRecord {
+  const experience = firstRelation(row.experiences)
+  const event = firstRelation(row.events)
+  const restaurant = firstRelation(row.restaurant_locations)
+  return {
+    metadata: row.metadata,
+    restaurantSlug: restaurant?.slug ?? null,
+    restaurantName: restaurant?.name ?? null,
+    restaurantMetadata: restaurant?.metadata ?? null,
+    eventSlug: event?.slug ?? null,
+    eventTitle: event?.title ?? null,
+    eventVenue: event?.venue ?? null,
+    eventMetadata: event?.metadata ?? null,
+    experienceSlug: experience?.slug ?? null,
+    experienceTitle: experience?.title ?? null,
+    experienceLocation: experience?.location ?? null,
+    experienceMetadata: experience?.metadata ?? null,
   }
 }
 
@@ -321,13 +373,17 @@ export async function listReservations(query: ReservationListQuery, user: UserCo
   requireOperationRole(user, readRoles)
   const from = (query.page - 1) * query.perPage
   const to = from + query.perPage - 1
-  const request = applyFilters(
+  let request = applyFilters(
     supabaseAdminClient
       .from('reservations')
       .select(reservationSelect, { count: 'exact' })
       .order(query.orderBy, { ascending: query.orderDirection === 'asc' }),
     query,
-  ).range(from, to)
+  )
+  const scopeFilter = await controlDataScopeReservationOrFilter(user)
+  if (scopeFilter === false) request = request.eq('id', noRowsId())
+  if (typeof scopeFilter === 'string') request = request.or(scopeFilter)
+  request = request.range(from, to)
 
   const result = await request
   const rows = (assertNoError<ReservationRow[]>(result).data ?? []).filter((row) => matchesSearch(row, query.search))
@@ -347,6 +403,7 @@ export async function getReservation(id: string, user: UserContext) {
 
   const row = assertNoError<ReservationRow | null>(result).data
   if (!row) throw httpError(404, 'Reservación no encontrada')
+  await assertControlDataScopeRecord(user, reservationScopeRecord(row), 'Reservación no disponible para esta sede')
   return { data: mapReservation(row) }
 }
 
@@ -374,6 +431,7 @@ export async function createReservation(payload: CreateReservationPayload, user:
 
 export async function updateReservation(id: string, payload: PatchReservationPayload, user: UserContext) {
   requireOperationRole(user, writeRoles)
+  await getReservation(id, user)
   const patch: Record<string, unknown> = {
     updated_by_admin: user.userId,
     updated_at: new Date().toISOString(),
@@ -393,7 +451,9 @@ export async function updateReservation(id: string, payload: PatchReservationPay
     .select(reservationSelect)
     .single()
 
-  return { data: mapReservation(assertNoError<ReservationRow>(result).data) }
+  const row = assertNoError<ReservationRow>(result).data
+  await assertControlDataScopeRecord(user, reservationScopeRecord(row), 'Reservación no disponible para esta sede')
+  return { data: mapReservation(row) }
 }
 
 async function runReservationRpc(name: string, args: Record<string, unknown>, id: string, user: UserContext) {
@@ -466,6 +526,7 @@ export async function addReservationNote(id: string, note: string, user: UserCon
 
 export async function listReservationHistory(id: string, user: UserContext) {
   requireOperationRole(user, readRoles)
+  await getReservation(id, user)
   const result = await supabaseAdminClient
     .from('reservation_status_history')
     .select('id,reservation_id,previous_status,new_status,changed_by,notes,created_at')

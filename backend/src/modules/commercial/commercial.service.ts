@@ -9,6 +9,14 @@ import {
   requireOperationRole,
   type UserContext,
 } from '../operations/operationErrors'
+import {
+  assertControlDataScopeRecord,
+  controlDataScopeAllowsRecord,
+  filterRowsByControlDataScope,
+  isRestaurantOnlyDataScope,
+  resolveControlDataScope,
+  type ControlDataScopeRecord,
+} from '../admin/controlDataScope'
 import type {
   CreateCabinReservationPayload,
   CreateAdminQuoteRequestPayload,
@@ -76,6 +84,14 @@ type ServiceContentRow = {
   created_at?: string
   updated_at?: string
 }
+type RestaurantScopeRow = {
+  id: string
+  slug?: string | null
+  name?: string | null
+  alias?: string | null
+  full_address?: string | null
+  metadata?: Record<string, unknown> | null
+}
 type ReservationRow = {
   id: string
   reservation_number: string
@@ -97,7 +113,7 @@ type ReservationRow = {
   created_at: string
   updated_at: string
   cabin_packages?: Relation<{ id: string; name: string; slug: string; price: number | string }>
-  restaurant_locations?: Relation<{ id: string; name: string; slug: string }>
+  restaurant_locations?: Relation<{ id: string; name: string; slug: string; metadata?: Record<string, unknown> | null }>
 }
 type QuoteRequestRow = {
   id: string
@@ -241,6 +257,59 @@ function mapReservation(row: ReservationRow) {
     metadata: row.metadata ?? {},
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+function serviceContentScopeRecord(row: {
+  slug?: string | null
+  name?: string | null
+  title?: string | null
+  alias?: string | null
+  full_address?: string | null
+  fullAddress?: string | null
+  location?: string | null
+  metadata?: Record<string, unknown> | null
+}): ControlDataScopeRecord {
+  return {
+    slug: row.slug ?? null,
+    name: row.name ?? row.title ?? null,
+    alias: row.alias ?? null,
+    address: row.full_address ?? row.fullAddress ?? row.location ?? null,
+    restaurantSlug: row.slug ?? null,
+    restaurantName: row.name ?? row.title ?? null,
+    restaurantMetadata: row.metadata ?? null,
+    metadata: row.metadata ?? null,
+  }
+}
+
+async function assertCommercialCatalogAccess(
+  entity: CommercialCatalogEntity,
+  id: string | null,
+  payload: CabinCatalogPayload | RestaurantCatalogPayload | VenueCatalogPayload,
+  user: UserContext,
+) {
+  const access = await resolveControlDataScope(user)
+  if (access.unrestricted) return
+
+  if (isRestaurantOnlyDataScope(access) && entity !== 'restaurants') {
+    throw httpError(403, 'Este usuario sólo puede operar restaurantes asignados')
+  }
+
+  if (entity !== 'restaurants') return
+
+  if (id) {
+    const currentResult = await supabaseAdminClient
+      .from('restaurant_locations')
+      .select('id,slug,name,alias,full_address,metadata')
+      .eq('id', id)
+      .maybeSingle()
+    const current = assertNoError<RestaurantScopeRow | null>(currentResult).data
+    if (!current) throw httpError(404, 'Restaurante no encontrado')
+    await assertControlDataScopeRecord(user, serviceContentScopeRecord(current), 'Restaurante no disponible para esta sede')
+  }
+
+  if (!controlDataScopeAllowsRecord(access, serviceContentScopeRecord(payload as RestaurantCatalogPayload))) {
+    throw httpError(403, 'Restaurante no disponible para esta sede')
   }
 }
 
@@ -437,16 +506,25 @@ export async function listPublicCommercialServices(locale = 'es-MX') {
 
 export async function listAdminCommercialCatalog(user: UserContext) {
   requireOperationRole(user, quoteReadRoles)
+  const scopeAccess = await resolveControlDataScope(user)
   const [cabinsResult, restaurantsResult, spacesResult] = await Promise.all([
     supabaseAdminClient.from('cabin_packages').select('id,slug,name,subtitle,description,price,currency,price_unit,min_guests,max_guests,nights,inclusions,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
     supabaseAdminClient.from('restaurant_locations').select('id,slug,name,alias,description,full_address,city,state,phone,hours,reservation_enabled,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
     supabaseAdminClient.from('venue_spaces').select('id,slug,name,capacity,dimensions,description,cover_image_url,status,visible_in_app,verification_status,sort_order,metadata,created_at,updated_at').is('deleted_at', null).order('sort_order'),
   ])
+  const cabinRows = assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []
+  const restaurantRows = await filterRowsByControlDataScope(
+    user,
+    assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? [],
+    serviceContentScopeRecord,
+  )
+  const spaceRows = assertNoError<ServiceContentRow[]>(spacesResult).data ?? []
+  const restaurantOnly = isRestaurantOnlyDataScope(scopeAccess)
   return {
     data: {
-      cabins: (assertNoError<ServiceContentRow[]>(cabinsResult).data ?? []).map((row) => publicContent(row)),
-      restaurants: (assertNoError<ServiceContentRow[]>(restaurantsResult).data ?? []).map((row) => publicContent(row)),
-      venueSpaces: (assertNoError<ServiceContentRow[]>(spacesResult).data ?? []).map((row) => publicContent(row)),
+      cabins: (restaurantOnly ? [] : cabinRows).map((row) => publicContent(row)),
+      restaurants: restaurantRows.map((row) => publicContent(row)),
+      venueSpaces: (restaurantOnly ? [] : spaceRows).map((row) => publicContent(row)),
     },
   }
 }
@@ -467,6 +545,7 @@ function catalogCommonPayload(payload: CabinCatalogPayload | RestaurantCatalogPa
 
 export async function saveCommercialCatalogItem(entity: CommercialCatalogEntity, id: string | null, payload: CabinCatalogPayload | RestaurantCatalogPayload | VenueCatalogPayload, user: UserContext) {
   requireOperationRole(user, quoteWriteRoles)
+  await assertCommercialCatalogAccess(entity, id, payload, user)
   let result: unknown
   if (entity === 'cabins') {
     const value = payload as CabinCatalogPayload

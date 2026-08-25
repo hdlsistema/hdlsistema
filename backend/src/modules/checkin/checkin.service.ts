@@ -18,6 +18,13 @@ import type {
   RegisterCheckinPayload,
 } from './checkin.schemas'
 import { ACCESS_QR_EXPIRY_HOURS, publicAccessUrl } from './accessPassIssuer'
+import {
+  assertControlDataScopeRecord,
+  controlDataScopeAccessPassIds,
+  controlDataScopeAccessPassOrFilter,
+  noRowsId,
+  type ControlDataScopeRecord,
+} from '../admin/controlDataScope'
 
 const readRoles = ['super_admin', 'admin', 'operations', 'finance', 'viewer']
 const checkinRoles = ['super_admin', 'admin', 'operations']
@@ -34,20 +41,33 @@ type CustomerRelation = {
 
 type ExperienceRelation = {
   id?: string | null
+  slug?: string | null
   title?: string | null
+  location?: string | null
   cover_image_url?: string | null
   capacity?: number | string | null
+  metadata?: Record<string, unknown> | null
 }
 
 type EventRelation = {
   id?: string | null
+  slug?: string | null
   title?: string | null
+  venue?: string | null
   start_at?: string | null
   end_at?: string | null
   capacity?: number | string | null
   sold_count?: number | string | null
   reserved_count?: number | string | null
   cover_image_url?: string | null
+  metadata?: Record<string, unknown> | null
+}
+
+type RestaurantRelation = {
+  id?: string | null
+  name?: string | null
+  slug?: string | null
+  metadata?: Record<string, unknown> | null
 }
 
 type SlotRelation = {
@@ -79,6 +99,9 @@ type ReservationRelation = {
   id?: string | null
   reservation_number: string
   reservation_type?: string | null
+  experience_id?: string | null
+  event_id?: string | null
+  restaurant_location_id?: string | null
   people_count: number
   status?: string | null
   source?: string | null
@@ -88,6 +111,7 @@ type ReservationRelation = {
   experience_slots?: Relation<SlotRelation>
   experiences?: Relation<ExperienceRelation>
   events?: Relation<EventRelation>
+  restaurant_locations?: Relation<RestaurantRelation>
 }
 
 type PassRow = {
@@ -153,24 +177,28 @@ const passSelect = `
   id,reservation_id,order_id,event_ticket_type_id,pass_number,status,valid_from,valid_until,used_at,
   issued_at,revoked_at,revocation_reason,created_at,metadata,
   reservations(id,reservation_number,reservation_type,people_count,status,source,total,created_at,
+    experience_id,event_id,restaurant_location_id,
     customers(display_name,first_name,last_name,email),
     experience_slots(start_at,end_at,capacity,reserved_count),
-    experiences(id,title,cover_image_url,capacity),
-    events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)),
+    experiences(id,slug,title,location,cover_image_url,capacity,metadata),
+    events(id,slug,title,venue,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url,metadata),
+    restaurant_locations(id,name,slug,metadata)),
   orders(order_number,status,source,total,created_at,customers(display_name,first_name,last_name,email)),
-  event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url))
+  event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,slug,title,venue,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url,metadata))
 `
 
 const checkinSelect = `
   id,access_pass_id,checked_in_at,notes,reversed_at,reversal_reason,created_at,
   access_passes(id,pass_number,status,valid_until,issued_at,metadata,
     reservations(id,reservation_number,reservation_type,people_count,status,source,total,created_at,
+      experience_id,event_id,restaurant_location_id,
       customers(display_name,first_name,last_name,email),
       experience_slots(start_at,end_at,capacity,reserved_count),
-      experiences(id,title,cover_image_url,capacity),
-      events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)),
+      experiences(id,slug,title,location,cover_image_url,capacity,metadata),
+      events(id,slug,title,venue,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url,metadata),
+      restaurant_locations(id,name,slug,metadata)),
     orders(order_number,status,source,total,created_at,customers(display_name,first_name,last_name,email)),
-    event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)))
+    event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,slug,title,venue,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url,metadata)))
 `
 
 function rpcClient(user: UserContext) {
@@ -245,6 +273,50 @@ function passEventContext(input: {
     eventEndsAt: ticketEvent?.end_at ?? reservationEvent?.end_at ?? slot?.end_at ?? null,
     ticketCapacity: positiveNumberOrNull(ticketType?.capacity),
   }
+}
+
+function passScopeRecord(input: {
+  reservation?: ReservationRelation | null
+  ticketType?: TicketTypeRelation | null
+  metadata?: Record<string, unknown> | null
+}): ControlDataScopeRecord {
+  const reservation = input.reservation ?? null
+  const ticketType = input.ticketType ?? null
+  const restaurant = firstRelation(reservation?.restaurant_locations)
+  const experience = firstRelation(reservation?.experiences)
+  const reservationEvent = firstRelation(reservation?.events)
+  const ticketEvent = firstRelation(ticketType?.events)
+  return {
+    metadata: input.metadata,
+    restaurantSlug: restaurant?.slug ?? null,
+    restaurantName: restaurant?.name ?? null,
+    restaurantMetadata: restaurant?.metadata ?? null,
+    eventSlug: ticketEvent?.slug ?? reservationEvent?.slug ?? null,
+    eventTitle: ticketEvent?.title ?? reservationEvent?.title ?? null,
+    eventVenue: ticketEvent?.venue ?? reservationEvent?.venue ?? null,
+    eventMetadata: ticketEvent?.metadata ?? reservationEvent?.metadata ?? null,
+    experienceSlug: experience?.slug ?? null,
+    experienceTitle: experience?.title ?? null,
+    experienceLocation: experience?.location ?? null,
+    experienceMetadata: experience?.metadata ?? null,
+  }
+}
+
+function passRowScopeRecord(row: PassRow): ControlDataScopeRecord {
+  return passScopeRecord({
+    reservation: firstRelation(row.reservations),
+    ticketType: firstRelation(row.event_ticket_types),
+    metadata: row.metadata,
+  })
+}
+
+function checkinRowScopeRecord(row: CheckinRow): ControlDataScopeRecord {
+  const pass = firstRelation(row.access_passes)
+  return passScopeRecord({
+    reservation: firstRelation(pass?.reservations),
+    ticketType: firstRelation(pass?.event_ticket_types),
+    metadata: pass?.metadata ?? null,
+  })
 }
 
 function hashCode(code: string) {
@@ -375,14 +447,18 @@ export async function listAccessPasses(query: AccessPassListQuery, user: UserCon
   requireOperationRole(user, readRoles)
   const from = (query.page - 1) * query.perPage
   const to = from + query.perPage - 1
-  const result = await applyPassFilters(
+  let request = applyPassFilters(
     supabaseAdminClient
       .from('access_passes')
       .select(passSelect, { count: 'exact' })
       .or('reservation_id.not.is.null,event_ticket_type_id.not.is.null')
       .order(query.orderBy, { ascending: query.orderDirection === 'asc' }),
     query,
-  ).range(from, to)
+  )
+  const scopeFilter = await controlDataScopeAccessPassOrFilter(user)
+  if (scopeFilter === false) request = request.eq('id', noRowsId())
+  if (typeof scopeFilter === 'string') request = request.or(scopeFilter)
+  const result = await request.range(from, to)
   const rows = (assertNoError<PassRow[]>(result).data ?? []).filter(isEntryPassRow)
   return { data: rows.map(mapPass), count: result.count ?? rows.length }
 }
@@ -397,6 +473,7 @@ export async function getAccessPass(id: string, user: UserContext) {
   const row = assertNoError<PassRow | null>(result).data
   if (!row) throw httpError(404, 'Pase no encontrado')
   if (!isEntryPassRow(row)) throw httpError(404, 'Pase no encontrado')
+  await assertControlDataScopeRecord(user, passRowScopeRecord(row), 'Pase no disponible para esta sede')
   return { data: mapPass(row) }
 }
 
@@ -441,6 +518,7 @@ export async function validateAccessPass(code: string, user: UserContext) {
   if (isForbiddenCredentialType(validation.accessType)) {
     throw httpError(422, 'Este QR no corresponde a una entrada o reservación.')
   }
+  await getAccessPass(validation.accessPassId, user)
   return { data: validation }
 }
 
@@ -448,13 +526,17 @@ export async function listCheckins(query: CheckinListQuery, user: UserContext) {
   requireOperationRole(user, readRoles)
   const from = (query.page - 1) * query.perPage
   const to = from + query.perPage - 1
-  const result = await applyCheckinFilters(
+  let request = applyCheckinFilters(
     supabaseAdminClient
       .from('checkins')
       .select(checkinSelect, { count: 'exact' })
       .order(query.orderBy, { ascending: query.orderDirection === 'asc' }),
     query,
-  ).range(from, to)
+  )
+  const accessPassIds = await controlDataScopeAccessPassIds(user)
+  if (Array.isArray(accessPassIds) && accessPassIds.length === 0) request = request.eq('access_pass_id', noRowsId())
+  if (Array.isArray(accessPassIds) && accessPassIds.length > 0) request = request.in('access_pass_id', accessPassIds)
+  const result = await request.range(from, to)
   const rows = assertNoError<CheckinRow[]>(result).data ?? []
   return { data: rows.map(mapCheckin), count: result.count ?? rows.length }
 }
@@ -468,11 +550,13 @@ export async function getCheckin(id: string, user: UserContext) {
     .maybeSingle()
   const row = assertNoError<CheckinRow | null>(result).data
   if (!row) throw httpError(404, 'Check-in no encontrado')
+  await assertControlDataScopeRecord(user, checkinRowScopeRecord(row), 'Check-in no disponible para esta sede')
   return { data: mapCheckin(row) }
 }
 
 export async function registerCheckin(payload: RegisterCheckinPayload, user: UserContext) {
   requireOperationRole(user, checkinRoles)
+  await getAccessPass(payload.accessPassId, user)
   const result = await rpcClient(user).rpc('register_checkin', {
     p_access_pass_id: payload.accessPassId,
     p_request_id: payload.requestId ?? randomUUID(),

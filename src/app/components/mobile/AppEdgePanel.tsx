@@ -14,8 +14,10 @@ import {
   PanelRightOpen,
   PartyPopper,
   Settings2,
+  ShieldCheck,
   ShoppingBasket,
   Ticket,
+  Trash2,
   UserRound,
   UtensilsCrossed,
   Wine,
@@ -76,6 +78,8 @@ export function AppEdgePanel() {
         { to: appPath('/perfil#orders'), label: t('app.premium.profile.orders', 'Mis pedidos'), icon: PackageCheck },
         { to: appPath('/reservacion'), label: t('app.nav.reservations'), icon: CalendarDays },
         { to: appPath('/perfil'), label: t('app.nav.profile'), icon: UserRound },
+        { to: appPath('/privacidad-cuenta'), label: t('app.premium.profile.privacyAndAccount', 'Privacidad y cuenta'), icon: ShieldCheck },
+        { to: appPath('/eliminar-cuenta'), label: isEnglish ? 'Delete account' : 'Eliminar cuenta', icon: Trash2 },
         { to: appPath('/perfil'), label: t('app.premium.profile.settings', 'Configuración'), icon: Settings2 },
       ],
     },
@@ -151,6 +155,7 @@ export function AppEdgePanel() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         className={`app-edge-panel-handle ${layerPosition} top-[40%] z-[100] flex h-[110px] w-[42px] -translate-y-1/2 flex-col items-center justify-center gap-2 rounded-l-[20px] border-y border-l border-[#d9bd8a]/46 bg-[linear-gradient(155deg,rgba(37,47,55,.98),rgba(37,47,55,.88))] text-[#fff5e7] shadow-[-14px_10px_34px_rgba(37,47,55,.26),inset_0_1px_0_rgba(255,255,255,.14)] backdrop-blur-2xl touch-none`}
         style={{ right: handleRight, transition: dragOffset === null ? 'right 260ms cubic-bezier(.2,.8,.2,1)' : 'none' }}
       >
@@ -173,9 +178,6 @@ export function AppEdgePanel() {
         aria-modal={open}
         aria-label="Menú de Hacienda de Letras"
         tabIndex={-1}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
         className={`${layerPosition} bottom-0 right-0 top-0 z-[90] min-h-0 overflow-y-auto border-l border-white/68 bg-[linear-gradient(155deg,rgba(255,253,249,.92),rgba(246,232,219,.84))] shadow-[-28px_0_70px_rgba(48,18,25,.22),inset_1px_0_0_rgba(255,255,255,.82)] outline-none backdrop-blur-[28px]`}
         style={{
           width: PANEL_WIDTH,
