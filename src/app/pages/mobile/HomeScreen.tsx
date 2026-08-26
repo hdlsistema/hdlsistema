@@ -4,7 +4,6 @@ import {
   EditorialCard,
   EmptyState,
   ErrorState,
-  PrimaryButton,
   Skeleton,
   StatusBadge,
 } from '../../components/mobile/PremiumMobileUi'
@@ -135,16 +134,34 @@ export function HomeScreen() {
           <p className="mt-3 max-w-[18rem] text-[12px] leading-5 text-white/86">
             {t('app.premium.home.subtitle')}
           </p>
-          <PrimaryButton to={appPath('/reservacion')} className="mt-5 rounded-[12px]">
-            {t('app.premium.experiences.reserve')}
-          </PrimaryButton>
         </div>
       </section>
 
       <div className="ipad-home-content space-y-7 px-[var(--app-pad)]">
         <Link
+          to={appPath('/promociones')}
+          className="relative z-10 -mt-6 grid min-h-[94px] grid-cols-[72px_1fr_auto] items-center gap-3 rounded-[18px] border border-[rgba(180,138,85,0.64)] bg-[var(--color-burgundy)] p-4 text-[#F7F2EA] shadow-[0_18px_38px_rgba(91,11,31,0.2),inset_0_1px_0_rgba(247,223,174,0.2)]"
+        >
+          <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(247,223,174,0.62)] text-[#D8B36A]">
+            <BadgePercent size={30} strokeWidth={1.35} />
+          </span>
+          <span className="min-w-0 border-l border-[rgba(247,223,174,0.34)] pl-4">
+            <span
+              className="block text-[clamp(22px,5.6vw,28px)] font-medium leading-[1.02] text-[#F7F2EA]"
+              style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
+            >
+              {t('app.premium.home.weekPromotions')}
+            </span>
+            <span className="mt-2 block text-[12px] leading-4 text-[#F7F2EA]/82">
+              {t('app.premium.home.weekPromotionsCopy')}
+            </span>
+          </span>
+          <ChevronRight size={22} className="shrink-0 text-[#D8B36A]" />
+        </Link>
+
+        <Link
           to={appPath('/vinos')}
-          className="relative z-10 -mt-7 flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-[rgba(180,138,85,0.34)] bg-[linear-gradient(135deg,rgba(247,242,234,0.92),rgba(232,216,200,0.76))] p-4 shadow-[0_18px_42px_rgba(37,47,55,0.11),inset_0_1px_0_rgba(255,255,255,.72)] backdrop-blur-xl"
+          className="flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-[rgba(180,138,85,0.34)] bg-[linear-gradient(135deg,rgba(247,242,234,0.92),rgba(232,216,200,0.76))] p-4 shadow-[0_18px_42px_rgba(37,47,55,0.11),inset_0_1px_0_rgba(255,255,255,.72)] backdrop-blur-xl"
         >
           <span className="min-w-0">
             <span
