@@ -292,6 +292,20 @@ describe('premium customer app experience', () => {
     expect(avatarHook).toContain(".from('avatars')")
   })
 
+  it('mantiene Perfil traducido desde el idioma activo de la app', () => {
+    const profile = readFileSync(resolve(__dirname, '../app/pages/mobile/ProfileScreen.tsx'), 'utf8')
+    const i18n = readFileSync(resolve(__dirname, '../app/i18n/index.ts'), 'utf8')
+
+    expect(profile).toContain('profileLanguage')
+    expect(profile).not.toContain("language === 'en'")
+    expect(profile).toContain("t('app.premium.profile.paymentMethods')")
+    expect(profile).toContain("t('app.premium.profile.shippingAddresses')")
+    expect(profile).toContain("t('app.premium.profile.newShippingAddress')")
+    expect(i18n).toContain("paymentMethods: 'Métodos de pago guardados'")
+    expect(i18n).toContain("shippingAddresses: 'Domicilios de envío'")
+    expect(i18n).toContain("newShippingAddress: 'Nuevo domicilio de envío'")
+  })
+
   it('permite al Sommelier respetar una solicitud explicita de idioma', () => {
     const service = readFileSync(resolve(__dirname, '../../backend/src/modules/sommelier/sommelier.service.ts'), 'utf8')
 

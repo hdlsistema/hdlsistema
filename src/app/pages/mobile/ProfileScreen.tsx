@@ -171,7 +171,7 @@ export function ProfileScreen() {
   const [message, setMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [loadingCustomer, setLoadingCustomer] = useState(true)
-  const [language, setLanguage] = useState<'es' | 'en'>(appLanguage)
+  const [profileLanguage, setProfileLanguage] = useState<'es' | 'en'>(appLanguage)
   const [selectedTicket, setSelectedTicket] = useState<CustomerAccessPass | null>(null)
   const [reservationBusyId, setReservationBusyId] = useState<string | null>(null)
   const pendingOrdersCount = orders.filter(isPendingPaymentOrder).length
@@ -276,7 +276,7 @@ export function ProfileScreen() {
 
   useEffect(() => {
     const nextLanguage = preferences?.language ?? profile?.preferred_language ?? 'es'
-    setLanguage(nextLanguage === 'en' ? 'en' : 'es')
+    setProfileLanguage(nextLanguage === 'en' ? 'en' : 'es')
   }, [preferences?.language, profile?.preferred_language])
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
@@ -291,13 +291,13 @@ export function ProfileScreen() {
         lastName: String(form.get('lastName') ?? ''),
         displayName: String(form.get('displayName') ?? ''),
         phone: String(form.get('phone') ?? ''),
-        preferredLanguage: language,
+        preferredLanguage: profileLanguage,
         marketingEmail: form.get('marketingEmail') === 'on',
         marketingPush: form.get('marketingPush') === 'on',
         transactionalPush: form.get('transactionalPush') === 'on',
       })
       setCustomerMe(response.data)
-      setAppLanguage(language)
+      setAppLanguage(profileLanguage)
       await refreshProfile()
       setMessage(t('app.premium.profile.updated'))
     } catch {
@@ -535,36 +535,36 @@ export function ProfileScreen() {
               <button
                 key={value}
                 type="button"
-                onClick={() => setLanguage(value)}
-                className={`min-h-10 rounded-full text-[12px] font-semibold transition ${language === value ? 'bg-[var(--color-burgundy)] text-white' : 'text-[var(--color-muted-strong)]'}`}
+                onClick={() => setProfileLanguage(value)}
+                className={`min-h-10 rounded-full text-[12px] font-semibold transition ${profileLanguage === value ? 'bg-[var(--color-burgundy)] text-white' : 'text-[var(--color-muted-strong)]'}`}
               >
                 {value === 'es' ? 'Español' : 'English'}
               </button>
             ))}
           </div>
           <div className="mt-1">
-            <p className="text-[11px] font-semibold text-[var(--color-ink)]">{language === 'en' ? 'Communication preferences' : 'Preferencias de comunicación'}</p>
-            <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">{language === 'en' ? 'Choose how Hacienda may keep in touch with you.' : 'Elige por qué medios puede mantenerse en contacto Hacienda contigo.'}</p>
+            <p className="text-[11px] font-semibold text-[var(--color-ink)]">{t('app.premium.profile.communicationPreferences')}</p>
+            <p className="mt-1 text-[10px] leading-4 text-[var(--color-muted)]">{t('app.premium.profile.communicationPreferencesCopy')}</p>
           </div>
           <PreferenceControl
             key={`marketing-email-${String(preferences?.marketingEmail)}`}
             name="marketingEmail"
             label={t('app.premium.profile.marketingEmail')}
-            detail={language === 'en' ? 'News, benefits and special invitations by email.' : 'Novedades, beneficios e invitaciones especiales por correo.'}
+            detail={t('app.premium.profile.marketingEmailDetail')}
             defaultChecked={preferences?.marketingEmail ?? true}
           />
           <PreferenceControl
             key={`marketing-push-${String(preferences?.marketingPush)}`}
             name="marketingPush"
             label={t('app.premium.profile.marketingPush')}
-            detail={language === 'en' ? 'Occasional offers and recommendations in the app.' : 'Ofertas ocasionales y recomendaciones dentro de la app.'}
+            detail={t('app.premium.profile.marketingPushDetail')}
             defaultChecked={preferences?.marketingPush ?? true}
           />
           <PreferenceControl
             key={`transactional-push-${String(preferences?.transactionalPush)}`}
             name="transactionalPush"
             label={t('app.premium.profile.transactionalNotifications')}
-            detail={language === 'en' ? 'Booking, payment, order and shipment updates.' : 'Actualizaciones de reservas, pagos, pedidos y envíos.'}
+            detail={t('app.premium.profile.transactionalNotificationsDetail')}
             defaultChecked={preferences?.transactionalPush ?? true}
           />
           <button disabled={isSaving} type="submit" className="rounded-[1rem] bg-[var(--color-burgundy)] px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
@@ -759,16 +759,12 @@ export function ProfileScreen() {
 
       <section className="space-y-3" id="payment-methods">
         <SectionHeading
-          title={language === 'en' ? 'Saved payment methods' : 'Métodos de pago guardados'}
-          subtitle={language === 'en'
-            ? 'Cards are tokenized and protected by Stripe. Hacienda never stores full card numbers or security codes.'
-            : 'Las tarjetas están tokenizadas y protegidas por Stripe. Hacienda nunca guarda números completos ni códigos de seguridad.'}
+          title={t('app.premium.profile.paymentMethods')}
+          subtitle={t('app.premium.profile.paymentMethodsCopy')}
         />
         {paymentMethods.length === 0 ? (
           <div className="rounded-[1.2rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 text-[12px] text-[var(--color-muted)] shadow-[0_14px_30px_rgba(74,32,28,0.05)]">
-            {language === 'en'
-              ? 'You can securely save a payment method during your next checkout.'
-              : 'Podrás guardar un método de forma segura durante tu próximo pago.'}
+            {t('app.premium.profile.paymentMethodsEmpty')}
           </div>
         ) : (
           <div className="grid gap-3">
@@ -777,7 +773,7 @@ export function ProfileScreen() {
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f8eee5] text-[var(--color-burgundy)]"><WalletCards size={18} /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-semibold capitalize text-[var(--color-ink)]">{method.brand ?? method.type} •••• {method.last4 ?? '----'}</p>
-                  <p className="mt-1 text-[11px] text-[var(--color-muted)]">{language === 'en' ? 'Expires' : 'Vence'} {String(method.expMonth ?? '').padStart(2, '0')}/{method.expYear ?? '----'}</p>
+                  <p className="mt-1 text-[11px] text-[var(--color-muted)]">{t('app.premium.profile.paymentMethodExpires')} {String(method.expMonth ?? '').padStart(2, '0')}/{method.expYear ?? '----'}</p>
                 </div>
                 <ShieldCheck size={17} className="shrink-0 text-[#252F37]" />
               </article>
@@ -788,13 +784,13 @@ export function ProfileScreen() {
 
       <section className="space-y-3" id="addresses">
         <SectionHeading
-          title={language === 'en' ? 'Shipping addresses' : 'Domicilios de envío'}
-          subtitle={language === 'en' ? 'These addresses are used only to deliver your physical purchases.' : 'Estos domicilios se usan para entregar las compras físicas que realices.'}
+          title={t('app.premium.profile.shippingAddresses')}
+          subtitle={t('app.premium.profile.shippingAddressesCopy')}
         />
         <div className="space-y-3">
           {addresses.length === 0 ? (
             <p className="rounded-[1rem] border border-[rgba(220,202,181,0.72)] bg-white/78 p-4 text-[11px] leading-5 text-[var(--color-muted)]">
-              {language === 'en' ? 'You have not saved a shipping address yet.' : 'Aún no tienes un domicilio de envío guardado.'}
+              {t('app.premium.profile.shippingAddressesEmpty')}
             </p>
           ) : null}
           {addresses.map((address) => (
@@ -835,7 +831,7 @@ export function ProfileScreen() {
 
         <form onSubmit={saveAddress} className="grid gap-3 rounded-[1.25rem] border border-[rgba(220,202,181,0.78)] bg-white/90 p-4 shadow-[0_14px_30px_rgba(74,32,28,0.06)]">
           <p className="text-[13px] font-semibold text-[var(--color-ink)]">
-            {editingAddressId ? t('app.premium.profile.editAddress') : (language === 'en' ? 'New shipping address' : 'Nuevo domicilio de envío')}
+            {editingAddressId ? t('app.premium.profile.editAddress') : t('app.premium.profile.newShippingAddress')}
           </p>
           <p className="text-[11px] font-semibold leading-5 text-[var(--color-burgundy)]">{t('app.premium.profile.allAddressFieldsRequired')}</p>
           {[
