@@ -49,8 +49,17 @@ describe('executive assistant privacy and access contract', () => {
   it('does not let previous answers contaminate a new precise question', () => {
     expect(service).toContain('function shouldUseAssistantContext')
     expect(service).toContain('const useContext = shouldUseAssistantContext(question)')
+    expect(service).toContain("find((entry) => entry.role === 'user')")
     expect(service).not.toContain('answerFolioQuestion(contextual)')
     expect(service).toMatch(/answerNextEventQuestion\(question\)[\s\S]*answerEventAttendanceQuestion\(question\)[\s\S]*answerCustomerDetailQuestion\(question\)/)
+  })
+
+  it('keeps short follow-up questions tied to logistics without using assistant text as a filter', () => {
+    expect(service).toMatch(/function isLogisticsQuestion[\s\S]*enviar/)
+    expect(service).toMatch(/function isShippingAttentionOrder[\s\S]*enviar/)
+    expect(service).toContain("'enviar'")
+    expect(service).toContain("'mandar'")
+    expect(service).toContain("'despachar'")
   })
 
   it('prevents weak customer matches from generic words like ha or consumido', () => {

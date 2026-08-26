@@ -3583,6 +3583,45 @@ html.hdl-mobile-app .crystal-date-popover__day {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
+.control-editorial-builder {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.control-editorial-builder > * {
+  min-width: 0;
+}
+
+@media (min-width: 1180px) {
+  .control-editorial-builder {
+    grid-template-columns: minmax(240px, 280px) minmax(520px, 1fr);
+  }
+
+  .control-editorial-builder > aside:first-child {
+    grid-column: 1;
+  }
+
+  .control-editorial-builder > section {
+    grid-column: 2;
+  }
+
+  .control-editorial-builder > aside:last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1700px) {
+  .control-editorial-builder {
+    grid-template-columns: 286px minmax(560px, 1fr) 360px;
+  }
+
+  .control-editorial-builder > aside:first-child,
+  .control-editorial-builder > section,
+  .control-editorial-builder > aside:last-child {
+    grid-column: auto;
+  }
+}
+
 .control-editorial-workspace .control-master-list > div:last-child {
   max-height: min(24rem, 42vh);
   overflow: auto;

@@ -104,7 +104,7 @@ const assistantEntityStopWords = new Set([
   'abrir', 'actual', 'asignar', 'asignada', 'asignadas', 'asignado', 'asignados', 'atencion', 'atención', 'cliente', 'clientes', 'compra', 'compras',
   'awaiting', 'comprado', 'compraron', 'consumida', 'consumidas', 'consumido', 'consumidos', 'consumo', 'consumos', 'cuales', 'cuáles', 'de', 'detalle', 'detalles', 'dentro', 'entrega',
   'entregas', 'enviado', 'enviados', 'enviada', 'enviadas', 'envio', 'envío', 'envios', 'envíos',
-  'estado', 'estatus', 'falta', 'faltan', 'guia', 'guía', 'guias', 'guías', 'ha', 'han', 'has', 'hecho', 'hicieron',
+  'enviar', 'mandar', 'despachar', 'estado', 'estatus', 'falta', 'faltan', 'guia', 'guía', 'guias', 'guías', 'ha', 'han', 'has', 'hecho', 'hicieron',
   'historial', 'inventario', 'logistica', 'logística', 'mi', 'mis', 'modulo',
   'módulo', 'orden', 'ordenes', 'órdenes', 'pedido', 'pedidos', 'pending', 'pendiente', 'pendientes', 'preparation', 'preparacion',
   'preparación', 'preparar', 'preparando', 'quiere', 'realizado', 'realizadas', 'reservacion', 'reservación', 'shipping', 'shipment',
@@ -158,11 +158,10 @@ function entityTerms(question: string) {
 }
 
 function contextualQuestion(question: string, history: ExecutiveAssistantMessagePayload['history'] = []) {
-  const previous = history
-    .slice(-6)
-    .map((entry) => entry.content)
-    .filter(Boolean)
-    .join(' ')
+  const previous = [...history]
+    .reverse()
+    .find((entry) => entry.role === 'user')
+    ?.content ?? ''
   return `${previous} ${question}`.trim()
 }
 
@@ -606,7 +605,7 @@ async function answerCustomerDetailQuestion(question: string) {
 }
 
 function isLogisticsQuestion(question: string) {
-  return /logistic|logística|envio|envío|envios|envíos|entrega|entregas|guia|guía|guias|guías|tracking|paqueter|prepar|transito|tránsito|pendiente de envio|pendiente de envío|asignar guia|asignar guía/.test(normalizeAssistantText(question))
+  return /logistic|logística|envio|envío|envios|envíos|enviar|mandar|despachar|entrega|entregas|guia|guía|guias|guías|tracking|paqueter|prepar|transito|tránsito|pendiente de envio|pendiente de envío|asignar guia|asignar guía/.test(normalizeAssistantText(question))
 }
 
 function isShippingAttentionOrder(order: Row, shipment: Row | null, normalizedQuestion: string) {
@@ -619,7 +618,7 @@ function isShippingAttentionOrder(order: Row, shipment: Row | null, normalizedQu
   if (['cancelled', 'canceled', 'delivered'].includes(shipmentStatus)) return false
   if (/guia|guía|tracking|asignar/.test(normalizedQuestion) && (!textField(shipment, 'tracking_number') || ['awaiting_tracking', 'tracking_assigned'].includes(shippingStatus))) return true
   if (/pending_preparation|prepar/.test(normalizedQuestion)) return ['pending_preparation', 'preparing', 'pending'].includes(orderStatus) || ['pending_preparation', 'preparing', 'pending'].includes(shippingStatus)
-  if (/pendiente|envio|envío|entrega|logistic|logística/.test(normalizedQuestion)) return true
+  if (/pendiente|envio|envío|enviar|mandar|despachar|entrega|logistic|logística/.test(normalizedQuestion)) return true
   return true
 }
 

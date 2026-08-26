@@ -1239,7 +1239,7 @@ export function EditorialFormShell({
         </div>
       ) : null}
 
-      <div className="grid gap-5 xl:grid-cols-[286px_minmax(0,1fr)_372px]">
+      <div className="control-editorial-builder grid gap-5">
         <aside className="rounded-[1.5rem] border border-[rgba(180,138,85,0.34)] bg-white/76 p-4 shadow-[0_18px_46px_rgba(37,47,55,0.07)] backdrop-blur">
           <div className="border-b border-[rgba(232,216,200,0.88)] pb-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#B48A55]">Mapa de edición</p>
@@ -1417,13 +1417,13 @@ export function EditorialFormShell({
             </>
           )}
 
-          <div className="mt-6 flex flex-col gap-3 border-t border-[rgba(232,216,200,0.88)] pt-5 md:flex-row md:items-center md:justify-between">
-            <p className="text-[13px] leading-5 text-[var(--color-muted)]">
+          <div className="mt-6 flex flex-col gap-3 border-t border-[rgba(232,216,200,0.88)] pt-5">
+            <p className="max-w-none text-[12px] leading-5 text-[var(--color-muted)]">
               {activeStepIndex === reviewStepIndex
                 ? 'Último paso: revisa y confirma la publicación.'
                 : 'Al avanzar se guarda el progreso y se validan los campos de este bloque.'}
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <button
                 type="button"
                 onClick={() => void requestStep(activeStepIndex - 1)}
