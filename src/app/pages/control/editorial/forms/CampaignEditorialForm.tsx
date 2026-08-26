@@ -97,7 +97,7 @@ function sourceGroupLabel(value?: string | null) {
 function channelLabel(channel: CampaignChannel) {
   if (channel === 'email') return 'Correo'
   if (channel === 'push') return 'Push'
-  return 'App'
+  return 'Notificación en app'
 }
 
 async function currentAccessToken() {
@@ -262,7 +262,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
           {([
             { id: 'email' as const, label: 'Correo', icon: Mail },
             { id: 'push' as const, label: 'Notificación push', icon: Bell },
-            { id: 'in_app' as const, label: 'Buzón en la App', icon: Inbox },
+            { id: 'in_app' as const, label: 'Notificación en app', icon: Inbox },
           ]).map((channel) => {
             const Icon = channel.icon
             const selected = channels.includes(channel.id)
