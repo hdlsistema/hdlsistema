@@ -46,6 +46,28 @@ describe('executive assistant privacy and access contract', () => {
     expect(service).toContain('rankByPreciseTerms(events')
   })
 
+  it('does not let previous answers contaminate a new precise question', () => {
+    expect(service).toContain('function shouldUseAssistantContext')
+    expect(service).toContain('const useContext = shouldUseAssistantContext(question)')
+    expect(service).not.toContain('answerFolioQuestion(contextual)')
+    expect(service).toMatch(/answerNextEventQuestion\(question\)[\s\S]*answerEventAttendanceQuestion\(question\)[\s\S]*answerCustomerDetailQuestion\(question\)/)
+  })
+
+  it('prevents weak customer matches from generic words like ha or consumido', () => {
+    expect(service).toContain("'consumido'")
+    expect(service).toContain("'consumidos'")
+    expect(service).toContain("'ha'")
+    expect(service).toContain('term.length > 2 && !assistantEntityStopWords.has(term)')
+    expect(service).toContain('item.score === topScore && item.score >= minimumScore')
+  })
+
+  it('answers upcoming event questions from real event data before the AI fallback', () => {
+    expect(service).toContain('function isNextEventQuestion')
+    expect(service).toContain('async function answerNextEventQuestion')
+    expect(service).toContain("supabaseAdminClient.from('events').select(assistantEventSelect).gte('start_at', now)")
+    expect(service).toContain('Consulta local de solo lectura: Eventos')
+  })
+
   it('is read-only and restricted to the three approved real identities', () => {
     expect(service).toContain('No puedes crear, editar, confirmar, cancelar ni eliminar registros')
     expect(migration).toContain('5d816bfe-1ff3-40ae-ab45-5f0e7ef9a62b')

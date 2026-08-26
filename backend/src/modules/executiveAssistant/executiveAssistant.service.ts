@@ -102,12 +102,12 @@ const assistantStopWords = new Set([
 const assistantEntityStopWords = new Set([
   ...assistantStopWords,
   'abrir', 'actual', 'asignar', 'asignada', 'asignadas', 'asignado', 'asignados', 'atencion', 'atención', 'cliente', 'clientes', 'compra', 'compras',
-  'comprado', 'compraron', 'consumo', 'consumos', 'cuales', 'cuáles', 'de', 'detalle', 'detalles', 'entrega',
+  'awaiting', 'comprado', 'compraron', 'consumida', 'consumidas', 'consumido', 'consumidos', 'consumo', 'consumos', 'cuales', 'cuáles', 'de', 'detalle', 'detalles', 'dentro', 'entrega',
   'entregas', 'enviado', 'enviados', 'enviada', 'enviadas', 'envio', 'envío', 'envios', 'envíos',
-  'estado', 'estatus', 'falta', 'faltan', 'guia', 'guía', 'guias', 'guías', 'hecho', 'hicieron',
+  'estado', 'estatus', 'falta', 'faltan', 'guia', 'guía', 'guias', 'guías', 'ha', 'han', 'has', 'hecho', 'hicieron',
   'historial', 'inventario', 'logistica', 'logística', 'mi', 'mis', 'modulo',
-  'módulo', 'orden', 'ordenes', 'órdenes', 'pedido', 'pedidos', 'pendiente', 'pendientes', 'preparacion',
-  'preparación', 'preparar', 'preparando', 'quiere', 'realizado', 'realizadas', 'reservacion', 'reservación',
+  'módulo', 'orden', 'ordenes', 'órdenes', 'pedido', 'pedidos', 'pending', 'pendiente', 'pendientes', 'preparation', 'preparacion',
+  'preparación', 'preparar', 'preparando', 'quiere', 'realizado', 'realizadas', 'reservacion', 'reservación', 'shipping', 'shipment',
   'reservaciones', 'saber', 'son', 'stock', 'sus',
   'tenemos', 'tengo', 'tiene', 'tienen', 'venta', 'ventas',
 ])
@@ -149,11 +149,11 @@ function preciseTerms(question: string) {
 function entityTerms(question: string) {
   const cleaned = normalizeAssistantText(question)
     .replace(/\b(?:ord|res|rst|pass|pay|ship|cot|quote|hdl|cust)-[a-z0-9-]+\b/g, ' ')
-    .replace(/[^a-z0-9ñ@.]+/g, ' ')
+    .replace(/[^a-z0-9ñ@]+/g, ' ')
   return Array.from(new Set(
     cleaned.split(/\s+/)
       .map((term) => term.trim())
-      .filter((term) => term.length > 1 && !assistantEntityStopWords.has(term)),
+      .filter((term) => term.length > 2 && !assistantEntityStopWords.has(term)),
   )).slice(0, 10)
 }
 
@@ -169,6 +169,14 @@ function contextualQuestion(question: string, history: ExecutiveAssistantMessage
 function preciseFolios(question: string) {
   const matches = question.match(/\b(?:ORD|RES|RST|PASS|PAY|SHIP|COT|QUOTE|HDL|CUST)-[A-Z0-9-]+\b/gi) ?? []
   return Array.from(new Set(matches.map((match) => match.toUpperCase())))
+}
+
+function shouldUseAssistantContext(question: string) {
+  const normalized = normalizeAssistantText(question)
+  if (preciseFolios(question).length) return false
+  if (/proximo|próximo|siguiente|hoy|manana|mañana|evento|eventos|inventario|pago|pagos|campana|campaña|reservacion|reservación|reservaciones/.test(normalized)) return false
+  if (entityTerms(question).length) return false
+  return /de que|de qué|cuales|cuáles|quienes|quiénes|detalle|detalles|clientes|ordenes|órdenes|guias|guías|son/.test(normalized)
 }
 
 function preciseTermScore(row: Row, terms: string[], fields: string[]) {
@@ -265,6 +273,11 @@ function isAttendanceQuestion(question: string) {
   return /ingres|entrada|check.?in|escane|qr|ocupaci|aforo|asist|pase|boleto/.test(normalizeAssistantText(question))
 }
 
+function isNextEventQuestion(question: string) {
+  const normalized = normalizeAssistantText(question)
+  return /(proximo|siguiente).*(evento|experiencia)|(?:evento|experiencia).*(proximo|siguiente)/.test(normalized)
+}
+
 async function assertExecutiveAccess(user: UserContext) {
   requireOperationRole(user, executiveRoles)
   if (!user.userId) throw httpError(401, 'Sesión requerida')
@@ -275,6 +288,32 @@ async function assertExecutiveAccess(user: UserContext) {
     .eq('feature_code', 'executive_ai_assistant')
     .maybeSingle()
   if (error || !data?.active) throw httpError(403, 'Asistente ejecutiva no habilitada')
+}
+
+async function answerNextEventQuestion(question: string) {
+  if (!isNextEventQuestion(question)) return null
+
+  const now = new Date().toISOString()
+  const [events, experiences] = await Promise.all([
+    safeRows(supabaseAdminClient.from('events').select(assistantEventSelect).gte('start_at', now).order('start_at', { ascending: true }).limit(12)),
+    safeRows(supabaseAdminClient.from('experiences').select(assistantExperienceSelect).eq('visible_in_app', true).order('created_at', { ascending: false }).limit(12)),
+  ])
+  const usableEvents = events.filter((event) => !['archived', 'cancelled', 'canceled', 'draft'].includes(normalizeAssistantText(event.status)))
+  const next = usableEvents[0]
+
+  if (!next) {
+    const visibleExperiences = experiences.filter((experience) => !['archived', 'cancelled', 'canceled', 'draft'].includes(normalizeAssistantText(experience.status)))
+    const experienceLines = visibleExperiences.slice(0, 5).map((experience) =>
+      `- ${textField(experience, 'title') || 'Experiencia sin nombre'}: ${textField(experience, 'location') || 'sin sede visible'}, cupo ${numberValue(experience.capacity)}, precio base ${formatAssistantMoney(experience.base_price, 'MXN')}.`,
+    ).join('\n')
+    return `No encontré eventos con fecha futura registrada en el Centro de Control. Experiencias visibles en app: ${visibleExperiences.length}.\n${experienceLines || '- No hay experiencias visibles con datos suficientes.'}\n\nConsulta local de solo lectura: Eventos y Experiencias.`
+  }
+
+  const upcomingLines = usableEvents.slice(0, 5).map((event) =>
+    `- ${textField(event, 'title') || 'Evento sin nombre'}: ${formatAssistantDateTime(event.start_at)}, sede ${textField(event, 'venue') || 'sin sede visible'}, estado ${statusLabel(event.status)}, ${numberValue(event.sold_count)} vendidos de ${numberValue(event.capacity)} lugares.`,
+  ).join('\n')
+
+  return `El próximo evento registrado es ${textField(next, 'title') || 'Evento sin nombre'}, el ${formatAssistantDateTime(next.start_at)} en ${textField(next, 'venue') || 'sede no visible'}. Tiene ${numberValue(next.sold_count)} lugares vendidos de ${numberValue(next.capacity)} y está en estado ${statusLabel(next.status)}.\n\nPróximos eventos:\n${upcomingLines}\n\nConsulta local de solo lectura: Eventos.`
 }
 
 async function answerEventAttendanceQuestion(question: string) {
@@ -513,10 +552,14 @@ async function answerCustomerDetailQuestion(question: string) {
   if (!terms.length && !emails.length) return null
 
   const customers = await safeRows(supabaseAdminClient.from('customers').select(assistantCustomerSelect).order('updated_at', { ascending: false }).limit(1000))
-  const matches = customers
+  const scoredCustomers = customers
     .map((customer) => ({ customer, score: customerScore(customer, terms, emails) }))
     .filter((item) => item.score > 0)
     .sort((left, right) => right.score - left.score)
+  const topScore = scoredCustomers[0]?.score ?? 0
+  const minimumScore = emails.length ? 5 : terms.length <= 1 ? 1 : Math.max(2, Math.ceil(terms.length * 0.6))
+  const matches = scoredCustomers
+    .filter((item) => item.score === topScore && item.score >= minimumScore)
     .slice(0, 4)
     .map((item) => item.customer)
 
@@ -595,7 +638,7 @@ async function answerLogisticsQuestion(question: string) {
       || includesAnyTerm(customer ?? {}, terms, ['display_name', 'first_name', 'last_name', 'email'])
       || includesAnyTerm(subject ?? {}, terms, ['reservation_number', 'title'])
       || (itemsByOrder[textField(order, 'id')] ?? []).some((item) => includesAnyTerm(item, terms, ['name_snapshot', 'sku_snapshot']))
-    return isShippingAttentionOrder(order, shipment, normalized) && matchesText
+    return isShippingAttentionOrder(order, shipment, normalized) && (!terms.length || matchesText)
   })
   const visible = sortByRecent(scoped).slice(0, 14)
   const pendingTracking = scoped.filter((order) => !textField(latestShipment(shipmentsByOrder[textField(order, 'id')] ?? []), 'tracking_number')).length
@@ -821,17 +864,24 @@ async function answerFolioQuestion(question: string) {
 }
 
 async function answerPreciseLocalQuestion(question: string, history: ExecutiveAssistantMessagePayload['history'] = []) {
-  const contextual = contextualQuestion(question, history)
+  const useContext = shouldUseAssistantContext(question)
+  const contextual = useContext ? contextualQuestion(question, history) : question
   return await answerFolioQuestion(question)
-    ?? await answerFolioQuestion(contextual)
-    ?? await answerEventAttendanceQuestion(contextual)
+    ?? await answerNextEventQuestion(question)
+    ?? await answerEventAttendanceQuestion(question)
     ?? await answerCustomerDetailQuestion(question)
-    ?? await answerLogisticsQuestion(contextual)
-    ?? await answerCustomerDetailQuestion(contextual)
-    ?? await answerPaymentsDetailQuestion(contextual)
-    ?? await answerInventoryDetailQuestion(contextual)
-    ?? await answerCampaignDetailQuestion(contextual)
-    ?? await answerReservationsDetailQuestion(contextual)
+    ?? await answerLogisticsQuestion(question)
+    ?? await answerPaymentsDetailQuestion(question)
+    ?? await answerInventoryDetailQuestion(question)
+    ?? await answerCampaignDetailQuestion(question)
+    ?? await answerReservationsDetailQuestion(question)
+    ?? (useContext ? await answerEventAttendanceQuestion(contextual) : null)
+    ?? (useContext ? await answerLogisticsQuestion(contextual) : null)
+    ?? (useContext ? await answerCustomerDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerPaymentsDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerInventoryDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerCampaignDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerReservationsDetailQuestion(contextual) : null)
 }
 
 async function buildExecutiveSnapshot(user: UserContext) {
