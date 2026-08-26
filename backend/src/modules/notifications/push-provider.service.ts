@@ -17,11 +17,17 @@ type CachedAccessToken = {
 let cachedAccessToken: CachedAccessToken | null = null
 let cachedAppleToken: CachedAccessToken | null = null
 
+type FirebaseCredentialContainer = {
+  private_key?: unknown
+  project_id?: unknown
+  client_email?: unknown
+}
+
 function base64Url(value: string | Buffer) {
   return Buffer.from(value).toString('base64url')
 }
 
-function normalizePrivateKey(value: string) {
+function unwrapQuoted(value: string) {
   let normalized = value.trim()
   if (
     (normalized.startsWith('"') && normalized.endsWith('"')) ||
@@ -29,6 +35,39 @@ function normalizePrivateKey(value: string) {
   ) {
     normalized = normalized.slice(1, -1).trim()
   }
+  return normalized
+}
+
+function parseCredentialContainer(value: string): FirebaseCredentialContainer | null {
+  const candidates = [
+    unwrapQuoted(value),
+    unwrapQuoted(value).replace(/\\"/g, '"'),
+  ]
+
+  if (!unwrapQuoted(value).includes('{') && /^[A-Za-z0-9+/=\s]+$/.test(unwrapQuoted(value))) {
+    try {
+      const decoded = Buffer.from(unwrapQuoted(value), 'base64').toString('utf8').trim()
+      candidates.push(decoded, decoded.replace(/\\"/g, '"'))
+    } catch {
+      // Keep parsing the literal candidates; invalid base64 is not a config error by itself.
+    }
+  }
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as FirebaseCredentialContainer
+      if (parsed && typeof parsed === 'object') return parsed
+    } catch {
+      // Continue with the next supported credential representation.
+    }
+  }
+
+  return null
+}
+
+function normalizePrivateKey(value: string) {
+  const container = parseCredentialContainer(value)
+  let normalized = typeof container?.private_key === 'string' ? container.private_key : unwrapQuoted(value)
   normalized = normalized.replace(/\\n/g, '\n').replace(/\r\n/g, '\n')
 
   if (!normalized.includes('BEGIN') && /^[A-Za-z0-9+/=\s]+$/.test(normalized)) {
@@ -45,14 +84,24 @@ function normalizePrivateKey(value: string) {
   return normalized.trim()
 }
 
+function firebaseCredentials() {
+  const container = parseCredentialContainer(env.FIREBASE_PRIVATE_KEY)
+  return {
+    projectId: env.FIREBASE_PROJECT_ID || (typeof container?.project_id === 'string' ? container.project_id : ''),
+    clientEmail: env.FIREBASE_CLIENT_EMAIL || (typeof container?.client_email === 'string' ? container.client_email : ''),
+    privateKey: normalizePrivateKey(env.FIREBASE_PRIVATE_KEY),
+  }
+}
+
 function privateKey() {
-  return normalizePrivateKey(env.FIREBASE_PRIVATE_KEY)
+  return firebaseCredentials().privateKey
 }
 
 export function pushProviderState() {
+  const credentials = firebaseCredentials()
   return {
     provider: 'firebase',
-    configured: Boolean(env.FIREBASE_PROJECT_ID && env.FIREBASE_CLIENT_EMAIL && privateKey()),
+    configured: Boolean(credentials.projectId && credentials.clientEmail && credentials.privateKey),
   }
 }
 
@@ -88,11 +137,12 @@ function errorCodeFromBody(body: unknown, fallback: string) {
 async function firebaseAccessToken() {
   if (cachedAccessToken && cachedAccessToken.expiresAt > Date.now() + 60_000) return cachedAccessToken.value
   if (!pushProviderState().configured) throw providerError('provider_not_configured', 503)
+  const credentials = firebaseCredentials()
 
   const now = Math.floor(Date.now() / 1000)
   const header = base64Url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }))
   const claims = base64Url(JSON.stringify({
-    iss: env.FIREBASE_CLIENT_EMAIL,
+    iss: credentials.clientEmail,
     scope: 'https://www.googleapis.com/auth/firebase.messaging',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
@@ -138,7 +188,7 @@ function pushData(data: PushMessage['data']) {
 export async function sendPushNotification(message: PushMessage) {
   const accessToken = await firebaseAccessToken()
   const response = await fetch(
-    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(env.FIREBASE_PROJECT_ID)}/messages:send`,
+    `https://fcm.googleapis.com/v1/projects/${encodeURIComponent(firebaseCredentials().projectId)}/messages:send`,
     {
       method: 'POST',
       headers: {
