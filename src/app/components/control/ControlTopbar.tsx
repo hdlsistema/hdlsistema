@@ -80,6 +80,7 @@ export function ControlTopbar() {
         new Intl.DateTimeFormat(locale, {
           hour: 'numeric',
           minute: '2-digit',
+          timeZone: 'America/Mexico_City',
         }).format(new Date()),
       )
     }
@@ -96,6 +97,7 @@ export function ControlTopbar() {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
+        timeZone: 'America/Mexico_City',
       }).format(new Date()),
     [locale],
   )

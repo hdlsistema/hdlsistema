@@ -76,14 +76,16 @@ const emptyPassForm: PassForm = {
   validUntil: '',
 }
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 function dateLabel(value?: string | null) {
   if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: MEXICO_TIME_ZONE }).format(new Date(value))
 }
 
 function shortDateLabel(value?: string | null) {
   if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+  return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: MEXICO_TIME_ZONE }).format(new Date(value))
 }
 
 function moneyLabel(value?: number | null) {

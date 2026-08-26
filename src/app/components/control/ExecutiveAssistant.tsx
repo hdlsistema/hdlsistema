@@ -130,6 +130,7 @@ export function ExecutiveAssistant() {
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'America/Mexico_City',
   }).format(new Date(createdAt))
 
   const copy = isEnglish ? {

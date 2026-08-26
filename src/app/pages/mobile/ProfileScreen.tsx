@@ -50,6 +50,8 @@ import {
 } from '../../utils/customerAddress'
 import { AppSelect } from '../../components/mobile/AppSelect'
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 function isPendingPaymentOrder(order: CustomerOrder) {
   return order.status === 'pending_payment' || order.paymentStatus === 'pending_payment' || order.paymentStatus === 'pending'
 }
@@ -87,6 +89,7 @@ function formatDateTime(value: string | null | undefined, locale: string, fallba
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: MEXICO_TIME_ZONE,
   }).format(date)
 }
 
@@ -94,7 +97,7 @@ function reservationSchedule(reservation: CustomerReservation, locale: string, f
   if (reservation.reservationType === 'restaurant' && reservation.reservationDate) {
     const date = new Date(`${reservation.reservationDate}T12:00:00`)
     if (!Number.isNaN(date.getTime())) {
-      const formatted = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+      const formatted = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE }).format(date)
       return reservation.reservationTime ? `${formatted} · ${reservation.reservationTime.slice(0, 5)}` : formatted
     }
   }
@@ -102,7 +105,7 @@ function reservationSchedule(reservation: CustomerReservation, locale: string, f
     const start = new Date(`${reservation.checkIn}T12:00:00`)
     const end = reservation.checkOut ? new Date(`${reservation.checkOut}T12:00:00`) : null
     if (!Number.isNaN(start.getTime())) {
-      const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium' })
+      const formatter = new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE })
       return end && !Number.isNaN(end.getTime())
         ? `${formatter.format(start)} – ${formatter.format(end)}`
         : formatter.format(start)
@@ -593,7 +596,7 @@ export function ProfileScreen() {
 	        <div className="mt-2 flex items-end justify-between gap-3">
 	          <div>
             <p className="text-[1.8rem] leading-none" style={{ fontFamily: 'var(--font-display)' }}>{membership.plan?.name ?? t('app.nav.club')}</p>
-            <p className="mt-2 text-[11px] text-white/75">{membership.renewalDate ? `${t('app.premium.profile.renewal')}: ${new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(membership.renewalDate))}` : t('app.premium.profile.renewalPending')}</p>
+            <p className="mt-2 text-[11px] text-white/75">{membership.renewalDate ? `${t('app.premium.profile.renewal')}: ${new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE }).format(new Date(membership.renewalDate))}` : t('app.premium.profile.renewalPending')}</p>
 	          </div>
 	          <span className="rounded-full border border-white/20 px-3 py-1.5 text-[10px]">{t('app.premium.profile.viewClub')}</span>
 	        </div>
@@ -619,7 +622,7 @@ export function ProfileScreen() {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">{pass.passNumber ?? pass.reservationNumber ?? pass.orderNumber}</p>
                     <h3 className="mt-1 break-words text-[16px] font-semibold leading-tight text-[var(--color-ink)]">{pass.title ?? t('app.premium.ticket.access', 'Acceso')}</h3>
                     <p className="mt-1 text-[11px] leading-4 text-[var(--color-muted)]">
-                      {pass.startsAt ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(pass.startsAt)) : t('common.toBeConfirmed')}
+                      {pass.startsAt ? new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: MEXICO_TIME_ZONE }).format(new Date(pass.startsAt)) : t('common.toBeConfirmed')}
                     </p>
                   </div>
                   <span className="shrink-0 rounded-full bg-[#f8eee5] px-2.5 py-1 text-[10px] font-semibold text-[var(--color-burgundy)]">
@@ -908,7 +911,7 @@ export function ProfileScreen() {
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12px] font-semibold text-[var(--color-ink)]">{notification.title}</span>
                   <span className="mt-1 block text-[11px] leading-5 text-[var(--color-muted)]">{notification.body}</span>
-                  <span className="mt-1.5 block text-[10px] text-[var(--color-gold)]">{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(notification.createdAt))}</span>
+                  <span className="mt-1.5 block text-[10px] text-[var(--color-gold)]">{new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: MEXICO_TIME_ZONE }).format(new Date(notification.createdAt))}</span>
                 </span>
                 {notification.deepLink ? <ChevronRight size={15} className="mt-2 shrink-0 text-[var(--color-muted)]" /> : null}
               </button>
@@ -931,7 +934,7 @@ export function ProfileScreen() {
                   <div className="min-w-0">
                     <p className="text-[14px] font-semibold text-[var(--color-ink)]">{order.orderNumber}</p>
                     <p className="mt-1 text-[11px] text-[var(--color-muted)]">
-                    {new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(order.createdAt))}
+                    {new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE }).format(new Date(order.createdAt))}
                     </p>
                   </div>
 	                  <StatusBadge tone={order.paymentStatus === 'paid' || order.status === 'paid' ? 'success' : 'warning'}>

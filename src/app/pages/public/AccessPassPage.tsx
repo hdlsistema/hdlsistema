@@ -9,11 +9,12 @@ import { downloadAccessCredentialPdf, shareAccessCredential } from '../../utils/
 import { normalizeAccessQrCode } from '../../utils/accessQr'
 
 const operatingRoles = ['super_admin', 'admin', 'operations']
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
 
 function dateLabel(value?: string | null) {
   if (!value) return 'Por confirmar'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-MX', { dateStyle: 'long', timeStyle: 'short' }).format(date)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-MX', { dateStyle: 'long', timeStyle: 'short', timeZone: MEXICO_TIME_ZONE }).format(date)
 }
 
 function stateCopy(state: string) {

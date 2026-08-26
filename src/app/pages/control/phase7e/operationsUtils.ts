@@ -2,9 +2,11 @@ export function formatMoney(value: number, currency = 'MXN') {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(value)
 }
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 export function formatDate(value?: string | null) {
   if (!value) return 'Sin fecha'
-  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+  return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short', timeZone: MEXICO_TIME_ZONE }).format(new Date(value))
 }
 
 export function operationKey(prefix: string) {

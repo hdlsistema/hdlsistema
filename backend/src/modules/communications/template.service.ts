@@ -17,6 +17,7 @@ const brandName = 'Hacienda de Letras'
 const brandLogoUrl = 'https://www.haciendadeletras.com/wp-content/uploads/2021/08/Logo.png'
 const publicSiteUrl = 'https://www.haciendadeletras.com/'
 const supportedLocales: CommunicationLocale[] = ['es-MX', 'en-US']
+const mexicoTimeZone = 'America/Mexico_City'
 
 const copies: Record<CommunicationLocale, Record<CommunicationEventType, TemplateCopy>> = {
   'es-MX': {
@@ -290,7 +291,7 @@ function formatPayloadValue(key: string, value: unknown, locale: CommunicationLo
   if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate', 'estimatedDeliveryAt', 'reservationDate', 'checkIn', 'checkOut'].includes(key)) {
     const date = new Date(value)
     if (!Number.isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined }).format(date)
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined, timeZone: mexicoTimeZone }).format(date)
     }
   }
 

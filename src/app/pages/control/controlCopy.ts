@@ -4,6 +4,8 @@ function currentLocale(locale?: string) {
   return 'es-MX'
 }
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 export function money(value: number | null | undefined, currency = 'MXN', locale?: string) {
   return new Intl.NumberFormat(currentLocale(locale), {
     style: 'currency',
@@ -22,6 +24,7 @@ export function dateTime(value?: string | null, locale?: string) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
+    timeZone: MEXICO_TIME_ZONE,
   }).format(new Date(value)).replace(',', ' ·').replaceAll(' ', '\u00a0')
 }
 
@@ -32,6 +35,7 @@ export function dateOnly(value?: string | null, locale?: string) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+    timeZone: MEXICO_TIME_ZONE,
   }).format(new Date(value)).replaceAll(' ', '\u00a0')
 }
 

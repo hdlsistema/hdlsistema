@@ -49,6 +49,8 @@ type FlowPoint = {
   net: number
 }
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 const emptyForm: ManualPaymentForm = {
   orderId: '',
   amount: '',
@@ -111,12 +113,27 @@ function paymentStatusClass(status: string) {
   return 'is-pending'
 }
 
+function paymentDayKey(date: Date) {
+  if (Number.isNaN(date.getTime())) return 'sin-fecha'
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: MEXICO_TIME_ZONE,
+  }).formatToParts(date)
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? ''
+  const year = value('year')
+  const month = value('month')
+  const day = value('day')
+  return year && month && day ? `${year}-${month}-${day}` : 'sin-fecha'
+}
+
 function cashFlowPoints(payments: PaymentRecord[]) {
   const map = new Map<string, FlowPoint>()
   for (const payment of payments) {
     const date = new Date(payment.paidAt ?? payment.createdAt)
-    const key = Number.isNaN(date.getTime()) ? 'sin-fecha' : date.toISOString().slice(0, 10)
-    const label = key === 'sin-fecha' ? 'Sin fecha' : date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+    const key = paymentDayKey(date)
+    const label = key === 'sin-fecha' ? 'Sin fecha' : date.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', timeZone: MEXICO_TIME_ZONE })
     const current = map.get(key) ?? { key, label, income: 0, refunds: 0, net: 0 }
     if (['paid', 'partially_refunded', 'refunded'].includes(payment.status)) current.income += payment.amount
     current.refunds += payment.refundedAmount

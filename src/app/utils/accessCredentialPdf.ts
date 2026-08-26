@@ -5,6 +5,8 @@ import { Directory, Filesystem } from '@capacitor/filesystem'
 import { Share } from '@capacitor/share'
 import type { PublicAccessPass } from '../../services/accessPass.service'
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 export type AccessCredential = Pick<
   PublicAccessPass,
   'accessType' | 'customerName' | 'endsAt' | 'orderNumber' | 'passNumber' | 'peopleCount' | 'qrPayload' | 'reservationNumber' | 'startsAt' | 'state' | 'title' | 'validFrom' | 'validUntil'
@@ -14,7 +16,7 @@ function dateLabel(value?: string | null, locale = 'es-MX') {
   if (!value) return 'Por confirmar'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short' }).format(date)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'long', timeStyle: 'short', timeZone: MEXICO_TIME_ZONE }).format(date)
 }
 
 function typeLabel(type: string) {

@@ -14,6 +14,8 @@ import {
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 function money(value: number | string | null | undefined, locale: string) {
   return new Intl.NumberFormat(locale, { style: 'currency', currency: 'MXN' }).format(Number(value ?? 0))
 }
@@ -31,7 +33,7 @@ function formatDate(value: string | null | undefined, locale: string) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE }).format(date)
 }
 
 export function CartScreen() {

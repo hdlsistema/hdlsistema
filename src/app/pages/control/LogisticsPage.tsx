@@ -48,6 +48,7 @@ const secondary =
   'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[rgba(180,138,85,0.38)] bg-[#F7F2EA] px-4 text-xs font-semibold text-[#681126] shadow-[0_10px_22px_rgba(37,47,55,0.08)] transition hover:border-[#B48A55] hover:bg-white'
 const primary =
   'inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#681126] px-4 text-xs font-semibold text-[#F7F2EA] shadow-[0_14px_28px_rgba(104,17,38,0.22)] transition hover:bg-[#54101f] disabled:cursor-not-allowed disabled:opacity-50'
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
 
 type LogisticsQuickFilter = 'all' | 'active' | 'attention' | 'planned' | 'delivered'
 type SortKey = 'updatedAt' | 'status' | 'orderType' | 'product' | 'month' | 'customer' | 'carrier'
@@ -320,14 +321,21 @@ function monthKey(item: ShipmentRecord) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    timeZone: MEXICO_TIME_ZONE,
+  }).formatToParts(date)
+  const year = parts.find((part) => part.type === 'year')?.value ?? ''
+  const month = parts.find((part) => part.type === 'month')?.value ?? ''
+  return year && month ? `${year}-${month}` : ''
 }
 
 function monthLabel(value: string, locale: string) {
   if (!value) return ''
   const date = new Date(`${value}-01T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(date)
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: MEXICO_TIME_ZONE }).format(date)
 }
 
 function timestamp(value?: string | null) {

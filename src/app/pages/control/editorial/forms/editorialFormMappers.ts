@@ -42,6 +42,7 @@ export function formatDate(value: unknown) {
   return new Intl.DateTimeFormat('es-MX', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'America/Mexico_City',
   }).format(date)
 }
 

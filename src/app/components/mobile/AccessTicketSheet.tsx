@@ -9,6 +9,8 @@ import {
   type AccessCredential,
 } from '../../utils/accessCredentialPdf'
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 function formatDateTime(value: string | null | undefined, locale: string, fallback: string) {
   if (!value) return fallback
   const date = new Date(value)
@@ -16,6 +18,7 @@ function formatDateTime(value: string | null | undefined, locale: string, fallba
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: MEXICO_TIME_ZONE,
   }).format(date)
 }
 

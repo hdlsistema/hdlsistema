@@ -10,6 +10,8 @@ import { customerClient, type CustomerAvailabilitySlot } from '../../../services
 import { appPath } from '../../utils/appRoutes'
 import { acceptedContractMetadata, buildMenuSelection, contractTermsFromMetadata, menuConfigFromMetadata } from '../../utils/reservationContract'
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 function normalizeSlot(slot: CustomerAvailabilitySlot) {
   return {
     id: slot.id,
@@ -34,6 +36,7 @@ function formatDateTime(value: string | null | undefined, locale: string, fallba
   return new Intl.DateTimeFormat(locale, {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: MEXICO_TIME_ZONE,
   }).format(date)
 }
 

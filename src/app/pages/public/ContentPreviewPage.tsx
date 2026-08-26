@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom'
 import { previewContentClient, type PreviewResponse } from '../../../services/content.service'
 
 type PreviewData = PreviewResponse['data']
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
 
 function text(data: PreviewData, ...keys: string[]) {
   for (const key of keys) {
@@ -24,7 +25,7 @@ function previewDate(value: string) {
   const date = new Date(value)
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium' }).format(date)
+    : new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE }).format(date)
 }
 
 function entityCopy(entity: PreviewResponse['entity']) {

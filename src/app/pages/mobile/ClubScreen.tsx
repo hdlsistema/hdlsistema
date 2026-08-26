@@ -12,11 +12,13 @@ import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { formatCurrency, numberField, textField } from '../../utils/publicContent'
 
+const MEXICO_TIME_ZONE = 'America/Mexico_City'
+
 function formatDate(value: string | null | undefined, locale: string, fallback: string) {
   if (!value) return fallback
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return fallback
-  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(date)
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: MEXICO_TIME_ZONE }).format(date)
 }
 
 export function ClubScreen() {

@@ -89,6 +89,7 @@ function formatDateTime(value: string | null | undefined) {
   return new Intl.DateTimeFormat('es-MX', {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: 'America/Mexico_City',
   }).format(new Date(value))
 }
 
