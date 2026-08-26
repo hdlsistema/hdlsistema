@@ -109,7 +109,7 @@ export function HomeScreen() {
           alt="Hacienda de Letras"
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.08)_18%,rgba(91,11,31,0.82)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.06)_16%,rgba(45,5,17,0.88)_100%)]" />
         <div className="absolute right-[var(--app-pad)] top-4 z-10">
           <button
             type="button"
@@ -121,17 +121,20 @@ export function HomeScreen() {
             <span>{language === 'es' ? 'ES' : 'EN'}</span>
           </button>
         </div>
-        <div className="relative flex min-h-[clamp(330px,64vh,430px)] flex-col justify-end px-[var(--app-pad)] pb-6 text-white">
-          <p className="text-[10px] font-semibold uppercase text-[#F7DFAE]">
+        <div className="relative flex min-h-[clamp(330px,64vh,430px)] flex-col justify-end px-[var(--app-pad)] pb-[74px] text-white">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[#F7DFAE]">
             {t('app.premium.home.eyebrow')}
           </p>
           <h1
-            className="mt-2 max-w-[18rem] text-[clamp(27px,7.4vw,36px)] font-medium leading-[0.98] text-white"
+            className="mt-2 max-w-[19.5rem] text-[clamp(30px,8vw,39px)] font-medium leading-[0.98] text-white"
             style={{ fontFamily: 'var(--font-display)', overflowWrap: 'anywhere' }}
           >
             {t('app.premium.home.title')}
           </h1>
-          <p className="mt-3 max-w-[18rem] text-[12px] leading-5 text-white/86">
+          <p className="mt-2 max-w-[19.5rem] text-[13px] font-semibold leading-5 text-[#F7DFAE]">
+            {t('app.premium.home.slogan')}
+          </p>
+          <p className="mt-2 max-w-[19rem] text-[13px] leading-5 text-white/88">
             {t('app.premium.home.subtitle')}
           </p>
         </div>
@@ -140,7 +143,7 @@ export function HomeScreen() {
       <div className="ipad-home-content space-y-7 px-[var(--app-pad)]">
         <Link
           to={appPath('/promociones')}
-          className="relative z-10 -mt-6 grid min-h-[94px] grid-cols-[72px_1fr_auto] items-center gap-3 rounded-[18px] border border-[rgba(180,138,85,0.64)] bg-[var(--color-burgundy)] p-4 text-[#F7F2EA] shadow-[0_18px_38px_rgba(91,11,31,0.2),inset_0_1px_0_rgba(247,223,174,0.2)]"
+          className="relative z-10 -mt-6 grid min-h-[94px] grid-cols-[72px_1fr_auto] items-center gap-3 rounded-[18px] border border-[rgba(180,138,85,0.64)] bg-[var(--color-burgundy)] p-4 text-[#F7F2EA] shadow-[0_18px_38px_rgba(45,5,17,0.24),inset_0_1px_0_rgba(247,223,174,0.2)]"
         >
           <span className="inline-flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(247,223,174,0.62)] text-[#D8B36A]">
             <BadgePercent size={30} strokeWidth={1.35} />

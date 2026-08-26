@@ -88,9 +88,9 @@ export function HeroEditorial({
       {image ? (
         <img src={image} alt={alt ?? title} className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,#252F37_0%,#5B0B1F_58%,#B48A55_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#252F37_0%,var(--color-burgundy)_58%,#B48A55_100%)]" />
       )}
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.16),rgba(91,11,31,0.8))]" />
+      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(37,47,55,0.16),rgba(45,5,17,0.84))]" />
       <div className="relative flex min-h-[inherit] flex-col justify-end px-[var(--app-pad)] pb-6 pt-8">
         {eyebrow ? (
           <p className="max-w-full text-[10px] font-semibold uppercase tracking-[0.2em] text-[#F7DFAE]">
@@ -517,7 +517,7 @@ export function WineCard({
   const detailPath = appPath(`/vinos/${wine.id}`)
   return (
     <article className="group min-w-0">
-      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#252F37,#5B0B1F)]">
+      <Link to={detailPath} className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[14px] bg-[linear-gradient(145deg,#252F37,var(--color-burgundy))]">
         {badge ? (
           <span className="absolute left-2.5 top-2.5 z-10 max-w-[calc(100%-1.25rem)] truncate rounded-full bg-[rgba(247,242,234,0.92)] px-2 py-1 text-[8px] font-bold uppercase text-[var(--color-burgundy)]">
             {badge}

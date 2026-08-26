@@ -153,6 +153,7 @@ const dictionary = {
         home: {
           eyebrow: 'BIENVENIDO A',
           title: 'Hacienda de Letras',
+          slogan: 'El vino de Aguascalientes',
           subtitle: 'Vinos con historia, experiencias que perduran.',
           welcome: 'Bienvenida',
           welcomeBack: 'Qué gusto verte de nuevo',
@@ -678,6 +679,7 @@ const dictionary = {
         home: {
           eyebrow: 'WELCOME TO',
           title: 'Hacienda de Letras',
+          slogan: 'The wine of Aguascalientes',
           subtitle: 'Wines with history, experiences that remain.',
           welcome: 'Welcome',
           welcomeBack: 'Good to see you again',

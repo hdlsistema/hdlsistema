@@ -176,24 +176,24 @@ export function LoginPage() {
 	      <form className="mt-7 space-y-4" onSubmit={submit}>
         <Field icon={<Mail size={17} />} label={t('auth.email')} name="email" type="email" />
         <PasswordField show={showPassword} setShow={setShowPassword} />
-        <label className="flex items-center gap-3 text-[12px] font-semibold text-[#5B0B1F]">
+        <label className="flex items-center gap-3 text-[12px] font-semibold text-[var(--color-burgundy)]">
           <input
             name="remember"
             type="checkbox"
             checked={rememberSession}
             onChange={(event) => setRememberSession(event.currentTarget.checked)}
-            className="accent-[#5B0B1F]"
+            className="accent-[var(--color-burgundy)]"
           />
           <span>{t('auth.rememberMe')}</span>
         </label>
-        <Link to={recoverPath} className="block text-[12px] font-semibold text-[#5B0B1F]">
+        <Link to={recoverPath} className="block text-[12px] font-semibold text-[var(--color-burgundy)]">
           {t('auth.forgotPassword')}
         </Link>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
         <SubmitButton loading={loading}>{t('auth.login')}</SubmitButton>
       </form>
       <p className="mt-6 text-center text-[12px] text-[#7f6a59]">
-        {t('auth.noAccount')} <Link className="font-bold text-[#5B0B1F]" to="/app/registro">{t('auth.createAccount')}</Link>
+        {t('auth.noAccount')} <Link className="font-bold text-[var(--color-burgundy)]" to="/app/registro">{t('auth.createAccount')}</Link>
       </p>
     </AuthShell>
   )
@@ -322,7 +322,7 @@ export function RegisterPage() {
         <PasswordField show={showPassword} setShow={setShowPassword} />
         <Field icon={<LockKeyhole size={17} />} label={t('auth.confirmPassword')} name="confirmPassword" type={showPassword ? 'text' : 'password'} />
         <label className="flex items-start gap-3 text-[11px] leading-5 text-[#6f5a4d]">
-          <input required name="terms" type="checkbox" className="mt-1 accent-[#5B0B1F]" />
+          <input required name="terms" type="checkbox" className="mt-1 accent-[var(--color-burgundy)]" />
           <span>{t('auth.terms')}</span>
         </label>
         {error ? <p className="text-[12px] text-[#9f1239]">{error}</p> : null}
@@ -516,7 +516,7 @@ function PasswordField({
         <button
           type="button"
           onClick={() => setShow(!show)}
-          className="text-[#5B0B1F]"
+          className="text-[var(--color-burgundy)]"
           aria-label={show ? t('auth.hidePassword') : t('auth.showPassword')}
         >
           {show ? <EyeOff size={17} /> : <Eye size={17} />}
@@ -538,7 +538,7 @@ function SubmitButton({
     <button
       type="submit"
       disabled={loading}
-	      className="inline-flex min-h-[53px] w-full min-w-0 items-center justify-center gap-3 rounded-full bg-[#5B0B1F] px-4 text-[14px] font-bold text-white disabled:opacity-60"
+	      className="inline-flex min-h-[53px] w-full min-w-0 items-center justify-center gap-3 rounded-full bg-[var(--color-burgundy)] px-4 text-[14px] font-bold text-white disabled:opacity-60"
     >
       {loading ? t('auth.processing') : children}
       <ArrowRight size={17} />

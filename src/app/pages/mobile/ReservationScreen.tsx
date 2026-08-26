@@ -564,7 +564,7 @@ export function ReservationScreen() {
             <button
               type="button"
               onClick={() => setRomanticSignRequired((current) => !current)}
-              className={`inline-flex min-h-9 shrink-0 items-center justify-center rounded-full px-3 text-[11px] font-semibold transition ${romanticSignRequired ? 'bg-[var(--color-burgundy)] text-white shadow-[0_10px_20px_rgba(91,11,31,0.16)]' : 'border border-[rgba(180,138,85,0.34)] bg-white/72 text-[var(--color-burgundy)]'}`}
+              className={`inline-flex min-h-9 shrink-0 items-center justify-center rounded-full px-3 text-[11px] font-semibold transition ${romanticSignRequired ? 'bg-[var(--color-burgundy)] text-white shadow-[0_10px_20px_rgba(45,5,17,0.18)]' : 'border border-[rgba(180,138,85,0.34)] bg-white/72 text-[var(--color-burgundy)]'}`}
             >
               {romanticSignRequired ? 'Agregado' : 'Agregar'}
             </button>
@@ -578,7 +578,7 @@ export function ReservationScreen() {
                     key={option}
                     type="button"
                     onClick={() => setRomanticSignMessage(option)}
-                    className={`flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[0.9rem] px-3.5 py-2 text-left text-[12px] font-semibold transition ${active ? 'bg-[rgba(91,11,31,0.08)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(91,11,31,0.34)]' : 'bg-white/62 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                    className={`flex min-h-[44px] w-full items-center justify-between gap-3 rounded-[0.9rem] px-3.5 py-2 text-left text-[12px] font-semibold transition ${active ? 'bg-[rgba(74,7,25,0.1)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(74,7,25,0.38)]' : 'bg-white/62 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
                   >
                     <span className="min-w-0 break-words">{option}</span>
                     {active ? <Check size={16} className="shrink-0" /> : null}
@@ -605,7 +605,7 @@ export function ReservationScreen() {
                   key={option.value}
                   type="button"
                   onClick={() => setMainCourseValue(option.value)}
-                  className={`flex min-h-[46px] w-full items-center justify-between gap-3 rounded-[0.9rem] px-3.5 py-2 text-left text-[12px] font-semibold transition ${active ? 'bg-[rgba(91,11,31,0.08)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(91,11,31,0.34)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                  className={`flex min-h-[46px] w-full items-center justify-between gap-3 rounded-[0.9rem] px-3.5 py-2 text-left text-[12px] font-semibold transition ${active ? 'bg-[rgba(74,7,25,0.1)] text-[var(--color-burgundy)] shadow-[inset_0_0_0_1px_rgba(74,7,25,0.38)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
                 >
                   <span className="min-w-0 break-words">{option.label}</span>
                   {active ? <Check size={16} className="shrink-0" /> : null}
@@ -630,7 +630,7 @@ export function ReservationScreen() {
               <button
                 type="button"
                 onClick={() => setMenuValue('')}
-                className={`grid min-h-[64px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.05rem] px-5 py-3 text-left transition ${menuValue === '' ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(91,11,31,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                className={`grid min-h-[64px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.05rem] px-5 py-3 text-left transition ${menuValue === '' ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(45,5,17,0.18)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
               >
                 <span className="min-w-0 text-[13px] font-semibold">Sin menú</span>
                 {menuValue === '' ? <Check size={16} className="shrink-0" /> : null}
@@ -644,7 +644,7 @@ export function ReservationScreen() {
                   key={option.value}
                   type="button"
                   onClick={() => setMenuValue(option.value)}
-                  className={`grid min-h-[92px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.05rem] px-5 py-4 text-left transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(91,11,31,0.16)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
+                  className={`grid min-h-[92px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-4 rounded-[1.05rem] px-5 py-4 text-left transition ${active ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(45,5,17,0.18)]' : 'bg-[rgba(247,242,234,0.82)] text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.2)]'}`}
                 >
                   <span className="min-w-0">
                     {option.category ? <span className={`mb-1 block text-[9px] font-semibold uppercase tracking-[0.13em] ${active ? 'text-white/70' : 'text-[var(--color-gold)]'}`}>{option.category}</span> : null}
@@ -674,7 +674,7 @@ export function ReservationScreen() {
           <button
             type="button"
             onClick={() => setContractAccepted((current) => !current)}
-            className={`mt-4 flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${contractAccepted ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(91,11,31,0.16)]' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.24)]'}`}
+            className={`mt-4 flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[1rem] px-4 text-left text-[13px] font-semibold transition ${contractAccepted ? 'bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(45,5,17,0.18)]' : 'bg-white/72 text-[var(--color-ink)] shadow-[inset_0_0_0_1px_rgba(180,138,85,0.24)]'}`}
           >
             <span className="min-w-0 break-words">{activeContractTerms.confirmationMessage}</span>
             <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${contractAccepted ? 'bg-white/18 text-white' : 'bg-[rgba(37,47,55,0.08)] text-[var(--color-muted)]'}`}>

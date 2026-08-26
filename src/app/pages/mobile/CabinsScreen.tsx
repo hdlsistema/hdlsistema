@@ -212,7 +212,7 @@ export function CabinsScreen() {
             <p className="mt-1 text-[12px] leading-5 text-[#5F493D]">{HACIENDA_ADDRESS}</p>
           </div>
         </div>
-        <button type="button" onClick={() => setShowDirections(true)} className="app-burgundy-cta mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#5B0B1F,#33040F)] px-4 text-[12px] font-semibold text-white">
+        <button type="button" onClick={() => setShowDirections(true)} className="app-burgundy-cta mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,var(--color-burgundy),var(--color-burgundy-deep))] px-4 text-[12px] font-semibold text-white">
           <Navigation size={15} />
           {isEnglish ? 'How to get to the cabins' : 'Cómo llegar a las cabañas'}
         </button>
@@ -231,7 +231,7 @@ export function CabinsScreen() {
               key={item.id}
               type="button"
               onClick={() => selectPackage(item.id)}
-              className={`min-w-0 max-w-full overflow-hidden rounded-[18px] border text-left ${selectedPackage === item.id ? 'border-[#5B0B1F] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}
+              className={`min-w-0 max-w-full overflow-hidden rounded-[18px] border text-left ${selectedPackage === item.id ? 'border-[var(--color-burgundy)] bg-[#FFF5EA]' : 'border-[rgba(180,138,85,0.32)] bg-[#FFFDF8]'}`}
             >
               {item.coverImageUrl ? (
                 <span className="block h-40 bg-[var(--color-ink)]">
@@ -341,7 +341,7 @@ export function CabinsScreen() {
                     key={option.value}
                     type="button"
                     onClick={() => setMainCourseValue(option.value)}
-                    className={`min-h-11 rounded-[14px] border px-3 text-left text-[12px] font-semibold ${active ? 'border-[#5B0B1F] bg-[#5B0B1F] text-white shadow-[0_12px_26px_rgba(91,11,31,0.2)]' : 'border-[rgba(180,138,85,0.36)] bg-[#FFFDF8] text-[var(--color-burgundy)]'}`}
+                    className={`min-h-11 rounded-[14px] border px-3 text-left text-[12px] font-semibold ${active ? 'border-[var(--color-burgundy)] bg-[var(--color-burgundy)] text-white shadow-[0_12px_26px_rgba(45,5,17,0.22)]' : 'border-[rgba(180,138,85,0.36)] bg-[#FFFDF8] text-[var(--color-burgundy)]'}`}
                   >
                     {option.label}
                   </button>
@@ -369,7 +369,7 @@ export function CabinsScreen() {
               type="checkbox"
               checked={contractAccepted}
               onChange={(event) => setContractAccepted(event.target.checked)}
-              className="mt-1 h-5 w-5 rounded border-[rgba(91,11,31,0.28)] accent-[#5B0B1F]"
+              className="mt-1 h-5 w-5 rounded border-[rgba(74,7,25,0.32)] accent-[var(--color-burgundy)]"
             />
             <span className="text-[11px] leading-5 text-[var(--color-muted)]">
               <strong className="block text-[12px] text-[var(--color-ink)]">{cabinContractTerms.title}</strong>
@@ -377,7 +377,7 @@ export function CabinsScreen() {
             </span>
           </label>
         ) : null}
-        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
+        <button type="button" onClick={submit} disabled={submitting} className="mt-3 flex min-h-12 w-full items-center justify-center rounded-full bg-[var(--color-burgundy)] px-5 text-[14px] font-semibold text-white disabled:opacity-60">
           {submitting ? <Loader2 className="animate-spin" size={18} /> : (isEnglish ? 'Request cabin' : 'Solicitar cabaña')}
         </button>
         {message ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-burgundy)]">{message}</p> : null}
