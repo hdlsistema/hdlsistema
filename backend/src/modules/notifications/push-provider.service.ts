@@ -21,8 +21,32 @@ function base64Url(value: string | Buffer) {
   return Buffer.from(value).toString('base64url')
 }
 
+function normalizePrivateKey(value: string) {
+  let normalized = value.trim()
+  if (
+    (normalized.startsWith('"') && normalized.endsWith('"')) ||
+    (normalized.startsWith("'") && normalized.endsWith("'"))
+  ) {
+    normalized = normalized.slice(1, -1).trim()
+  }
+  normalized = normalized.replace(/\\n/g, '\n').replace(/\r\n/g, '\n')
+
+  if (!normalized.includes('BEGIN') && /^[A-Za-z0-9+/=\s]+$/.test(normalized)) {
+    try {
+      const decoded = Buffer.from(normalized, 'base64').toString('utf8').trim()
+      if (decoded.includes('BEGIN') && decoded.includes('PRIVATE KEY')) {
+        normalized = decoded.replace(/\\n/g, '\n').replace(/\r\n/g, '\n')
+      }
+    } catch {
+      // Keep the original sanitized value; signing will report the provider error.
+    }
+  }
+
+  return normalized.trim()
+}
+
 function privateKey() {
-  return env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n').trim()
+  return normalizePrivateKey(env.FIREBASE_PRIVATE_KEY)
 }
 
 export function pushProviderState() {
@@ -33,7 +57,7 @@ export function pushProviderState() {
 }
 
 function applePrivateKey() {
-  return env.APNS_PRIVATE_KEY.replace(/\\n/g, '\n').trim()
+  return normalizePrivateKey(env.APNS_PRIVATE_KEY)
 }
 
 export function apnsProviderState() {

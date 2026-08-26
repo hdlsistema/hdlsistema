@@ -202,11 +202,18 @@ export function ControlTopbar() {
                 setShowAlerts(true)
                 void loadAlerts()
               }}
-              className="relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/55 bg-white/38 text-[var(--color-muted)]"
+              aria-label={t('control.notifications')}
+              title={t('control.notifications')}
+              className="relative inline-flex h-9 min-w-[3.6rem] items-center justify-center gap-1.5 rounded-md border border-[rgba(180,138,85,0.32)] bg-white px-2 text-[var(--color-burgundy)] shadow-[0_10px_24px_rgba(90,45,28,0.08)]"
             >
-              <Bell size={16} />
+              <span className="relative inline-flex h-5 w-5 items-center justify-center">
+                <Bell size={17} strokeWidth={1.9} />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border border-white bg-[#d8ad5c]" />
+                ) : null}
+              </span>
               {unreadCount > 0 ? (
-                <span className="absolute right-2 top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-burgundy)] px-1 text-[9px] font-bold text-white">
+                <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--color-burgundy)] px-1.5 text-[9px] font-bold text-white">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </span>
               ) : null}
