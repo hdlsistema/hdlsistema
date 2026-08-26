@@ -134,7 +134,7 @@ export function ExecutiveAssistant() {
 
   const copy = isEnglish ? {
     eyebrow: 'PRIVATE EXECUTIVE READING', title: 'My assistant', intro: 'A direct reading of the estate operation, refreshed from the Control Center.',
-    privacy: 'Read-only. Uses aggregate indicators and never changes records.', open: 'Open conversation', close: 'Close',
+    privacy: 'Read-only. Consults operational records and never changes them.', open: 'Open conversation', close: 'Close',
     welcome: 'What would you like to know about today’s operation?', placeholder: 'Ask about sales, bookings, occupancy, logistics or customers…', send: 'Send',
     prompts: ['What needs my attention today?', 'Give me the commercial summary', 'Where are the operational risks?'],
     voice: 'Voice conversation', startVoice: 'Start voice', stopVoice: 'Stop', mute: 'Mute response', unmute: 'Hear response',
@@ -142,7 +142,7 @@ export function ExecutiveAssistant() {
     failure: 'The assistant could not consult the operation. Try again in a moment.', accessFailure: 'Your session cannot consult the assistant right now. Sign in again and retry.', voiceFailure: 'Voice could not be started. Check microphone permission and try again.',
   } : {
     eyebrow: 'LECTURA EJECUTIVA PRIVADA', title: 'Mi asistente', intro: 'Una lectura directa de la operación de la Hacienda, actualizada desde el Centro de Control.',
-    privacy: 'Sólo consulta. Usa indicadores agregados y nunca modifica registros.', open: 'Abrir conversación', close: 'Cerrar',
+    privacy: 'Sólo consulta. Lee registros operativos y nunca modifica datos.', open: 'Abrir conversación', close: 'Cerrar',
     welcome: '¿Qué necesitas saber de la operación de hoy?', placeholder: 'Pregunta por ventas, reservaciones, ocupación, logística o clientes…', send: 'Enviar',
     prompts: ['¿Qué requiere mi atención hoy?', 'Dame el resumen comercial', '¿Dónde están los riesgos operativos?'],
     voice: 'Conversación por voz', startVoice: 'Iniciar conversación', stopVoice: 'Detener', mute: 'Silenciar respuesta', unmute: 'Escuchar respuesta',

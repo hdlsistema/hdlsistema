@@ -1449,10 +1449,252 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(response.body.data.answer).toContain('origen App')
     expect(response.body.data.answer).toContain('total $900.00')
     expect(response.body.data.answer).toContain('2 x Dulce Apapacho')
-    expect(response.body.data.answer).toContain('stripe: paid')
+    expect(response.body.data.answer).toContain('stripe: Pago confirmado')
     expect(response.body.data.answer).toContain('Estafeta GUIA-REAL-001')
     expect(response.body.data.answer).toContain('Consulta local de solo lectura')
     expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
+  })
+
+  it('responde seguimientos de logística con clientes y órdenes reales', async () => {
+    authenticateAs('admin')
+    supabaseMock.tableData.executive_ai_access = [{
+      user_id: customerUser.id,
+      feature_code: 'executive_ai_assistant',
+      active: true,
+    }]
+    supabaseMock.tableData.executive_ai_queries = []
+    supabaseMock.tableData.orders = [
+      {
+        id: 'order-logistics-1',
+        order_number: 'ORD-20260826-GUIA001',
+        customer_id: 'customer-logistics-1',
+        subtotal: 300,
+        discount_total: 0,
+        tax_total: 0,
+        shipping_total: 0,
+        total: 300,
+        currency: 'MXN',
+        status: 'paid',
+        source: 'mobile_app',
+        paid_at: '2026-08-26T15:00:00.000Z',
+        requires_shipping: true,
+        shipping_status: 'pending_preparation',
+        created_at: '2026-08-26T14:50:00.000Z',
+        updated_at: '2026-08-26T15:00:00.000Z',
+        customers: {
+          display_name: 'Patty Garibay',
+          first_name: 'Patty',
+          last_name: 'Garibay',
+          email: 'pcgaribayg@gmail.com',
+          phone: '4490000000',
+          source: 'mobile_app',
+          segment: 'cliente',
+        },
+      },
+      {
+        id: 'order-logistics-2',
+        order_number: 'ORD-20260826-GUIA002',
+        customer_id: 'customer-logistics-2',
+        subtotal: 900,
+        discount_total: 0,
+        tax_total: 0,
+        shipping_total: 0,
+        total: 900,
+        currency: 'MXN',
+        status: 'paid',
+        source: 'web',
+        paid_at: '2026-08-26T15:30:00.000Z',
+        requires_shipping: true,
+        shipping_status: 'awaiting_tracking',
+        created_at: '2026-08-26T15:20:00.000Z',
+        updated_at: '2026-08-26T15:30:00.000Z',
+        customers: {
+          display_name: 'Marlén Molina',
+          first_name: 'Marlén',
+          last_name: 'Molina',
+          email: 'marmolina1785@gmail.com',
+          phone: '4651290813',
+          source: 'web',
+          segment: 'cliente',
+        },
+      },
+    ]
+    supabaseMock.tableData.order_items = [
+      {
+        id: 'item-logistics-1',
+        order_id: 'order-logistics-1',
+        item_type: 'wine',
+        name_snapshot: 'Precioso Regalo',
+        sku_snapshot: 'PREC-001',
+        quantity: 1,
+        unit_price: 300,
+        subtotal: 300,
+        created_at: '2026-08-26T14:51:00.000Z',
+      },
+      {
+        id: 'item-logistics-2',
+        order_id: 'order-logistics-2',
+        item_type: 'wine',
+        name_snapshot: 'Dulce Apapacho',
+        sku_snapshot: 'DULCE-001',
+        quantity: 2,
+        unit_price: 450,
+        subtotal: 900,
+        created_at: '2026-08-26T15:21:00.000Z',
+      },
+    ]
+    supabaseMock.tableData.payments = [
+      {
+        id: 'payment-logistics-1',
+        order_id: 'order-logistics-1',
+        provider: 'stripe',
+        amount: 300,
+        currency: 'MXN',
+        status: 'paid',
+        payment_method_type: 'card',
+        paid_at: '2026-08-26T15:00:00.000Z',
+        refunded_amount: 0,
+        created_at: '2026-08-26T14:59:00.000Z',
+        updated_at: '2026-08-26T15:00:00.000Z',
+      },
+      {
+        id: 'payment-logistics-2',
+        order_id: 'order-logistics-2',
+        provider: 'stripe',
+        amount: 900,
+        currency: 'MXN',
+        status: 'paid',
+        payment_method_type: 'card',
+        paid_at: '2026-08-26T15:30:00.000Z',
+        refunded_amount: 0,
+        created_at: '2026-08-26T15:29:00.000Z',
+        updated_at: '2026-08-26T15:30:00.000Z',
+      },
+    ]
+    supabaseMock.tableData.shipments = [{
+      id: 'shipment-logistics-2',
+      order_id: 'order-logistics-2',
+      shipment_number: 'SHIP-GUIA002',
+      carrier: 'Estafeta',
+      tracking_number: '',
+      status_text: 'pendiente de guía',
+      created_at: '2026-08-26T15:40:00.000Z',
+      updated_at: '2026-08-26T15:40:00.000Z',
+    }]
+
+    const response = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({
+        message: 'de que clientes son',
+        history: [
+          { role: 'user', content: 'que ventas tenemos pendientes de envio y asignar guia' },
+          { role: 'assistant', content: 'Hay pedidos en estado pending_preparation dentro de logística.' },
+        ],
+      })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.answer).toContain('Hay 2 envíos que requieren atención')
+    expect(response.body.data.answer).toContain('Patty Garibay')
+    expect(response.body.data.answer).toContain('Marlén Molina')
+    expect(response.body.data.answer).toContain('ORD-20260826-GUIA001')
+    expect(response.body.data.answer).toContain('ORD-20260826-GUIA002')
+    expect(response.body.data.answer).toContain('sin guía')
+    expect(response.body.data.answer).toContain('Consulta local de solo lectura: Órdenes, Clientes, Partidas, Pagos, Envíos y Reservaciones')
+  })
+
+  it('responde compras y consumos de un cliente específico sin usar resumen agregado', async () => {
+    authenticateAs('admin')
+    supabaseMock.tableData.executive_ai_access = [{
+      user_id: customerUser.id,
+      feature_code: 'executive_ai_assistant',
+      active: true,
+    }]
+    supabaseMock.tableData.executive_ai_queries = []
+    supabaseMock.tableData.customers = [{
+      id: 'customer-patty',
+      customer_number: 'HDL-PATTY',
+      display_name: 'Patty Garibay',
+      first_name: 'Patty',
+      last_name: 'Garibay',
+      email: 'pcgaribayg@gmail.com',
+      phone: '4490000000',
+      source: 'mobile_app',
+      segment: 'cliente',
+      total_spend: 1200,
+      total_visits: 2,
+      status: 'active',
+      created_at: '2026-08-20T14:00:00.000Z',
+      updated_at: '2026-08-26T15:00:00.000Z',
+    }]
+    supabaseMock.tableData.orders = [{
+      id: 'order-patty-1',
+      order_number: 'ORD-20260826-PATTY01',
+      customer_id: 'customer-patty',
+      subtotal: 300,
+      discount_total: 0,
+      tax_total: 0,
+      shipping_total: 0,
+      total: 300,
+      currency: 'MXN',
+      status: 'paid',
+      source: 'mobile_app',
+      paid_at: '2026-08-26T15:00:00.000Z',
+      requires_shipping: true,
+      shipping_status: 'pending_preparation',
+      created_at: '2026-08-26T14:50:00.000Z',
+      updated_at: '2026-08-26T15:00:00.000Z',
+      customers: {
+        id: 'customer-patty',
+        customer_number: 'HDL-PATTY',
+        display_name: 'Patty Garibay',
+        first_name: 'Patty',
+        last_name: 'Garibay',
+        email: 'pcgaribayg@gmail.com',
+        phone: '4490000000',
+        source: 'mobile_app',
+        segment: 'cliente',
+      },
+    }]
+    supabaseMock.tableData.order_items = [{
+      id: 'item-patty-1',
+      order_id: 'order-patty-1',
+      item_type: 'wine',
+      name_snapshot: 'Precioso Regalo',
+      sku_snapshot: 'PREC-001',
+      quantity: 1,
+      unit_price: 300,
+      subtotal: 300,
+      created_at: '2026-08-26T14:51:00.000Z',
+    }]
+    supabaseMock.tableData.payments = [{
+      id: 'payment-patty-1',
+      order_id: 'order-patty-1',
+      provider: 'stripe',
+      amount: 300,
+      currency: 'MXN',
+      status: 'paid',
+      payment_method_type: 'card',
+      paid_at: '2026-08-26T15:00:00.000Z',
+      refunded_amount: 0,
+      created_at: '2026-08-26T14:59:00.000Z',
+      updated_at: '2026-08-26T15:00:00.000Z',
+    }]
+    supabaseMock.tableData.reservations = []
+    supabaseMock.tableData.shipments = []
+
+    const response = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ message: 'que consumos ha tenido el cliente Patricia Garibay', history: [] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.answer).toContain('Cliente Patty Garibay')
+    expect(response.body.data.answer).toContain('Compras y consumos')
+    expect(response.body.data.answer).toContain('ORD-20260826-PATTY01')
+    expect(response.body.data.answer).toContain('1 x Precioso Regalo')
+    expect(response.body.data.answer).toContain('Pagos confirmados encontrados')
+    expect(response.body.data.answer).toContain('Consulta local de solo lectura: Clientes, Órdenes, Partidas, Pagos, Envíos y Reservaciones')
   })
 })
 
