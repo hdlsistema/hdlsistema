@@ -29,10 +29,75 @@ function numberValue(value: unknown) {
   return typeof value === 'number' ? String(value) : typeof value === 'string' ? value : ''
 }
 
+function dateValue(value: unknown) {
+  if (typeof value !== 'string' || !value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toISOString().slice(0, 10)
+}
+
 function cleanFilters(filters: CampaignAudienceFilters) {
   return Object.fromEntries(
     Object.entries(filters).filter(([, value]) => value !== '' && value !== undefined && value !== null),
   ) as CampaignAudienceFilters
+}
+
+type CampaignChannel = 'email' | 'push' | 'in_app'
+type CampaignSourceGroup = NonNullable<CampaignAudienceFilters['sourceGroup']>
+type BooleanFilterValue = '' | 'true' | 'false'
+type Option = { value: string; label: string }
+
+const sourceGroupValues = new Set(['app', 'web', 'hacienda', 'other'])
+
+const segmentOptions: Option[] = [
+  { value: '', label: 'Todos los clientes' },
+  { value: 'customer', label: 'Cliente general' },
+  { value: 'recurring', label: 'Recurrente' },
+  { value: 'vip', label: 'VIP' },
+  { value: 'high_value', label: 'Alto valor' },
+  { value: 'at_risk', label: 'En riesgo' },
+  { value: 'inactive', label: 'Inactivo' },
+  { value: 'wine_club', label: 'Wine Club' },
+  { value: 'corporate', label: 'Corporativo' },
+  { value: 'new', label: 'Nuevo en app' },
+]
+
+const sourceGroupOptions: Option[] = [
+  { value: '', label: 'Todos los orígenes' },
+  { value: 'app', label: 'App nativa' },
+  { value: 'web', label: 'Web' },
+  { value: 'hacienda', label: 'Hacienda / manual' },
+  { value: 'other', label: 'Otro origen' },
+]
+
+const booleanOptions: Option[] = [
+  { value: '', label: 'Sin filtro' },
+  { value: 'true', label: 'Sí' },
+  { value: 'false', label: 'No' },
+]
+
+function sourceGroupValue(value: string): CampaignSourceGroup | undefined {
+  return sourceGroupValues.has(value) ? value as CampaignSourceGroup : undefined
+}
+
+function boolFilter(value: string): boolean | undefined {
+  return value === 'true' ? true : value === 'false' ? false : undefined
+}
+
+function dateFilter(value: string, edge: 'start' | 'end') {
+  if (!value) return undefined
+  const date = new Date(`${value}T${edge === 'start' ? '00:00:00.000' : '23:59:59.999'}`)
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+}
+
+function sourceGroupLabel(value?: string | null) {
+  return sourceGroupOptions.find((option) => option.value === value)?.label ?? 'Sin origen'
+}
+
+function channelLabel(channel: CampaignChannel) {
+  if (channel === 'email') return 'Correo'
+  if (channel === 'push') return 'Push'
+  return 'App'
 }
 
 async function currentAccessToken() {
@@ -43,10 +108,10 @@ async function currentAccessToken() {
 export function CampaignEditorialForm(props: EditorialFormProps) {
   const storedAudience = useMemo(() => parseJson(props.form.audience_definition), [props.form.audience_definition])
   const storedContent = useMemo(() => parseJson(props.form.content), [props.form.content])
-  const [channels, setChannels] = useState<Array<'email' | 'push' | 'in_app'>>(() => {
+  const [channels, setChannels] = useState<CampaignChannel[]>(() => {
     const value = storedAudience.channels
     const selected = Array.isArray(value)
-      ? value.filter((channel): channel is 'email' | 'push' | 'in_app' => ['email', 'push', 'in_app'].includes(String(channel)))
+      ? value.filter((channel): channel is CampaignChannel => ['email', 'push', 'in_app'].includes(String(channel)))
       : []
     return selected.length ? selected : ['email']
   })
@@ -54,13 +119,20 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
     search: stringValue(storedAudience.search),
     segment: stringValue(storedAudience.segment),
     source: stringValue(storedAudience.source),
+    sourceGroup: stringValue(storedAudience.sourceGroup),
     location: stringValue(storedAudience.location),
-    hasOrders: storedAudience.hasOrders === true ? 'true' : storedAudience.hasOrders === false ? 'false' : '',
-    hasReservations: storedAudience.hasReservations === true ? 'true' : storedAudience.hasReservations === false ? 'false' : '',
-    hasMembership: storedAudience.hasMembership === true ? 'true' : storedAudience.hasMembership === false ? 'false' : '',
+    hasOrders: storedAudience.hasOrders === true ? 'true' : storedAudience.hasOrders === false ? 'false' : '' as BooleanFilterValue,
+    hasReservations: storedAudience.hasReservations === true ? 'true' : storedAudience.hasReservations === false ? 'false' : '' as BooleanFilterValue,
+    hasMembership: storedAudience.hasMembership === true ? 'true' : storedAudience.hasMembership === false ? 'false' : '' as BooleanFilterValue,
     minAge: numberValue(storedAudience.minAge),
     maxAge: numberValue(storedAudience.maxAge),
     minTotalSpend: numberValue(storedAudience.minTotalSpend),
+    maxTotalSpend: numberValue(storedAudience.maxTotalSpend),
+    minTotalVisits: numberValue(storedAudience.minTotalVisits),
+    createdFrom: dateValue(storedAudience.createdFrom),
+    createdTo: dateValue(storedAudience.createdTo),
+    lastVisitFrom: dateValue(storedAudience.lastVisitFrom),
+    lastVisitTo: dateValue(storedAudience.lastVisitTo),
     limit: numberValue(storedAudience.limit) || '250',
   })
   const [preview, setPreview] = useState<CampaignAudiencePreviewResponse['data'] | null>(null)
@@ -74,13 +146,20 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
     search: filters.search,
     segment: filters.segment,
     source: filters.source,
+    sourceGroup: sourceGroupValue(filters.sourceGroup),
     location: filters.location,
-    hasOrders: filters.hasOrders === '' ? undefined : filters.hasOrders === 'true',
-    hasReservations: filters.hasReservations === '' ? undefined : filters.hasReservations === 'true',
-    hasMembership: filters.hasMembership === '' ? undefined : filters.hasMembership === 'true',
+    hasOrders: boolFilter(filters.hasOrders),
+    hasReservations: boolFilter(filters.hasReservations),
+    hasMembership: boolFilter(filters.hasMembership),
     minAge: filters.minAge ? Number(filters.minAge) : undefined,
     maxAge: filters.maxAge ? Number(filters.maxAge) : undefined,
     minTotalSpend: filters.minTotalSpend ? Number(filters.minTotalSpend) : undefined,
+    maxTotalSpend: filters.maxTotalSpend ? Number(filters.maxTotalSpend) : undefined,
+    minTotalVisits: filters.minTotalVisits ? Number(filters.minTotalVisits) : undefined,
+    createdFrom: dateFilter(filters.createdFrom, 'start'),
+    createdTo: dateFilter(filters.createdTo, 'end'),
+    lastVisitFrom: dateFilter(filters.lastVisitFrom, 'start'),
+    lastVisitTo: dateFilter(filters.lastVisitTo, 'end'),
     limit: filters.limit ? Number(filters.limit) : undefined,
   })
 
@@ -101,7 +180,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
     return () => { active = false }
   }, [props.record?.id])
 
-  const toggleChannel = (channel: 'email' | 'push' | 'in_app') => {
+  const toggleChannel = (channel: CampaignChannel) => {
     setChannels((current) => {
       if (current.includes(channel)) return current.length === 1 ? current : current.filter((item) => item !== channel)
       return [...current, channel]
@@ -164,7 +243,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
           <div>
             <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">Operación de campaña</p>
             <h3 className="mt-1 text-xl font-semibold text-[var(--color-ink)]">Audiencia y envío de campaña</h3>
-            <p className="mt-1 text-[13px] text-[var(--color-muted)]">La audiencia se calcula desde Supabase y respeta el consentimiento de cada canal.</p>
+            <p className="mt-1 text-[13px] text-[var(--color-muted)]">La audiencia se calcula con registros reales y respeta el consentimiento de cada canal.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => void previewAudience()} disabled={Boolean(working)} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[var(--color-line)] bg-white/72 px-4 text-sm font-semibold text-[var(--color-burgundy)]">
@@ -178,6 +257,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
           </div>
         </div>
 
+        <p className="mt-5 text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">Canales de entrega</p>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           {([
             { id: 'email' as const, label: 'Correo', icon: Mail },
@@ -201,17 +281,23 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
           })}
         </div>
 
-        <div className="mt-5 grid gap-3 lg:grid-cols-5">
+        <div className="mt-5 grid gap-3 lg:grid-cols-4">
           <GlassInput label="Buscar" value={filters.search} onChange={(value) => setFilters((current) => ({ ...current, search: value }))} placeholder="Nombre, correo o folio" />
-          <GlassInput label="Segmento" value={filters.segment} onChange={(value) => setFilters((current) => ({ ...current, segment: value }))} placeholder="vip, frecuente..." />
-          <GlassInput label="Canal" value={filters.source} onChange={(value) => setFilters((current) => ({ ...current, source: value }))} placeholder="App, Web, Atención directa..." />
+          <GlassOptionsSelect label="Tipo de cliente" value={filters.segment} onChange={(value) => setFilters((current) => ({ ...current, segment: value }))} options={segmentOptions} />
+          <GlassOptionsSelect label="Origen" value={filters.sourceGroup} onChange={(value) => setFilters((current) => ({ ...current, sourceGroup: value }))} options={sourceGroupOptions} />
           <GlassInput label="Ubicación" value={filters.location} onChange={(value) => setFilters((current) => ({ ...current, location: value }))} placeholder="Ciudad o estado" />
           <GlassInput label="Límite" value={filters.limit} onChange={(value) => setFilters((current) => ({ ...current, limit: value }))} placeholder="250" type="number" />
-          <GlassSelect label="Compras" value={filters.hasOrders} onChange={(value) => setFilters((current) => ({ ...current, hasOrders: value }))} />
-          <GlassSelect label="Reservas" value={filters.hasReservations} onChange={(value) => setFilters((current) => ({ ...current, hasReservations: value }))} />
-          <GlassSelect label="Wine Club" value={filters.hasMembership} onChange={(value) => setFilters((current) => ({ ...current, hasMembership: value }))} />
+          <GlassOptionsSelect label="Compras" value={filters.hasOrders} onChange={(value) => setFilters((current) => ({ ...current, hasOrders: value as BooleanFilterValue }))} options={booleanOptions} />
+          <GlassOptionsSelect label="Reservas" value={filters.hasReservations} onChange={(value) => setFilters((current) => ({ ...current, hasReservations: value as BooleanFilterValue }))} options={booleanOptions} />
+          <GlassOptionsSelect label="Wine Club" value={filters.hasMembership} onChange={(value) => setFilters((current) => ({ ...current, hasMembership: value as BooleanFilterValue }))} options={booleanOptions} />
+          <GlassInput label="Cliente desde" value={filters.createdFrom} onChange={(value) => setFilters((current) => ({ ...current, createdFrom: value }))} type="date" />
+          <GlassInput label="Cliente hasta" value={filters.createdTo} onChange={(value) => setFilters((current) => ({ ...current, createdTo: value }))} type="date" />
+          <GlassInput label="Actividad desde" value={filters.lastVisitFrom} onChange={(value) => setFilters((current) => ({ ...current, lastVisitFrom: value }))} type="date" />
+          <GlassInput label="Actividad hasta" value={filters.lastVisitTo} onChange={(value) => setFilters((current) => ({ ...current, lastVisitTo: value }))} type="date" />
           <GlassInput label="Edad mínima" value={filters.minAge} onChange={(value) => setFilters((current) => ({ ...current, minAge: value }))} type="number" />
+          <GlassInput label="Visitas mínimas" value={filters.minTotalVisits} onChange={(value) => setFilters((current) => ({ ...current, minTotalVisits: value }))} type="number" />
           <GlassInput label="Gasto mínimo" value={filters.minTotalSpend} onChange={(value) => setFilters((current) => ({ ...current, minTotalSpend: value }))} type="number" />
+          <GlassInput label="Gasto máximo" value={filters.maxTotalSpend} onChange={(value) => setFilters((current) => ({ ...current, maxTotalSpend: value }))} type="number" />
         </div>
 
         {operationError ? <p className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{operationError}</p> : null}
@@ -222,16 +308,19 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
             <div className="mt-2 flex flex-wrap gap-2 text-xs text-[var(--color-muted)]">
               {preview.channels.map((channel) => (
                 <span key={channel} className="rounded-full bg-white px-3 py-1">
-                  {channel === 'email' ? 'Correo' : channel === 'push' ? 'Push' : 'App'}: {preview.channelTotals[channel] ?? 0}
+                  {channelLabel(channel)}: {preview.channelTotals[channel] ?? 0}
                 </span>
               ))}
+              {preview.excludedInternalUsers ? (
+                <span className="rounded-full bg-white px-3 py-1">Usuarios internos excluidos: {preview.excludedInternalUsers}</span>
+              ) : null}
             </div>
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               {preview.sample.slice(0, 8).map((item) => (
                 <div key={item.id} className="rounded-2xl bg-white/72 px-4 py-3 text-sm">
                   <p className="font-semibold text-[var(--color-ink)]">{item.name}</p>
                   <p className="text-[var(--color-muted)]">{item.email}</p>
-                  <p className="text-xs text-[var(--color-muted)]">{item.segment ?? 'Sin segmento'} · {item.source ?? 'Sin origen'}</p>
+                  <p className="text-xs text-[var(--color-muted)]">{item.segment ?? 'Sin segmento'} · {sourceGroupLabel(item.sourceGroup)} · {item.totalVisits} visitas · ${item.totalSpend.toLocaleString('es-MX')}</p>
                 </div>
               ))}
             </div>
@@ -274,7 +363,7 @@ function GlassInput({
   value: string
   onChange: (value: string) => void
   placeholder?: string
-  type?: 'text' | 'number'
+  type?: 'text' | 'number' | 'date'
 }) {
   return (
     <label className="space-y-2">
@@ -290,14 +379,24 @@ function GlassInput({
   )
 }
 
-function GlassSelect({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function GlassOptionsSelect({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  options: Option[]
+}) {
   return (
     <label className="space-y-2">
       <span className="text-[12px] font-semibold uppercase tracking-[0.08em] text-[var(--color-muted)]">{label}</span>
       <CrystalSelect value={value} onChange={onChange}>
-        <option value="">Sin filtro</option>
-        <option value="true">Sí</option>
-        <option value="false">No</option>
+        {options.map((option) => (
+          <option key={option.value || 'empty'} value={option.value}>{option.label}</option>
+        ))}
       </CrystalSelect>
     </label>
   )

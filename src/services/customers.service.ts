@@ -43,6 +43,16 @@ export type CustomerTag = {
   updatedAt: string
 }
 
+export type CustomerAccountType = 'customer' | 'staff' | 'admin' | 'customer_staff'
+
+export type CustomerStaffScope = {
+  code: string
+  label: string
+  type: 'estate' | 'restaurant' | 'boutique' | 'lodging' | 'site'
+  description?: string | null
+  sortOrder: number
+}
+
 export type CustomerNote = {
   id: string
   customerId: string
@@ -67,6 +77,15 @@ export type CustomerRecord = {
   marketingEmailConsent: boolean
   marketingPushConsent: boolean
   consentUpdatedAt?: string | null
+  isStaff: boolean
+  isCustomer: boolean
+  accountType: CustomerAccountType
+  accountLabel: string
+  campaignAudience: string
+  staffRoles: string[]
+  staffPermissionCount: number
+  staffScopeCodes: string[]
+  staffScopes: CustomerStaffScope[]
   totalSpend: number
   totalVisits: number
   reservationsCount: number

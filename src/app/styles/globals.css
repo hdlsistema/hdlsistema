@@ -3394,6 +3394,16 @@ html.hdl-mobile-app .crystal-date-popover__day {
   color: #252f37;
 }
 
+.control-customer-card.is-staff .control-customer-card__classmark {
+  background: #252f37;
+  color: #f7f2ea;
+}
+
+.control-customer-card.is-staff .control-customer-card__segment {
+  border-color: rgba(37, 47, 55, 0.24);
+  color: #252f37;
+}
+
 .control-customer-card__contact {
   display: grid;
   gap: 0.22rem;

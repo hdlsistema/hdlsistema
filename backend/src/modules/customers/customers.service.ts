@@ -1,5 +1,6 @@
 import { supabaseAdminClient } from '../../config/supabase'
 import { randomUUID } from 'crypto'
+import { controlScopesForCodes, rolesGrantFinancialAccess, type ControlScope } from '../admin/controlPermissions'
 import { listActivityForCustomer } from '../activity/activity.service'
 import {
   assertNoError,
@@ -22,7 +23,7 @@ const tagRoles = ['super_admin', 'admin', 'marketing']
 const exportRoles = ['super_admin', 'admin', 'operations', 'marketing', 'finance']
 
 const customerSelect = `
-  id,customer_number,first_name,last_name,display_name,email,phone,phone_normalized,
+  id,user_id,customer_number,first_name,last_name,display_name,email,phone,phone_normalized,
   birth_date,source,segment,total_spend,total_visits,last_visit_at,notes,status,
   marketing_email_consent,marketing_push_consent,consent_updated_at,preferred_language,
   archived_at,created_at,updated_at,metadata
@@ -30,6 +31,7 @@ const customerSelect = `
 
 type CustomerRow = {
   id: string
+  user_id?: string | null
   customer_number: string
   first_name: string
   last_name: string
@@ -122,6 +124,235 @@ type AuditRow = {
   action: string
   entity_type: string
   created_at: string
+}
+
+type AuthDirectoryUser = {
+  id: string
+  email?: string | null
+  app_metadata?: Record<string, unknown>
+}
+
+type CustomerAccountType = 'customer' | 'staff' | 'admin' | 'customer_staff'
+
+type CustomerAccountClassification = {
+  isStaff: boolean
+  isCustomer: boolean
+  accountType: CustomerAccountType
+  accountLabel: string
+  campaignAudience: string
+  staffRoles: string[]
+  staffPermissionCount: number
+  staffScopeCodes: string[]
+  staffScopes: ControlScope[]
+}
+
+const ROLE_PRIORITY = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer', 'customer']
+const STAFF_ROLE_PRIORITY = ['operations', 'marketing', 'finance', 'viewer']
+const STAFF_DIRECTORY_ROLES = new Set(STAFF_ROLE_PRIORITY)
+const ADMIN_DIRECTORY_ROLES = new Set(['super_admin', 'admin'])
+
+function extractRoleCode(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const first = value[0] as { code?: unknown } | undefined
+    return typeof first?.code === 'string' ? first.code : null
+  }
+  if (value && typeof value === 'object') {
+    const code = (value as { code?: unknown }).code
+    return typeof code === 'string' ? code : null
+  }
+  return null
+}
+
+function sortRoles(roles: string[]) {
+  return [...new Set(roles)].sort((a, b) => {
+    const priorityA = ROLE_PRIORITY.indexOf(a)
+    const priorityB = ROLE_PRIORITY.indexOf(b)
+    return (priorityA === -1 ? 999 : priorityA) - (priorityB === -1 ? 999 : priorityB)
+  })
+}
+
+function cleanAuthEmail(value: unknown): string {
+  return typeof value === 'string' ? value.trim().toLowerCase() : ''
+}
+
+function userIdFromRow(row: CustomerRow) {
+  return typeof row.user_id === 'string' && row.user_id ? row.user_id : null
+}
+
+function roleIsStaffDirectoryVisible(role: string) {
+  return STAFF_DIRECTORY_ROLES.has(role)
+}
+
+function hasStaffMetadata(user?: AuthDirectoryUser | null) {
+  return Boolean(user?.app_metadata?.staff_account || user?.app_metadata?.managed_password_locked)
+}
+
+function classifyCustomerAccount(roles: string[], isStaff: boolean): CustomerAccountType {
+  if (!isStaff) return 'customer'
+  if (rolesGrantFinancialAccess(roles)) return 'admin'
+  if (roles.some((role) => STAFF_ROLE_PRIORITY.includes(role))) return 'customer_staff'
+  return 'staff'
+}
+
+function accountLabel(kind: CustomerAccountType, roles: string[] = []) {
+  if (roles.includes('super_admin')) return 'Super administrador'
+  if (kind === 'admin') return 'Administrador'
+  if (kind === 'customer_staff') return 'Cliente + staff'
+  if (kind === 'staff') return 'Usuario interno'
+  return 'Cliente'
+}
+
+async function listAuthUsersForCustomerEmails(emails: string[]) {
+  const wanted = new Set(emails.map(cleanAuthEmail).filter(Boolean))
+  const usersByEmail = new Map<string, AuthDirectoryUser>()
+  if (!wanted.size) return usersByEmail
+
+  const perPage = 100
+  const maxPages = 25
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error } = await supabaseAdminClient.auth.admin.listUsers({ page, perPage })
+    if (error) return usersByEmail
+    const users = ((data?.users ?? []) as AuthDirectoryUser[])
+    for (const user of users) {
+      const email = cleanAuthEmail(user.email)
+      if (wanted.has(email)) usersByEmail.set(email, user)
+    }
+    if (users.length < perPage || usersByEmail.size === wanted.size) break
+  }
+
+  return usersByEmail
+}
+
+async function authUsersForCustomerRows(rows: CustomerRow[]) {
+  const missingEmails = rows
+    .filter((row) => !userIdFromRow(row))
+    .map((row) => row.email)
+    .filter((email): email is string => Boolean(email))
+  const usersByEmail = await listAuthUsersForCustomerEmails(missingEmails)
+  const usersById = new Map<string, AuthDirectoryUser>()
+  for (const user of usersByEmail.values()) {
+    if (user.id) usersById.set(user.id, user)
+  }
+  return { usersByEmail, usersById }
+}
+
+async function getCustomerUserRolesMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_roles')
+    .select('user_id,roles(code)')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const roles = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const role = extractRoleCode(row.roles)
+    if (!userId || !role) continue
+    roles.set(userId, [...(roles.get(userId) ?? []), role])
+  }
+  return new Map([...roles.entries()].map(([userId, values]) => [userId, sortRoles(values)]))
+}
+
+async function getCustomerExplicitPermissionsMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_control_permissions')
+    .select('user_id,permission_code')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const permissions = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const permission = typeof row.permission_code === 'string' ? row.permission_code : ''
+    if (!userId || !permission) continue
+    permissions.set(userId, [...(permissions.get(userId) ?? []), permission])
+  }
+  return permissions
+}
+
+async function getCustomerFinancialGrantUserIds(userIds: string[]): Promise<Set<string>> {
+  if (!userIds.length) return new Set()
+  const { data, error } = await supabaseAdminClient
+    .from('financial_access_grants')
+    .select('user_id')
+    .in('user_id', userIds)
+    .is('revoked_at', null)
+  if (error) return new Set()
+  return new Set((data ?? []).map((row) => typeof row.user_id === 'string' ? row.user_id : '').filter(Boolean))
+}
+
+async function getCustomerUserScopesMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_control_scopes')
+    .select('user_id,scope_code')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const scopes = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const scopeCode = typeof row.scope_code === 'string' ? row.scope_code : ''
+    if (!userId || !scopeCode) continue
+    scopes.set(userId, [...(scopes.get(userId) ?? []), scopeCode])
+  }
+  return scopes
+}
+
+async function customerAccountClassificationMap(rows: CustomerRow[]) {
+  const authLookup = await authUsersForCustomerRows(rows)
+  const userIdByCustomerId = new Map<string, string>()
+  const authUserById = new Map(authLookup.usersById)
+
+  for (const row of rows) {
+    const directUserId = userIdFromRow(row)
+    if (directUserId) {
+      userIdByCustomerId.set(row.id, directUserId)
+      continue
+    }
+    const emailUser = authLookup.usersByEmail.get(cleanAuthEmail(row.email))
+    if (emailUser?.id) {
+      userIdByCustomerId.set(row.id, emailUser.id)
+      authUserById.set(emailUser.id, emailUser)
+    }
+  }
+
+  const userIds = [...new Set(userIdByCustomerId.values())]
+  const [rolesMap, explicitPermissionsMap, financialGrantUserIds, scopesMap] = await Promise.all([
+    getCustomerUserRolesMap(userIds),
+    getCustomerExplicitPermissionsMap(userIds),
+    getCustomerFinancialGrantUserIds(userIds),
+    getCustomerUserScopesMap(userIds),
+  ])
+
+  const accounts = new Map<string, CustomerAccountClassification>()
+  for (const row of rows) {
+    const userId = userIdByCustomerId.get(row.id)
+    const roles = userId ? rolesMap.get(userId) ?? [] : []
+    const explicitPermissions = userId ? explicitPermissionsMap.get(userId) ?? [] : []
+    const hasExplicitFinancialGrant = userId ? financialGrantUserIds.has(userId) : false
+    const user = userId ? authUserById.get(userId) : null
+    const isStaff = hasStaffMetadata(user) ||
+      roles.some(roleIsStaffDirectoryVisible) ||
+      explicitPermissions.length > 0 ||
+      hasExplicitFinancialGrant ||
+      roles.some((role) => ADMIN_DIRECTORY_ROLES.has(role))
+    const accountType = classifyCustomerAccount(roles, isStaff)
+    const staffScopeCodes = userId ? [...new Set(scopesMap.get(userId) ?? [])] : []
+
+    accounts.set(row.id, {
+      isStaff,
+      isCustomer: true,
+      accountType,
+      accountLabel: accountLabel(accountType, roles),
+      campaignAudience: isStaff ? 'USUARIO INTERNO' : 'CLIENTE',
+      staffRoles: isStaff ? roles.filter((role) => role !== 'customer') : [],
+      staffPermissionCount: explicitPermissions.length,
+      staffScopeCodes,
+      staffScopes: controlScopesForCodes(staffScopeCodes),
+    })
+  }
+
+  return accounts
 }
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
@@ -323,6 +554,7 @@ function mapCustomer(
   row: CustomerRow,
   relations: { reservations: ReservationRow[]; orders: OrderRow[]; memberships: MembershipRow[] },
   tags: ReturnType<typeof mapTag>[] = [],
+  account?: CustomerAccountClassification,
 ) {
   const stats = statsFor(row, relations.reservations, relations.orders, relations.memberships)
   return {
@@ -341,6 +573,15 @@ function mapCustomer(
     marketingEmailConsent: Boolean(row.marketing_email_consent),
     marketingPushConsent: Boolean(row.marketing_push_consent),
     consentUpdatedAt: row.consent_updated_at ?? null,
+    isStaff: Boolean(account?.isStaff),
+    isCustomer: account?.isCustomer ?? true,
+    accountType: account?.accountType ?? 'customer',
+    accountLabel: account?.accountLabel ?? 'Cliente',
+    campaignAudience: account?.campaignAudience ?? 'CLIENTE',
+    staffRoles: account?.staffRoles ?? [],
+    staffPermissionCount: account?.staffPermissionCount ?? 0,
+    staffScopeCodes: account?.staffScopeCodes ?? [],
+    staffScopes: account?.staffScopes ?? [],
     totalSpend: stats.totalSpend,
     totalVisits: stats.totalVisits,
     reservationsCount: stats.reservationsCount,
@@ -459,13 +700,17 @@ export async function listCustomers(query: CustomerListQuery, user: UserContext)
   const result = await request.range(from, to)
   const rows = assertNoError<CustomerRow[]>(result).data ?? []
   const ids = rows.map((row) => row.id)
-  const [tags, relations] = await Promise.all([tagMap(ids), relationRows(ids)])
+  const [tags, relations, accounts] = await Promise.all([
+    tagMap(ids),
+    relationRows(ids),
+    customerAccountClassificationMap(rows),
+  ])
   return {
     data: rows.map((row) => mapCustomer(row, {
       reservations: relations.reservations.filter((item) => item.customer_id === row.id),
       orders: relations.orders.filter((item) => item.customer_id === row.id),
       memberships: relations.memberships.filter((item) => item.customer_id === row.id),
-    }, tags.get(row.id) ?? [])),
+    }, tags.get(row.id) ?? [], accounts.get(row.id))),
     count: result.count ?? rows.length,
   }
 }
@@ -478,9 +723,10 @@ export async function getCustomer(id: string, user: UserContext) {
     relationRows([id]),
     listCustomerNotes(id, user),
   ])
+  const accounts = await customerAccountClassificationMap([row])
   return {
     data: {
-      ...mapCustomer(row, relations, tags.get(id) ?? []),
+      ...mapCustomer(row, relations, tags.get(id) ?? [], accounts.get(id)),
       recentNotes: notes.data.slice(0, 5),
     },
   }

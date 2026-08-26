@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'crypto'
 import { env } from '../../config/env'
 import { supabaseAdminClient } from '../../config/supabase'
+import { rolesGrantFinancialAccess } from '../admin/controlPermissions'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import { createControlNotification, createCustomerCampaignNotification } from '../notifications/notifications.service'
 import { assertNoError } from '../operations/operationErrors'
@@ -56,6 +57,37 @@ type CustomerAudienceRow = {
   metadata?: Record<string, unknown> | null
   status?: string | null
   created_at?: string | null
+  last_visit_at?: string | null
+}
+
+type AuthDirectoryUser = {
+  id: string
+  email?: string | null
+  app_metadata?: Record<string, unknown>
+}
+
+type CampaignChannel = 'email' | 'push' | 'in_app'
+type CampaignSourceGroup = 'app' | 'web' | 'hacienda' | 'other'
+
+type ResolvedCampaignAudience = {
+  rows: CustomerAudienceRow[]
+  excludedInternalUsers: number
+}
+
+const ROLE_PRIORITY = ['super_admin', 'admin', 'operations', 'marketing', 'finance', 'viewer', 'customer']
+const STAFF_DIRECTORY_ROLES = new Set(['operations', 'marketing', 'finance', 'viewer'])
+const ADMIN_DIRECTORY_ROLES = new Set(['super_admin', 'admin'])
+
+const SEGMENT_ALIASES: Record<string, string[]> = {
+  customer: ['customer', 'cliente', 'client'],
+  recurring: ['recurring', 'frecuente', 'frequent', 'cliente frecuente', 'clientes frecuentes'],
+  vip: ['vip'],
+  high_value: ['high_value', 'alto_valor', 'alto valor', 'premium'],
+  at_risk: ['at_risk', 'en_riesgo', 'en riesgo'],
+  inactive: ['inactive', 'inactivo', 'sin actividad'],
+  wine_club: ['wine_club', 'wine club', 'club de vino', 'club'],
+  corporate: ['corporate', 'empresa', 'corporativo'],
+  new: ['new', 'nuevo', 'nuevos'],
 }
 
 function httpError(statusCode: number, message: string) {
@@ -342,24 +374,228 @@ function metadataText(row: CustomerAudienceRow) {
   return JSON.stringify(row.metadata ?? {}).toLowerCase()
 }
 
+function normalizeTextToken(value?: unknown) {
+  return String(value ?? '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function segmentValues(value?: string | null) {
+  const normalized = normalizeTextToken(value)
+  if (!normalized) return []
+  return SEGMENT_ALIASES[normalized] ?? [String(value).trim()]
+}
+
+function sourceGroupForCustomer(row: CustomerAudienceRow): CampaignSourceGroup {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {}
+  const tokens = [
+    row.source,
+    metadata.source,
+    metadata.origin,
+    metadata.channel,
+    metadata.checkoutMode,
+    metadata.checkout_mode,
+    metadata.platform,
+  ].map(normalizeTextToken).filter(Boolean)
+  const text = tokens.join(' ')
+  if (text.includes('mobile_app') || /\b(app|mobile|ios|android|movil)\b/.test(text)) return 'app'
+  if (text.includes('public_signup') || /\b(web|online|sitio|checkout)\b/.test(text)) return 'web'
+  if (/(centro de control|manual|hacienda|atencion directa|atencion|tel[eé]fono|telefono|whatsapp|mostrador|boutique|restaurante)/.test(text)) return 'hacienda'
+  return 'other'
+}
+
+function matchesSourceGroup(row: CustomerAudienceRow, sourceGroup?: CampaignSourceGroup) {
+  if (!sourceGroup) return true
+  return sourceGroupForCustomer(row) === sourceGroup
+}
+
+function cleanAuthEmail(value: unknown): string {
+  const email = String(value ?? '').trim().toLowerCase()
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : ''
+}
+
+function userIdFromAudienceRow(row: CustomerAudienceRow) {
+  return typeof row.user_id === 'string' && row.user_id ? row.user_id : null
+}
+
+function extractRoleCode(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    const first = value[0] as { code?: unknown } | undefined
+    return typeof first?.code === 'string' ? first.code : null
+  }
+  if (value && typeof value === 'object') {
+    const code = (value as { code?: unknown }).code
+    return typeof code === 'string' ? code : null
+  }
+  return null
+}
+
+function sortRoles(roles: string[]) {
+  return [...new Set(roles)].sort((a, b) => {
+    const priorityA = ROLE_PRIORITY.indexOf(a)
+    const priorityB = ROLE_PRIORITY.indexOf(b)
+    return (priorityA === -1 ? 999 : priorityA) - (priorityB === -1 ? 999 : priorityB)
+  })
+}
+
+function hasStaffMetadata(user?: AuthDirectoryUser | null) {
+  return Boolean(user?.app_metadata?.staff_account || user?.app_metadata?.managed_password_locked)
+}
+
+async function listAuthUsersForAudienceEmails(emails: string[]) {
+  const wanted = new Set(emails.map(cleanAuthEmail).filter(Boolean))
+  const usersByEmail = new Map<string, AuthDirectoryUser>()
+  if (!wanted.size) return usersByEmail
+
+  const perPage = 100
+  const maxPages = 25
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error } = await supabaseAdminClient.auth.admin.listUsers({ page, perPage })
+    if (error) return usersByEmail
+    const users = (data?.users ?? []) as AuthDirectoryUser[]
+    for (const user of users) {
+      const email = cleanAuthEmail(user.email)
+      if (wanted.has(email)) usersByEmail.set(email, user)
+    }
+    if (users.length < perPage || usersByEmail.size === wanted.size) break
+  }
+
+  return usersByEmail
+}
+
+async function getAudienceUserRolesMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_roles')
+    .select('user_id,roles(code)')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const roles = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const role = extractRoleCode(row.roles)
+    if (!userId || !role) continue
+    roles.set(userId, [...(roles.get(userId) ?? []), role])
+  }
+  return new Map([...roles.entries()].map(([userId, values]) => [userId, sortRoles(values)]))
+}
+
+async function getAudienceExplicitPermissionsMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_control_permissions')
+    .select('user_id,permission_code')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const permissions = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const permission = typeof row.permission_code === 'string' ? row.permission_code : ''
+    if (!userId || !permission) continue
+    permissions.set(userId, [...(permissions.get(userId) ?? []), permission])
+  }
+  return permissions
+}
+
+async function getAudienceFinancialGrantUserIds(userIds: string[]): Promise<Set<string>> {
+  if (!userIds.length) return new Set()
+  const { data, error } = await supabaseAdminClient
+    .from('financial_access_grants')
+    .select('user_id')
+    .in('user_id', userIds)
+    .is('revoked_at', null)
+  if (error) return new Set()
+  return new Set((data ?? []).map((row) => typeof row.user_id === 'string' ? row.user_id : '').filter(Boolean))
+}
+
+async function getAudienceUserScopesMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (!userIds.length) return new Map()
+  const { data, error } = await supabaseAdminClient
+    .from('user_control_scopes')
+    .select('user_id,scope_code')
+    .in('user_id', userIds)
+  if (error) return new Map()
+  const scopes = new Map<string, string[]>()
+  for (const row of data ?? []) {
+    const userId = typeof row.user_id === 'string' ? row.user_id : ''
+    const scopeCode = typeof row.scope_code === 'string' ? row.scope_code : ''
+    if (!userId || !scopeCode) continue
+    scopes.set(userId, [...(scopes.get(userId) ?? []), scopeCode])
+  }
+  return scopes
+}
+
+async function internalCustomerIdsForAudience(rows: CustomerAudienceRow[]) {
+  const emailAuthUsers = await listAuthUsersForAudienceEmails(
+    rows
+      .filter((row) => !userIdFromAudienceRow(row))
+      .map((row) => row.email)
+      .filter((email): email is string => Boolean(email)),
+  )
+  const userIdByCustomerId = new Map<string, string>()
+  const authUserById = new Map<string, AuthDirectoryUser>()
+
+  for (const row of rows) {
+    const directUserId = userIdFromAudienceRow(row)
+    if (directUserId) {
+      userIdByCustomerId.set(row.id, directUserId)
+      continue
+    }
+    const user = emailAuthUsers.get(cleanAuthEmail(row.email))
+    if (user?.id) {
+      userIdByCustomerId.set(row.id, user.id)
+      authUserById.set(user.id, user)
+    }
+  }
+
+  const userIds = [...new Set(userIdByCustomerId.values())]
+  const [rolesMap, explicitPermissionsMap, financialGrantUserIds, scopesMap] = await Promise.all([
+    getAudienceUserRolesMap(userIds),
+    getAudienceExplicitPermissionsMap(userIds),
+    getAudienceFinancialGrantUserIds(userIds),
+    getAudienceUserScopesMap(userIds),
+  ])
+
+  const internalIds = new Set<string>()
+  for (const row of rows) {
+    const userId = userIdByCustomerId.get(row.id)
+    if (!userId) continue
+    const roles = rolesMap.get(userId) ?? []
+    const explicitPermissions = explicitPermissionsMap.get(userId) ?? []
+    const scopes = scopesMap.get(userId) ?? []
+    const isInternal = hasStaffMetadata(authUserById.get(userId)) ||
+      roles.some((role) => STAFF_DIRECTORY_ROLES.has(role) || ADMIN_DIRECTORY_ROLES.has(role)) ||
+      rolesGrantFinancialAccess(roles) ||
+      explicitPermissions.length > 0 ||
+      financialGrantUserIds.has(userId) ||
+      scopes.length > 0
+    if (isInternal) internalIds.add(row.id)
+  }
+  return internalIds
+}
+
 async function idsFromRelation(table: string, column = 'customer_id') {
   const result = await supabaseAdminClient.from(table).select(column)
   if (result.error) throw httpError(500, 'No fue posible resolver audiencia')
   return new Set((result.data ?? []).map((item) => String((item as unknown as Record<string, unknown>)[column] ?? '')).filter(Boolean))
 }
 
-async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
+async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}): Promise<ResolvedCampaignAudience> {
   const limit = Math.min(filters.limit ?? 250, 500)
   const exactEmails = Array.from(new Set((filters.emails ?? []).map(normalizeCustomerEmail).filter(Boolean)))
+  const segmentOptions = segmentValues(filters.segment)
   let query: any = supabaseAdminClient
     .from('customers')
-    .select('id,user_id,customer_number,first_name,last_name,email,birth_date,source,segment,total_spend,total_visits,preferred_language,marketing_email_consent,marketing_push_consent,metadata,status,created_at')
+    .select('id,user_id,customer_number,first_name,last_name,email,birth_date,source,segment,total_spend,total_visits,preferred_language,marketing_email_consent,marketing_push_consent,metadata,status,created_at,last_visit_at')
     .eq('status', 'published')
     .order('created_at', { ascending: false })
     .limit(1000)
 
   if (exactEmails.length) query = query.in('email', exactEmails)
-  if (filters.segment) query = query.eq('segment', filters.segment)
+  if (segmentOptions.length > 1) query = query.in('segment', segmentOptions)
+  else if (segmentOptions.length === 1) query = query.eq('segment', segmentOptions[0])
   if (filters.source) query = query.eq('source', filters.source)
   if (filters.minTotalSpend !== undefined) query = query.gte('total_spend', filters.minTotalSpend)
   if (filters.maxTotalSpend !== undefined) query = query.lte('total_spend', filters.maxTotalSpend)
@@ -367,6 +603,8 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
   if (filters.maxTotalVisits !== undefined) query = query.lte('total_visits', filters.maxTotalVisits)
   if (filters.createdFrom) query = query.gte('created_at', filters.createdFrom)
   if (filters.createdTo) query = query.lte('created_at', filters.createdTo)
+  if (filters.lastVisitFrom) query = query.gte('last_visit_at', filters.lastVisitFrom)
+  if (filters.lastVisitTo) query = query.lte('last_visit_at', filters.lastVisitTo)
   if (filters.search) {
     const term = filters.search.replaceAll(',', ' ').trim()
     query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%,phone.ilike.%${term}%,customer_number.ilike.%${term}%`)
@@ -378,6 +616,10 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
 
   if (exactEmails.length) {
     rows = rows.filter((row) => exactEmails.includes(normalizeCustomerEmail(row.email)))
+  }
+
+  if (filters.sourceGroup) {
+    rows = rows.filter((row) => matchesSourceGroup(row, filters.sourceGroup))
   }
 
   if (filters.tagId) {
@@ -413,15 +655,21 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}) {
     rows = rows.filter((row) => metadataText(row).includes(value))
   }
 
+  let excludedInternalUsers = 0
+  const allowInternalUsers = filters.includeInternalUsers === true || exactEmails.length > 0
+  if (!allowInternalUsers) {
+    const internalIds = await internalCustomerIdsForAudience(rows)
+    excludedInternalUsers = internalIds.size
+    rows = rows.filter((row) => !internalIds.has(row.id))
+  }
+
   const unique = new Map<string, CustomerAudienceRow>()
   for (const row of rows) {
     unique.set(row.id, row)
   }
 
-  return Array.from(unique.values()).slice(0, limit)
+  return { rows: Array.from(unique.values()).slice(0, limit), excludedInternalUsers }
 }
-
-type CampaignChannel = 'email' | 'push' | 'in_app'
 
 function requestedCampaignChannels(value: unknown): CampaignChannel[] {
   const source = Array.isArray(value)
@@ -466,6 +714,8 @@ async function upsertCampaignDelivery(input: {
 }
 
 function publicAudienceRow(row: CustomerAudienceRow) {
+  const consentChannels = (['email', 'push', 'in_app'] as CampaignChannel[])
+    .filter((channel) => customerEligibleForChannel(row, channel))
   return {
     id: row.id,
     customerNumber: row.customer_number ?? null,
@@ -473,9 +723,13 @@ function publicAudienceRow(row: CustomerAudienceRow) {
     email: row.email ?? null,
     segment: row.segment ?? null,
     source: row.source ?? null,
+    sourceGroup: sourceGroupForCustomer(row),
     preferredLanguage: row.preferred_language ?? null,
     totalSpend: Number(row.total_spend ?? 0),
     totalVisits: row.total_visits ?? 0,
+    customerSince: row.created_at ?? null,
+    lastVisitAt: row.last_visit_at ?? null,
+    consentChannels,
   }
 }
 
@@ -522,7 +776,8 @@ export async function getAdminContent(routeEntity: string, id: string, user: Use
 export async function previewCampaignAudience(filters: CampaignAudienceFilters, user: UserContext) {
   const config = assertEntity('campaigns')
   requirePermission(config, 'read', user)
-  const recipients = await resolveCampaignAudience(filters)
+  const resolved = await resolveCampaignAudience(filters)
+  const recipients = resolved.rows
   const channels = requestedCampaignChannels(filters.channels)
   const eligible = recipients.filter((recipient) => channels.some((channel) => customerEligibleForChannel(recipient, channel)))
   return {
@@ -535,6 +790,7 @@ export async function previewCampaignAudience(filters: CampaignAudienceFilters, 
         recipients.filter((recipient) => customerEligibleForChannel(recipient, channel)).length,
       ])),
       filters,
+      excludedInternalUsers: resolved.excludedInternalUsers,
       sample: eligible.slice(0, 20).map(publicAudienceRow),
     },
   }
@@ -567,8 +823,8 @@ export async function sendCampaignEmail(id: string, payload: SendCampaignPayload
   } as CampaignAudienceFilters
   const channels = requestedCampaignChannels(payload.channels ?? audience.channels ?? campaign.channel)
   audience.channels = channels
-  const allRecipients = await resolveCampaignAudience(audience)
-  const recipients = allRecipients.filter((recipient) => channels.some((channel) => customerEligibleForChannel(recipient, channel)))
+  const resolved = await resolveCampaignAudience(audience)
+  const recipients = resolved.rows.filter((recipient) => channels.some((channel) => customerEligibleForChannel(recipient, channel)))
   if (recipients.length === 0) throw httpError(422, 'No hay destinatarios con consentimiento para esta audiencia')
 
   const sendHash = campaignHash({ subject, body, cta: content.cta_label, url: content.cta_url, audience })

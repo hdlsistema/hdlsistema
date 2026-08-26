@@ -143,11 +143,13 @@ export type CampaignAudienceFilters = {
   search?: string
   segment?: string
   source?: string
+  sourceGroup?: 'app' | 'web' | 'hacienda' | 'other'
   location?: string
   tagId?: string
   hasOrders?: boolean
   hasReservations?: boolean
   hasMembership?: boolean
+  includeInternalUsers?: boolean
   minAge?: number
   maxAge?: number
   minTotalSpend?: number
@@ -156,6 +158,8 @@ export type CampaignAudienceFilters = {
   maxTotalVisits?: number
   createdFrom?: string
   createdTo?: string
+  lastVisitFrom?: string
+  lastVisitTo?: string
   locale?: 'es' | 'en' | 'es-MX' | 'en-US'
   limit?: number
 }
@@ -168,6 +172,7 @@ export type CampaignAudiencePreviewResponse = {
     channels: Array<'email' | 'push' | 'in_app'>
     channelTotals: Record<'email' | 'push' | 'in_app', number>
     filters: CampaignAudienceFilters
+    excludedInternalUsers?: number
     sample: Array<{
       id: string
       customerNumber?: string | null
@@ -175,9 +180,13 @@ export type CampaignAudiencePreviewResponse = {
       email?: string | null
       segment?: string | null
       source?: string | null
+      sourceGroup?: 'app' | 'web' | 'hacienda' | 'other'
       preferredLanguage?: string | null
       totalSpend: number
       totalVisits: number
+      customerSince?: string | null
+      lastVisitAt?: string | null
+      consentChannels?: Array<'email' | 'push' | 'in_app'>
     }>
   }
 }

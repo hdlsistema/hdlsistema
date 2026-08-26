@@ -29,6 +29,7 @@ import {
   Users,
   Wine,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
@@ -101,8 +102,9 @@ const segments: Array<{ value: CustomerSegment; label: string }> = [
 ]
 
 type CustomerSourceGroup = '' | 'app' | 'web' | 'hacienda'
+type CustomerAccountFilter = '' | 'customer' | 'staff' | 'admin' | 'customer_staff'
 
-const segmentProfiles: Record<CustomerSegment, { label: string; icon: typeof Users; campaignKey: string }> = {
+const segmentProfiles: Record<CustomerSegment, { label: string; icon: LucideIcon; campaignKey: string }> = {
   customer: { label: 'Cliente', icon: UserRound, campaignKey: 'CLIENTE' },
   new: { label: 'Nuevo', icon: UserPlus, campaignKey: 'NUEVO' },
   recurrente: { label: 'Recurrente', icon: RotateCcw, campaignKey: 'RECURRENTE' },
@@ -120,6 +122,23 @@ const sourceOptions: Array<{ value: CustomerSourceGroup; label: string; labelEn:
   { value: 'web', label: 'Web', labelEn: 'Web' },
   { value: 'hacienda', label: 'Hacienda / manual', labelEn: 'Hacienda / manual' },
 ]
+
+const accountOptions: Array<{ value: CustomerAccountFilter; label: string; labelEn: string }> = [
+  { value: '', label: 'Todas las clasificaciones', labelEn: 'All classifications' },
+  { value: 'customer', label: 'Clientes', labelEn: 'Customers' },
+  { value: 'staff', label: 'Usuarios internos', labelEn: 'Internal users' },
+  { value: 'admin', label: 'Administradores', labelEn: 'Administrators' },
+  { value: 'customer_staff', label: 'Cliente + staff', labelEn: 'Customer + staff' },
+]
+
+const staffRoleLabels: Record<string, string> = {
+  super_admin: 'Superadministrador',
+  admin: 'Administrador',
+  operations: 'Operación',
+  marketing: 'Marketing',
+  finance: 'Finanzas',
+  viewer: 'Lectura',
+}
 
 function canWrite(roles: string[]) {
   return roles.some((role) => ['super_admin', 'admin', 'operations', 'marketing'].includes(role))
@@ -257,7 +276,7 @@ function inputClass() {
   return 'min-h-11 w-full rounded-md border border-[var(--color-line)] bg-white px-3 text-sm text-[var(--color-ink)] outline-none transition focus:border-[var(--color-burgundy)]'
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Users }) {
+function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: LucideIcon }) {
   return (
     <Panel className="control-metric rounded-lg">
       <div className="flex items-center justify-between gap-3">
@@ -271,6 +290,35 @@ function Metric({ label, value, icon: Icon }: { label: string; value: string; ic
       </div>
     </Panel>
   )
+}
+
+function matchesAccountFilter(customer: CustomerRecord, filter: CustomerAccountFilter) {
+  if (!filter) return true
+  if (filter === 'staff') return Boolean(customer.isStaff)
+  if (filter === 'customer') return !customer.isStaff
+  return customer.accountType === filter
+}
+
+function classificationLabel(customer: CustomerRecord) {
+  return customer.isStaff ? customer.accountLabel : segmentLabel(customer.segment)
+}
+
+function campaignAudience(customer: CustomerRecord) {
+  return customer.isStaff ? customer.campaignAudience || 'USUARIO INTERNO' : segmentProfile(customer.segment).campaignKey
+}
+
+function staffScopeLabel(customer: CustomerRecord, isEnglish = false) {
+  if (!customer.isStaff) return sourceLabel(customer.source, isEnglish)
+  const labels = customer.staffScopes.map((scope) => scope.label).filter(Boolean)
+  if (labels.length) return labels.join(' · ')
+  return isEnglish ? 'No assigned site' : 'Sin sede asignada'
+}
+
+function staffAccessLabel(customer: CustomerRecord) {
+  const roleLabels = customer.staffRoles.map((role) => staffRoleLabels[role] ?? role).filter(Boolean)
+  if (roleLabels.length) return roleLabels.join(' · ')
+  if (customer.staffPermissionCount > 0) return `${customer.staffPermissionCount} permisos`
+  return 'Permisos activos'
 }
 
 export function CustomersPage() {
@@ -293,6 +341,7 @@ export function CustomersPage() {
   const [history, setHistory] = useState<CustomerHistoryItem[]>([])
   const [search, setSearch] = useState('')
   const [segmentFilter, setSegmentFilter] = useState('')
+  const [accountFilter, setAccountFilter] = useState<CustomerAccountFilter>('')
   const [sourceFilter, setSourceFilter] = useState<CustomerSourceGroup>('')
   const [consentFilter, setConsentFilter] = useState('')
   const [loading, setLoading] = useState(true)
@@ -316,8 +365,11 @@ export function CustomersPage() {
   }, [customers, selectedDetail])
 
   const filteredCustomers = useMemo(
-    () => visibleCustomers.filter((customer) => !sourceFilter || sourceGroup(customer.source) === sourceFilter),
-    [sourceFilter, visibleCustomers],
+    () => visibleCustomers.filter((customer) =>
+      (!sourceFilter || sourceGroup(customer.source) === sourceFilter) &&
+      matchesAccountFilter(customer, accountFilter),
+    ),
+    [accountFilter, sourceFilter, visibleCustomers],
   )
 
   const selected = selectedDetail && filteredCustomers.some((item) => item.id === selectedDetail.id)
@@ -405,8 +457,9 @@ export function CustomersPage() {
 
   const metrics = useMemo(() => ({
     total: filteredCustomers.length,
-    vip: filteredCustomers.filter((item) => item.segment === 'vip' || item.activeMembershipsCount > 0).length,
-    revenue: filteredCustomers.reduce((sum, item) => sum + item.totalSpend, 0),
+    customers: filteredCustomers.filter((item) => !item.isStaff).length,
+    staff: filteredCustomers.filter((item) => item.isStaff).length,
+    revenue: filteredCustomers.filter((item) => !item.isStaff).reduce((sum, item) => sum + item.totalSpend, 0),
     consent: filteredCustomers.filter((item) => item.marketingEmailConsent || item.marketingPushConsent).length,
   }), [filteredCustomers])
 
@@ -418,6 +471,7 @@ export function CustomersPage() {
   const clearFilters = () => {
     setSearch('')
     setSegmentFilter('')
+    setAccountFilter('')
     setSourceFilter('')
     setConsentFilter('')
   }
@@ -584,10 +638,10 @@ export function CustomersPage() {
     }
   }
 
-  const pageTitle = isEnglish ? 'Customers' : 'Clientes'
+  const pageTitle = isEnglish ? 'Users and customers' : 'Usuarios y clientes'
   const pageDescription = isEnglish
-    ? 'Customer follow-up with profiles, relations and service history.'
-    : 'Seguimiento de clientes con perfiles, relaciones e historial de atención.'
+    ? 'Classified directory for customers, internal users, permissions and commercial history.'
+    : 'Directorio clasificado de clientes, usuarios internos, permisos e historial comercial.'
 
   return (
     <div className="control-page control-page--customers min-h-full text-[var(--color-ink)]">
@@ -648,15 +702,16 @@ export function CustomersPage() {
           </div>
         ) : null}
 
-        <div className="control-metrics-strip grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Metric label="Clientes visibles" value={String(metrics.total)} icon={Users} />
-          <Metric label="VIP o membresía activa" value={String(metrics.vip)} icon={BadgeCheck} />
-          <Metric label="Valor histórico" value={money(metrics.revenue)} icon={UserRound} />
+        <div className="control-metrics-strip grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <Metric label="Registros visibles" value={String(metrics.total)} icon={Users} />
+          <Metric label="Clientes" value={String(metrics.customers)} icon={UserRound} />
+          <Metric label="Usuarios internos" value={String(metrics.staff)} icon={Building2} />
+          <Metric label="Valor clientes" value={money(metrics.revenue)} icon={BadgeCheck} />
           <Metric label="Consentimiento marketing" value={String(metrics.consent)} icon={Mail} />
         </div>
 
         <Panel className="control-customers-filters rounded-lg">
-          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(250px,1fr)_170px_170px_170px_auto]">
+          <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(250px,1fr)_160px_170px_170px_170px_auto]">
             <label className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-muted)]" size={15} />
               <input
@@ -672,9 +727,14 @@ export function CustomersPage() {
               ))}
             </CrystalSelect>
             <CrystalSelect value={segmentFilter} onChange={setSegmentFilter} buttonClassName="control-compact-select-trigger" menuClassName="control-compact-select-menu">
-              <option value="">Todas las clasificaciones</option>
+              <option value="">Todos los segmentos</option>
               {segments.map((item) => (
                 <option key={item.value} value={item.value}>{item.label}</option>
+              ))}
+            </CrystalSelect>
+            <CrystalSelect value={accountFilter} onChange={(value) => setAccountFilter(value as CustomerAccountFilter)} buttonClassName="control-compact-select-trigger" menuClassName="control-compact-select-menu">
+              {accountOptions.map((item) => (
+                <option key={item.value || 'all'} value={item.value}>{isEnglish ? item.labelEn : item.label}</option>
               ))}
             </CrystalSelect>
             <CrystalSelect value={consentFilter} onChange={setConsentFilter} buttonClassName="control-compact-select-trigger" menuClassName="control-compact-select-menu">
@@ -699,7 +759,7 @@ export function CustomersPage() {
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-[var(--color-ink)]">Directorio por clasificación</h2>
-                <p className="text-[11px] text-[var(--color-muted)]">{filteredCustomers.length} clientes visibles para segmentación y campañas.</p>
+                <p className="text-[11px] text-[var(--color-muted)]">{filteredCustomers.length} registros visibles para operación, segmentación y campañas.</p>
               </div>
               {loading ? <RefreshCw className="animate-spin text-[var(--color-burgundy)]" size={18} /> : null}
             </div>
@@ -726,8 +786,8 @@ export function CustomersPage() {
               <div className="grid min-h-48 place-items-center rounded-lg border border-dashed border-[var(--color-line)] bg-white p-8 text-center">
                 <div>
                   <Users className="mx-auto text-[var(--color-muted)]" size={28} />
-                  <p className="mt-3 font-semibold text-[var(--color-ink)]">Sin clientes para estos filtros</p>
-                  <p className="mt-1 text-sm text-[var(--color-muted)]">Ajusta la búsqueda o crea un cliente desde el Centro de Control.</p>
+                  <p className="mt-3 font-semibold text-[var(--color-ink)]">Sin registros para estos filtros</p>
+                  <p className="mt-1 text-sm text-[var(--color-muted)]">Ajusta la búsqueda o crea un cliente nuevo.</p>
                 </div>
               </div>
             )}
@@ -769,7 +829,9 @@ export function CustomersPage() {
                   <InfoRow icon={Mail} label="Correo" value={selected.email ?? 'Sin correo'} />
                   <InfoRow icon={Phone} label="Teléfono" value={selected.phone ?? 'Sin teléfono'} />
                   <InfoRow icon={sourceIcon(selected.source)} label="Origen" value={sourceLabel(selected.source, isEnglish)} />
-                  <InfoRow icon={Megaphone} label="Audiencia campañas" value={segmentProfile(selected.segment).campaignKey} />
+                  <InfoRow icon={selected.isStaff ? Building2 : segmentProfile(selected.segment).icon} label="Clasificación" value={classificationLabel(selected)} />
+                  {selected.isStaff ? <InfoRow icon={MapPin} label="Sede operativa" value={staffScopeLabel(selected, isEnglish)} /> : null}
+                  <InfoRow icon={Megaphone} label="Audiencia campañas" value={campaignAudience(selected)} />
                   <InfoRow icon={BadgeCheck} label="Consentimiento" value={[
                     selected.marketingEmailConsent ? 'correo' : '',
                     selected.marketingPushConsent ? 'push' : '',
@@ -786,13 +848,23 @@ export function CustomersPage() {
                     <Pencil size={15} />
                     Editar
                   </button>
-                  <Link
-                    to={`/control/campanas?segmento=${encodeURIComponent(selected.segment)}`}
-                    className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold text-[var(--color-burgundy)] transition hover:border-[var(--color-burgundy)]"
-                  >
-                    <Megaphone size={15} />
-                    Campañas
-                  </Link>
+                  {selected.isStaff ? (
+                    <Link
+                      to="/control/usuarios"
+                      className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold text-[var(--color-burgundy)] transition hover:border-[var(--color-burgundy)]"
+                    >
+                      <Building2 size={15} />
+                      Usuarios y permisos
+                    </Link>
+                  ) : (
+                    <Link
+                      to={`/control/campanas?segmento=${encodeURIComponent(selected.segment)}`}
+                      className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold text-[var(--color-burgundy)] transition hover:border-[var(--color-burgundy)]"
+                    >
+                      <Megaphone size={15} />
+                      Campañas
+                    </Link>
+                  )}
                   {selected.archivedAt ? (
                     <button
 	                      type="button"
@@ -1076,7 +1148,7 @@ function MiniStat({ label, value }: { label: string; value: string }) {
   )
 }
 
-function InfoRow({ icon: Icon, label, value }: { icon: typeof Mail; label: string; value: string }) {
+function InfoRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 rounded-md bg-[var(--color-soft)] p-3">
       <Icon className="shrink-0 text-[var(--color-burgundy)]" size={16} />
@@ -1159,23 +1231,29 @@ function CustomerCard({
   onSelect: () => void
 }) {
   const segment = segmentProfile(customer.segment)
-  const segmentText = segmentLabel(customer.segment)
-  const SegmentIcon = segment.icon
-  const SourceIcon = sourceIcon(customer.source)
+  const isStaff = Boolean(customer.isStaff)
+  const classificationText = classificationLabel(customer)
+  const ClassificationIcon = isStaff ? Building2 : segment.icon
+  const SecondaryIcon = isStaff ? MapPin : sourceIcon(customer.source)
+  const secondaryText = isStaff ? staffScopeLabel(customer, isEnglish) : sourceLabel(customer.source, isEnglish)
   const hasMarketing = customer.marketingEmailConsent || customer.marketingPushConsent
   const tagNames = customer.tags.slice(0, 2).map((item) => item.name).join(' · ')
   const hiddenTags = customer.tags.length > 2 ? ` +${customer.tags.length - 2}` : ''
+  const tagSummary = isStaff
+    ? `Sede: ${staffScopeLabel(customer, isEnglish)}`
+    : tagNames ? `${tagNames}${hiddenTags}` : 'Sin etiquetas'
+  const accessSummary = isStaff ? staffAccessLabel(customer) : hasMarketing ? 'Marketing autorizado' : 'Sin autorización'
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`control-customer-card ${active ? 'is-active' : ''}`}
+      className={`control-customer-card ${isStaff ? 'is-staff' : ''} ${active ? 'is-active' : ''}`}
       aria-pressed={active}
     >
       <span className="control-customer-card__topline">
-        <span className="control-customer-card__classmark" title={`Clasificación: ${segment.label}`}>
-          <SegmentIcon size={18} strokeWidth={1.8} />
+        <span className="control-customer-card__classmark" title={`Clasificación: ${classificationText}`}>
+          <ClassificationIcon size={18} strokeWidth={1.8} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="control-customer-card__number">{customer.customerNumber}</span>
@@ -1186,12 +1264,12 @@ function CustomerCard({
 
       <span className="control-customer-card__chips">
         <span className="control-customer-card__segment">
-          <SegmentIcon size={12} strokeWidth={1.75} />
-          {segmentText}
+          <ClassificationIcon size={12} strokeWidth={1.75} />
+          {classificationText}
         </span>
         <span className="control-customer-card__source">
-          <SourceIcon size={12} strokeWidth={1.75} />
-          {sourceLabel(customer.source, isEnglish)}
+          <SecondaryIcon size={12} strokeWidth={1.75} />
+          {secondaryText}
         </span>
       </span>
 
@@ -1209,13 +1287,13 @@ function CustomerCard({
       <span className="control-customer-card__footer">
         <span>
           <Megaphone size={12} />
-          {isEnglish ? 'Audience' : 'Audiencia'}: {segment.campaignKey}
+          {isEnglish ? 'Audience' : 'Audiencia'}: {campaignAudience(customer)}
         </span>
-        <span className={hasMarketing ? 'is-on' : ''}>{hasMarketing ? 'Marketing autorizado' : 'Sin autorización'}</span>
+        <span className={hasMarketing || isStaff ? 'is-on' : ''}>{accessSummary}</span>
       </span>
 
       <span className="control-customer-card__tags">
-        {tagNames ? `${tagNames}${hiddenTags}` : 'Sin etiquetas'}
+        {tagSummary}
       </span>
     </button>
   )

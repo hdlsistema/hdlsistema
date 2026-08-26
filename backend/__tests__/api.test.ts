@@ -2052,6 +2052,154 @@ describe('Fase 4B content API', () => {
       expect.objectContaining({ channel: 'email', customer_id: '00000000-0000-0000-0000-000000000273', status: 'pending_configuration' }),
     ]))
   })
+
+  it('excluye usuarios internos de campañas masivas aunque existan como registros de clientes', async () => {
+    const adminUser = {
+      id: '00000000-0000-0000-0000-000000000281',
+      email: 'marketing@alqia.tech',
+      created_at: '2026-08-12T00:00:00.000Z',
+      email_confirmed_at: '2026-08-12T00:00:00.000Z',
+    }
+    const staffUserId = '00000000-0000-0000-0000-000000000282'
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [
+      { user_id: adminUser.id, roles: { code: 'marketing' } },
+      { user_id: staffUserId, roles: { code: 'operations' } },
+    ]
+    supabaseMock.tableData.user_control_permissions = [
+      { user_id: staffUserId, permission_code: 'reservations.view' },
+    ]
+    supabaseMock.tableData.user_control_scopes = [
+      { user_id: staffUserId, scope_code: 'restaurante_nieto' },
+    ]
+    supabaseMock.tableData.campaigns = [{
+      id: '00000000-0000-0000-0000-000000000283',
+      name: 'Clientes app no staff',
+      channel: 'email',
+      status: 'draft',
+      visible_in_app: false,
+      audience_definition: { segment: 'customer' },
+      content: { subject: 'Promo clientes', body: 'Promoción exclusiva para clientes.' },
+      created_at: '2026-08-12T00:00:00.000Z',
+      updated_at: '2026-08-12T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.customers = [
+      {
+        id: '00000000-0000-0000-0000-000000000284',
+        user_id: '00000000-0000-0000-0000-000000000285',
+        email: 'cliente.real@example.com',
+        first_name: 'Cliente',
+        segment: 'customer',
+        source: 'mobile_app',
+        marketing_email_consent: true,
+        marketing_push_consent: true,
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000286',
+        user_id: staffUserId,
+        email: 'pr@haciendadeletras.com',
+        first_name: 'Silvia',
+        last_name: 'Castorena',
+        segment: 'customer',
+        source: 'Centro de control',
+        marketing_email_consent: true,
+        marketing_push_consent: true,
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+
+    const preview = await request(app)
+      .post('/api/admin/campaigns/audience-preview')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ segment: 'customer', channels: ['email', 'push', 'in_app'] })
+    const send = await request(app)
+      .post('/api/admin/campaigns/00000000-0000-0000-0000-000000000283/send')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ audience: { segment: 'customer' }, channels: ['email', 'push', 'in_app'] })
+
+    expect(preview.status).toBe(200)
+    expect(preview.body.data).toMatchObject({
+      total: 1,
+      excludedInternalUsers: 1,
+      channelTotals: { email: 1, push: 1, in_app: 1 },
+    })
+    expect(preview.body.data.sample.map((item: { email: string }) => item.email)).toEqual(['cliente.real@example.com'])
+    expect(send.status).toBe(202)
+    expect(send.body.data).toMatchObject({ recipients: 1, sent: 1 })
+    expect(supabaseMock.tableData.email_outbox.map((item) => (item as { recipient_email: string }).recipient_email)).toEqual(['cliente.real@example.com'])
+    expect(JSON.stringify(supabaseMock.tableData.campaign_recipient_deliveries)).not.toContain('00000000-0000-0000-0000-000000000286')
+  })
+
+  it('filtra campañas por origen real app web o hacienda antes de enviar', async () => {
+    const adminUser = {
+      id: '00000000-0000-0000-0000-000000000287',
+      email: 'marketing@alqia.tech',
+      created_at: '2026-08-12T00:00:00.000Z',
+      email_confirmed_at: '2026-08-12T00:00:00.000Z',
+    }
+    supabaseMock.authUser = adminUser
+    supabaseMock.tableData.user_roles = [{ user_id: adminUser.id, roles: { code: 'marketing' } }]
+    supabaseMock.tableData.customers = [
+      {
+        id: '00000000-0000-0000-0000-000000000288',
+        email: 'app.cliente@example.com',
+        first_name: 'App',
+        segment: 'customer',
+        source: 'mobile_app',
+        marketing_email_consent: true,
+        total_spend: 900,
+        total_visits: 3,
+        last_visit_at: '2026-08-20T00:00:00.000Z',
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000289',
+        email: 'web.cliente@example.com',
+        first_name: 'Web',
+        segment: 'customer',
+        source: 'public_signup',
+        marketing_email_consent: true,
+        total_spend: 1200,
+        total_visits: 2,
+        last_visit_at: '2026-08-21T00:00:00.000Z',
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+      {
+        id: '00000000-0000-0000-0000-000000000290',
+        email: 'hacienda.cliente@example.com',
+        first_name: 'Hacienda',
+        segment: 'customer',
+        source: 'Centro de control',
+        marketing_email_consent: true,
+        total_spend: 300,
+        total_visits: 1,
+        last_visit_at: '2026-08-22T00:00:00.000Z',
+        status: 'published',
+        created_at: '2026-08-01T00:00:00.000Z',
+      },
+    ]
+
+    const preview = await request(app)
+      .post('/api/admin/campaigns/audience-preview')
+      .set('Authorization', 'Bearer marketing-token')
+      .send({ segment: 'customer', sourceGroup: 'app', minTotalVisits: 2, channels: ['email'] })
+
+    expect(preview.status).toBe(200)
+    expect(preview.body.data).toMatchObject({
+      total: 1,
+      channelTotals: { email: 1 },
+    })
+    expect(preview.body.data.sample[0]).toMatchObject({
+      email: 'app.cliente@example.com',
+      sourceGroup: 'app',
+      totalVisits: 3,
+    })
+  })
 })
 
 describe('Fase 7B operations API', () => {
@@ -2350,6 +2498,75 @@ describe('Fase 7C customers CRM API', () => {
       totalSpend: 1450,
     })
     expect(JSON.stringify(res.body)).not.toContain('user_id')
+  })
+
+  it('clasifica usuarios internos por permisos y sede sin exponer identificador auth', async () => {
+    signInAs('viewer')
+    const staffUserId = '22222222-2222-4222-8222-222222222075'
+    supabaseMock.authUsers = [{
+      id: staffUserId,
+      email: 'pr@haciendadeletras.com',
+      created_at: '2026-08-03T00:00:00.000Z',
+      email_confirmed_at: '2026-08-03T00:00:00.000Z',
+      app_metadata: { staff_account: true },
+      user_metadata: { display_name: 'Silvia Castorena' },
+    }]
+    supabaseMock.tableData.customers = [{
+      id: customerId,
+      user_id: staffUserId,
+      customer_number: 'HDL-SC',
+      first_name: 'Silvia',
+      last_name: 'Castorena',
+      display_name: 'Silvia Castorena',
+      email: 'pr@haciendadeletras.com',
+      phone: null,
+      phone_normalized: null,
+      source: 'Centro de control',
+      segment: 'customer',
+      total_spend: 0,
+      total_visits: 0,
+      status: 'published',
+      marketing_email_consent: false,
+      marketing_push_consent: false,
+      preferred_language: 'es',
+      archived_at: null,
+      created_at: '2026-08-03T00:00:00.000Z',
+      updated_at: '2026-08-03T00:00:00.000Z',
+    }]
+    supabaseMock.tableData.user_roles = [
+      { user_id: adminUser.id, roles: { code: 'viewer' } },
+      { user_id: staffUserId, roles: { code: 'operations' } },
+    ]
+    supabaseMock.tableData.user_control_permissions = [
+      { user_id: staffUserId, permission_code: 'reservations.view' },
+    ]
+    supabaseMock.tableData.user_control_scopes = [
+      { user_id: staffUserId, scope_code: 'restaurante_nieto' },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/customers')
+      .set('Authorization', 'Bearer viewer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data[0]).toMatchObject({
+      displayName: 'Silvia Castorena',
+      isStaff: true,
+      isCustomer: true,
+      accountType: 'customer_staff',
+      accountLabel: 'Cliente + staff',
+      campaignAudience: 'USUARIO INTERNO',
+      staffRoles: ['operations'],
+      staffPermissionCount: 1,
+      staffScopeCodes: ['restaurante_nieto'],
+    })
+    expect(res.body.data[0].staffScopes[0]).toMatchObject({
+      code: 'restaurante_nieto',
+      label: 'Restaurante Nieto',
+      type: 'restaurant',
+    })
+    expect(JSON.stringify(res.body)).not.toContain('user_id')
+    expect(JSON.stringify(res.body)).not.toContain(staffUserId)
   })
 
   it('crea cliente real desde CRM con normalización y auditoría', async () => {
