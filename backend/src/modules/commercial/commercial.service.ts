@@ -336,6 +336,7 @@ function queueCommercialReservationEmail(
     locale,
     payload: {
       customerName,
+      reservationId: reservation.id,
       reservationNumber: reservation.reservationNumber,
       reservationType: reservation.reservationType,
       experienceTitle: serviceTitle,
@@ -797,6 +798,7 @@ export async function createQuoteRequest(payload: CreateQuoteRequestPayload, use
     recipientEmail: quote.contactEmail,
     locale: payload.language,
     payload: {
+      quoteId: quote.id,
       customerName: quote.customerName,
       quoteNumber: quote.quoteNumber,
       eventType: quote.eventType,
@@ -999,6 +1001,7 @@ export async function sendQuoteRequestEmail(id: string, payload: SendQuoteReques
     recipientEmail: quote.contactEmail,
     locale: String(quote.metadata?.language ?? 'es'),
     payload: {
+      quoteId: quote.id,
       subject: payload.subject,
       title: payload.subject,
       customerName: quote.customerName,

@@ -862,10 +862,12 @@ async function queueOrderPaidEmail(order: CustomerOrderRow) {
     locale: 'es-MX',
     payload: {
       customerName: customerName(customer),
+      orderId: order.id,
       orderNumber: order.order_number,
       status: 'paid',
       total: toNumber(order.total),
       currency: order.currency,
+      requiresShipping: Boolean(order.requires_shipping),
       shippingStatus: order.requires_shipping ? 'pending_preparation' : 'not_required',
     },
     idempotencyKey: `order.paid:${order.id}`,

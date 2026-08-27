@@ -18,6 +18,7 @@ import {
   type PublicCommercialItem,
   type QuoteRequestRecord,
 } from '../../../services/commercial.service'
+import { adminUsersClient, type AdminUserRecord } from '../../../services/adminUsers.service'
 import { customersClient, type CustomerRecord } from '../../../services/customers.service'
 import { ControlEntityPicker } from '../../components/control/ControlEntityPicker'
 import { QuickCustomerDialog } from '../../components/control/QuickCustomerDialog'
@@ -60,6 +61,7 @@ type QuoteDraft = {
   companyName: string
   notes: string
   source: string
+  assignedTo: string
   adminNotes: string
 }
 
@@ -68,7 +70,7 @@ const emptyQuoteDraft: QuoteDraft = {
   preferredStartTime: '', preferredEndTime: '', guestCount: '2', venueSpaceId: '', venueSpaceName: '',
   foodRequired: 'advice', foodType: '', wineRequired: 'advice', wineOption: '', requestedServices: '',
   contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '', companyName: '', notes: '',
-  source: 'Centro de control', adminNotes: '',
+  source: 'Centro de control', assignedTo: '', adminNotes: '',
 }
 
 const sourceOptions = [
@@ -87,6 +89,14 @@ function sourceLabel(source?: string | null) {
   if (!source) return 'Sin origen'
   if (['mobile_app', 'app', 'App'].includes(source)) return 'App móvil'
   return sourceOptions.find((item) => item.value === source)?.label ?? source
+}
+
+function adminUserLabel(userId?: string | null, users: AdminUserRecord[] = []) {
+  if (!userId) return ''
+  const user = users.find((item) => item.id === userId)
+  if (!user) return 'Responsable registrado'
+  const fullName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
+  return user.displayName || fullName || user.email || 'Usuario interno'
 }
 
 function isAppQuote(quote: QuoteRequestRecord) {
@@ -118,6 +128,7 @@ function draftFromQuote(quote: QuoteRequestRecord, pendingAdminNotes?: string): 
     companyName: quote.companyName ?? '',
     notes: quote.notes ?? '',
     source: quote.source,
+    assignedTo: quote.assignedTo ?? '',
     adminNotes: pendingAdminNotes ?? quote.adminNotes ?? '',
   }
 }
@@ -207,6 +218,7 @@ export function QuoteRequestsPage() {
     validUntil: '',
   })
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
+  const [adminUsers, setAdminUsers] = useState<AdminUserRecord[]>([])
   const [venues, setVenues] = useState<PublicCommercialItem[]>([])
   const [formMode, setFormMode] = useState<'create' | 'edit' | null>(null)
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false)
@@ -265,7 +277,17 @@ export function QuoteRequestsPage() {
       setCustomers(customerResponse.data)
       setVenues(catalogResponse.data.venueSpaces)
     }).catch(() => setError('No fue posible cargar todos los catálogos del formulario.'))
+    adminUsersClient.list(token, { perPage: 100 })
+      .then((usersResponse) => setAdminUsers(usersResponse.users))
+      .catch(() => setAdminUsers([]))
   }, [formMode, token])
+
+  useEffect(() => {
+    if (!token) return
+    adminUsersClient.list(token, { perPage: 100 })
+      .then((response) => setAdminUsers(response.users))
+      .catch(() => undefined)
+  }, [token])
 
   const counts = useMemo(() => ({
     total: items.length,
@@ -377,6 +399,7 @@ export function QuoteRequestsPage() {
         companyName: quoteDraft.companyName || null,
         notes: quoteDraft.notes || null,
         source: quoteDraft.source,
+        assignedTo: quoteDraft.assignedTo || null,
         adminNotes: quoteDraft.adminNotes || null,
       }
       const response = mode === 'create'
@@ -519,7 +542,7 @@ export function QuoteRequestsPage() {
                 </div>
 	              </section>
 	              <section className="grid gap-3 rounded-[1.1rem] border border-[rgba(200,171,136,0.42)] bg-white/58 p-4 md:grid-cols-2">
-	                <Detail label="Responsable" value={selected.assignedTo || 'Sin responsable asignado'} />
+	                <Detail label="Responsable" value={adminUserLabel(selected.assignedTo, adminUsers) || 'Sin responsable asignado'} />
 	                <Detail label="Contactada" value={dateLabel(selected.contactedAt)} />
 	                <Detail label="Cotizada" value={dateLabel(selected.quotedAt)} />
 	                <Detail label="Cierre" value={dateLabel(selected.closedAt)} />
@@ -586,6 +609,7 @@ export function QuoteRequestsPage() {
               <ControlEntityPicker label="Cliente relacionado (opcional)" value={quoteDraft.customerId} options={customers.map((customer) => ({ id: customer.id, label: customer.displayName, description: [customer.email, customer.phone].filter(Boolean).join(' · ') || customer.customerNumber }))} onChange={(customerId) => { const customer = customers.find((item) => item.id === customerId); const names = customer?.displayName.trim().split(/\s+/) ?? []; setQuoteDraft((current) => ({ ...current, customerId, contactFirstName: customer ? names[0] ?? '' : current.contactFirstName, contactLastName: customer ? names.slice(1).join(' ') || '-' : current.contactLastName, contactEmail: customer?.email ?? current.contactEmail, contactPhone: customer?.phone ?? current.contactPhone })) }} actionLabel="Crear cliente nuevo" onAction={() => setCustomerDialogOpen(true)} />
               <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Canal de origen</span><CrystalSelect value={quoteDraft.source} onChange={(source) => setQuoteDraft({ ...quoteDraft, source })} options={sourceOptions.map((item) => ({ ...item }))} /></label>
               {formMode === 'edit' ? <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Estado</span><CrystalSelect value={quoteDraft.status} onChange={(statusValue) => setQuoteDraft({ ...quoteDraft, status: statusValue as QuoteRequestRecord['status'] })}>{statuses.filter((item) => item.value).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</CrystalSelect></label> : null}
+              <label><span className="mb-2 block text-[10px] font-semibold uppercase text-[var(--color-muted)]">Responsable</span><CrystalSelect value={quoteDraft.assignedTo} onChange={(assignedTo) => setQuoteDraft({ ...quoteDraft, assignedTo })}><option value="">Sin responsable</option>{adminUsers.map((user) => <option key={user.id} value={user.id}>{adminUserLabel(user.id, adminUsers)}</option>)}</CrystalSelect></label>
               <QuoteInput label="Nombre" value={quoteDraft.contactFirstName} onChange={(contactFirstName) => setQuoteDraft({ ...quoteDraft, contactFirstName })} required />
               <QuoteInput label="Apellidos" value={quoteDraft.contactLastName} onChange={(contactLastName) => setQuoteDraft({ ...quoteDraft, contactLastName })} required />
               <QuoteInput label="Correo" type="email" value={quoteDraft.contactEmail} onChange={(contactEmail) => setQuoteDraft({ ...quoteDraft, contactEmail })} required />

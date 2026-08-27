@@ -147,8 +147,10 @@ export type CampaignAudienceFilters = {
   location?: string
   tagId?: string
   hasOrders?: boolean
+  orderStatus?: 'draft' | 'pending_payment' | 'paid' | 'processing' | 'fulfilled' | 'cancelled' | 'refunded'
   hasReservations?: boolean
   hasMembership?: boolean
+  cartStatus?: 'active' | 'abandoned' | 'converted'
   includeInternalUsers?: boolean
   minAge?: number
   maxAge?: number

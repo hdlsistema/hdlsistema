@@ -53,6 +53,29 @@ const defaultPreferences: AppPreferencesState = {
   language: DEFAULT_LANGUAGE,
 }
 
+export const APP_LANGUAGE_STORAGE_KEY = 'hdl.app.language'
+
+function readStoredLanguage() {
+  if (typeof window === 'undefined') return DEFAULT_LANGUAGE
+  try {
+    const storedLanguage = window.localStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+    return storedLanguage === 'en' || storedLanguage === 'es'
+      ? normalizeLanguage(storedLanguage)
+      : DEFAULT_LANGUAGE
+  } catch {
+    return DEFAULT_LANGUAGE
+  }
+}
+
+function persistStoredLanguage(language: AppLanguage) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language)
+  } catch {
+    // Local persistence is a convenience; the profile sync remains the source of record.
+  }
+}
+
 const AppPreferencesContext =
   createContext<AppPreferencesContextValue | null>(null)
 
@@ -61,7 +84,10 @@ export function AppPreferencesProvider({
 }: {
   children: ReactNode
 }) {
-  const [preferences, setPreferences] = useState<AppPreferencesState>(defaultPreferences)
+  const [preferences, setPreferences] = useState<AppPreferencesState>(() => ({
+    ...defaultPreferences,
+    language: readStoredLanguage(),
+  }))
 
   useEffect(() => {
     document.documentElement.lang = languageToLocale(preferences.language)
@@ -71,9 +97,13 @@ export function AppPreferencesProvider({
     const updatePreferences = (
       nextValues: Partial<AppPreferencesState>,
     ) => {
+      const normalizedValues = nextValues.language
+        ? { ...nextValues, language: normalizeLanguage(nextValues.language) }
+        : nextValues
+      if (normalizedValues.language) persistStoredLanguage(normalizedValues.language)
       setPreferences((current) => ({
         ...current,
-        ...nextValues,
+        ...normalizedValues,
       }))
     }
 
@@ -85,7 +115,7 @@ export function AppPreferencesProvider({
       setAdminName: (adminName) => updatePreferences({ adminName }),
       setAdminRole: (adminRole) => updatePreferences({ adminRole }),
       setAdminEmail: (adminEmail) => updatePreferences({ adminEmail }),
-      setLanguage: (language) => updatePreferences({ language: normalizeLanguage(language) }),
+      setLanguage: (language) => updatePreferences({ language }),
       updatePreferences,
       locale,
       isEnglish: preferences.language === 'en',

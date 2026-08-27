@@ -33,8 +33,9 @@ export function MobilePushRegistration() {
     const accessToken = session.access_token
 
     function persistFirebaseToken(firebaseToken: string, platform: 'android' | 'ios') {
-      if (!active || !firebaseToken || registeredToken.current === firebaseToken) return
-      registeredToken.current = firebaseToken
+      const registrationKey = `${accessToken}:${firebaseToken}`
+      if (!active || !firebaseToken || registeredToken.current === registrationKey) return
+      registeredToken.current = registrationKey
       previousRegistration.current = { accessToken, firebaseToken }
       void customerClient.registerDevice(accessToken, {
         firebaseToken,

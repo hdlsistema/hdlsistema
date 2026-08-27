@@ -2,7 +2,17 @@ import { useEffect, useRef } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { updateCurrentPreferredLanguage } from '../../services/auth.service'
 import { normalizeLanguage } from '../i18n'
-import { useAppPreferences } from './AppPreferencesContext'
+import { APP_LANGUAGE_STORAGE_KEY, useAppPreferences } from './AppPreferencesContext'
+
+function readStoredLanguage() {
+  if (typeof window === 'undefined') return null
+  try {
+    const storedLanguage = window.localStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+    return storedLanguage === 'en' || storedLanguage === 'es' ? normalizeLanguage(storedLanguage) : null
+  } catch {
+    return null
+  }
+}
 
 export function AppPreferencesAuthSync() {
   const { session, profile, isLoading } = useAuth()
@@ -15,8 +25,9 @@ export function AppPreferencesAuthSync() {
     if (loadedUser.current === session.user.id) return
     loadedUser.current = session.user.id
 
-    const preferred = normalizeLanguage(profile?.preferred_language)
-    persisted.current = preferred
+    const profilePreferred = normalizeLanguage(profile?.preferred_language)
+    const preferred = readStoredLanguage() ?? profilePreferred
+    persisted.current = profilePreferred
     if (preferred !== language) setLanguage(preferred)
   }, [isLoading, language, profile?.preferred_language, session?.user?.id, setLanguage])
 

@@ -452,8 +452,19 @@ export function CustomersPage() {
       setHistory([])
       return
     }
+    const selectedListRecord = customers.find((customer) => customer.id === selectedId)
+    if (selectedListRecord?.isStaff && !selectedListRecord.isCustomer) {
+      setSelectedDetail(selectedListRecord)
+      setReservations([])
+      setOrders([])
+      setMemberships([])
+      setHistory([])
+      setAssignTagId('')
+      setDetailLoading(false)
+      return
+    }
     void loadDetail(selectedId)
-  }, [loadDetail, selectedId])
+  }, [customers, loadDetail, selectedId])
 
   const metrics = useMemo(() => ({
     total: filteredCustomers.length,
@@ -477,6 +488,10 @@ export function CustomersPage() {
   }
 
   const openEdit = (customer: CustomerRecord) => {
+    if (!customer.isCustomer) {
+      setToast('Los usuarios internos se administran desde Usuarios y permisos.')
+      return
+    }
     setForm(formFromCustomer(customer))
     setError('')
   }
@@ -526,7 +541,7 @@ export function CustomersPage() {
   }
 
   const deleteNote = async (noteId: string) => {
-    if (!selected || saving) return
+    if (!selected || !selected.isCustomer || saving) return
     requestAction({
       title: 'Eliminar nota interna',
       message: 'La nota se retirará del expediente del cliente.',
@@ -563,7 +578,7 @@ export function CustomersPage() {
 
   const submitNote = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!selected || !note.trim() || saving) return
+    if (!selected || !selected.isCustomer || !note.trim() || saving) return
     setSaving(true)
     setError('')
     try {
@@ -601,7 +616,7 @@ export function CustomersPage() {
   }
 
   const assignTag = async () => {
-    if (!selected || !assignTagId || saving) return
+    if (!selected || !selected.isCustomer || !assignTagId || saving) return
     setSaving(true)
     setError('')
     try {
@@ -806,24 +821,34 @@ export function CustomersPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {selected.tags.map((item) => (
-                    <span
-                      key={item.id}
-                      className="inline-flex items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 py-1 text-xs font-semibold"
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
-                      {item.name}
+                  {selected.isCustomer ? (
+                    <>
+                      {selected.tags.map((item) => (
+                        <span
+                          key={item.id}
+                          className="inline-flex items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 py-1 text-xs font-semibold"
+                        >
+                          <span className="h-2.5 w-2.5 rounded-full" style={{ background: item.color }} />
+                          {item.name}
+                        </span>
+                      ))}
+                      {!selected.tags.length ? <span className="text-sm text-[var(--color-muted)]">Sin etiquetas internas.</span> : null}
+                    </>
+                  ) : (
+                    <span className="rounded-md border border-[var(--color-line)] bg-white px-3 py-1 text-xs font-semibold text-[var(--color-burgundy)]">
+                      Usuario interno fuera de campañas comerciales
                     </span>
-                  ))}
-                  {!selected.tags.length ? <span className="text-sm text-[var(--color-muted)]">Sin etiquetas internas.</span> : null}
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <MiniStat label="Reservaciones" value={String(selected.reservationsCount)} />
-                  <MiniStat label="Órdenes" value={String(selected.ordersCount)} />
-                  <MiniStat label="Membresías activas" value={String(selected.activeMembershipsCount)} />
-                  <MiniStat label="Ticket promedio" value={money(selected.averageTicket)} />
-                </div>
+                {selected.isCustomer ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <MiniStat label="Reservaciones" value={String(selected.reservationsCount)} />
+                    <MiniStat label="Órdenes" value={String(selected.ordersCount)} />
+                    <MiniStat label="Membresías activas" value={String(selected.activeMembershipsCount)} />
+                    <MiniStat label="Ticket promedio" value={money(selected.averageTicket)} />
+                  </div>
+                ) : null}
 
                 <div className="grid gap-2 text-sm">
                   <InfoRow icon={Mail} label="Correo" value={selected.email ?? 'Sin correo'} />
@@ -842,11 +867,11 @@ export function CustomersPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(selected)}
-                    disabled={!writable}
+                    disabled={!writable || !selected.isCustomer}
                     className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     <Pencil size={15} />
-                    Editar
+                    Editar cliente
                   </button>
                   {selected.isStaff ? (
                     <Link
@@ -865,124 +890,145 @@ export function CustomersPage() {
                       Campañas
                     </Link>
                   )}
-                  {selected.archivedAt ? (
-                    <button
-	                      type="button"
-	                      onClick={() => requestAction({
-	                        title: 'Restaurar cliente',
-	                        message: 'El cliente volverá al directorio activo y conservará su historial.',
-	                        confirmLabel: 'Restaurar',
-	                        success: 'Cliente restaurado.',
-	                        action: () => customersClient.restore(token, selected.id),
-	                      })}
-                      disabled={!writable || saving}
-                      className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
-                    >
-                      <RotateCcw size={15} />
-                      Restaurar
-                    </button>
-                  ) : (
-                    <button
-	                      type="button"
-	                      onClick={() => requestAction({
-	                        title: 'Archivar cliente',
-	                        message: 'El cliente saldrá del directorio activo, pero sus relaciones históricas se conservan.',
-	                        confirmLabel: 'Archivar',
-	                        tone: 'danger',
-	                        success: 'Cliente archivado.',
-	                        action: () => customersClient.archive(token, selected.id),
-	                      })}
-                      disabled={!writable || saving}
-                      className="inline-flex h-10 items-center gap-2 rounded-md border border-[#d5b2b2] bg-white px-3 text-sm font-semibold text-[#8c2f2f] disabled:cursor-not-allowed disabled:opacity-45"
-                    >
-                      <Archive size={15} />
-                      Archivar
-                    </button>
-                  )}
-                </div>
-
-                <form onSubmit={submitNote} className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <h3 className="font-semibold text-[var(--color-ink)]">Notas internas</h3>
-                    {editingNote ? (
-                      <button type="button" onClick={() => { setEditingNote(null); setNote('') }} className="text-sm font-semibold text-[var(--color-burgundy)]">
-                        Cancelar edición
-                      </button>
-                    ) : null}
-                  </div>
-                  <textarea
-                    value={note}
-                    onChange={(event) => setNote(event.target.value)}
-                    className={`${inputClass()} min-h-24 py-3`}
-                    placeholder="Registrar seguimiento, preferencia o contexto comercial"
-                    disabled={!writable}
-                  />
-                  <button
-                    type="submit"
-                    disabled={!writable || saving || !note.trim()}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[var(--color-burgundy)] px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    <MessageSquarePlus size={15} />
-                    Guardar nota
-                  </button>
-                  <div className="grid gap-2">
-                    {(selected.recentNotes ?? []).map((item) => (
-                      <div key={item.id} className="rounded-md bg-[var(--color-soft)] p-3 text-sm">
-                        <p className="text-[var(--color-ink)]">{item.note}</p>
-                        <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--color-muted)]">
-                          <span>{formatDate(item.createdAt)}</span>
-                          <button type="button" onClick={() => { setEditingNote(item); setNote(item.note) }} disabled={!writable} className="font-semibold text-[var(--color-burgundy)] disabled:opacity-45">
-                            Editar
-                          </button>
-	                          <button type="button" onClick={() => void deleteNote(item.id)} disabled={!writable} className="font-semibold text-[#8c2f2f] disabled:opacity-45">
-                            Eliminar
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {!(selected.recentNotes ?? []).length ? <p className="text-sm text-[var(--color-muted)]">Sin notas internas registradas.</p> : null}
-                  </div>
-                </form>
-
-                <div className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
-                  <h3 className="font-semibold text-[var(--color-ink)]">Etiquetas</h3>
-                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <CrystalSelect value={assignTagId} onChange={setAssignTagId} disabled={!writable}>
-                      <option value="">Seleccionar etiqueta</option>
-                      {tags.map((item) => (
-                        <option key={item.id} value={item.id}>{item.name}</option>
-                      ))}
-                    </CrystalSelect>
-                    <button type="button" onClick={assignTag} disabled={!writable || saving || !assignTagId} className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--color-line)] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">
-                      <Tag size={15} />
-                      Asignar
-                    </button>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {selected.tags.map((item) => (
+                  {selected.isCustomer ? (
+                    selected.archivedAt ? (
                       <button
-	                        key={item.id}
-	                        type="button"
-	                        onClick={() => requestAction({
-	                          title: 'Retirar etiqueta',
-	                          message: `La etiqueta ${item.name} dejará de estar asociada a este cliente.`,
-	                          confirmLabel: 'Retirar',
-	                          success: 'Etiqueta retirada.',
-	                          action: () => customersClient.unassignTag(token, selected.id, item.id),
-	                        })}
+                        type="button"
+                        onClick={() => requestAction({
+                          title: 'Restaurar cliente',
+                          message: 'El cliente volverá al directorio activo y conservará su historial.',
+                          confirmLabel: 'Restaurar',
+                          success: 'Cliente restaurado.',
+                          action: () => customersClient.restore(token, selected.id),
+                        })}
                         disabled={!writable || saving}
-                        className="rounded-md border border-[var(--color-line)] px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                        className="inline-flex h-10 items-center gap-2 rounded-md border border-[var(--color-line)] bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45"
                       >
-                        {item.name} ×
+                        <RotateCcw size={15} />
+                        Restaurar
                       </button>
-                    ))}
-                  </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => requestAction({
+                          title: 'Archivar cliente',
+                          message: 'El cliente saldrá del directorio activo, pero sus relaciones históricas se conservan.',
+                          confirmLabel: 'Archivar',
+                          tone: 'danger',
+                          success: 'Cliente archivado.',
+                          action: () => customersClient.archive(token, selected.id),
+                        })}
+                        disabled={!writable || saving}
+                        className="inline-flex h-10 items-center gap-2 rounded-md border border-[#d5b2b2] bg-white px-3 text-sm font-semibold text-[#8c2f2f] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <Archive size={15} />
+                        Archivar
+                      </button>
+                    )
+                  ) : null}
                 </div>
 
-                <RelatedPanel title="Reservaciones" items={reservations} kind="reservation" empty="Sin reservaciones asociadas." />
-                <RelatedPanel title="Órdenes" items={orders} kind="order" empty="Sin órdenes asociadas." />
-                <RelatedPanel title="Membresías" items={memberships} kind="membership" empty="Sin membresías asociadas." />
-                <HistoryPanel items={history} />
+                {selected.isCustomer ? (
+                  <>
+                    <form onSubmit={submitNote} className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <h3 className="font-semibold text-[var(--color-ink)]">Notas internas</h3>
+                        {editingNote ? (
+                          <button type="button" onClick={() => { setEditingNote(null); setNote('') }} className="text-sm font-semibold text-[var(--color-burgundy)]">
+                            Cancelar edición
+                          </button>
+                        ) : null}
+                      </div>
+                      <textarea
+                        value={note}
+                        onChange={(event) => setNote(event.target.value)}
+                        className={`${inputClass()} min-h-24 py-3`}
+                        placeholder="Registrar seguimiento, preferencia o contexto comercial"
+                        disabled={!writable}
+                      />
+                      <button
+                        type="submit"
+                        disabled={!writable || saving || !note.trim()}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[var(--color-burgundy)] px-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <MessageSquarePlus size={15} />
+                        Guardar nota
+                      </button>
+                      <div className="grid gap-2">
+                        {(selected.recentNotes ?? []).map((item) => (
+                          <div key={item.id} className="rounded-md bg-[var(--color-soft)] p-3 text-sm">
+                            <p className="text-[var(--color-ink)]">{item.note}</p>
+                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-[var(--color-muted)]">
+                              <span>{formatDate(item.createdAt)}</span>
+                              <button type="button" onClick={() => { setEditingNote(item); setNote(item.note) }} disabled={!writable} className="font-semibold text-[var(--color-burgundy)] disabled:opacity-45">
+                                Editar
+                              </button>
+                              <button type="button" onClick={() => void deleteNote(item.id)} disabled={!writable} className="font-semibold text-[#8c2f2f] disabled:opacity-45">
+                                Eliminar
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {!(selected.recentNotes ?? []).length ? <p className="text-sm text-[var(--color-muted)]">Sin notas internas registradas.</p> : null}
+                      </div>
+                    </form>
+
+                    <div className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-3">
+                      <h3 className="font-semibold text-[var(--color-ink)]">Etiquetas</h3>
+                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <CrystalSelect value={assignTagId} onChange={setAssignTagId} disabled={!writable}>
+                          <option value="">Seleccionar etiqueta</option>
+                          {tags.map((item) => (
+                            <option key={item.id} value={item.id}>{item.name}</option>
+                          ))}
+                        </CrystalSelect>
+                        <button type="button" onClick={assignTag} disabled={!writable || saving || !assignTagId} className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[var(--color-line)] px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-45">
+                          <Tag size={15} />
+                          Asignar
+                        </button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {selected.tags.map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => requestAction({
+                              title: 'Retirar etiqueta',
+                              message: `La etiqueta ${item.name} dejará de estar asociada a este cliente.`,
+                              confirmLabel: 'Retirar',
+                              success: 'Etiqueta retirada.',
+                              action: () => customersClient.unassignTag(token, selected.id, item.id),
+                            })}
+                            disabled={!writable || saving}
+                            className="rounded-md border border-[var(--color-line)] px-3 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            {item.name} ×
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <RelatedPanel title="Reservaciones" items={reservations} kind="reservation" empty="Sin reservaciones asociadas." />
+                    <RelatedPanel title="Órdenes" items={orders} kind="order" empty="Sin órdenes asociadas." />
+                    <RelatedPanel title="Membresías" items={memberships} kind="membership" empty="Sin membresías asociadas." />
+                    <HistoryPanel items={history} />
+                  </>
+                ) : (
+                  <div className="grid gap-3 rounded-lg border border-[var(--color-line)] bg-white p-4 text-sm">
+                    <h3 className="font-semibold text-[var(--color-ink)]">Cuenta operativa</h3>
+                    <p className="text-[var(--color-muted)]">
+                      Este registro viene de Supabase Auth y permisos del Centro de Control. No entra a campañas,
+                      métricas comerciales, etiquetas ni notas de CRM.
+                    </p>
+                    <Link
+                      to="/control/usuarios"
+                      className="inline-flex h-10 w-fit items-center gap-2 rounded-md border border-[var(--color-line)] px-3 font-semibold text-[var(--color-burgundy)] transition hover:border-[var(--color-burgundy)]"
+                    >
+                      <Building2 size={15} />
+                      Administrar en Usuarios y permisos
+                    </Link>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="grid min-h-80 place-items-center text-center">

@@ -137,7 +137,6 @@ export function ExecutiveAssistant() {
     eyebrow: 'PRIVATE EXECUTIVE READING', title: 'My assistant', intro: 'A direct reading of the estate operation, refreshed from the Control Center.',
     privacy: 'Read-only. Consults operational records and never changes them.', open: 'Open conversation', close: 'Close',
     welcome: 'What would you like to know about today’s operation?', placeholder: 'Ask about sales, bookings, occupancy, logistics or customers…', send: 'Send',
-    prompts: ['What needs my attention today?', 'Give me the commercial summary', 'Where are the operational risks?'],
     voice: 'Voice conversation', startVoice: 'Start voice', stopVoice: 'Stop', mute: 'Mute response', unmute: 'Hear response',
     states: { idle: 'Ready', connecting: 'Connecting', listening: 'Listening', thinking: 'Thinking', speaking: 'Speaking', error: 'Unavailable' },
     failure: 'The assistant could not consult the operation. Try again in a moment.', accessFailure: 'Your session cannot consult the assistant right now. Sign in again and retry.', voiceFailure: 'Voice could not be started. Check microphone permission and try again.',
@@ -145,7 +144,6 @@ export function ExecutiveAssistant() {
     eyebrow: 'LECTURA EJECUTIVA PRIVADA', title: 'Mi asistente', intro: 'Una lectura directa de la operación de la Hacienda, actualizada desde el Centro de Control.',
     privacy: 'Sólo consulta. Lee registros operativos y nunca modifica datos.', open: 'Abrir conversación', close: 'Cerrar',
     welcome: '¿Qué necesitas saber de la operación de hoy?', placeholder: 'Pregunta por ventas, reservaciones, ocupación, logística o clientes…', send: 'Enviar',
-    prompts: ['¿Qué requiere mi atención hoy?', 'Dame el resumen comercial', '¿Dónde están los riesgos operativos?'],
     voice: 'Conversación por voz', startVoice: 'Iniciar conversación', stopVoice: 'Detener', mute: 'Silenciar respuesta', unmute: 'Escuchar respuesta',
     states: { idle: 'Lista', connecting: 'Conectando', listening: 'Escuchando', thinking: 'Analizando', speaking: 'Respondiendo', error: 'No disponible' },
     failure: 'La asistente no pudo consultar la operación. Intenta nuevamente en un momento.', accessFailure: 'Tu sesión no puede consultar la asistente en este momento. Vuelve a iniciar sesión e intenta otra vez.', voiceFailure: 'No fue posible iniciar la voz. Revisa el permiso del micrófono e intenta otra vez.',
@@ -376,7 +374,7 @@ export function ExecutiveAssistant() {
               <main>
                 <div ref={messagesRef} className="control-assistant-messages" aria-live="polite">
                   {messages.length === 0 ? (
-                    <div className="control-assistant-welcome"><span>Mi asistente</span><p>{copy.welcome}</p><div>{copy.prompts.map((prompt) => <button type="button" key={prompt} onClick={() => void sendText(prompt)}>{prompt}</button>)}</div></div>
+                    <div className="control-assistant-welcome"><span>Mi asistente</span><p>{copy.welcome}</p></div>
                   ) : messages.map((item, index) => (
                     <article key={`${item.role}-${item.createdAt}-${index}`} className={`is-${item.role}`}>
                       <span>

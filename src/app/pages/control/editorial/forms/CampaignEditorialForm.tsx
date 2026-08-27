@@ -44,10 +44,14 @@ function cleanFilters(filters: CampaignAudienceFilters) {
 
 type CampaignChannel = 'email' | 'push' | 'in_app'
 type CampaignSourceGroup = NonNullable<CampaignAudienceFilters['sourceGroup']>
+type CampaignCartStatus = NonNullable<CampaignAudienceFilters['cartStatus']>
+type CampaignOrderStatus = NonNullable<CampaignAudienceFilters['orderStatus']>
 type BooleanFilterValue = '' | 'true' | 'false'
 type Option = { value: string; label: string }
 
 const sourceGroupValues = new Set(['app', 'web', 'hacienda', 'other'])
+const cartStatusValues = new Set(['active', 'abandoned', 'converted'])
+const orderStatusValues = new Set(['draft', 'pending_payment', 'paid', 'processing', 'fulfilled', 'cancelled', 'refunded'])
 
 const segmentOptions: Option[] = [
   { value: '', label: 'Todos los clientes' },
@@ -76,8 +80,34 @@ const booleanOptions: Option[] = [
   { value: 'false', label: 'No' },
 ]
 
+const cartStatusOptions: Option[] = [
+  { value: '', label: 'Sin filtro' },
+  { value: 'active', label: 'Carrito activo' },
+  { value: 'abandoned', label: 'Checkout abandonado' },
+  { value: 'converted', label: 'Compra convertida' },
+]
+
+const orderStatusOptions: Option[] = [
+  { value: '', label: 'Sin filtro' },
+  { value: 'pending_payment', label: 'Pago pendiente' },
+  { value: 'paid', label: 'Pago confirmado' },
+  { value: 'processing', label: 'En proceso' },
+  { value: 'fulfilled', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
+  { value: 'refunded', label: 'Reembolsada' },
+  { value: 'draft', label: 'Borrador' },
+]
+
 function sourceGroupValue(value: string): CampaignSourceGroup | undefined {
   return sourceGroupValues.has(value) ? value as CampaignSourceGroup : undefined
+}
+
+function cartStatusValue(value: string): CampaignCartStatus | undefined {
+  return cartStatusValues.has(value) ? value as CampaignCartStatus : undefined
+}
+
+function orderStatusValue(value: string): CampaignOrderStatus | undefined {
+  return orderStatusValues.has(value) ? value as CampaignOrderStatus : undefined
 }
 
 function boolFilter(value: string): boolean | undefined {
@@ -122,8 +152,10 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
     sourceGroup: stringValue(storedAudience.sourceGroup),
     location: stringValue(storedAudience.location),
     hasOrders: storedAudience.hasOrders === true ? 'true' : storedAudience.hasOrders === false ? 'false' : '' as BooleanFilterValue,
+    orderStatus: stringValue(storedAudience.orderStatus),
     hasReservations: storedAudience.hasReservations === true ? 'true' : storedAudience.hasReservations === false ? 'false' : '' as BooleanFilterValue,
     hasMembership: storedAudience.hasMembership === true ? 'true' : storedAudience.hasMembership === false ? 'false' : '' as BooleanFilterValue,
+    cartStatus: stringValue(storedAudience.cartStatus),
     minAge: numberValue(storedAudience.minAge),
     maxAge: numberValue(storedAudience.maxAge),
     minTotalSpend: numberValue(storedAudience.minTotalSpend),
@@ -149,8 +181,10 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
     sourceGroup: sourceGroupValue(filters.sourceGroup),
     location: filters.location,
     hasOrders: boolFilter(filters.hasOrders),
+    orderStatus: orderStatusValue(filters.orderStatus),
     hasReservations: boolFilter(filters.hasReservations),
     hasMembership: boolFilter(filters.hasMembership),
+    cartStatus: cartStatusValue(filters.cartStatus),
     minAge: filters.minAge ? Number(filters.minAge) : undefined,
     maxAge: filters.maxAge ? Number(filters.maxAge) : undefined,
     minTotalSpend: filters.minTotalSpend ? Number(filters.minTotalSpend) : undefined,
@@ -288,6 +322,8 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
           <GlassInput label="Ubicación" value={filters.location} onChange={(value) => setFilters((current) => ({ ...current, location: value }))} placeholder="Ciudad o estado" />
           <GlassInput label="Límite" value={filters.limit} onChange={(value) => setFilters((current) => ({ ...current, limit: value }))} placeholder="250" type="number" />
           <GlassOptionsSelect label="Compras" value={filters.hasOrders} onChange={(value) => setFilters((current) => ({ ...current, hasOrders: value as BooleanFilterValue }))} options={booleanOptions} />
+          <GlassOptionsSelect label="Estado de orden" value={filters.orderStatus} onChange={(value) => setFilters((current) => ({ ...current, orderStatus: value }))} options={orderStatusOptions} />
+          <GlassOptionsSelect label="Carritos" value={filters.cartStatus} onChange={(value) => setFilters((current) => ({ ...current, cartStatus: value }))} options={cartStatusOptions} />
           <GlassOptionsSelect label="Reservas" value={filters.hasReservations} onChange={(value) => setFilters((current) => ({ ...current, hasReservations: value as BooleanFilterValue }))} options={booleanOptions} />
           <GlassOptionsSelect label="Wine Club" value={filters.hasMembership} onChange={(value) => setFilters((current) => ({ ...current, hasMembership: value as BooleanFilterValue }))} options={booleanOptions} />
           <GlassInput label="Cliente desde" value={filters.createdFrom} onChange={(value) => setFilters((current) => ({ ...current, createdFrom: value }))} type="date" />
@@ -339,7 +375,7 @@ export function CampaignEditorialForm(props: EditorialFormProps) {
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               {metrics.channels.filter((channel) => channel.total > 0).map((channel) => (
                 <div key={channel.channel} className="rounded-2xl bg-white/76 p-3 text-xs text-[var(--color-muted)]">
-                  <p className="font-semibold text-[var(--color-ink)]">{channel.channel === 'email' ? 'Correo' : channel.channel === 'push' ? 'Push' : 'Buzón App'}</p>
+                  <p className="font-semibold text-[var(--color-ink)]">{channelLabel(channel.channel)}</p>
                   <p className="mt-1">Entregados {channel.delivered} · Pendientes {channel.pending} · Fallidos {channel.failed}</p>
                   <p className="mt-1">Abiertos {channel.opened} · Clics {channel.clicked}</p>
                 </div>

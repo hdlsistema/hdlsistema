@@ -1248,7 +1248,7 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(status.body.data).toMatchObject({ enabled: true, readOnly: true })
     expect(response.status).toBe(200)
     expect(response.body.data.answer).toContain('1 solicitudes de cotización')
-    expect(response.body.data.answer).toContain('mobile_app')
+    expect(response.body.data.answer).toContain('App')
     expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
   })
 
@@ -1364,6 +1364,201 @@ describe('Trazabilidad App a Centro de Control', () => {
     expect(response.body.data.answer).toContain('Recepción Hacienda')
     expect(response.body.data.answer).toContain('Eventos/Experiencias, Reservaciones, Tipos de boleto, Pases QR y Check-ins')
     expect(supabaseMock.tableData.executive_ai_queries[0]).toMatchObject({ status: 'completed', query_mode: 'text' })
+  })
+
+  it('responde ingresos del último evento desde QR y check-ins reales sin buscar clientes por texto', async () => {
+    authenticateAs('admin')
+    const latestEventId = 'event-latest-entry'
+    const oldEventId = 'event-old-entry'
+    const latestTicketTypeId = 'ticket-latest-entry'
+    const oldTicketTypeId = 'ticket-old-entry'
+    const latestReservationId = 'reservation-latest-entry'
+    const oldReservationId = 'reservation-old-entry'
+    const latestEventRelation = {
+      id: latestEventId,
+      title: 'Recorrido último de viñedos',
+      start_at: '2026-08-25T18:00:00.000Z',
+      end_at: '2026-08-25T20:00:00.000Z',
+      capacity: 40,
+      sold_count: 2,
+      reserved_count: 2,
+      cover_image_url: null,
+    }
+    const oldEventRelation = {
+      id: oldEventId,
+      title: 'Cata anterior de vinos',
+      start_at: '2026-08-20T18:00:00.000Z',
+      end_at: '2026-08-20T20:00:00.000Z',
+      capacity: 20,
+      sold_count: 1,
+      reserved_count: 1,
+      cover_image_url: null,
+    }
+    const latestTicketTypeRelation = {
+      id: latestTicketTypeId,
+      name: 'Acceso viñedo',
+      capacity: 40,
+      sold_count: 2,
+      reserved_count: 2,
+      events: latestEventRelation,
+    }
+    const oldTicketTypeRelation = {
+      id: oldTicketTypeId,
+      name: 'Acceso cata',
+      capacity: 20,
+      sold_count: 1,
+      reserved_count: 1,
+      events: oldEventRelation,
+    }
+    const latestReservationRelation = {
+      id: latestReservationId,
+      reservation_number: 'RES-LAST-001',
+      reservation_type: 'event',
+      people_count: 2,
+      status: 'confirmed',
+      source: 'mobile_app',
+      total: 400,
+      currency: 'MXN',
+      created_at: '2026-08-25T16:00:00.000Z',
+      customers: {
+        display_name: 'Patty Garibay',
+        first_name: 'Patty',
+        last_name: 'Garibay',
+      },
+      events: latestEventRelation,
+      event_ticket_types: latestTicketTypeRelation,
+    }
+    const oldReservationRelation = {
+      id: oldReservationId,
+      reservation_number: 'RES-OLD-001',
+      reservation_type: 'event',
+      people_count: 1,
+      status: 'confirmed',
+      source: 'web',
+      total: 200,
+      currency: 'MXN',
+      created_at: '2026-08-20T16:00:00.000Z',
+      customers: {
+        display_name: 'Cliente Anterior',
+        first_name: 'Cliente',
+        last_name: 'Anterior',
+      },
+      events: oldEventRelation,
+      event_ticket_types: oldTicketTypeRelation,
+    }
+    const latestFirstPass = {
+      id: 'pass-latest-1',
+      reservation_id: latestReservationId,
+      event_ticket_type_id: latestTicketTypeId,
+      pass_number: 'PASS-LAST-001',
+      status: 'issued',
+      valid_until: '2026-08-26T08:00:00.000Z',
+      issued_at: '2026-08-25T16:10:00.000Z',
+      created_at: '2026-08-25T16:10:00.000Z',
+      reservations: latestReservationRelation,
+      event_ticket_types: latestTicketTypeRelation,
+    }
+    const oldPass = {
+      id: 'pass-old-1',
+      reservation_id: oldReservationId,
+      event_ticket_type_id: oldTicketTypeId,
+      pass_number: 'PASS-OLD-001',
+      status: 'issued',
+      valid_until: '2026-08-21T08:00:00.000Z',
+      issued_at: '2026-08-20T16:10:00.000Z',
+      created_at: '2026-08-20T16:10:00.000Z',
+      reservations: oldReservationRelation,
+      event_ticket_types: oldTicketTypeRelation,
+    }
+    supabaseMock.tableData.executive_ai_access = [{
+      user_id: customerUser.id,
+      feature_code: 'executive_ai_assistant',
+      active: true,
+    }]
+    supabaseMock.tableData.executive_ai_queries = []
+    supabaseMock.tableData.events = [
+      {
+        ...latestEventRelation,
+        slug: 'recorrido-ultimo-vinedos',
+        subtitle: 'Recorrido',
+        description: 'Último evento operativo',
+        venue: 'Hacienda de Letras',
+        status: 'published',
+        visible_in_app: true,
+        sales_enabled: true,
+        created_at: '2026-08-24T00:00:00.000Z',
+        updated_at: '2026-08-25T00:00:00.000Z',
+      },
+      {
+        ...oldEventRelation,
+        slug: 'cata-anterior-vinos',
+        subtitle: 'Cata',
+        description: 'Evento anterior',
+        venue: 'Restaurante Nieto',
+        status: 'published',
+        visible_in_app: true,
+        sales_enabled: true,
+        created_at: '2026-08-19T00:00:00.000Z',
+        updated_at: '2026-08-20T00:00:00.000Z',
+      },
+    ]
+    supabaseMock.tableData.experiences = []
+    supabaseMock.tableData.reservations = [latestReservationRelation, oldReservationRelation]
+    supabaseMock.tableData.event_ticket_types = [latestTicketTypeRelation, oldTicketTypeRelation]
+    supabaseMock.tableData.access_passes = [
+      latestFirstPass,
+      { ...latestFirstPass, id: 'pass-latest-2', pass_number: 'PASS-LAST-002' },
+      oldPass,
+    ]
+    supabaseMock.tableData.checkins = [
+      {
+        id: 'checkin-latest-1',
+        access_pass_id: 'pass-latest-1',
+        checked_in_by: 'operator-last',
+        checked_in_at: '2026-08-25T18:30:00.000Z',
+        reversed_at: null,
+        created_at: '2026-08-25T18:30:00.000Z',
+        access_passes: latestFirstPass,
+      },
+      {
+        id: 'checkin-old-1',
+        access_pass_id: 'pass-old-1',
+        checked_in_by: 'operator-old',
+        checked_in_at: '2026-08-20T18:30:00.000Z',
+        reversed_at: null,
+        created_at: '2026-08-20T18:30:00.000Z',
+        access_passes: oldPass,
+      },
+    ]
+    supabaseMock.tableData.profiles = [{
+      id: 'operator-last',
+      display_name: 'Recepción Último Evento',
+      first_name: 'Recepción',
+      last_name: 'Último Evento',
+    }]
+
+    const response = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ message: 'cuántas personas entraron en el último evento', history: [] })
+
+    expect(response.status).toBe(200)
+    expect(response.body.data.answer).toContain('Para Recorrido último de viñedos')
+    expect(response.body.data.answer).toContain('han ingresado 1 persona por QR leído')
+    expect(response.body.data.answer).toContain('Hay 2 pases activos, 1 pendiente')
+    expect(response.body.data.answer).toContain('Recepción Último Evento')
+    expect(response.body.data.answer).not.toContain('No encontré clientes')
+    expect(response.body.data.answer).not.toContain('Cata anterior de vinos')
+
+    const plainResponse = await request(app)
+      .post('/api/admin/executive-assistant/message')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ message: 'cuantas personas entraron en el ultimo evento', history: [] })
+
+    expect(plainResponse.status).toBe(200)
+    expect(plainResponse.body.data.answer).toContain('Para Recorrido último de viñedos')
+    expect(plainResponse.body.data.answer).toContain('han ingresado 1 persona por QR leído')
+    expect(plainResponse.body.data.answer).not.toContain('No encontré clientes')
   })
 
   it('responde folios exactos de órdenes con partidas, pago y logística reales', async () => {
@@ -2564,6 +2759,57 @@ describe('Fase 7C customers CRM API', () => {
       code: 'restaurante_nieto',
       label: 'Restaurante Nieto',
       type: 'restaurant',
+    })
+    expect(JSON.stringify(res.body)).not.toContain('user_id')
+    expect(JSON.stringify(res.body)).not.toContain(staffUserId)
+  })
+
+  it('incluye usuarios internos creados en Auth aunque aún no tengan ficha de cliente', async () => {
+    signInAs('viewer')
+    const staffUserId = '22222222-2222-4222-8222-222222222076'
+    supabaseMock.authUsers = [{
+      id: staffUserId,
+      email: 'direccion@haciendadeletras.com',
+      created_at: '2026-08-12T19:07:00.000Z',
+      email_confirmed_at: '2026-08-21T16:44:00.000Z',
+      last_sign_in_at: '2026-08-26T14:28:00.000Z',
+      app_metadata: {},
+      user_metadata: { display_name: 'Carlos Salas' },
+    }]
+    supabaseMock.tableData.customers = []
+    supabaseMock.tableData.user_roles = [
+      { user_id: adminUser.id, roles: { code: 'viewer' } },
+      { user_id: staffUserId, roles: { code: 'operations' } },
+    ]
+    supabaseMock.tableData.user_control_permissions = [
+      { user_id: staffUserId, permission_code: 'dashboard.view' },
+      { user_id: staffUserId, permission_code: 'reports.view' },
+    ]
+    supabaseMock.tableData.user_control_scopes = [
+      { user_id: staffUserId, scope_code: 'all_sites' },
+    ]
+
+    const res = await request(app)
+      .get('/api/admin/customers?search=Carlos%20Salas')
+      .set('Authorization', 'Bearer viewer-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toHaveLength(1)
+    expect(res.body.data[0]).toMatchObject({
+      displayName: 'Carlos Salas',
+      email: 'direccion@haciendadeletras.com',
+      source: 'Centro de control',
+      isStaff: true,
+      isCustomer: false,
+      accountType: 'staff',
+      accountLabel: 'Usuario interno',
+      campaignAudience: 'USUARIO INTERNO',
+      staffRoles: ['operations'],
+      staffPermissionCount: 2,
+      staffScopeCodes: ['all_sites'],
+      ordersCount: 0,
+      reservationsCount: 0,
+      marketingEmailConsent: false,
     })
     expect(JSON.stringify(res.body)).not.toContain('user_id')
     expect(JSON.stringify(res.body)).not.toContain(staffUserId)

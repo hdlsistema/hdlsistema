@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { SlidersHorizontal } from 'lucide-react'
+import { Check, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
 import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
@@ -47,6 +47,7 @@ export function StoreScreen() {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState(0)
   const [order, setOrder] = useState<'featured' | 'price_asc' | 'price_desc' | 'name'>('featured')
+  const [sortSheetOpen, setSortSheetOpen] = useState(false)
   const [addingId, setAddingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 
@@ -70,6 +71,8 @@ export function StoreScreen() {
     ],
     [t],
   )
+
+  const selectedSortOption = sortOptions.find((option) => option.value === order) ?? sortOptions[0]
 
   useEffect(() => {
     const queryLength = search.trim().length
@@ -120,7 +123,7 @@ export function StoreScreen() {
       }
       return Number(b.featured ?? 0) - Number(a.featured ?? 0)
     })
-  }, [activeFilter, filters, isEnglish, order, search, wines])
+  }, [activeFilter, isEnglish, order, search, wines])
 
   const addWineToCart = async (wineId: string) => {
     if (!session?.access_token) {
@@ -170,22 +173,16 @@ export function StoreScreen() {
               {t('app.premium.wines.title')}
             </h1>
           </div>
-          <label className="relative block h-10 w-10 shrink-0">
-            <span className="pointer-events-none inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(184,138,74,0.22)] bg-[var(--color-panel)] text-[var(--color-burgundy)] shadow-[0_8px_20px_rgba(74,32,28,0.08)]">
+          <button
+            type="button"
+            onClick={() => setSortSheetOpen(true)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[rgba(184,138,74,0.22)] bg-[var(--color-panel)] text-[var(--color-burgundy)] shadow-[0_8px_20px_rgba(74,32,28,0.08)]"
+            aria-haspopup="dialog"
+            aria-expanded={sortSheetOpen}
+            aria-label={t('app.premium.wines.sort')}
+          >
               <SlidersHorizontal size={16} />
-            </span>
-            <select
-              value={order}
-              onChange={(event) => setOrder(event.target.value as typeof order)}
-              className="absolute inset-0 h-10 w-10 cursor-pointer opacity-0"
-              aria-label={t('app.premium.wines.sort')}
-            >
-              {sortOptions.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            <span className="sr-only">{t('app.premium.wines.sort')}</span>
-          </label>
+          </button>
         </div>
         <SearchField
           placeholder={t('app.premium.wines.search')}
@@ -267,6 +264,59 @@ export function StoreScreen() {
           })}
         </section>
       )}
+
+      {sortSheetOpen ? (
+        <div
+          className="fixed inset-0 z-[240] flex items-end bg-[#16070b]/45 px-4 pb-[calc(16px+env(safe-area-inset-bottom))] pt-8"
+          role="presentation"
+          onClick={() => setSortSheetOpen(false)}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label={t('app.premium.wines.sort')}
+            className="w-full rounded-[1.6rem] border border-[#b48a55]/35 bg-[#fffaf3] p-4 shadow-[0_24px_54px_rgba(58,21,25,0.28)]"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#b48a55]">
+                  {isEnglish ? 'Wine list' : 'Lista de vinos'}
+                </p>
+                <h2 className="mt-1 text-[18px] font-semibold leading-tight text-[#252f37]">
+                  {t('app.premium.wines.sort')}
+                </h2>
+              </div>
+              <span className="rounded-full border border-[#ead8c7] bg-white/75 px-3 py-1 text-[11px] font-semibold text-[#6b1428]">
+                {selectedSortOption.label}
+              </span>
+            </div>
+            <div className="grid gap-2">
+              {sortOptions.map((option) => {
+                const selected = option.value === order
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => {
+                      setOrder(option.value as typeof order)
+                      setSortSheetOpen(false)
+                    }}
+                    className={`flex min-h-[48px] items-center justify-between gap-3 rounded-[1.05rem] border px-4 text-left text-[14px] font-semibold leading-snug transition ${
+                      selected
+                        ? 'border-[#6b1428] bg-[#6b1428] text-white shadow-[0_12px_24px_rgba(107,20,40,0.2)]'
+                        : 'border-[#ead8c7] bg-white/82 text-[#332421]'
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    {selected ? <Check size={17} /> : null}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        </div>
+      ) : null}
     </div>
   )
 }

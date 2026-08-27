@@ -1,5 +1,5 @@
 import { supabaseAdminClient } from '../../config/supabase'
-import { randomUUID } from 'crypto'
+import { createHash, randomUUID } from 'crypto'
 import { controlScopesForCodes, rolesGrantFinancialAccess, type ControlScope } from '../admin/controlPermissions'
 import { listActivityForCustomer } from '../activity/activity.service'
 import {
@@ -130,6 +130,18 @@ type AuthDirectoryUser = {
   id: string
   email?: string | null
   app_metadata?: Record<string, unknown>
+  user_metadata?: Record<string, unknown>
+  created_at?: string | null
+  updated_at?: string | null
+  email_confirmed_at?: string | null
+  last_sign_in_at?: string | null
+}
+
+type ProfileIdentityRow = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  display_name?: string | null
 }
 
 type CustomerAccountType = 'customer' | 'staff' | 'admin' | 'customer_staff'
@@ -187,10 +199,10 @@ function hasStaffMetadata(user?: AuthDirectoryUser | null) {
   return Boolean(user?.app_metadata?.staff_account || user?.app_metadata?.managed_password_locked)
 }
 
-function classifyCustomerAccount(roles: string[], isStaff: boolean): CustomerAccountType {
+function classifyCustomerAccount(roles: string[], isStaff: boolean, isCustomer = true): CustomerAccountType {
   if (!isStaff) return 'customer'
   if (rolesGrantFinancialAccess(roles)) return 'admin'
-  if (roles.some((role) => STAFF_ROLE_PRIORITY.includes(role))) return 'customer_staff'
+  if (isCustomer && roles.some((role) => STAFF_ROLE_PRIORITY.includes(role))) return 'customer_staff'
   return 'staff'
 }
 
@@ -221,6 +233,35 @@ async function listAuthUsersForCustomerEmails(emails: string[]) {
   }
 
   return usersByEmail
+}
+
+async function listAllAuthUsers() {
+  const users: AuthDirectoryUser[] = []
+  const perPage = 100
+  const maxPages = 25
+  for (let page = 1; page <= maxPages; page += 1) {
+    const { data, error } = await supabaseAdminClient.auth.admin.listUsers({ page, perPage })
+    if (error) return users
+    const pageUsers = (data?.users ?? []) as AuthDirectoryUser[]
+    users.push(...pageUsers)
+    if (pageUsers.length < perPage) break
+  }
+  return users
+}
+
+async function getProfileIdentityMap(userIds: string[]) {
+  const filtered = [...new Set(userIds.filter(Boolean))]
+  const profiles = new Map<string, ProfileIdentityRow>()
+  if (!filtered.length) return profiles
+  const { data, error } = await supabaseAdminClient
+    .from('profiles')
+    .select('id,first_name,last_name,display_name')
+    .in('id', filtered)
+  if (error) return profiles
+  for (const row of data ?? []) {
+    if (typeof row.id === 'string') profiles.set(row.id, row as ProfileIdentityRow)
+  }
+  return profiles
 }
 
 async function authUsersForCustomerRows(rows: CustomerRow[]) {
@@ -353,6 +394,164 @@ async function customerAccountClassificationMap(rows: CustomerRow[]) {
   }
 
   return accounts
+}
+
+function normalizeDirectoryText(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('es-MX')
+}
+
+function cleanIdentityPart(value: unknown, email: string) {
+  const text = typeof value === 'string' ? value.trim() : ''
+  if (!text) return ''
+  if (text.toLocaleLowerCase('es-MX') === email) return ''
+  return text
+}
+
+function authIdentity(user: AuthDirectoryUser, profile?: ProfileIdentityRow | null) {
+  const email = cleanAuthEmail(user.email)
+  const metadata = user.user_metadata ?? {}
+  const firstName = cleanIdentityPart(profile?.first_name ?? metadata.first_name ?? metadata.given_name, email)
+  const lastName = cleanIdentityPart(profile?.last_name ?? metadata.last_name ?? metadata.family_name, email)
+  const displayName = cleanIdentityPart(profile?.display_name ?? metadata.display_name ?? metadata.full_name ?? metadata.name, email)
+  const fallbackName = displayName || [firstName, lastName].filter(Boolean).join(' ').trim() || email.split('@')[0] || 'Usuario interno'
+  return {
+    firstName: firstName || fallbackName,
+    lastName,
+    displayName: fallbackName,
+  }
+}
+
+function stableStaffDirectoryId(userId: string) {
+  return `staff-${createHash('sha256').update(userId).digest('hex').slice(0, 16)}`
+}
+
+function stableStaffDirectoryNumber(userId: string) {
+  return `USR-${createHash('sha256').update(userId).digest('hex').slice(0, 10).toUpperCase()}`
+}
+
+function staffDirectoryVisible(
+  user: AuthDirectoryUser,
+  roles: string[],
+  explicitPermissions: string[],
+  scopeCodes: string[],
+  hasExplicitFinancialGrant: boolean,
+) {
+  return hasStaffMetadata(user) ||
+    roles.some(roleIsStaffDirectoryVisible) ||
+    roles.some((role) => ADMIN_DIRECTORY_ROLES.has(role)) ||
+    explicitPermissions.length > 0 ||
+    scopeCodes.length > 0 ||
+    hasExplicitFinancialGrant
+}
+
+function staffDirectoryMatchesQuery(
+  record: ReturnType<typeof mapStaffDirectoryUser>,
+  query: CustomerListQuery,
+) {
+  if (query.status && query.status !== 'published') return false
+  if (query.segment || query.tagId || query.hasReservations || query.hasOrders || query.hasMembership) return false
+  if (query.consent) return false
+  if (query.source && normalizeDirectoryText(query.source) !== normalizeDirectoryText(record.source)) return false
+  if (!query.search) return true
+  const search = normalizeDirectoryText(query.search)
+  const haystack = normalizeDirectoryText([
+    record.customerNumber,
+    record.displayName,
+    record.firstName,
+    record.lastName,
+    record.email,
+    record.accountLabel,
+    record.staffRoles.join(' '),
+    record.staffScopes.map((scope) => scope.label).join(' '),
+  ].join(' '))
+  return haystack.includes(search)
+}
+
+function mapStaffDirectoryUser(
+  user: AuthDirectoryUser,
+  roles: string[],
+  explicitPermissions: string[],
+  scopeCodes: string[],
+  hasExplicitFinancialGrant: boolean,
+  profile?: ProfileIdentityRow | null,
+) {
+  const sortedRoles = sortRoles(roles)
+  const isStaff = staffDirectoryVisible(user, sortedRoles, explicitPermissions, scopeCodes, hasExplicitFinancialGrant)
+  const accountType = classifyCustomerAccount(sortedRoles, isStaff, false)
+  const createdAt = user.created_at ?? user.email_confirmed_at ?? new Date(0).toISOString()
+  const updatedAt = user.updated_at ?? user.last_sign_in_at ?? createdAt
+  const identity = authIdentity(user, profile)
+  const staffScopeCodes = [...new Set(scopeCodes)]
+
+  return {
+    id: stableStaffDirectoryId(user.id),
+    customerNumber: stableStaffDirectoryNumber(user.id),
+    displayName: identity.displayName,
+    firstName: identity.firstName,
+    lastName: identity.lastName,
+    email: user.email ?? null,
+    phone: null,
+    birthDate: null,
+    source: 'Centro de control',
+    segment: 'customer' as const,
+    status: 'published',
+    preferredLanguage: 'es' as const,
+    marketingEmailConsent: false,
+    marketingPushConsent: false,
+    consentUpdatedAt: null,
+    isStaff,
+    isCustomer: false,
+    accountType,
+    accountLabel: accountLabel(accountType, sortedRoles),
+    campaignAudience: 'USUARIO INTERNO',
+    staffRoles: sortedRoles.filter((role) => role !== 'customer'),
+    staffPermissionCount: explicitPermissions.length,
+    staffScopeCodes,
+    staffScopes: controlScopesForCodes(staffScopeCodes),
+    totalSpend: 0,
+    totalVisits: 0,
+    reservationsCount: 0,
+    ordersCount: 0,
+    membershipsCount: 0,
+    activeMembershipsCount: 0,
+    averageTicket: 0,
+    lastVisitAt: user.last_sign_in_at ?? null,
+    notes: null,
+    tags: [],
+    archivedAt: null,
+    createdAt,
+    updatedAt,
+  }
+}
+
+async function staffDirectoryCustomers(query: CustomerListQuery, customerRows: CustomerRow[]) {
+  const users = await listAllAuthUsers()
+  const existingUserIds = new Set(customerRows.map(userIdFromRow).filter((id): id is string => Boolean(id)))
+  const existingEmails = new Set(customerRows.map((row) => cleanAuthEmail(row.email)).filter(Boolean))
+  const candidates = users.filter((user) => user.id && !existingUserIds.has(user.id) && !existingEmails.has(cleanAuthEmail(user.email)))
+  const userIds = candidates.map((user) => user.id)
+  const [rolesMap, explicitPermissionsMap, financialGrantUserIds, scopesMap, profilesMap] = await Promise.all([
+    getCustomerUserRolesMap(userIds),
+    getCustomerExplicitPermissionsMap(userIds),
+    getCustomerFinancialGrantUserIds(userIds),
+    getCustomerUserScopesMap(userIds),
+    getProfileIdentityMap(userIds),
+  ])
+
+  return candidates
+    .map((user) => mapStaffDirectoryUser(
+      user,
+      rolesMap.get(user.id) ?? [],
+      explicitPermissionsMap.get(user.id) ?? [],
+      scopesMap.get(user.id) ?? [],
+      financialGrantUserIds.has(user.id),
+      profilesMap.get(user.id),
+    ))
+    .filter((record) => record.isStaff && staffDirectoryMatchesQuery(record, query))
+    .sort((left, right) => left.displayName.localeCompare(right.displayName, 'es-MX'))
 }
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
@@ -700,18 +899,22 @@ export async function listCustomers(query: CustomerListQuery, user: UserContext)
   const result = await request.range(from, to)
   const rows = assertNoError<CustomerRow[]>(result).data ?? []
   const ids = rows.map((row) => row.id)
-  const [tags, relations, accounts] = await Promise.all([
+  const [tags, relations, accounts, staffOnly] = await Promise.all([
     tagMap(ids),
     relationRows(ids),
     customerAccountClassificationMap(rows),
+    relationIds ? Promise.resolve([]) : staffDirectoryCustomers(query, rows),
   ])
   return {
-    data: rows.map((row) => mapCustomer(row, {
-      reservations: relations.reservations.filter((item) => item.customer_id === row.id),
-      orders: relations.orders.filter((item) => item.customer_id === row.id),
-      memberships: relations.memberships.filter((item) => item.customer_id === row.id),
-    }, tags.get(row.id) ?? [], accounts.get(row.id))),
-    count: result.count ?? rows.length,
+    data: [
+      ...rows.map((row) => mapCustomer(row, {
+        reservations: relations.reservations.filter((item) => item.customer_id === row.id),
+        orders: relations.orders.filter((item) => item.customer_id === row.id),
+        memberships: relations.memberships.filter((item) => item.customer_id === row.id),
+      }, tags.get(row.id) ?? [], accounts.get(row.id))),
+      ...staffOnly,
+    ],
+    count: (result.count ?? rows.length) + staffOnly.length,
   }
 }
 

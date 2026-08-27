@@ -268,8 +268,13 @@ export function CheckoutScreen() {
         setPaymentSession(null)
         setMessage(t('app.premium.checkout.paymentUnavailable'))
       }
-    } catch {
-      setMessage(t('app.premium.checkout.createError'))
+    } catch (err) {
+      const backendMessage = err instanceof Error ? err.message.trim() : ''
+      setMessage(
+        backendMessage && !/^HTTP \d+/i.test(backendMessage)
+          ? backendMessage
+          : t('app.premium.checkout.createError'),
+      )
     } finally {
       setSubmitting(false)
     }

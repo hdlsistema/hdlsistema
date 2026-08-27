@@ -428,6 +428,7 @@ function queueReservationEmail(event: 'reservation.created' | 'reservation.resch
     locale,
     payload: {
       customerName: customerDisplayName(customer),
+      reservationId: reservation.id,
       reservationNumber: reservation.reservationNumber,
       experienceTitle: reservation.experienceTitle,
       peopleCount: reservation.peopleCount,
@@ -473,10 +474,13 @@ function queueOrderEmails(order: unknown, customer: CustomerRow, user: UserConte
   if (!orderId) return
   const payload = {
     customerName: customerDisplayName(customer),
+    orderId,
     orderNumber,
     status: typeof data.status === 'string' ? data.status : null,
     total: typeof data.total === 'number' ? data.total : Number(data.total ?? 0),
     currency: typeof data.currency === 'string' ? data.currency : 'MXN',
+    requiresShipping: typeof data.requiresShipping === 'boolean' ? data.requiresShipping : null,
+    shippingStatus: typeof data.shippingStatus === 'string' ? data.shippingStatus : null,
   }
   for (const eventType of ['order.created', 'order.pending_payment'] as const) {
     void enqueueAndProcessTransactionalEmail({

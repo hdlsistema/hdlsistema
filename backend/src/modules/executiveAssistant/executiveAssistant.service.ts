@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { env } from '../../config/env'
 import { supabaseAdminClient } from '../../config/supabase'
 import { plainAiResponse, plainAiResponseInstruction } from '../ai/plainText'
+import { CONTROL_PERMISSION_CATALOG, CONTROL_SCOPE_CATALOG } from '../admin/controlPermissions'
 import { getDashboardSummary } from '../dashboard/dashboard.service'
 import { httpError, requireOperationRole, type UserContext } from '../operations/operationErrors'
 import type { ExecutiveAssistantMessagePayload } from './executiveAssistant.schemas'
@@ -84,19 +85,32 @@ const assistantShipmentSelect = 'id,order_id,shipment_number,carrier,tracking_nu
 const assistantPassSelect = 'id,reservation_id,order_id,event_ticket_type_id,pass_number,status,valid_from,valid_until,used_at,issued_at,revoked_at,revocation_reason,created_at,reservations(id,reservation_number,reservation_type,people_count,status,source,total,currency,created_at,customers(display_name,first_name,last_name),experience_slots(start_at,end_at,capacity,reserved_count),experiences(id,title,cover_image_url,capacity),events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)),orders(order_number,status,source,total,currency,created_at,customers(display_name,first_name,last_name)),event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url))'
 const assistantCheckinSelect = 'id,access_pass_id,checked_in_by,checked_in_at,reversed_at,reversal_reason,created_at,access_passes(id,pass_number,status,valid_until,issued_at,reservation_id,order_id,event_ticket_type_id,reservations(id,reservation_number,reservation_type,people_count,status,source,total,currency,created_at,customers(display_name,first_name,last_name),experience_slots(start_at,end_at,capacity,reserved_count),experiences(id,title,cover_image_url,capacity),events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)),orders(order_number,status,source,total,currency,created_at,customers(display_name,first_name,last_name)),event_ticket_types(id,name,capacity,sold_count,reserved_count,events(id,title,start_at,end_at,capacity,sold_count,reserved_count,cover_image_url)))'
 const assistantCustomerSelect = 'id,customer_number,first_name,last_name,display_name,email,phone,source,segment,total_spend,total_visits,last_visit_at,status,marketing_email_consent,marketing_push_consent,preferred_language,created_at,updated_at'
+const assistantCustomerIdentitySelect = 'id,user_id,customer_number,first_name,last_name,display_name,email,phone,source,segment,total_spend,total_visits,last_visit_at,status,marketing_email_consent,marketing_push_consent,preferred_language,created_at,updated_at'
 const assistantOrderWithCustomerSelect = 'id,order_number,customer_id,reservation_id,subtotal,discount_total,tax_total,shipping_total,total,currency,status,source,paid_at,cancelled_at,fulfilled_at,requires_shipping,shipping_status,created_at,updated_at,customers(id,customer_number,display_name,first_name,last_name,email,phone,source,segment),reservations(id,reservation_number,reservation_type,people_count,status,source,total,currency,created_at,events(id,title,start_at,end_at,capacity),experiences(id,title,cover_image_url,capacity),restaurant_locations(id,name,slug))'
 const assistantReservationWithCustomerSelect = 'id,reservation_number,customer_id,user_id,reservation_type,experience_id,event_id,experience_slot_id,cabin_package_id,restaurant_location_id,people_count,subtotal,discount_total,tax_total,total,currency,status,payment_status,reservation_date,reservation_time,check_in,check_out,source,booking_channel,operational_status,confirmed_at,cancelled_at,rescheduled_at,created_at,updated_at,customers(id,customer_number,display_name,first_name,last_name,email,phone,source,segment),experiences(id,title,slug,location,cover_image_url),events(id,title,slug,venue,start_at,end_at,capacity),experience_slots(id,start_at,end_at,capacity,reserved_count,confirmed_count),cabin_packages(id,name,slug),restaurant_locations(id,name,slug,metadata)'
 const assistantInventorySelect = 'id,wine_id,location_id,quantity,reserved_quantity,reorder_point,sku,product_name,lot_code,unit_of_measure,minimum_quantity,maximum_quantity,unit_cost,status,created_at,updated_at,wines(sku,name,slug,cover_image_url,price,cost),inventory_locations(name,code,type)'
+const assistantPromotionSelect = 'id,code,name,description,promotion_type,discount_type,discount_value,minimum_amount,maximum_discount,starts_at,ends_at,usage_limit,usage_per_customer,used_count,target_segment,status,created_at,updated_at'
+const assistantPromotionRedemptionSelect = 'id,promotion_id,customer_id,reservation_id,order_id,amount,created_at,customers(display_name,first_name,last_name,email,phone),orders(order_number,total,currency,status,source),reservations(reservation_number,status,source,total,currency)'
+const assistantQuoteSelect = 'id,quote_number,customer_id,user_id,event_category,event_type,preferred_date,preferred_start_time,preferred_end_time,guest_count,venue_space_name,food_required,food_type,wine_required,wine_option,requested_services,contact_first_name,contact_last_name,contact_email,contact_phone,company_name,status,source,assigned_to,contacted_at,quoted_at,closed_at,created_at,updated_at,customers(display_name,first_name,last_name,email,phone)'
+const assistantMembershipSelect = 'id,customer_id,plan_id,membership_number,status,starts_at,ends_at,auto_renew,points_balance,created_at,updated_at,customers(display_name,first_name,last_name,email,phone),membership_plans(code,name,price,billing_period)'
+const assistantCartSelect = 'id,user_id,customer_id,status,currency,created_at,updated_at,metadata,customers(display_name,first_name,last_name,email,phone),cart_items(id,cart_id,item_type,item_id,name_snapshot,quantity,unit_price_snapshot,currency,metadata,created_at,updated_at)'
+const assistantAppEventSelect = 'id,customer_id,session_id,event_name,entity_type,entity_id,source,occurred_at,created_at,module,status,result,customers(display_name,first_name,last_name,email,phone)'
+const assistantNotificationSelect = 'id,user_id,customer_id,channel,title,body,status,push_status,push_error_code,sent_at,read_at,created_at,customers(display_name,first_name,last_name,email,phone)'
+const assistantNotificationDeviceSelect = 'id,user_id,platform,active,last_seen_at,created_at,updated_at'
+const assistantWineSelect = 'id,sku,slug,name,subtitle,description,vintage,grape_variety,volume_ml,origin,price,stock_quantity,status,featured,cover_image_url,created_at,updated_at'
+const assistantRestaurantLocationSelect = 'id,slug,name,description,full_address,city,state,phone,reservation_enabled,status,visible_in_app,cover_image_url,created_at,updated_at,metadata'
+const assistantLodgingPackageSelect = 'id,slug,name,subtitle,description,price,currency,min_guests,max_guests,nights,status,visible_in_app,cover_image_url,created_at,updated_at'
+const assistantVenueSpaceSelect = 'id,slug,name,description,capacity,dimensions,status,visible_in_app,cover_image_url,created_at,updated_at'
 
 const assistantStopWords = new Set([
   'ahi', 'ahí', 'app', 'asi', 'así', 'busca', 'buscar', 'centro', 'como', 'con', 'control', 'cual', 'cuál',
   'cuando', 'cuándo', 'cuanta', 'cuánta', 'cuantas', 'cuántas', 'cuanto', 'cuánto', 'cuantos', 'cuántos',
   'ceo', 'conteo', 'cuenta', 'datos', 'del', 'direccion', 'dirección', 'director', 'directora', 'dame', 'dime',
-  'donde', 'dónde', 'evento', 'eventos', 'exacta', 'exacto', 'favor', 'han', 'hay', 'hoy', 'ingresado',
+  'donde', 'dónde', 'entrado', 'entrar', 'entraron', 'entro', 'evento', 'eventos', 'exacta', 'exacto', 'favor', 'han', 'hay', 'hoy', 'ingresado',
   'ingresaron', 'ingreso', 'ingresos', 'las', 'leido', 'leído', 'leidos', 'leídos', 'los', 'para', 'personas',
   'porfa', 'porfavor', 'precisa', 'preciso', 'puede', 'puedes', 'que', 'qué', 'quien', 'quién', 'revisa',
   'responde', 'respuesta', 'resumen', 'sin', 'sobre', 'todo', 'total', 'una', 'ver', 'asterisco', 'asteriscos',
-  'asistencia', 'asistentes',
+  'asistencia', 'asistentes', 'ultima', 'ultimas', 'ultimo', 'ultimos',
 ])
 
 const assistantEntityStopWords = new Set([
@@ -127,6 +141,15 @@ function textField(row: Row | null | undefined, field: string) {
 function firstRelation(value: unknown): Row | null {
   if (Array.isArray(value)) return value[0] && typeof value[0] === 'object' ? value[0] as Row : null
   return value && typeof value === 'object' ? value as Row : null
+}
+
+function relationRows(value: unknown): Row[] {
+  if (Array.isArray(value)) return value.filter((row): row is Row => Boolean(row) && typeof row === 'object')
+  return value && typeof value === 'object' ? [value as Row] : []
+}
+
+function metadataRow(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Row : {}
 }
 
 function displayPerson(row: Row | null | undefined) {
@@ -219,7 +242,7 @@ function ids(rows: Row[], field = 'id') {
 
 async function rowsByValues(table: string, select: string, column: string, values: string[]) {
   if (!values.length) return []
-  return safeRows(supabaseAdminClient.from(table).select(select).in(column, values).limit(200))
+  return safeRows(supabaseAdminClient.from(table).select(select).in(column, values).limit(1000))
 }
 
 function formatAssistantDateTime(value: unknown) {
@@ -269,12 +292,28 @@ async function profileNames(userIds: string[]) {
 }
 
 function isAttendanceQuestion(question: string) {
-  return /ingres|entrada|check.?in|escane|qr|ocupaci|aforo|asist|pase|boleto/.test(normalizeAssistantText(question))
+  return /ingres|entrad|entrar|entraron|entrado|entro|check.?in|escane|qr|ocupaci|aforo|asist|pase|boleto/.test(normalizeAssistantText(question))
 }
 
 function isNextEventQuestion(question: string) {
   const normalized = normalizeAssistantText(question)
   return /(proximo|siguiente).*(evento|experiencia)|(?:evento|experiencia).*(proximo|siguiente)/.test(normalized)
+}
+
+function isLastEventAttendanceQuestion(question: string) {
+  const normalized = normalizeAssistantText(question)
+  return (
+    /(ultimo|ultima|ultimos|ultimas|reciente|recientes).*(evento|experiencia|entrada|ingreso|qr|pase|boleto|check)/.test(normalized) ||
+    /(?:evento|experiencia|entrada|ingreso|qr|pase|boleto|check).*(ultimo|ultima|ultimos|ultimas|reciente|recientes)/.test(normalized)
+  )
+}
+
+function isEventAttendanceQuestion(question: string) {
+  const normalized = normalizeAssistantText(question)
+  return (
+    isAttendanceQuestion(question) &&
+    /evento|eventos|experiencia|experiencias|reservacion|reservaciones|entrada|entradas|ingreso|ingresos|qr|pase|pases|boleto|boletos|check|ultimo|ultima|reciente/.test(normalized)
+  )
 }
 
 async function assertExecutiveAccess(user: UserContext) {
@@ -318,7 +357,8 @@ async function answerNextEventQuestion(question: string) {
 async function answerEventAttendanceQuestion(question: string) {
   if (!isAttendanceQuestion(question)) return null
 
-  const terms = preciseTerms(question)
+  const lastEventRequested = isLastEventAttendanceQuestion(question)
+  const terms = lastEventRequested ? [] : preciseTerms(question)
   const [events, experiences, reservations, ticketTypes, recentPasses, recentCheckins] = await Promise.all([
     safeRows(supabaseAdminClient.from('events').select(assistantEventSelect).order('start_at', { ascending: false }).limit(220)),
     safeRows(supabaseAdminClient.from('experiences').select(assistantExperienceSelect).order('created_at', { ascending: false }).limit(220)),
@@ -328,7 +368,18 @@ async function answerEventAttendanceQuestion(question: string) {
     safeRows(supabaseAdminClient.from('checkins').select(assistantCheckinSelect).order('checked_in_at', { ascending: false }).limit(420)),
   ])
 
-  const matchedEvents = rankByPreciseTerms(events, terms, ['title', 'slug', 'subtitle', 'description', 'venue']).slice(0, 5)
+  const usableEvents = events.filter((event) => !['archived', 'cancelled', 'canceled', 'draft'].includes(normalizeAssistantText(event.status)))
+  const now = Date.now()
+  const lastStartedEvent = [...usableEvents]
+    .filter((event) => {
+      const time = new Date(String(event.start_at ?? '')).getTime()
+      return Number.isFinite(time) && time <= now
+    })
+    .sort((left, right) => new Date(String(right.start_at ?? '')).getTime() - new Date(String(left.start_at ?? '')).getTime())[0]
+    ?? [...usableEvents].sort((left, right) => new Date(String(right.start_at ?? '')).getTime() - new Date(String(left.start_at ?? '')).getTime())[0]
+  const matchedEvents = lastEventRequested && lastStartedEvent
+    ? [lastStartedEvent]
+    : rankByPreciseTerms(events, terms, ['title', 'slug', 'subtitle', 'description', 'venue']).slice(0, 5)
   const matchedExperiences = rankByPreciseTerms(experiences, terms, ['title', 'slug', 'subtitle', 'description', 'location']).slice(0, 5)
 
   const eventIds = ids(matchedEvents)
@@ -357,14 +408,16 @@ async function answerEventAttendanceQuestion(question: string) {
     ...recentCheckins.filter((checkin) => targetedPassIds.includes(textField(checkin, 'access_pass_id'))),
     ...await rowsByValues('checkins', assistantCheckinSelect, 'access_pass_id', targetedPassIds),
   ])
-  const scopedPasses = terms.length ? targetedPasses : recentPasses
+  const scopedToTarget = lastEventRequested || terms.length > 0
+  const scopedPasses = scopedToTarget ? targetedPasses : recentPasses
   const scopedPassIds = ids(scopedPasses)
-  const scopedCheckins = terms.length
+  const scopedCheckins = scopedToTarget
     ? targetedCheckins
     : recentCheckins.filter((checkin) => scopedPassIds.includes(textField(checkin, 'access_pass_id')) || !textField(checkin, 'access_pass_id'))
 
-  if (terms.length && !matchedEvents.length && !matchedExperiences.length && !targetedPasses.length) {
-    return `No encontré un evento, experiencia o pase que coincida con "${terms.join(' ')}". Revisé eventos, experiencias, reservaciones, tipos de boleto, pases QR y check-ins; no voy a inventar un conteo.`
+  if (scopedToTarget && !matchedEvents.length && !matchedExperiences.length && !targetedPasses.length) {
+    const target = lastEventRequested ? 'último evento registrado' : `"${terms.join(' ')}"`
+    return `No encontré un evento, experiencia o pase que coincida con ${target}. Revisé eventos, experiencias, reservaciones, tipos de boleto, pases QR y check-ins; no voy a inventar un conteo.`
   }
 
   const activePasses = scopedPasses.filter((pass) => {
@@ -398,7 +451,7 @@ async function answerEventAttendanceQuestion(question: string) {
     })
 
   const startAt = selectedEvent?.start_at ?? selectedExperience?.created_at
-  const scope = terms.length ? `Para ${selectedTitle}` : 'En los pases localizados'
+  const scope = scopedToTarget ? `Para ${selectedTitle}` : 'En los pases localizados'
   const capacityText = selectedCapacity ? `cupo ${selectedCapacity}` : `${activeQr} QR activos`
   const latestText = latest.length ? `\n\nÚltimos ingresos:\n${latest.join('\n')}` : '\n\nTodavía no hay ingresos registrados para ese alcance.'
   const eventDate = startAt ? ` Fecha: ${formatAssistantDate(startAt)}.` : ''
@@ -436,27 +489,73 @@ function statusLabel(value: unknown) {
     active: 'Activo',
     approved: 'Aprobado',
     awaiting_tracking: 'Pendiente de guía',
+    archived: 'Archivado',
     cancelled: 'Cancelado',
     canceled: 'Cancelado',
     completed: 'Completado',
     confirmed: 'Confirmado',
+    converted: 'Convertido',
+    draft: 'Borrador',
     delivered: 'Entregado',
     failed: 'Fallido',
     in_transit: 'En tránsito',
+    incomplete: 'Incompleto',
     paid: 'Pago confirmado',
     pending: 'Pendiente',
+    pending_configuration: 'Configuración pendiente',
     pending_payment: 'Pago pendiente',
     pending_preparation: 'Por preparar',
     preparing: 'Preparando',
+    published: 'Publicado',
     ready: 'Lista para salida',
+    read: 'Leída',
     refunded: 'Reembolsado',
     scheduled: 'Programado',
     shipped: 'Enviado',
+    skipped: 'Omitido',
     succeeded: 'Exitoso',
+    sent: 'Enviado',
     tracking_assigned: 'Guía asignada',
   }
   if (!raw) return 'Sin estado'
   return labels[raw.replace(/\s+/g, '_')] ?? raw.charAt(0).toUpperCase() + raw.slice(1)
+}
+
+function formatLabeledCounts(counts: Record<string, number> | undefined, labeler: (value: unknown) => string = statusLabel) {
+  const entries = Object.entries(counts ?? {}).filter(([, value]) => value > 0)
+  if (!entries.length) return 'sin registros'
+  return entries.map(([key, value]) => `${labeler(key)}: ${value}`).join(', ')
+}
+
+function formatStatusCounts(counts: Record<string, number> | undefined) {
+  return formatLabeledCounts(counts, statusLabel)
+}
+
+function formatSourceCounts(counts: Record<string, number> | undefined) {
+  return formatLabeledCounts(counts, sourceLabel)
+}
+
+function channelLabel(value: unknown) {
+  const raw = normalizeAssistantText(value).replace(/_/g, ' ').trim()
+  if (!raw) return 'sin canal'
+  if (raw === 'email' || raw === 'correo') return 'Correo'
+  if (raw === 'push' || raw.includes('notificacion')) return 'Notificación push'
+  if (raw.includes('app') || raw.includes('buzon') || raw.includes('in app')) return 'Notificación en app'
+  if (raw.includes('sms')) return 'SMS'
+  if (raw.includes('whatsapp')) return 'WhatsApp'
+  return statusLabel(raw)
+}
+
+function formatChannelCounts(counts: Record<string, number> | undefined) {
+  return formatLabeledCounts(counts, channelLabel)
+}
+
+function countArray(values: string[]) {
+  return values.reduce<Record<string, number>>((result, value) => {
+    const key = value || 'sin_dato'
+    result[key] = (result[key] ?? 0) + 1
+    return result
+  }, {})
 }
 
 function isPaidStatus(value: unknown) {
@@ -538,13 +637,256 @@ function customerScore(customer: Row, terms: string[], emails: string[]) {
   return score
 }
 
+type AssistantAuthUser = {
+  id: string
+  email?: string | null
+  created_at?: string | null
+  updated_at?: string | null
+  email_confirmed_at?: string | null
+  confirmed_at?: string | null
+  last_sign_in_at?: string | null
+  app_metadata?: Record<string, unknown>
+  user_metadata?: Record<string, unknown>
+}
+
+type AssistantUserDirectoryRow = {
+  authId: string
+  name: string
+  email: string
+  roles: string[]
+  permissions: string[]
+  permissionLabels: string[]
+  scopes: string[]
+  scopeLabels: string[]
+  financialAccess: boolean
+  isCustomer: boolean
+  isStaff: boolean
+  customerNumber: string
+  customerValue: number
+  lastSignInAt: string | null
+  createdAt: string | null
+  accountLabel: string
+}
+
+const assistantRoleLabels: Record<string, string> = {
+  super_admin: 'Super administrador',
+  admin: 'Administrador',
+  operations: 'Operaciones',
+  marketing: 'Marketing',
+  finance: 'Finanzas',
+  viewer: 'Lectura',
+  customer: 'Cliente',
+}
+
+function extractRelationCode(value: unknown) {
+  if (Array.isArray(value)) return extractRelationCode(value[0])
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return textField(record, 'code') || textField(record, 'name') || textField(record, 'id') || null
+  }
+  return null
+}
+
+function uniqueTextValues(values: unknown[]) {
+  return Array.from(new Set(values.map((value) => typeof value === 'string' ? value.trim() : '').filter(Boolean)))
+}
+
+function roleLabel(role: string) {
+  return assistantRoleLabels[role] ?? statusLabel(role)
+}
+
+function controlPermissionLabel(code: string) {
+  return CONTROL_PERMISSION_CATALOG.find((item) => item.code === code)?.label ?? code
+}
+
+function controlScopeLabel(code: string) {
+  return CONTROL_SCOPE_CATALOG.find((item) => item.code === code)?.label ?? code
+}
+
+function metadataText(user: AssistantAuthUser, field: string) {
+  const value = user.user_metadata?.[field]
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function cleanEmail(value: unknown) {
+  const email = String(value ?? '').trim().toLocaleLowerCase('es-MX')
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : ''
+}
+
+function fallbackNameFromEmail(email: string) {
+  const local = email.split('@')[0] ?? ''
+  const words = local.replace(/[._-]+/g, ' ').trim()
+  if (!words) return 'Usuario sin nombre'
+  return words.replace(/\b\w/g, (letter) => letter.toLocaleUpperCase('es-MX'))
+}
+
+function authUserDisplayName(user: AssistantAuthUser, profile?: Row | null, customer?: Row | null) {
+  const customerName = displayPerson(customer)
+  if (customerName !== 'Persona no identificada') return customerName
+  const profileName = displayPerson(profile)
+  if (profileName !== 'Persona no identificada') return profileName
+  return metadataText(user, 'display_name') ||
+    metadataText(user, 'full_name') ||
+    metadataText(user, 'name') ||
+    [metadataText(user, 'first_name'), metadataText(user, 'last_name')].filter(Boolean).join(' ') ||
+    fallbackNameFromEmail(cleanEmail(user.email))
+}
+
+async function listAssistantAuthUsers() {
+  const users: AssistantAuthUser[] = []
+  const perPage = 1000
+  for (let page = 1; page <= 25; page += 1) {
+    const { data, error } = await supabaseAdminClient.auth.admin.listUsers({ page, perPage })
+    if (error) break
+    const pageUsers = (data?.users ?? []) as AssistantAuthUser[]
+    users.push(...pageUsers)
+    if (pageUsers.length < perPage) break
+  }
+  return users
+}
+
+async function buildAssistantUserDirectory() {
+  const authUsers = await listAssistantAuthUsers()
+  const authIds = ids(authUsers as unknown as Row[])
+  const authEmails = authUsers.map((user) => cleanEmail(user.email)).filter(Boolean)
+  const [customersByUser, customersByEmail, profiles, roleRows, permissionRows, scopeRows, financialRows] = await Promise.all([
+    rowsByValues('customers', assistantCustomerIdentitySelect, 'user_id', authIds),
+    rowsByValues('customers', assistantCustomerIdentitySelect, 'email', authEmails),
+    rowsByValues('profiles', 'id,first_name,last_name,display_name', 'id', authIds),
+    rowsByValues('user_roles', 'user_id,roles(code)', 'user_id', authIds),
+    rowsByValues('user_control_permissions', 'user_id,permission_code', 'user_id', authIds),
+    rowsByValues('user_control_scopes', 'user_id,scope_code', 'user_id', authIds),
+    rowsByValues('financial_access_grants', 'user_id,revoked_at', 'user_id', authIds),
+  ])
+  const customersByUserId = new Map(customersByUser.map((customer) => [textField(customer, 'user_id'), customer]).filter(([key]) => Boolean(key)) as Array<[string, Row]>)
+  const customersByEmailMap = new Map(customersByEmail.map((customer) => [cleanEmail(customer.email), customer]).filter(([key]) => Boolean(key)) as Array<[string, Row]>)
+  const profilesById = new Map(profiles.map((profile) => [textField(profile, 'id'), profile]).filter(([key]) => Boolean(key)) as Array<[string, Row]>)
+  const financialUserIds = new Set(financialRows.filter((row) => !row.revoked_at).map((row) => textField(row, 'user_id')).filter(Boolean))
+  const rolesByUser = groupByField(roleRows, 'user_id')
+  const permissionsByUser = groupByField(permissionRows, 'user_id')
+  const scopesByUser = groupByField(scopeRows, 'user_id')
+
+  const directory = authUsers.map((user): AssistantUserDirectoryRow => {
+    const authId = user.id
+    const email = cleanEmail(user.email)
+    const customer = customersByUserId.get(authId) ?? customersByEmailMap.get(email) ?? null
+    const profile = profilesById.get(authId) ?? null
+    const roles = uniqueTextValues((rolesByUser[authId] ?? []).map((row) => extractRelationCode(row.roles) ?? textField(row, 'role_code')))
+    const permissions = uniqueTextValues((permissionsByUser[authId] ?? []).map((row) => textField(row, 'permission_code')))
+    const scopes = uniqueTextValues((scopesByUser[authId] ?? []).map((row) => textField(row, 'scope_code')))
+    const financialAccess = roles.some((role) => ['super_admin', 'admin'].includes(role)) || financialUserIds.has(authId)
+    const hasStaffMetadata = Boolean(user.app_metadata?.staff_account || user.app_metadata?.managed_password_locked)
+    const isStaff = hasStaffMetadata || roles.some((role) => role !== 'customer') || permissions.length > 0 || scopes.length > 0 || financialAccess
+    const isCustomer = Boolean(customer) || roles.includes('customer')
+    const accountLabel = roles.includes('super_admin')
+      ? 'Super administrador'
+      : roles.includes('admin')
+        ? 'Administrador'
+        : isStaff && isCustomer
+          ? 'Cliente + staff'
+          : isStaff
+            ? 'Usuario interno'
+            : 'Cliente'
+    return {
+      authId,
+      name: authUserDisplayName(user, profile, customer),
+      email,
+      roles,
+      permissions,
+      permissionLabels: permissions.map(controlPermissionLabel),
+      scopes,
+      scopeLabels: scopes.map(controlScopeLabel),
+      financialAccess,
+      isCustomer,
+      isStaff,
+      customerNumber: textField(customer, 'customer_number'),
+      customerValue: numberValue(customer?.total_spend),
+      lastSignInAt: user.last_sign_in_at ?? null,
+      createdAt: user.created_at ?? null,
+      accountLabel,
+    }
+  })
+
+  return directory.sort((left, right) => Number(right.isStaff) - Number(left.isStaff) || left.name.localeCompare(right.name, 'es-MX'))
+}
+
+function assistantUserSearchTerms(question: string) {
+  const ignored = new Set([
+    'usuario', 'usuarios', 'permiso', 'permisos', 'rol', 'roles', 'staff', 'equipo', 'interno', 'interna', 'admin',
+    'administrador', 'administradores', 'sede', 'sedes', 'alcance', 'responsable', 'responsables', 'empleado', 'empleados',
+    'cliente', 'clientes', 'clasificacion', 'clasificación',
+  ])
+  return entityTerms(question).filter((term) => !ignored.has(term))
+}
+
+function isUsersAndPermissionsQuestion(question: string) {
+  const normalized = normalizeAssistantText(question)
+  if (/cliente|clientes/.test(normalized) && /consum|compr|reserv|orden|valor|gasto|historial/.test(normalized)) return false
+  return /usuario|usuarios|permiso|permisos|rol|roles|staff|equipo|interno|interna|admin|administrador|administradores|sede|sedes|alcance|responsable|responsables|empleado|empleados|direccion@haciendadeletras/.test(normalized)
+}
+
+async function answerUsersAndPermissionsQuestion(question: string) {
+  if (!isUsersAndPermissionsQuestion(question)) return null
+
+  const directory = await buildAssistantUserDirectory()
+  const normalized = normalizeAssistantText(question)
+  const emails = question.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)?.map(cleanEmail).filter(Boolean) ?? []
+  const terms = assistantUserSearchTerms(question)
+  const onlyCustomers = /cliente|clientes/.test(normalized) && !/staff|intern|emplead|admin|permiso|rol|sede|usuario/.test(normalized)
+  let matches = directory.filter((user) => {
+    if (emails.length) return emails.includes(user.email)
+    if (terms.length) {
+      const haystack = normalizeAssistantText([
+        user.name,
+        user.email,
+        user.customerNumber,
+        user.accountLabel,
+        ...user.roles.map(roleLabel),
+        ...user.permissionLabels,
+        ...user.scopeLabels,
+      ].join(' '))
+      const score = terms.filter((term) => haystack.includes(term)).length
+      return score >= (terms.length <= 2 ? terms.length : Math.max(2, Math.ceil(terms.length * 0.6)))
+    }
+    if (onlyCustomers) return user.isCustomer && !user.isStaff
+    return user.isStaff
+  })
+
+  if (!matches.length && terms.length) {
+    matches = directory.filter((user) => {
+      const haystack = normalizeAssistantText(`${user.name} ${user.email}`)
+      return terms.some((term) => haystack.includes(term))
+    })
+  }
+
+  if (!matches.length) {
+    return `No encontré usuarios o permisos con ese criterio. Revisé Auth, Clientes, Roles, Permisos, Sedes y Acceso financiero en modo sólo lectura.`
+  }
+
+  const byType = countArray(matches.map((user) => user.accountLabel))
+  const byRole = countArray(matches.flatMap((user) => user.roles.length ? user.roles.map(roleLabel) : ['Sin rol asignado']))
+  const byScope = countArray(matches.flatMap((user) => user.scopeLabels.length ? user.scopeLabels : ['Sin sede asignada']))
+  const detailLines = matches.slice(0, 14).map((user) => {
+    const roles = user.roles.length ? user.roles.map(roleLabel).join(', ') : 'sin rol asignado'
+    const permissions = user.permissionLabels.length ? user.permissionLabels.slice(0, 6).join(', ') : 'sin permisos explícitos'
+    const scopes = user.scopeLabels.length ? user.scopeLabels.join(', ') : 'sin sede asignada'
+    const lastSeen = user.lastSignInAt ? formatAssistantDateTime(user.lastSignInAt) : 'sin último ingreso'
+    const customerState = user.isStaff && user.isCustomer ? 'también existe como cliente' : user.isStaff ? 'no entra a campañas comerciales' : 'cliente comercial'
+    return `- ${user.name} (${user.email || 'sin correo'}): ${user.accountLabel}, roles ${roles}, permisos ${permissions}, sedes ${scopes}, acceso financiero ${user.financialAccess ? 'sí' : 'no'}, ${customerState}, último ingreso ${lastSeen}.`
+  }).join('\n')
+  const extra = matches.length > 14 ? `\nAdemás hay ${matches.length - 14} registros más con ese criterio.` : ''
+
+  return `Usuarios y permisos localizados: ${matches.length}. Tipos: ${formatLabeledCounts(byType, String)}. Roles: ${formatLabeledCounts(byRole, String)}. Sedes: ${formatLabeledCounts(byScope, String)}.\n\nDetalle:\n${detailLines}${extra}\n\nConsulta local de solo lectura: Auth, Clientes, Roles, Permisos, Sedes y Acceso financiero.`
+}
+
 function isCustomerQuestion(question: string) {
   const normalized = normalizeAssistantText(question)
   return /cliente|clientes|persona|personas|patricia|patty|garibay|correo|email|telefono|teléfono|compr|consum|historial/.test(normalized)
 }
 
 async function answerCustomerDetailQuestion(question: string) {
-  if (!isCustomerQuestion(question)) return null
+  if (!isCustomerQuestion(question) || isAttendanceQuestion(question) || isEventAttendanceQuestion(question)) return null
 
   const terms = entityTerms(question)
   const emails = question.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? []
@@ -658,11 +1000,11 @@ async function answerLogisticsQuestion(question: string) {
   }).join('\n')
   const extra = scoped.length > visible.length ? `\nAdemás hay ${scoped.length - visible.length} envíos más fuera de este primer corte.` : ''
 
-  return `Hay ${scoped.length} envíos que requieren atención. ${pendingTracking} están sin guía visible. Estados: ${JSON.stringify(byStatus)}.\n\nClientes y órdenes:\n${lines}${extra}\n\nConsulta local de solo lectura: Órdenes, Clientes, Partidas, Pagos, Envíos y Reservaciones.`
+  return `Hay ${scoped.length} envíos que requieren atención. ${pendingTracking} están sin guía visible. Estados: ${formatStatusCounts(byStatus)}.\n\nClientes y órdenes:\n${lines}${extra}\n\nConsulta local de solo lectura: Órdenes, Clientes, Partidas, Pagos, Envíos y Reservaciones.`
 }
 
 function isPaymentQuestion(question: string) {
-  return /pago|pagos|cobro|cobros|stripe|resend|ingreso|ingresos|reembolso|reembols|fallido|fallidos|cash|flow|transaccion|transacción/.test(normalizeAssistantText(question))
+  return /pago|pagos|cobro|cobros|stripe|ingreso|ingresos|reembolso|reembols|fallido|fallidos|cash|flow|transaccion|transacción/.test(normalizeAssistantText(question))
 }
 
 async function answerPaymentsDetailQuestion(question: string) {
@@ -759,7 +1101,7 @@ async function answerReservationsDetailQuestion(question: string) {
     return `- ${textField(reservation, 'reservation_number') || 'Reservación sin folio'}: ${textField(subject, 'title') || 'sin experiencia/evento visible'}, cliente ${displayPerson(customer)}, ${numberValue(reservation.people_count)} personas, ${when}, sede ${textField(location, 'name') || 'sin sede'}, estado ${statusLabel(reservation.status)}, pago ${statusLabel(reservation.payment_status)}, total ${formatAssistantMoney(reservation.total, reservation.currency)}, origen ${sourceLabel(reservation.source || reservation.booking_channel)}.`
   }).join('\n')
 
-  return `Reservaciones localizadas: ${filtered.length}. Personas: ${sum(filtered, 'people_count')}. Valor: ${formatMoneyTotals(totalsByCurrency(filtered, 'total'))}. Estados: ${JSON.stringify(countBy(filtered, 'status'))}.\n\nDetalle:\n${lines || '- No hay reservaciones visibles con ese filtro.'}\n\nConsulta local de solo lectura: Reservaciones, Clientes, Experiencias, Eventos y Sedes.`
+  return `Reservaciones localizadas: ${filtered.length}. Personas: ${sum(filtered, 'people_count')}. Valor: ${formatMoneyTotals(totalsByCurrency(filtered, 'total'))}. Estados: ${formatStatusCounts(countBy(filtered, 'status'))}.\n\nDetalle:\n${lines || '- No hay reservaciones visibles con ese filtro.'}\n\nConsulta local de solo lectura: Reservaciones, Clientes, Experiencias, Eventos y Sedes.`
 }
 
 function isCampaignQuestion(question: string) {
@@ -788,6 +1130,275 @@ async function answerCampaignDetailQuestion(question: string) {
   }).join('\n')
 
   return `Campañas de los últimos 60 días: ${campaigns.length}. Destinatarios registrados: ${recipients.length}. Entregas por canal: ${deliveries.length}. Correos en outbox: ${outbox.length}. Eventos de comunicación: ${events.length}.\n\nCampañas recientes:\n${lines || '- No hay campañas visibles.'}\n\nCorreos recientes:\n${outboxLines || '- No hay correos visibles.'}\n\nConsulta local de solo lectura: Campañas, Destinatarios, Entregas, Email Outbox y Eventos de Comunicación.`
+}
+
+function promotionValue(row: Row) {
+  const discountType = normalizeAssistantText(row.discount_type)
+  if (discountType.includes('percent')) return `${numberValue(row.discount_value)}%`
+  if (discountType.includes('amount') || discountType.includes('fixed')) return formatAssistantMoney(row.discount_value, 'MXN')
+  return numberValue(row.discount_value) ? String(row.discount_value) : 'sin valor visible'
+}
+
+function isPromotionQuestion(question: string) {
+  return /promocion|promoción|promociones|cupon|cupón|descuento|descuentos|oferta|ofertas/.test(normalizeAssistantText(question))
+}
+
+async function answerPromotionsDetailQuestion(question: string) {
+  if (!isPromotionQuestion(question)) return null
+
+  const normalized = normalizeAssistantText(question)
+  const terms = entityTerms(question)
+  const [promotions, redemptions] = await Promise.all([
+    safeRows(supabaseAdminClient.from('promotions').select(assistantPromotionSelect).order('created_at', { ascending: false }).limit(250)),
+    safeRows(supabaseAdminClient.from('promotion_redemptions').select(assistantPromotionRedemptionSelect).order('created_at', { ascending: false }).limit(500)),
+  ])
+  const now = Date.now()
+  const filtered = promotions.filter((promotion) => {
+    const textMatch = !terms.length || includesAnyTerm(promotion, terms, ['code', 'name', 'description', 'promotion_type', 'target_segment', 'status'])
+    if (!textMatch) return false
+    const starts = new Date(String(promotion.starts_at ?? '')).getTime()
+    const ends = new Date(String(promotion.ends_at ?? '')).getTime()
+    const isCurrent = (!Number.isFinite(starts) || starts <= now) && (!Number.isFinite(ends) || ends >= now)
+    if (/vigent|activa|activas|actual|semana/.test(normalized)) return isCurrent && !['draft', 'archived', 'cancelled', 'canceled'].includes(normalizeAssistantText(promotion.status))
+    return true
+  })
+  const visible = filtered.slice(0, 12)
+  const lines = visible.map((promotion) => {
+    const promoId = textField(promotion, 'id')
+    const used = redemptions.filter((row) => textField(row, 'promotion_id') === promoId)
+    const period = `${promotion.starts_at ? formatAssistantDate(promotion.starts_at) : 'sin inicio'} a ${promotion.ends_at ? formatAssistantDate(promotion.ends_at) : 'sin cierre'}`
+    return `- ${textField(promotion, 'name') || textField(promotion, 'code') || 'Promoción sin nombre'}: ${statusLabel(promotion.status)}, ${promotionValue(promotion)}, segmento ${textField(promotion, 'target_segment') || 'sin segmento'}, vigencia ${period}, usos ${used.length}/${numberValue(promotion.usage_limit) || 'sin límite'}.`
+  }).join('\n')
+  const redemptionLines = redemptions.slice(0, 8).map((redemption) => {
+    const customer = firstRelation(redemption.customers)
+    const order = firstRelation(redemption.orders)
+    const reservation = firstRelation(redemption.reservations)
+    return `- ${formatAssistantDateTime(redemption.created_at)}: ${displayPerson(customer)}, ${formatAssistantMoney(redemption.amount, 'MXN')}, orden ${textField(order, 'order_number') || 'sin orden'}, reservación ${textField(reservation, 'reservation_number') || 'sin reservación'}.`
+  }).join('\n')
+
+  return `Promociones localizadas: ${filtered.length}. Estados: ${formatStatusCounts(countBy(filtered, 'status'))}. Tipos: ${formatLabeledCounts(countBy(filtered, 'promotion_type'), String)}. Redenciones registradas: ${redemptions.length}.\n\nDetalle:\n${lines || '- No hay promociones visibles con ese filtro.'}\n\nÚltimas redenciones:\n${redemptionLines || '- No hay redenciones visibles.'}\n\nConsulta local de solo lectura: Promociones, Redenciones, Clientes, Órdenes y Reservaciones.`
+}
+
+function isQuoteQuestion(question: string) {
+  return /cotiz|quote|solicitud|evento privado|banquete|boda|empresa|celebra|celebracion|celebración|invitado|invitados/.test(normalizeAssistantText(question))
+}
+
+const quoteSearchStopWords = new Set([
+  'cotizacion',
+  'cotizaciones',
+  'quote',
+  'quotes',
+  'solicitud',
+  'solicitudes',
+  'cuanto',
+  'cuantos',
+  'cuanta',
+  'cuantas',
+  'total',
+  'resumen',
+  'cantidad',
+  'hay',
+  'tenemos',
+])
+
+function isGenericQuoteSummaryQuestion(question: string) {
+  const normalized = normalizeAssistantText(question)
+  if (!/cotiz|quote|solicitud/.test(normalized)) return false
+  if (!/cuant|total|resumen|cantidad|hay/.test(normalized)) return false
+  return !/folio|cliente|contacto|responsable|estado|estatus|sede|espacio|boda|evento privado|banquete|fecha|hoy|ayer|semana|mes|pendient|nueva|nuevo|abiert|cerrad|ganad|perdid|enviar|correo|invitad|origen|app|web|manual/.test(normalized)
+}
+
+async function answerQuotesDetailQuestion(question: string) {
+  if (!isQuoteQuestion(question) || isGenericQuoteSummaryQuestion(question)) return null
+
+  const normalized = normalizeAssistantText(question)
+  const terms = entityTerms(question).filter((term) => !quoteSearchStopWords.has(term))
+  const rows = await safeRows(supabaseAdminClient.from('quote_requests').select(assistantQuoteSelect).order('created_at', { ascending: false }).limit(300))
+  const filtered = rows.filter((quote) => {
+    if (/pendient|nueva|nuevo|abierta|abierto/.test(normalized) && ['closed', 'cancelled', 'canceled', 'won', 'lost'].includes(normalizeAssistantText(quote.status))) return false
+    const customer = firstRelation(quote.customers)
+    if (!terms.length) return true
+    return includesAnyTerm(quote, terms, ['quote_number', 'event_category', 'event_type', 'venue_space_name', 'contact_first_name', 'contact_last_name', 'contact_email', 'contact_phone', 'company_name', 'status', 'source'])
+      || includesAnyTerm(customer ?? {}, terms, ['display_name', 'first_name', 'last_name', 'email', 'phone'])
+  })
+  const lines = filtered.slice(0, 14).map((quote) => {
+    const customer = firstRelation(quote.customers)
+    const contact = displayPerson(customer) !== 'Persona no identificada'
+      ? displayPerson(customer)
+      : [textField(quote, 'contact_first_name'), textField(quote, 'contact_last_name')].filter(Boolean).join(' ') || 'Contacto sin nombre'
+    const services = Array.isArray(quote.requested_services) ? quote.requested_services.map(String).filter(Boolean).join(', ') : ''
+    const when = quote.preferred_date ? `${formatAssistantDate(quote.preferred_date)}${textField(quote, 'preferred_start_time') ? ` ${textField(quote, 'preferred_start_time')}` : ''}` : 'sin fecha preferida'
+    return `- ${textField(quote, 'quote_number') || 'Cotización sin folio'}: ${contact}, ${textField(quote, 'event_type') || textField(quote, 'event_category') || 'tipo no visible'}, ${numberValue(quote.guest_count)} invitados, ${when}, sede ${textField(quote, 'venue_space_name') || 'sin sede'}, estado ${statusLabel(quote.status)}, origen ${sourceLabel(quote.source)}${services ? `, servicios ${services}` : ''}.`
+  }).join('\n')
+
+  return `Cotizaciones localizadas: ${filtered.length}. Invitados estimados: ${sum(filtered, 'guest_count')}. Estados: ${formatStatusCounts(countBy(filtered, 'status'))}. Origen: ${formatSourceCounts(countBy(filtered, 'source'))}.\n\nDetalle:\n${lines || '- No hay cotizaciones visibles con ese filtro.'}\n\nConsulta local de solo lectura: Cotizaciones, Clientes y Sedes.`
+}
+
+function isMembershipQuestion(question: string) {
+  return /wine club|membres|membresía|membresia|socio|socios|puntos|lealtad|club/.test(normalizeAssistantText(question))
+}
+
+async function answerMembershipDetailQuestion(question: string) {
+  if (!isMembershipQuestion(question)) return null
+
+  const terms = entityTerms(question)
+  const rows = await safeRows(supabaseAdminClient.from('memberships').select(assistantMembershipSelect).order('created_at', { ascending: false }).limit(250))
+  const filtered = rows.filter((membership) => {
+    const customer = firstRelation(membership.customers)
+    const plan = firstRelation(membership.membership_plans)
+    return includesAnyTerm(membership, terms, ['membership_number', 'status'])
+      || includesAnyTerm(customer ?? {}, terms, ['display_name', 'first_name', 'last_name', 'email', 'phone'])
+      || includesAnyTerm(plan ?? {}, terms, ['code', 'name', 'billing_period'])
+  })
+  const lines = filtered.slice(0, 12).map((membership) => {
+    const customer = firstRelation(membership.customers)
+    const plan = firstRelation(membership.membership_plans)
+    return `- ${textField(membership, 'membership_number') || 'Membresía sin folio'}: ${displayPerson(customer)}, plan ${textField(plan, 'name') || textField(plan, 'code') || 'sin plan visible'}, estado ${statusLabel(membership.status)}, puntos ${numberValue(membership.points_balance)}, vigencia ${membership.starts_at ? formatAssistantDate(membership.starts_at) : 'sin inicio'} a ${membership.ends_at ? formatAssistantDate(membership.ends_at) : 'sin cierre'}, autorrenovación ${membership.auto_renew ? 'sí' : 'no'}.`
+  }).join('\n')
+
+  return `Membresías localizadas: ${filtered.length}. Estados: ${formatStatusCounts(countBy(filtered, 'status'))}. Puntos acumulados visibles: ${sum(filtered, 'points_balance')}.\n\nDetalle:\n${lines || '- No hay membresías visibles con ese filtro.'}\n\nConsulta local de solo lectura: Wine Club, Clientes y Planes de membresía.`
+}
+
+function cartItemName(item: Row) {
+  const metadata = metadataRow(item.metadata)
+  return textField(item, 'name_snapshot') ||
+    textField(metadata, 'name_snapshot') ||
+    textField(metadata, 'name') ||
+    textField(metadata, 'title') ||
+    textField(metadata, 'sku') ||
+    textField(item, 'item_type') ||
+    'Partida'
+}
+
+function cartItems(cart: Row) {
+  return relationRows(cart.cart_items)
+}
+
+function cartValue(cart: Row) {
+  return cartItems(cart).reduce((total, item) => total + numberValue(item.quantity) * numberValue(item.unit_price_snapshot), 0)
+}
+
+function isCartQuestion(question: string) {
+  return /carrito|carritos|checkout|abandon|convertid|recorrido del cliente|intencion|intención/.test(normalizeAssistantText(question))
+}
+
+async function answerCartActivityQuestion(question: string) {
+  if (!isCartQuestion(question)) return null
+
+  const normalized = normalizeAssistantText(question)
+  const terms = entityTerms(question)
+  const rows = await safeRows(supabaseAdminClient.from('carts').select(assistantCartSelect).order('updated_at', { ascending: false }).limit(260))
+  const filtered = rows.filter((cart) => {
+    const status = normalizeAssistantText(cart.status)
+    if (/abandon/.test(normalized) && ['converted', 'completed', 'paid'].includes(status)) return false
+    if (/convertid|complet|pagad/.test(normalized) && !['converted', 'completed', 'paid'].includes(status)) return false
+    const customer = firstRelation(cart.customers)
+    const itemMatch = cartItems(cart).some((item) => includesAnyTerm({ ...item, name_snapshot: cartItemName(item) }, terms, ['item_type', 'name_snapshot']))
+    return includesAnyTerm(cart, terms, ['status', 'currency'])
+      || includesAnyTerm(customer ?? {}, terms, ['display_name', 'first_name', 'last_name', 'email', 'phone'])
+      || itemMatch
+  })
+  const lines = filtered.slice(0, 12).map((cart) => {
+    const customer = firstRelation(cart.customers)
+    const items = cartItems(cart)
+    const itemText = items.length
+      ? items.slice(0, 4).map((item) => `${numberValue(item.quantity)} x ${cartItemName(item)} (${formatAssistantMoney(numberValue(item.quantity) * numberValue(item.unit_price_snapshot), cart.currency)})`).join('; ')
+      : 'sin partidas visibles'
+    return `- ${formatAssistantDateTime(cart.updated_at || cart.created_at)}: ${displayPerson(customer)}, estado ${statusLabel(cart.status)}, valor estimado ${formatAssistantMoney(cartValue(cart), cart.currency)}, partidas ${itemText}.`
+  }).join('\n')
+
+  return `Carritos localizados: ${filtered.length}. Estados: ${formatStatusCounts(countBy(filtered, 'status'))}. Valor estimado: ${formatAssistantMoney(filtered.reduce((total, cart) => total + cartValue(cart), 0), 'MXN')}.\n\nDetalle:\n${lines || '- No hay carritos visibles con ese filtro.'}\n\nConsulta local de solo lectura: Carritos, Partidas, Clientes y Actividad de app.`
+}
+
+function isNotificationQuestion(question: string) {
+  return /notificacion|notificación|notificaciones|push|campanita|buzon|buzón|in app|correo app|dispositivo|firebase|android|ios|iphone/.test(normalizeAssistantText(question))
+}
+
+async function answerNotificationsQuestion(question: string) {
+  if (!isNotificationQuestion(question)) return null
+
+  const terms = entityTerms(question)
+  const [notifications, devices] = await Promise.all([
+    safeRows(supabaseAdminClient.from('notifications').select(assistantNotificationSelect).order('created_at', { ascending: false }).limit(320)),
+    safeRows(supabaseAdminClient.from('notification_devices').select(assistantNotificationDeviceSelect).order('updated_at', { ascending: false }).limit(500)),
+  ])
+  const filtered = notifications.filter((notification) => {
+    const customer = firstRelation(notification.customers)
+    return includesAnyTerm(notification, terms, ['channel', 'title', 'body', 'status', 'push_status', 'push_error_code'])
+      || includesAnyTerm(customer ?? {}, terms, ['display_name', 'first_name', 'last_name', 'email', 'phone'])
+  })
+  const activeDevices = devices.filter((device) => device.active === true)
+  const lines = filtered.slice(0, 12).map((notification) => {
+    const customer = firstRelation(notification.customers)
+    const readState = notification.read_at ? `leída ${formatAssistantDateTime(notification.read_at)}` : 'sin leer'
+    return `- ${formatAssistantDateTime(notification.created_at)}: ${textField(notification, 'title') || 'Notificación sin título'}, ${channelLabel(notification.channel)}, ${statusLabel(notification.status)}, push ${statusLabel(notification.push_status)}, cliente ${displayPerson(customer)}, ${readState}${textField(notification, 'push_error_code') ? `, error ${textField(notification, 'push_error_code')}` : ''}.`
+  }).join('\n')
+
+  return `Notificaciones localizadas: ${filtered.length}. Sin leer: ${filtered.filter((row) => !row.read_at).length}. Canales: ${formatChannelCounts(countBy(filtered, 'channel'))}. Estados: ${formatStatusCounts(countBy(filtered, 'status'))}. Push: ${formatStatusCounts(countBy(filtered, 'push_status'))}.\nDispositivos registrados: ${devices.length}; activos: ${activeDevices.length}; plataformas activas: ${formatLabeledCounts(countBy(activeDevices, 'platform'), String)}.\n\nDetalle:\n${lines || '- No hay notificaciones visibles con ese filtro.'}\n\nConsulta local de solo lectura: Notificaciones, Dispositivos, Clientes y Preferencias de app.`
+}
+
+function isAppActivityQuestion(question: string) {
+  return /actividad app|sesion|sesión|sesiones|visita|visitas|login|registro|registraron|naveg|pantalla|modulo app|módulo app|uso de app/.test(normalizeAssistantText(question))
+}
+
+async function answerAppActivityQuestion(question: string) {
+  if (!isAppActivityQuestion(question)) return null
+
+  const terms = entityTerms(question)
+  const rows = await safeRows(supabaseAdminClient.from('customer_app_events').select(assistantAppEventSelect).order('occurred_at', { ascending: false }).limit(500))
+  const filtered = rows.filter((event) => {
+    const customer = firstRelation(event.customers)
+    return includesAnyTerm(event, terms, ['event_name', 'entity_type', 'entity_id', 'source', 'module', 'status', 'result'])
+      || includesAnyTerm(customer ?? {}, terms, ['display_name', 'first_name', 'last_name', 'email', 'phone'])
+  })
+  const sessionCount = new Set(filtered.map((event) => textField(event, 'session_id')).filter(Boolean)).size
+  const lines = filtered.slice(0, 12).map((event) => {
+    const customer = firstRelation(event.customers)
+    return `- ${formatAssistantDateTime(event.occurred_at || event.created_at)}: ${textField(event, 'event_name') || 'actividad sin nombre'}, módulo ${textField(event, 'module') || 'sin módulo'}, cliente ${displayPerson(customer)}, origen ${sourceLabel(event.source)}, estado ${statusLabel(event.status || event.result)}.`
+  }).join('\n')
+
+  return `Actividad de app localizada: ${filtered.length} eventos y ${sessionCount} sesiones visibles. Módulos: ${formatLabeledCounts(countBy(filtered, 'module'), String)}. Eventos: ${formatLabeledCounts(countBy(filtered, 'event_name'), String)}.\n\nDetalle reciente:\n${lines || '- No hay actividad visible con ese filtro.'}\n\nConsulta local de solo lectura: Actividad App, Sesiones, Clientes y Eventos de navegación.`
+}
+
+function isCatalogQuestion(question: string) {
+  const normalized = normalizeAssistantText(question)
+  if (/inventario|stock|existencia|vendid|comprad|reserva|reservacion|reservación|ingres|qr|pago|orden|envio|envío/.test(normalized)) return false
+  return /catalogo|catálogo|contenido|publicad|visible|vino|vinos|experiencia|experiencias|evento|eventos|sede|sedes|restaurante|restaurantes|nieto|teodoro|cabaña|cabana|hospedaje|servicio|servicios/.test(normalized)
+}
+
+async function answerCatalogDetailQuestion(question: string) {
+  if (!isCatalogQuestion(question)) return null
+
+  const terms = entityTerms(question)
+  const [wines, experiences, events, restaurants, cabins, venues] = await Promise.all([
+    safeRows(supabaseAdminClient.from('wines').select(assistantWineSelect).order('updated_at', { ascending: false }).limit(250)),
+    safeRows(supabaseAdminClient.from('experiences').select(assistantExperienceSelect).order('updated_at', { ascending: false }).limit(250)),
+    safeRows(supabaseAdminClient.from('events').select(assistantEventSelect).order('start_at', { ascending: false }).limit(250)),
+    safeRows(supabaseAdminClient.from('restaurant_locations').select(assistantRestaurantLocationSelect).order('updated_at', { ascending: false }).limit(100)),
+    safeRows(supabaseAdminClient.from('cabin_packages').select(assistantLodgingPackageSelect).order('updated_at', { ascending: false }).limit(100)),
+    safeRows(supabaseAdminClient.from('venue_spaces').select(assistantVenueSpaceSelect).order('updated_at', { ascending: false }).limit(100)),
+  ])
+  const filterRows = (rows: Row[], fields: string[]) => terms.length ? rows.filter((row) => includesAnyTerm(row, terms, fields)) : rows
+  const wineRows = filterRows(wines, ['sku', 'slug', 'name', 'subtitle', 'description', 'origin', 'status'])
+  const experienceRows = filterRows(experiences, ['slug', 'title', 'subtitle', 'description', 'location', 'status'])
+  const eventRows = filterRows(events, ['slug', 'title', 'subtitle', 'description', 'venue', 'status'])
+  const restaurantRows = filterRows(restaurants, ['slug', 'name', 'alias', 'description', 'full_address', 'city', 'state', 'status'])
+  const cabinRows = filterRows(cabins, ['slug', 'name', 'subtitle', 'description', 'status'])
+  const venueRows = filterRows(venues, ['slug', 'name', 'description', 'dimensions', 'status'])
+  const lines = [
+    ...wineRows.slice(0, 5).map((wine) => {
+      const wineStatus = normalizeAssistantText(wine.status)
+      const visibility = ['published', 'active'].includes(wineStatus) ? 'visible/publicable' : 'no visible/publicable'
+      return `- Vino ${textField(wine, 'name') || textField(wine, 'sku') || 'sin nombre'}: ${statusLabel(wine.status)}, ${visibility}, precio ${formatAssistantMoney(wine.price, 'MXN')}, existencia ${numberValue(wine.stock_quantity)}.`
+    }),
+    ...experienceRows.slice(0, 5).map((experience) => `- Experiencia ${textField(experience, 'title') || 'sin nombre'}: ${statusLabel(experience.status)}, ${experience.visible_in_app ? 'visible en app' : 'no visible en app'}, cupo ${numberValue(experience.capacity)}, sede ${textField(experience, 'location') || 'sin sede'}.`),
+    ...eventRows.slice(0, 5).map((event) => `- Evento ${textField(event, 'title') || 'sin nombre'}: ${statusLabel(event.status)}, ${event.visible_in_app ? 'visible en app' : 'no visible en app'}, fecha ${formatAssistantDateTime(event.start_at)}, vendidos ${numberValue(event.sold_count)} de ${numberValue(event.capacity)}.`),
+    ...restaurantRows.slice(0, 5).map((restaurant) => `- Restaurante ${textField(restaurant, 'name') || 'sin nombre'}: ${statusLabel(restaurant.status)}, ${restaurant.visible_in_app ? 'visible en app' : 'no visible en app'}, reservas ${restaurant.reservation_enabled ? 'habilitadas' : 'deshabilitadas'}, dirección ${textField(restaurant, 'full_address') || 'sin dirección'}.`),
+    ...cabinRows.slice(0, 4).map((cabin) => `- Hospedaje ${textField(cabin, 'name') || 'sin nombre'}: ${statusLabel(cabin.status)}, ${cabin.visible_in_app ? 'visible en app' : 'no visible en app'}, precio ${formatAssistantMoney(cabin.price, cabin.currency)}, capacidad ${numberValue(cabin.min_guests)} a ${numberValue(cabin.max_guests)} huéspedes.`),
+    ...venueRows.slice(0, 4).map((venue) => `- Espacio ${textField(venue, 'name') || 'sin nombre'}: ${statusLabel(venue.status)}, ${venue.visible_in_app ? 'visible en app' : 'no visible en app'}, cupo ${numberValue(venue.capacity)}, medidas ${textField(venue, 'dimensions') || 'sin dimensiones'}.`),
+  ].slice(0, 18).join('\n')
+
+  return `Catálogo localizado. Vinos: ${wineRows.length}. Experiencias: ${experienceRows.length}. Eventos: ${eventRows.length}. Restaurantes/sedes: ${restaurantRows.length}. Hospedaje: ${cabinRows.length}. Espacios: ${venueRows.length}.\nEstados de vinos: ${formatStatusCounts(countBy(wineRows, 'status'))}. Estados de eventos: ${formatStatusCounts(countBy(eventRows, 'status'))}.\n\nDetalle:\n${lines || '- No hay registros visibles con ese filtro.'}\n\nConsulta local de solo lectura: Vinos, Experiencias, Eventos, Sedes, Restaurantes, Hospedaje y Espacios.`
 }
 
 async function answerFolioQuestion(question: string) {
@@ -865,22 +1476,42 @@ async function answerFolioQuestion(question: string) {
 async function answerPreciseLocalQuestion(question: string, history: ExecutiveAssistantMessagePayload['history'] = []) {
   const useContext = shouldUseAssistantContext(question)
   const contextual = useContext ? contextualQuestion(question, history) : question
+  const attendanceQuestion = isEventAttendanceQuestion(question) ? await answerEventAttendanceQuestion(question) : null
+  const contextualAttendanceQuestion = useContext && isEventAttendanceQuestion(contextual) ? await answerEventAttendanceQuestion(contextual) : null
+  if (attendanceQuestion) return attendanceQuestion
   return await answerFolioQuestion(question)
+    ?? await answerUsersAndPermissionsQuestion(question)
     ?? await answerNextEventQuestion(question)
     ?? await answerEventAttendanceQuestion(question)
     ?? await answerCustomerDetailQuestion(question)
     ?? await answerLogisticsQuestion(question)
     ?? await answerPaymentsDetailQuestion(question)
+    ?? await answerCartActivityQuestion(question)
+    ?? await answerNotificationsQuestion(question)
+    ?? await answerPromotionsDetailQuestion(question)
+    ?? await answerQuotesDetailQuestion(question)
+    ?? await answerMembershipDetailQuestion(question)
     ?? await answerInventoryDetailQuestion(question)
     ?? await answerCampaignDetailQuestion(question)
     ?? await answerReservationsDetailQuestion(question)
+    ?? await answerAppActivityQuestion(question)
+    ?? await answerCatalogDetailQuestion(question)
+    ?? (useContext ? await answerUsersAndPermissionsQuestion(contextual) : null)
+    ?? contextualAttendanceQuestion
     ?? (useContext ? await answerEventAttendanceQuestion(contextual) : null)
     ?? (useContext ? await answerLogisticsQuestion(contextual) : null)
     ?? (useContext ? await answerCustomerDetailQuestion(contextual) : null)
     ?? (useContext ? await answerPaymentsDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerCartActivityQuestion(contextual) : null)
+    ?? (useContext ? await answerNotificationsQuestion(contextual) : null)
+    ?? (useContext ? await answerPromotionsDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerQuotesDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerMembershipDetailQuestion(contextual) : null)
     ?? (useContext ? await answerInventoryDetailQuestion(contextual) : null)
     ?? (useContext ? await answerCampaignDetailQuestion(contextual) : null)
     ?? (useContext ? await answerReservationsDetailQuestion(contextual) : null)
+    ?? (useContext ? await answerAppActivityQuestion(contextual) : null)
+    ?? (useContext ? await answerCatalogDetailQuestion(contextual) : null)
 }
 
 async function buildExecutiveSnapshot(user: UserContext) {
@@ -974,7 +1605,7 @@ async function completeAudit(id: string | undefined, status: 'completed' | 'fail
 }
 
 function instructions(snapshot: unknown) {
-  return `Eres Mi asistente, consejera ejecutiva privada de la dirección de Hacienda de Letras. Responde en español mexicano, con tono adulto, cálido, sereno, profesional y directo. Tu lectura operativa debe cubrir todo el Centro de Control en modo sólo lectura: clientes, reservaciones, eventos, entradas QR, órdenes, pagos, logística, inventario, campañas, promociones, cotizaciones, hospedaje y actividad de app. El backend resuelve antes las preguntas puntuales con datos administrativos reales; si aquí sólo recibes resumen, responde con esos hechos agregados y pide una pregunta más precisa por folio, cliente, evento, estado, sede o periodo. Nunca inventes datos ni digas que no tienes acceso por política a clientes o compras; distingue si el dato no está en el resumen disponible. No muestres IDs técnicos, metadata cruda, tokens, hashes ni payloads de proveedor. Cero emojis. No puedes crear, editar, confirmar, cancelar ni eliminar registros. ${plainAiResponseInstruction}\n\nRESUMEN OPERATIVO ACTUAL:\n${JSON.stringify(snapshot)}`
+  return `Eres Mi asistente, consejera ejecutiva privada de la dirección de Hacienda de Letras. Responde en español mexicano, con tono adulto, cálido, sereno, profesional y directo. Tu lectura operativa cubre todo el Centro de Control en modo sólo lectura: usuarios y permisos, clientes, reservaciones, eventos, entradas QR, órdenes, pagos, logística, inventario, campañas, promociones, cotizaciones, membresías, carritos, notificaciones, catálogo, sedes, hospedaje y actividad de app. El backend resuelve antes las preguntas puntuales con datos administrativos reales; si aquí sólo recibes resumen agregado, responde con esos hechos y pide una pregunta más precisa por folio, cliente, evento, estado, sede o periodo. Nunca inventes datos ni digas que no tienes acceso por política a clientes o compras; distingue si el dato no está en el resumen disponible. No muestres IDs técnicos, metadata cruda, tokens, hashes ni payloads de proveedor. No uses asteriscos ni markdown. Cero emojis. No puedes crear, editar, confirmar, cancelar ni eliminar registros. ${plainAiResponseInstruction}\n\nRESUMEN OPERATIVO ACTUAL:\n${JSON.stringify(snapshot)}`
 }
 
 function formatMoneyTotals(totals: Record<string, number> | undefined) {
@@ -984,7 +1615,7 @@ function formatMoneyTotals(totals: Record<string, number> | undefined) {
 }
 
 function answerFromSnapshot(question: string, snapshot: Awaited<ReturnType<typeof buildExecutiveSnapshot>>) {
-  const normalized = question.toLocaleLowerCase('es-MX')
+  const normalized = normalizeAssistantText(question)
   const dashboard = snapshot.dashboard
   const period = snapshot.last30Days
   if (/hoy|cómo vamos|como vamos|resumen del día|resumen del dia/.test(normalized)) {
@@ -1006,7 +1637,7 @@ function answerFromSnapshot(question: string, snapshot: Awaited<ReturnType<typeo
     return `El cobro registrado es ${formatMoneyTotals(Object.fromEntries(dashboard.collected.map((item) => [item.currency, item.amount])))} mediante ${dashboard.confirmedPayments} pagos confirmados. Hay ${dashboard.pendingPaymentOrders} órdenes pendientes de pago y ${period.orders.total} órdenes creadas en los últimos 30 días.`
   }
   if (/orden|pedido|entrega|logística|logistica|envío|envio/.test(normalized)) {
-    return `En los últimos 30 días se registraron ${period.orders.total} órdenes y ${period.logistics.total} movimientos de logística. Estados de órdenes: ${JSON.stringify(period.orders.byStatus)}. Estados logísticos: ${JSON.stringify(period.logistics.byStatus)}.`
+    return `En los últimos 30 días se registraron ${period.orders.total} órdenes y ${period.logistics.total} movimientos de logística. Estados de órdenes: ${formatStatusCounts(period.orders.byStatus)}. Estados logísticos: ${formatStatusCounts(period.logistics.byStatus)}.`
   }
   if (/vino.*vend|más vendido|mas vendido|botella.*vend/.test(normalized)) {
     const topWine = period.wineSales.topWines[0]
@@ -1019,13 +1650,13 @@ function answerFromSnapshot(question: string, snapshot: Awaited<ReturnType<typeo
     return `El inventario registra ${inventory.items} partidas, ${inventory.onHand} unidades físicas, ${inventory.reserved} reservadas y ${inventory.available} disponibles. ${inventory.lowAvailability} partidas están en o por debajo de su punto de reposición.`
   }
   if (/cabaña|cabana|hosped|estancia|habitación|habitacion/.test(normalized)) {
-    return `Hay ${snapshot.operation.lodgingUnits.total} unidades de hospedaje registradas y ${period.lodgingStays.total} estancias creadas en los últimos 30 días. Estados operativos de unidades: ${JSON.stringify(snapshot.operation.lodgingUnits.byOperation)}.`
+    return `Hay ${snapshot.operation.lodgingUnits.total} unidades de hospedaje registradas y ${period.lodgingStays.total} estancias creadas en los últimos 30 días. Estados operativos de unidades: ${formatStatusCounts(snapshot.operation.lodgingUnits.byOperation)}.`
   }
   if (/campaña|campana|promoci|marketing/.test(normalized)) {
-    return `En los últimos 30 días se registraron ${period.campaigns.total} campañas. El catálogo contiene ${snapshot.catalog.promotions.total} promociones. Canales de campaña: ${JSON.stringify(period.campaigns.byChannel)}.`
+    return `En los últimos 30 días se registraron ${period.campaigns.total} campañas. El catálogo contiene ${snapshot.catalog.promotions.total} promociones. Canales de campaña: ${formatChannelCounts(period.campaigns.byChannel)}.`
   }
   if (/cotiz|celebra|solicitud/.test(normalized)) {
-    return `En los últimos 30 días se registraron ${period.quotes.total} solicitudes de cotización para ${period.quotes.guests} invitados estimados. Estados: ${JSON.stringify(period.quotes.byStatus)}. Origen: ${JSON.stringify(period.quotes.bySource)}.`
+    return `En los últimos 30 días se registraron ${period.quotes.total} solicitudes de cotización para ${period.quotes.guests} invitados estimados. Estados: ${formatStatusCounts(period.quotes.byStatus)}. Origen: ${formatSourceCounts(period.quotes.bySource)}.`
   }
   if (/riesgo|atención|atencion|pendiente|hoy|resumen/.test(normalized)) {
     return `Lectura ejecutiva actual: ${dashboard.pendingReservations} reservaciones pendientes, ${dashboard.pendingPaymentOrders} órdenes por cobrar, ${snapshot.operation.inventory.lowAvailability} partidas de inventario en punto de reposición y ${period.quotes.total} cotizaciones recibidas en los últimos 30 días. Conviene revisar primero Reservaciones, Pagos e Inventario.`

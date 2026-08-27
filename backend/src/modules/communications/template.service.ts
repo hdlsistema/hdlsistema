@@ -16,8 +16,78 @@ type TemplateCopy = {
 const brandName = 'Hacienda de Letras'
 const brandLogoUrl = 'https://www.haciendadeletras.com/wp-content/uploads/2021/08/Logo.png'
 const publicSiteUrl = 'https://www.haciendadeletras.com/'
+const customerAppBaseUrl = String(process.env.CUSTOMER_APP_URL ?? process.env.PUBLIC_CUSTOMER_APP_URL ?? 'https://www.haciendadeletras.com/app').replace(/\/+$/, '')
 const supportedLocales: CommunicationLocale[] = ['es-MX', 'en-US']
 const mexicoTimeZone = 'America/Mexico_City'
+
+const detailLabels: Record<CommunicationLocale, Record<string, string>> = {
+  'es-MX': {
+    customerName: 'Cliente',
+    reservationNumber: 'Reservación',
+    orderNumber: 'Orden',
+    membershipNumber: 'Membresía',
+    reservationType: 'Tipo de reservación',
+    experienceTitle: 'Servicio',
+    planName: 'Plan',
+    status: 'Estado',
+    peopleCount: 'Personas',
+    total: 'Total',
+    currency: 'Moneda',
+    quoteNumber: 'Folio',
+    eventType: 'Tipo de evento',
+    preferredDate: 'Fecha solicitada',
+    guestCount: 'Personas',
+    message: 'Mensaje',
+    quoteAmount: 'Importe cotizado',
+    validUntil: 'Vigencia',
+    campaignName: 'Campaña',
+    ctaLabel: 'Acción',
+    startAt: 'Fecha',
+    reservationDate: 'Fecha de reservación',
+    reservationTime: 'Hora',
+    checkIn: 'Llegada',
+    checkOut: 'Salida',
+    renewalDate: 'Renovación',
+    expiresAt: 'Expira',
+    carrier: 'Paquetería',
+    trackingNumber: 'Número de guía',
+    shippingStatus: 'Estado del envío',
+    estimatedDeliveryAt: 'Entrega estimada',
+  },
+  'en-US': {
+    customerName: 'Customer',
+    reservationNumber: 'Reservation',
+    orderNumber: 'Order',
+    membershipNumber: 'Membership',
+    reservationType: 'Reservation type',
+    experienceTitle: 'Service',
+    planName: 'Plan',
+    status: 'Status',
+    peopleCount: 'Guests',
+    total: 'Total',
+    currency: 'Currency',
+    quoteNumber: 'Reference',
+    eventType: 'Event type',
+    preferredDate: 'Requested date',
+    guestCount: 'Guests',
+    message: 'Message',
+    quoteAmount: 'Quoted amount',
+    validUntil: 'Valid until',
+    campaignName: 'Campaign',
+    ctaLabel: 'Action',
+    startAt: 'Date',
+    reservationDate: 'Reservation date',
+    reservationTime: 'Time',
+    checkIn: 'Check-in',
+    checkOut: 'Check-out',
+    renewalDate: 'Renewal',
+    expiresAt: 'Expires',
+    carrier: 'Carrier',
+    trackingNumber: 'Tracking number',
+    shippingStatus: 'Shipping status',
+    estimatedDeliveryAt: 'Estimated delivery',
+  },
+}
 
 const copies: Record<CommunicationLocale, Record<CommunicationEventType, TemplateCopy>> = {
   'es-MX': {
@@ -54,14 +124,14 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       preheader: 'Tu solicitud de cotización quedó registrada.',
       title: 'Recibimos tu solicitud',
       body: 'Gracias por escribirnos. El equipo de Hacienda de Letras revisará tu solicitud y dará seguimiento. Este correo no incluye precios ni confirma disponibilidad.',
-      cta: 'Abrir Hacienda de Letras',
+      cta: 'Ir a mi app',
     },
     'quote.sent': {
       subject: 'Cotización Hacienda de Letras',
       preheader: 'Tu cotización fue preparada por nuestro equipo.',
       title: 'Tu cotización está lista',
-      body: 'Compartimos la propuesta preparada por Hacienda de Letras con base en los datos de tu solicitud. Revisa los detalles y responde este correo para confirmar ajustes o siguiente paso.',
-      cta: 'Abrir Hacienda de Letras',
+      body: 'Compartimos la propuesta preparada por Hacienda de Letras con base en los datos de tu solicitud. Revisa los detalles desde tu app y responde este correo para confirmar ajustes o siguiente paso.',
+      cta: 'Ir a mi app',
     },
     'campaign.marketing': {
       subject: 'Hacienda de Letras',
@@ -75,21 +145,21 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       preheader: 'Tu orden fue registrada.',
       title: 'Tu orden está registrada',
       body: 'Creamos la orden con los artículos seleccionados. El estado real se mantiene visible en tu cuenta.',
-      cta: 'Ver orden',
+      cta: 'Ver en mi app',
     },
     'order.pending_payment': {
       subject: 'Orden pendiente de pago',
       preheader: 'Tu orden está pendiente de pago.',
       title: 'Orden pendiente de pago',
       body: 'Tu orden quedó pendiente de pago. Puedes retomarla desde tu cuenta cuando quieras completar la compra.',
-      cta: 'Ver orden',
+      cta: 'Ir al pago',
     },
     'order.paid': {
       subject: 'Pago confirmado',
       preheader: 'Tu pago fue confirmado.',
       title: 'Pago confirmado',
-      body: 'Tu compra quedó confirmada. Prepararemos tu pedido y te compartiremos la guía cuando esté lista. Revisa los detalles desde tu cuenta.',
-      cta: 'Ver orden',
+      body: 'Tu pago quedó confirmado. Revisa los detalles, accesos o seguimiento desde tu perfil en la app.',
+      cta: 'Ver en mi app',
     },
     'order.tracking_assigned': {
       subject: 'La guía de tu pedido está lista',
@@ -103,7 +173,7 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       preheader: 'La guía de tu pedido ya está disponible.',
       title: 'Tu pedido va en camino',
       body: 'Tu pedido fue marcado como enviado. Consulta la paquetería y número de guía desde tu cuenta.',
-      cta: 'Ver orden',
+      cta: 'Ver en mi app',
     },
     'membership.activated': {
       subject: 'Membresía activada',
@@ -168,14 +238,14 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       preheader: 'Your quote request was registered.',
       title: 'We received your request',
       body: 'Thank you for contacting us. Hacienda de Letras will review your request and follow up. This email does not include pricing or confirm availability.',
-      cta: 'Open Hacienda de Letras',
+      cta: 'Open my app',
     },
     'quote.sent': {
       subject: 'Hacienda de Letras quote',
       preheader: 'Your quote was prepared by our team.',
       title: 'Your quote is ready',
-      body: 'We are sharing the proposal prepared by Hacienda de Letras based on your request. Review the details and reply to this email to confirm adjustments or next steps.',
-      cta: 'Open Hacienda de Letras',
+      body: 'We are sharing the proposal prepared by Hacienda de Letras based on your request. Review the details in your app and reply to this email to confirm adjustments or next steps.',
+      cta: 'Open my app',
     },
     'campaign.marketing': {
       subject: 'Hacienda de Letras',
@@ -189,21 +259,21 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       preheader: 'Your order was registered.',
       title: 'Your order is registered',
       body: 'We created the order with the selected items. The real status remains visible in your account.',
-      cta: 'View order',
+      cta: 'Open my app',
     },
     'order.pending_payment': {
       subject: 'Order pending payment',
       preheader: 'Your order is pending payment.',
       title: 'Order pending payment',
       body: 'Your order is pending payment. You can resume it from your account whenever you want to complete the purchase.',
-      cta: 'View order',
+      cta: 'Go to payment',
     },
     'order.paid': {
       subject: 'Payment confirmed',
       preheader: 'Your payment was confirmed.',
       title: 'Payment confirmed',
-      body: 'Your purchase is confirmed. We will prepare your order and share tracking details once they are ready. You can review the details from your account.',
-      cta: 'View order',
+      body: 'Your payment was confirmed. Review your details, access passes or tracking from your profile in the app.',
+      cta: 'Open my app',
     },
     'order.tracking_assigned': {
       subject: 'Your tracking details are ready',
@@ -217,7 +287,7 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       preheader: 'Your tracking details are now available.',
       title: 'Your order is on its way',
       body: 'Your order was marked as shipped. Review the carrier and tracking number from your account.',
-      cta: 'View order',
+      cta: 'Open my app',
     },
     'membership.activated': {
       subject: 'Membership activated',
@@ -307,76 +377,7 @@ function formatPayloadValue(key: string, value: unknown, locale: CommunicationLo
 }
 
 function detailRows(payload: CommunicationPayload, locale: CommunicationLocale) {
-  const labels: Record<CommunicationLocale, Record<string, string>> = {
-    'es-MX': {
-      customerName: 'Cliente',
-      reservationNumber: 'Reservación',
-      orderNumber: 'Orden',
-      membershipNumber: 'Membresía',
-      reservationType: 'Tipo de reservación',
-      experienceTitle: 'Servicio',
-      planName: 'Plan',
-      status: 'Estado',
-      peopleCount: 'Personas',
-      total: 'Total',
-      currency: 'Moneda',
-      quoteNumber: 'Folio',
-      eventType: 'Tipo de evento',
-      preferredDate: 'Fecha solicitada',
-      guestCount: 'Personas',
-      message: 'Mensaje',
-      quoteAmount: 'Importe cotizado',
-      validUntil: 'Vigencia',
-      campaignName: 'Campaña',
-      ctaLabel: 'Acción',
-      startAt: 'Fecha',
-      reservationDate: 'Fecha de reservación',
-      reservationTime: 'Hora',
-      checkIn: 'Llegada',
-      checkOut: 'Salida',
-      renewalDate: 'Renovación',
-      expiresAt: 'Expira',
-      carrier: 'Paquetería',
-      trackingNumber: 'Número de guía',
-      shippingStatus: 'Estado del envío',
-      estimatedDeliveryAt: 'Entrega estimada',
-    },
-    'en-US': {
-      customerName: 'Customer',
-      reservationNumber: 'Reservation',
-      orderNumber: 'Order',
-      membershipNumber: 'Membership',
-      reservationType: 'Reservation type',
-      experienceTitle: 'Service',
-      planName: 'Plan',
-      status: 'Status',
-      peopleCount: 'Guests',
-      total: 'Total',
-      currency: 'Currency',
-      quoteNumber: 'Reference',
-      eventType: 'Event type',
-      preferredDate: 'Requested date',
-      guestCount: 'Guests',
-      message: 'Message',
-      quoteAmount: 'Quoted amount',
-      validUntil: 'Valid until',
-      campaignName: 'Campaign',
-      ctaLabel: 'Action',
-      startAt: 'Date',
-      reservationDate: 'Reservation date',
-      reservationTime: 'Time',
-      checkIn: 'Check-in',
-      checkOut: 'Check-out',
-      renewalDate: 'Renewal',
-      expiresAt: 'Expires',
-      carrier: 'Carrier',
-      trackingNumber: 'Tracking number',
-      shippingStatus: 'Shipping status',
-      estimatedDeliveryAt: 'Estimated delivery',
-    },
-  }
-
-  return Object.entries(labels[locale])
+  return Object.entries(detailLabels[locale])
     .filter(([key]) => key !== 'customerName' && !isSensitiveKey(key) && payload[key] !== null && payload[key] !== undefined && payload[key] !== '')
     .map(([key, label], index) => `<tr><td style="padding:11px 14px;color:#786963;font-size:13px;${index ? 'border-top:1px solid #eee3d9;' : ''}">${label}</td><td style="padding:11px 14px;text-align:right;font-weight:700;color:#332421;font-size:13px;${index ? 'border-top:1px solid #eee3d9;' : ''}">${escapeHtml(formatPayloadValue(key, payload[key], locale))}</td></tr>`)
     .join('')
@@ -405,20 +406,69 @@ function safeCustomerUrl(value: unknown) {
   return url
 }
 
+function appUrl(path: string) {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  try {
+    return new URL(`${customerAppBaseUrl}${cleanPath}`).toString()
+  } catch {
+    return publicSiteUrl
+  }
+}
+
+function payloadParam(payload: CommunicationPayload, key: string) {
+  const value = payload[key]
+  return typeof value === 'string' && value.trim() ? encodeURIComponent(value.trim()) : null
+}
+
+function defaultCustomerUrl(eventType: CommunicationEventType, payload: CommunicationPayload) {
+  if (eventType === 'customer.welcome') return appUrl('/home')
+  if (eventType.startsWith('reservation.')) {
+    const reservationId = payloadParam(payload, 'reservationId')
+    return appUrl(reservationId ? `/reservacion?reservationId=${reservationId}` : '/perfil#reservations')
+  }
+  if (eventType.startsWith('quote.')) {
+    const quoteId = payloadParam(payload, 'quoteId')
+    return appUrl(quoteId ? `/celebra?quoteId=${quoteId}` : '/celebra')
+  }
+  if (eventType === 'campaign.marketing') return appUrl('/promociones')
+  if (eventType.startsWith('order.')) {
+    const orderId = payloadParam(payload, 'orderId')
+    return appUrl(orderId ? `/perfil?orderId=${orderId}#orders` : '/perfil#orders')
+  }
+  if (eventType.startsWith('membership.')) return appUrl('/membresias')
+  if (eventType === 'security.password_changed') return appUrl('/perfil')
+  return appUrl('/home')
+}
+
 function ctaUrl(eventType: CommunicationEventType, payload: CommunicationPayload) {
   if (eventType === 'order.tracking_assigned' || eventType === 'order.shipped') {
-    return safeCustomerUrl(payload.trackingUrl) ?? publicSiteUrl
+    const trackingUrl = safeCustomerUrl(payload.trackingUrl)
+    if (trackingUrl) return trackingUrl
   }
   const explicit = safeCustomerUrl(payload.ctaUrl)
   if (explicit) return explicit
-  return publicSiteUrl
+  return defaultCustomerUrl(eventType, payload)
 }
 
 function copyForPayload(
   eventType: CommunicationEventType,
   copy: TemplateCopy,
   payload: CommunicationPayload,
+  locale: CommunicationLocale,
 ): TemplateCopy {
+  if (eventType === 'order.paid' && (payload.requiresShipping === false || payload.shippingStatus === 'not_required')) {
+    return locale === 'en-US'
+      ? {
+          ...copy,
+          body: 'Your payment was confirmed. Your reservation or access is available from your profile in the app, with its QR code when applicable.',
+          cta: 'View in my app',
+        }
+      : {
+          ...copy,
+          body: 'Tu pago quedó confirmado. Tu reservación o acceso ya está disponible desde tu perfil en la app, con su código QR cuando aplique.',
+          cta: 'Ver en mi app',
+        }
+  }
   if (!['quote.sent', 'campaign.marketing'].includes(eventType)) return copy
   const subject = payloadString(payload, 'subject')
   const title = payloadString(payload, 'title')
@@ -439,7 +489,7 @@ export function renderEmailTemplate(
   localeValue?: string | null,
 ): RenderedEmailTemplate {
   const locale = normalizeLocale(localeValue)
-  const copy = copyForPayload(eventType, copies[locale][eventType], payload)
+  const copy = copyForPayload(eventType, copies[locale][eventType], payload, locale)
   const rows = detailRows(payload, locale)
   const support = String(payload.supportEmail ?? 'soporte@admhaciendadeletras.com')
   const customerName = payloadString(payload, 'customerName')
@@ -490,9 +540,9 @@ export function renderEmailTemplate(
     brandName,
     copy.title,
     copy.body,
-    ...Object.entries(payload)
-      .filter(([key, value]) => key !== 'supportEmail' && !isSensitiveKey(key) && value !== null && value !== undefined && value !== '')
-      .map(([key, value]) => `${key}: ${value}`),
+    ...Object.entries(detailLabels[locale])
+      .filter(([key]) => key !== 'customerName' && key !== 'supportEmail' && !isSensitiveKey(key) && payload[key] !== null && payload[key] !== undefined && payload[key] !== '')
+      .map(([key, label]) => `${label}: ${formatPayloadValue(key, payload[key], locale)}`),
     `${locale === 'en-US' ? 'Support' : 'Soporte'}: ${support}`,
     automaticCopy,
   ]

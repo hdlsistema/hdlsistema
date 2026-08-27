@@ -3611,13 +3611,13 @@ html.hdl-mobile-app .crystal-date-popover__day {
 }
 
 @media (min-width: 1700px) {
-  .control-editorial-builder {
+  .control-layout.is-sidebar-collapsed .control-editorial-builder {
     grid-template-columns: 286px minmax(560px, 1fr) 360px;
   }
 
-  .control-editorial-builder > aside:first-child,
-  .control-editorial-builder > section,
-  .control-editorial-builder > aside:last-child {
+  .control-layout.is-sidebar-collapsed .control-editorial-builder > aside:first-child,
+  .control-layout.is-sidebar-collapsed .control-editorial-builder > section,
+  .control-layout.is-sidebar-collapsed .control-editorial-builder > aside:last-child {
     grid-column: auto;
   }
 }

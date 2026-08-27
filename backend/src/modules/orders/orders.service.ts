@@ -794,6 +794,7 @@ async function queueOrderTrackingEmail(order: OrderRow, shipment: ShipmentRow) {
     locale: 'es-MX',
     payload: {
       customerName: customerName(order),
+      orderId: order.id,
       orderNumber: order.order_number,
       carrier: shipment.carrier ?? 'Paquetería',
       trackingNumber: shipment.tracking_number,
@@ -817,6 +818,7 @@ async function queueOrderShippedEmail(order: OrderRow, shipment: ShipmentRow) {
     locale: 'es-MX',
     payload: {
       customerName: customerName(order),
+      orderId: order.id,
       orderNumber: order.order_number,
       carrier: shipment.carrier ?? 'Paquetería',
       trackingNumber: shipment.tracking_number ?? '',

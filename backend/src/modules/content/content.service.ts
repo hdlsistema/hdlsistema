@@ -582,6 +582,24 @@ async function idsFromRelation(table: string, column = 'customer_id') {
   return new Set((result.data ?? []).map((item) => String((item as unknown as Record<string, unknown>)[column] ?? '')).filter(Boolean))
 }
 
+async function idsFromCartStatus(cartStatus: 'active' | 'abandoned' | 'converted') {
+  const result = await supabaseAdminClient
+    .from('carts')
+    .select('customer_id')
+    .eq('cart_status', cartStatus)
+  if (result.error) throw httpError(500, 'No fue posible resolver carritos de campaña')
+  return new Set((result.data ?? []).map((item) => String(item.customer_id ?? '')).filter(Boolean))
+}
+
+async function idsFromOrderStatus(orderStatus: 'draft' | 'pending_payment' | 'paid' | 'processing' | 'fulfilled' | 'cancelled' | 'refunded') {
+  const result = await supabaseAdminClient
+    .from('orders')
+    .select('customer_id')
+    .eq('status', orderStatus)
+  if (result.error) throw httpError(500, 'No fue posible resolver órdenes de campaña')
+  return new Set((result.data ?? []).map((item) => String(item.customer_id ?? '')).filter(Boolean))
+}
+
 async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}): Promise<ResolvedCampaignAudience> {
   const limit = Math.min(filters.limit ?? 250, 500)
   const exactEmails = Array.from(new Set((filters.emails ?? []).map(normalizeCustomerEmail).filter(Boolean)))
@@ -633,6 +651,10 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}): P
     const ids = await idsFromRelation('orders')
     rows = rows.filter((row) => ids.has(row.id) === filters.hasOrders)
   }
+  if (filters.orderStatus) {
+    const ids = await idsFromOrderStatus(filters.orderStatus)
+    rows = rows.filter((row) => ids.has(row.id))
+  }
   if (filters.hasReservations !== undefined) {
     const ids = await idsFromRelation('reservations')
     rows = rows.filter((row) => ids.has(row.id) === filters.hasReservations)
@@ -640,6 +662,10 @@ async function resolveCampaignAudience(filters: CampaignAudienceFilters = {}): P
   if (filters.hasMembership !== undefined) {
     const ids = await idsFromRelation('memberships')
     rows = rows.filter((row) => ids.has(row.id) === filters.hasMembership)
+  }
+  if (filters.cartStatus) {
+    const ids = await idsFromCartStatus(filters.cartStatus)
+    rows = rows.filter((row) => ids.has(row.id))
   }
   if (filters.minAge !== undefined || filters.maxAge !== undefined) {
     rows = rows.filter((row) => {

@@ -162,24 +162,6 @@ export function HomeScreen() {
           <ChevronRight size={22} className="shrink-0 text-[#D8B36A]" />
         </Link>
 
-        <Link
-          to={appPath('/vinos')}
-          className="flex min-h-[84px] items-center justify-between gap-4 rounded-[20px] border border-[rgba(180,138,85,0.34)] bg-[linear-gradient(135deg,rgba(247,242,234,0.92),rgba(232,216,200,0.76))] p-4 shadow-[0_18px_42px_rgba(37,47,55,0.11),inset_0_1px_0_rgba(255,255,255,.72)] backdrop-blur-xl"
-        >
-          <span className="min-w-0">
-            <span
-              className="block text-[1.35rem] leading-none text-[var(--color-ink)]"
-              style={{ fontFamily: 'var(--font-display)' }}
-            >
-              {t('app.premium.home.wines')}
-            </span>
-            <span className="mt-2 block text-[12px] leading-4 text-[var(--color-muted)]">
-              {t('app.premium.home.winesCopy')}
-            </span>
-          </span>
-          <ChevronRight size={18} className="shrink-0 text-[var(--color-burgundy)]" />
-        </Link>
-
         <section className="space-y-4">
           <div className="flex items-end justify-between gap-3">
             <div>
