@@ -1,13 +1,11 @@
 import { z } from 'zod'
 
 export const accountDeletionStatusSchema = z.enum([
-  'requested',
-  'identity_verification',
-  'confirmed',
+  'awaiting_email_confirmation',
+  'pending_processing',
   'in_progress',
   'completed',
-  'rejected',
-  'cancelled',
+  'technical_error',
 ])
 
 const confirmationFields = {
@@ -39,7 +37,7 @@ export const accountDeletionListQuerySchema = z.object({
 }).strict()
 
 export const patchAccountDeletionRequestSchema = z.object({
-  status: accountDeletionStatusSchema.optional(),
+  status: z.enum(['in_progress', 'technical_error']).optional(),
   adminNotes: z.string().trim().max(5000).nullable().optional(),
   retentionNotes: z.string().trim().max(5000).nullable().optional(),
 }).strict().refine(
@@ -47,8 +45,13 @@ export const patchAccountDeletionRequestSchema = z.object({
   { message: 'No hay cambios para guardar' },
 )
 
+export const confirmAccountDeletionSchema = z.object({
+  token: z.string().trim().min(20).max(4096),
+}).strict()
+
 export type PublicAccountDeletionRequestPayload = z.infer<typeof publicAccountDeletionRequestSchema>
 export type AuthenticatedAccountDeletionRequestPayload = z.infer<typeof authenticatedAccountDeletionRequestSchema>
 export type AccountDeletionListQuery = z.infer<typeof accountDeletionListQuerySchema>
 export type PatchAccountDeletionRequestPayload = z.infer<typeof patchAccountDeletionRequestSchema>
 export type AccountDeletionStatus = z.infer<typeof accountDeletionStatusSchema>
+export type ConfirmAccountDeletionPayload = z.infer<typeof confirmAccountDeletionSchema>

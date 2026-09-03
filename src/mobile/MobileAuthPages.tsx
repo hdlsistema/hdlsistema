@@ -1,10 +1,11 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowRight, Check, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Compass, Eye, EyeOff, LockKeyhole, Mail, User } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { resetPassword, signInWithAppleNative, signInWithOAuth, signUpCustomer, updatePassword, type AuthServiceError } from '../services/auth.service'
 import { useAppPreferences } from '../app/context/AppPreferencesContext'
 import { translateErrorCode, type AppLanguage } from '../app/i18n'
+import { requestMobileOnboardingReplay } from './mobileOnboardingReplay'
 
 function getErrorMessage(error: unknown, language: AppLanguage) {
   if (error && typeof error === 'object' && 'code' in error) {
@@ -16,6 +17,8 @@ function getErrorMessage(error: unknown, language: AppLanguage) {
 
 function safeRedirect(path: unknown, fallback: string) {
   if (typeof path !== 'string' || !path.startsWith('/') || path.startsWith('//')) return fallback
+  const normalizedPath = (path.split('#')[0]?.split('?')[0] || '/').replace(/^\/app(?=\/|$)/, '') || '/'
+  if (normalizedPath === '/control' || normalizedPath.startsWith('/control/')) return fallback
   return path
 }
 
@@ -34,9 +37,28 @@ async function withAuthTimeout<T>(promise: Promise<T>): Promise<T> {
   }
 }
 
-function AuthShell({ eyebrow, title, note, children }: { eyebrow: string; title: string; note: string; children: ReactNode }) {
+function AuthShell({
+  eyebrow,
+  title,
+  note,
+  children,
+  onBack,
+  backLabel,
+}: {
+  eyebrow: string
+  title: string
+  note: string
+  children: ReactNode
+  onBack?: () => void
+  backLabel?: string
+}) {
   return (
     <main className="native-auth-screen">
+      {onBack ? (
+        <button type="button" className="native-auth-screen__back" onClick={onBack} aria-label={backLabel}>
+          <ArrowLeft size={18} strokeWidth={1.75} />
+        </button>
+      ) : null}
       <div className="native-auth-screen__hero" aria-hidden="true">
         <div className="native-auth-screen__hero-veil" />
         <img src="/hacienda de letras logo 2.png" alt="" className="native-auth-screen__logo" />
@@ -80,7 +102,17 @@ export function MobileLoginPage() {
   }
 
   return (
-    <AuthShell eyebrow={language === 'en' ? 'Secure access' : 'Acceso seguro'} title={language === 'en' ? 'Welcome' : 'Bienvenido'} note={language === 'en' ? 'Sign in to continue your Hacienda de Letras experience.' : 'Inicia sesión para continuar tu experiencia en Hacienda de Letras.'}>
+    <AuthShell
+      eyebrow={language === 'en' ? 'Secure access' : 'Acceso seguro'}
+      title={language === 'en' ? 'Welcome' : 'Bienvenido'}
+      note={language === 'en' ? 'Sign in to continue your Hacienda de Letras experience.' : 'Inicia sesión para continuar tu experiencia en Hacienda de Letras.'}
+      onBack={requestMobileOnboardingReplay}
+      backLabel={language === 'en' ? 'Back to onboarding' : 'Regresar al onboarding'}
+    >
+      <button type="button" className="native-auth-explore" onClick={() => navigate('/home')}>
+        <Compass size={17} strokeWidth={1.65} />
+        {language === 'en' ? 'Explore Hacienda' : 'Explorar Hacienda'}
+      </button>
       <form className="native-auth-form" onSubmit={submit}>
         <SocialAuthActions onError={setError} />
         <div className="native-auth-divider"><span>{t('auth.orEmail')}</span></div>

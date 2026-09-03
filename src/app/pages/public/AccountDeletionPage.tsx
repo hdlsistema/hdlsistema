@@ -7,6 +7,9 @@ function publicErrorMessage(error: unknown) {
   if (error && typeof error === 'object' && 'status' in error && Number((error as { status?: unknown }).status) === 429) {
     return 'Se alcanzó el límite de solicitudes. Intenta nuevamente más tarde.'
   }
+  if (error && typeof error === 'object' && 'status' in error && Number((error as { status?: unknown }).status) === 503) {
+    return 'No fue posible enviar el correo de confirmación. Intenta nuevamente más tarde.'
+  }
   return 'No fue posible registrar la solicitud en este momento. Intenta nuevamente.'
 }
 
@@ -23,7 +26,7 @@ export function AccountDeletionPage() {
     document.title = 'Eliminar cuenta de Hacienda de Letras'
   }, [])
 
-  function reviewRequest(event: FormEvent<HTMLFormElement>) {
+  function prepareRequest(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError('')
     if (!email.trim() || !acknowledged) return
@@ -82,16 +85,16 @@ export function AccountDeletionPage() {
             {completed ? (
               <div role="status" className="mt-8 rounded-[1.2rem] border border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.07)] p-6">
                 <CheckCircle2 size={29} className="text-[#252F37]" />
-                <h2 className="mt-4 text-2xl text-[#252F37]" style={{ fontFamily: 'var(--font-display)' }}>Solicitud recibida</h2>
+                <h2 className="mt-4 text-2xl text-[#252F37]" style={{ fontFamily: 'var(--font-display)' }}>Revisa tu correo</h2>
                 <p className="mt-3 text-sm leading-6 text-[#252F37]">
-                  Registramos tu solicitud para revisión. El envío no borra la cuenta de inmediato; el equipo validará la identidad y dará seguimiento al proceso.
+                  Enviamos un correo de confirmación al correo asociado a la cuenta. Abre el enlace seguro para confirmar la eliminación; después de confirmar, la cuenta entrará en proceso.
                 </p>
                 <button type="button" onClick={() => { setCompleted(false); setEmail(''); setName(''); setAcknowledged(false) }} className="mt-5 rounded-full border border-[rgba(37,47,55,0.24)] bg-white px-5 py-2.5 text-xs font-semibold text-[#252F37]">
                   Registrar otra solicitud
                 </button>
               </div>
             ) : (
-              <form className="mt-8 space-y-5" onSubmit={reviewRequest}>
+              <form className="mt-8 space-y-5" onSubmit={prepareRequest}>
                 <label className="block">
                   <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#725a4c]">Correo asociado a la cuenta *</span>
                   <input type="email" autoComplete="email" required maxLength={180} value={email} onChange={(event) => setEmail(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-[#dccab5] bg-white px-4 text-sm outline-none focus:border-[#8b2d43]" placeholder="correo@ejemplo.com" />
@@ -106,7 +109,7 @@ export function AccountDeletionPage() {
                 </label>
                 {error ? <p role="alert" className="rounded-xl border border-[#e3b8ad] bg-[#fff2ef] p-4 text-sm text-[#944431]">{error}</p> : null}
                 <button type="submit" disabled={!email.trim() || !acknowledged} className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5B0B1F] px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(91,11,31,0.18)] disabled:cursor-not-allowed disabled:opacity-50">
-                  <Trash2 size={17} /> Solicitar eliminación de cuenta
+                  <Trash2 size={17} /> Eliminar definitivamente mi cuenta
                 </button>
               </form>
             )}
@@ -141,13 +144,13 @@ export function AccountDeletionPage() {
               <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f2dfda] text-[#8c2638]"><Trash2 size={22} /></span>
               <button type="button" aria-label="Cerrar" onClick={() => setConfirmOpen(false)} disabled={submitting} className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#dccab5] text-[#5B0B1F]"><X size={18} /></button>
             </div>
-            <h2 id="confirm-deletion-title" className="mt-5 text-3xl text-[#5B0B1F]" style={{ fontFamily: 'var(--font-display)' }}>Confirma tu solicitud</h2>
+            <h2 id="confirm-deletion-title" className="mt-5 text-3xl text-[#5B0B1F]" style={{ fontFamily: 'var(--font-display)' }}>Confirma la eliminación definitiva</h2>
             <p className="mt-3 text-sm leading-7 text-[#6f5a4d]">
-              Se registrará una solicitud para la cuenta asociada a <strong className="text-[#2b1712]">{email.trim().toLowerCase()}</strong>. No se borrará inmediatamente; primero se validará y procesará de forma segura.
+              Enviaremos un enlace seguro a <strong className="text-[#2b1712]">{email.trim().toLowerCase()}</strong>. El procesamiento de eliminación comenzará únicamente cuando confirmes desde ese correo.
             </p>
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <button type="button" onClick={() => setConfirmOpen(false)} disabled={submitting} className="min-h-12 rounded-xl border border-[#d8bf9c] bg-white text-sm font-semibold text-[#5B0B1F]">Cancelar</button>
-              <button type="button" onClick={() => void submitRequest()} disabled={submitting} className="min-h-12 rounded-xl bg-[#5B0B1F] px-4 text-sm font-semibold text-white disabled:opacity-60">{submitting ? 'Enviando…' : 'Sí, enviar solicitud'}</button>
+              <button type="button" onClick={() => void submitRequest()} disabled={submitting} className="min-h-12 rounded-xl bg-[#5B0B1F] px-4 text-sm font-semibold text-white disabled:opacity-60">{submitting ? 'Enviando…' : 'Enviar correo'}</button>
             </div>
           </div>
         </div>

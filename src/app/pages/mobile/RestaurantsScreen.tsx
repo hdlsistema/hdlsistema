@@ -10,6 +10,8 @@ import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServ
 import { OfficialDirectionsSheet } from '../../components/mobile/OfficialDirectionsSheet'
 import { officialRestaurantPoi } from '../../utils/officialLocations'
 import { acceptedContractMetadata, contractTermsFromMetadata } from '../../utils/reservationContract'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
+import { appPath } from '../../utils/appRoutes'
 
 function nextIdempotencyKey(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`
@@ -18,6 +20,7 @@ function nextIdempotencyKey(prefix: string) {
 export function RestaurantsScreen() {
   const { locale, isEnglish } = useAppPreferences()
   const { session, isAuthenticated } = useAuth()
+  const { requestAuth } = useMobileGuestAccess()
   const [selected, setSelected] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('')
@@ -68,7 +71,8 @@ export function RestaurantsScreen() {
 
   const submit = async () => {
     if (!isAuthenticated) {
-      setMessage(isEnglish ? 'Sign in to request a booking.' : 'Inicia sesión para solicitar una reservación.')
+      setMessage('')
+      requestAuth({ from: appPath('/restaurantes') })
       return
     }
     if (!selectedRestaurant || !date || !time || !canRequest) {

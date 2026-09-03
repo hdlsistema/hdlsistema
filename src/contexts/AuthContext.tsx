@@ -15,6 +15,7 @@ import {
   getCurrentRoles,
   ensureCustomerWelcome,
   completeInitialPasswordChange as completeInitialPasswordChangeService,
+  getAccountDeletionAccess,
   signIn as signInService,
   signOut as signOutService,
   type AuthProfile,
@@ -83,6 +84,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFinancialAccess(false)
       setPasswordChangeCompletedFor(null)
       return []
+    }
+
+    try {
+      const deletionAccess = await getAccountDeletionAccess(nextSession.access_token)
+      if (deletionAccess.blocked) {
+        await signOutService().catch(() => undefined)
+        if (mounted.current) {
+          setSession(null)
+          setUser(null)
+          setProfile(null)
+          setRoles([])
+          setPermissions([])
+          setControlScopes([])
+          setControlScopeCodes([])
+          setFinancialAccess(false)
+          setPasswordChangeCompletedFor(null)
+        }
+        return []
+      }
+    } catch (error) {
+      const status = error && typeof error === 'object' && 'status' in error
+        ? Number((error as { status?: unknown }).status)
+        : 0
+      if (status === 401 || status === 423) {
+        await signOutService().catch(() => undefined)
+        if (mounted.current) {
+          setSession(null)
+          setUser(null)
+          setProfile(null)
+          setRoles([])
+          setPermissions([])
+          setControlScopes([])
+          setControlScopeCodes([])
+          setFinancialAccess(false)
+          setPasswordChangeCompletedFor(null)
+        }
+        return []
+      }
     }
 
     const [nextProfile, nextRoles] = await Promise.all([

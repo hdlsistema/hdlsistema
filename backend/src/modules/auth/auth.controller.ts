@@ -3,7 +3,9 @@ import { supabaseAdminClient } from '../../config/supabase'
 import { enqueueAndProcessTransactionalEmail } from '../communications/communications.service'
 import { ensureCustomerWelcomeEmail } from '../customer/customer.service'
 import { httpError, sendOperationError } from '../operations/operationErrors'
-import { customerRegistrationSchema, initialPasswordSchema } from './auth.schemas'
+import { assertAccountDeletionAccessAllowed, getAccountDeletionAccessState } from '../privacy/accountDeletionAccess.service'
+import { appleSignInTokenSchema, customerRegistrationSchema, initialPasswordSchema } from './auth.schemas'
+import { storeAppleSignInTokens } from './appleSignIn.service'
 
 function extractRoleCode(value: unknown): string | null {
   if (Array.isArray(value)) {
@@ -75,6 +77,39 @@ export async function getProfile(req: Request, res: Response): Promise<void> {
   res.json({ profile: data })
 }
 
+export async function getAccountDeletionAccess(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.authUser
+    if (!user) {
+      res.status(401).json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Sesión requerida' } })
+      return
+    }
+    const state = await getAccountDeletionAccessState({ userId: user.id, email: user.email })
+    res.json({ ok: true, data: state })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function storeAppleSignInToken(req: Request, res: Response): Promise<void> {
+  try {
+    const user = req.authUser
+    if (!user) {
+      res.status(401).json({ ok: false, error: { code: 'UNAUTHORIZED', message: 'Sesión requerida' } })
+      return
+    }
+    const payload = appleSignInTokenSchema.parse(req.body)
+    const result = await storeAppleSignInTokens({
+      userId: user.id,
+      identityToken: payload.identityToken,
+      authorizationCode: payload.authorizationCode,
+    })
+    res.status(202).json({ ok: true, data: result })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
 export async function ensureCustomerWelcome(req: Request, res: Response): Promise<void> {
   try {
     const user = req.authUser
@@ -132,6 +167,7 @@ export async function changeInitialPassword(req: Request, res: Response): Promis
 export async function registerCustomer(req: Request, res: Response): Promise<void> {
   try {
     const input = customerRegistrationSchema.parse(req.body)
+    await assertAccountDeletionAccessAllowed({ email: input.email })
     const displayName = `${input.firstName} ${input.lastName}`.trim()
     const { data, error } = await supabaseAdminClient.auth.admin.createUser({
       email: input.email,

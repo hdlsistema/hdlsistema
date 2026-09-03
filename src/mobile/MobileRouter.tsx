@@ -26,6 +26,7 @@ import { WineDetailScreen } from '../app/pages/mobile/WineDetailScreen'
 import { PrivacyAccountScreen } from '../app/pages/mobile/PrivacyAccountScreen'
 import { DeleteAccountScreen } from '../app/pages/mobile/DeleteAccountScreen'
 import { MobileLegalScreen } from '../app/pages/mobile/MobileLegalScreen'
+import { AccountDeletionConfirmationPage } from '../app/pages/public/AccountDeletionConfirmationPage'
 import {
   MobileAuthCallbackPage,
   MobileLoginPage,
@@ -37,6 +38,16 @@ import { MobileProtectedRoute } from './MobileProtectedRoute'
 import { MobileBrandSplash } from './MobileLaunchGate'
 
 function RootRedirect() {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return <MobileBrandSplash />
+  }
+
+  return <Navigate to={isAuthenticated ? '/home' : '/login'} replace />
+}
+
+function NativeControlRouteRedirect() {
   const { isAuthenticated, isLoading } = useAuth()
 
   if (isLoading) {
@@ -82,7 +93,7 @@ export function MobileRouter() {
         <Route path="reservacion" element={protectedScreen(<ReservationScreen />)} />
         <Route path="mapa" element={<MapScreen />} />
         <Route path="membresias" element={protectedScreen(<ClubScreen />)} />
-        <Route path="sommelier" element={<SommelierScreen />} />
+        <Route path="sommelier" element={protectedScreen(<SommelierScreen />)} />
         <Route path="carrito" element={protectedScreen(<CartScreen />)} />
         <Route path="checkout" element={protectedScreen(<CheckoutScreen />)} />
         <Route path="pago/procesando" element={protectedScreen(<PaymentStatusScreen mode="processing" />)} />
@@ -90,9 +101,12 @@ export function MobileRouter() {
         <Route path="pago/fallido" element={protectedScreen(<PaymentStatusScreen mode="failed" />)} />
         <Route path="perfil" element={protectedScreen(<ProfileScreen />)} />
         <Route path="privacidad-cuenta" element={protectedScreen(<PrivacyAccountScreen />)} />
-        <Route path="politica-de-privacidad" element={protectedScreen(<MobileLegalScreen kind="privacy" />)} />
-        <Route path="terminos-y-condiciones" element={protectedScreen(<MobileLegalScreen kind="terms" />)} />
+        <Route path="politica-de-privacidad" element={<MobileLegalScreen kind="privacy" />} />
+        <Route path="terminos-y-condiciones" element={<MobileLegalScreen kind="terms" />} />
         <Route path="eliminar-cuenta" element={protectedScreen(<DeleteAccountScreen />)} />
+        <Route path="eliminar-cuenta/confirmar" element={<AccountDeletionConfirmationPage />} />
+        <Route path="control/*" element={<NativeControlRouteRedirect />} />
+        <Route path="app/control/*" element={<NativeControlRouteRedirect />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

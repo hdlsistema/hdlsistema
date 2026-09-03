@@ -124,6 +124,7 @@ export function sendOperationError(res: Response, error: unknown) {
     403: 'FORBIDDEN',
     404: 'NOT_FOUND',
     409: 'CONFLICT',
+    423: 'LOCKED',
     422: 'UNPROCESSABLE',
     503: 'SERVICE_UNAVAILABLE',
   }

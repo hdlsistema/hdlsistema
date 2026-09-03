@@ -2,6 +2,7 @@ import { registerPlugin } from '@capacitor/core'
 
 export type NativeAppleCredential = {
   identityToken: string
+  authorizationCode?: string
   nonce: string
   email?: string
   givenName?: string

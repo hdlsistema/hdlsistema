@@ -16,7 +16,7 @@ const legalCopy = {
         ['Para qué la utilizamos', 'Para prestar los servicios solicitados, operar reservaciones y compras, dar seguimiento a entregas, atenderte, prevenir fraude y mejorar la experiencia.'],
         ['Tus preferencias', 'Puedes ajustar desde Mi cuenta las comunicaciones de mercadotecnia. Los avisos transaccionales necesarios para tus compras, pagos, reservaciones o seguridad se administran por separado.'],
         ['Conservación y seguridad', 'Protegemos la información con controles de acceso y la conservamos sólo durante el tiempo necesario. Ciertos datos podrán mantenerse cuando exista obligación legal, fiscal, de seguridad o prevención de fraude.'],
-        ['Tus derechos', 'Puedes solicitar acceso, corrección o eliminación de datos mediante las opciones de Privacidad y cuenta. La solicitud de eliminación requiere confirmación y no borra la cuenta inmediatamente.'],
+        ['Tus derechos', 'Puedes solicitar acceso o corrección de datos y puedes iniciar la eliminación de cuenta desde Privacidad y cuenta. El flujo requiere confirmación por correo y procesamiento operativo.'],
       ],
     },
     terms: {

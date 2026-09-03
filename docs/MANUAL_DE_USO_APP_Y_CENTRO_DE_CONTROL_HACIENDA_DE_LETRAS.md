@@ -3,8 +3,8 @@
 ## Hacienda de Letras
 
 **Dirigido a:** propietarios, responsables de operación y personal autorizado  
-**Versión del manual:** 1.0  
-**Fecha:** 17 de agosto de 2026  
+**Versión del manual:** 1.1
+**Fecha:** 28 de agosto de 2026
 **Plataformas:** aplicación móvil Android/iOS y Centro de Control web
 
 ---
@@ -53,6 +53,27 @@ Además:
 - una cabaña necesita un paquete publicado y una unidad disponible;
 - un evento necesita tipos de boleto publicados, vigentes y con cupo;
 - un vino con control de inventario necesita existencia disponible.
+
+### Mapa rápido: qué alimenta a qué
+
+| En el Centro de Control | Se ve o se usa en la app | También se liga con |
+|---|---|---|
+| **Vinos** | Vinos, Tienda, detalle del vino y Carrito. | Inventario, Órdenes, Checkout y Pagos. |
+| **Experiencias** | Experiencias, detalle y botón Reservar. | Disponibilidad, Reservaciones, Check-in y Perfil. |
+| **Eventos magnos** | Nuestros eventos, detalle de evento y boletos. | Carrito, Checkout, Pagos, Órdenes, QR y Check-in. |
+| **Servicios y sedes** | Cabañas, Restaurantes, Celebra y Mapa. | Disponibilidad, Reservaciones y Cotizaciones. |
+| **Promociones** | Promociones de la semana, lista de beneficios y códigos. | Checkout, campañas comerciales y reportes. |
+| **Membresías** | Planes visibles en Membresías/Wine Club. | Wine Club administrativo, Clientes y Perfil. |
+| **Campañas** | Comunicaciones y mensajes comerciales autorizados. | Clientes, consentimientos, Actividad App y reportes. |
+| **Disponibilidad** | Horarios, cupos, noches y solicitudes reservables. | Reservaciones, cabañas, restaurantes y eventos. |
+| **Inventario** | Disponibilidad vendible cuando un vino controla existencia. | Órdenes, tienda, logística y reportes. |
+| **Órdenes** | Mis pedidos, pago pendiente, envío y comprobantes. | Clientes, Pagos, Inventario, Logística y QR. |
+| **Pagos** | Estado de pago en checkout y Perfil. | Órdenes, conciliación, reembolsos y reportes. |
+| **Clientes** | Datos de perfil, contacto, historial y preferencias. | Reservaciones, Órdenes, Wine Club, Cotizaciones y Campañas. |
+| **Check-in** | Confirmación real de boletos, accesos y llegadas. | QR, Reservaciones, Eventos y reportes de asistencia. |
+| **Logística** | Rastreo y estado de entrega en Mis pedidos. | Órdenes, Clientes, Pagos e Inventario. |
+| **Usuarios y permisos** | No aparece para clientes. | Acceso del personal, sedes, módulos visibles y acciones permitidas. |
+| **Configuración** | Idioma base, límites operativos y avisos. | App, Centro de Control, comunicaciones y carrito abandonado. |
 
 ---
 
@@ -113,7 +134,7 @@ Si Apple abre la hoja de autorización del sistema, el botón sí está funciona
 
 El botón vertical del costado abre todos los accesos de la app:
 
-- Inicio, Vinos, Experiencias y Eventos;
+- Inicio, Vinos, Promociones, Experiencias y Eventos;
 - Reservar, Cabañas, Restaurantes, Celebra, Mapa, Membresías y Sommelier;
 - Mis pedidos, Mis reservaciones, Perfil y Configuración;
 - idioma Español/Inglés, Ayuda y Cerrar sesión.
@@ -122,6 +143,7 @@ El botón vertical del costado abre todos los accesos de la app:
 |---|---|
 | **MENÚ** | Abre el panel lateral. |
 | **X** | Cierra el panel. |
+| **Promociones** | Abre beneficios vigentes, códigos y condiciones publicadas. |
 | **ES / EN** | Cambia el idioma de la experiencia móvil. |
 | **Cerrar sesión** | Sale de la cuenta actual. |
 
@@ -135,13 +157,44 @@ Es la portada de la experiencia móvil. Presenta contenidos destacados y entrada
 
 ### Controles
 
-- Las tarjetas de vinos, experiencias o eventos abren el detalle correspondiente.
-- Los accesos **Explorar**, **Reservar**, **Conocer más** o equivalentes llevan al módulo relacionado.
-- Los contenidos mostrados provienen de los registros publicados en el Centro de Control.
+| Botón o tarjeta | Qué hace | Se liga con |
+|---|---|---|
+| **ES / EN** | Cambia el idioma de la app. | Preferencia del cliente y textos publicados. |
+| **Promociones de la semana** | Abre beneficios vigentes y condiciones. | Promociones y Checkout cuando existe código aplicable. |
+| **Ver todos** en vinos | Abre el catálogo completo. | Vinos, Inventario y Carrito. |
+| **Tarjeta de vino** | Abre ficha, precio, imágenes y compra. | Vinos, Inventario, Carrito y Órdenes. |
+| **Tarjeta de experiencia** | Abre detalle, galería y disponibilidad. | Experiencias, Disponibilidad y Reservaciones. |
+| **Experiencias** | Entra al listado de actividades publicadas. | Experiencias y Disponibilidad. |
+| **Nuestros eventos** | Abre sedes y eventos magnos publicados. | Eventos magnos, boletos, Carrito y Check-in. |
+| **Cabañas** | Abre paquetes de hospedaje. | Servicios y sedes, Disponibilidad y Reservaciones. |
+| **Restaurantes** | Abre espacios gastronómicos. | Servicios y sedes, Disponibilidad y Reservaciones. |
+| **Celebra / Solicitar cotización** | Abre el formulario de evento social o empresarial. | Cotizaciones, Clientes y sedes. |
+| **Membresías** | Abre planes publicados o estado del socio. | Membresías, Wine Club y Perfil. |
+| **Mapa** | Abre ubicación y puntos de interés. | Servicios, sedes y mapa oficial. |
+| **Sommelier** | Abre recomendaciones y consulta de vinos. | Vinos y límite operativo configurado. |
+| **Reintentar** | Vuelve a cargar contenido cuando hubo una falla. | Misma sección consultada. |
 
 ### Conexión con el Centro de Control
 
 La navegación se registra en **Actividad App**. Las visitas normales no generan alertas en la campana administrativa; esa campana se reserva para hechos que requieren atención.
+
+---
+
+## 6.1 Promociones en la app
+
+### Para qué sirve
+
+Muestra beneficios vigentes, códigos, vigencia, mínimos de compra y condiciones comerciales publicadas por Hacienda.
+
+| Botón o control | Qué hace | Se liga con |
+|---|---|---|
+| **Promociones de la semana** | Entra desde Inicio a la lista de promociones vigentes. | Promociones. |
+| **Ver condiciones** | Abre la promoción seleccionada dentro de la lista. | Condiciones, vigencia y código publicado. |
+| **Código de promoción** | Indica el cupón que el cliente puede usar cuando aplica. | Checkout y reglas comerciales. |
+| **Reintentar** | Vuelve a consultar promociones si hubo una falla. | Promociones publicadas. |
+| **Volver** | Regresa a la pantalla anterior. | Navegación de la app. |
+
+Una promoción guardada no aparece por sí sola. Debe estar publicada, vigente y visible para clientes.
 
 ---
 
@@ -362,6 +415,7 @@ Muestra al cliente su plan, estado, puntos, beneficios e información del club.
 | **Reintentar** | Vuelve a cargar la membresía si hubo una falla. |
 | **Tarjeta de membresía** | Abre o resume el plan del socio. |
 | **Planes** | Muestra planes publicados disponibles. |
+| **Inscripción próximamente** | Indica que el alta directa desde la app todavía no está disponible para el cliente. |
 
 Los planes se publican en **Membresías** y la relación con cada socio se administra en **Wine Club**.
 
@@ -404,9 +458,13 @@ Para compras físicas debe existir un domicilio completo. La app no permite cont
 | Botón o control | Qué hace |
 |---|---|
 | **Domicilio guardado** | Selecciona la dirección de entrega. |
-| **Agregar/Editar domicilio** | Abre la captura de dirección. |
-| **Método de pago** | Selecciona o captura la opción de pago disponible. |
-| **Pagar / Confirmar compra** | Inicia el cobro seguro. Debe pulsarse una sola vez. |
+| **Usar nueva dirección** | Limpia la selección para capturar otra dirección de entrega. |
+| **Agregar/Editar domicilio** | Abre la captura de dirección. Todos los campos marcados son obligatorios para envío. |
+| **Guardar esta dirección** | Guarda el domicilio para compras futuras, si el cliente lo activa. |
+| **Código de promoción** | Permite escribir un cupón vigente cuando la promoción lo indique. |
+| **Crear orden** | Convierte el carrito en una orden con folio y prepara el cobro. Debe pulsarse una sola vez. |
+| **Formulario seguro de tarjeta** | Captura los datos del pago cuando el procesador está disponible. |
+| **Ver mis órdenes** | Abre Perfil para consultar el folio recién creado. |
 | **Volver al checkout** | Regresa después de un pago incompleto. |
 | **Reintentar** | Vuelve a consultar el estado; no debe usarse para duplicar una compra ya aprobada. |
 
@@ -430,6 +488,15 @@ Nunca interprete sólo la pantalla del teléfono como conciliación final. La re
 | **Guardar** | Actualiza nombre, nombre visible, teléfono e idioma. |
 | **Membresía** | Abre Wine Club o muestra que aún no existe una. |
 
+### Qué datos alimenta Perfil
+
+- **Datos personales:** nombre, correo, teléfono e idioma que identifican al cliente.
+- **Preferencias:** aceptación o rechazo de avisos comerciales y operativos.
+- **Domicilios:** direcciones usadas para entregas. Una orden puede conservar el domicilio usado al comprar aunque después el cliente edite su perfil.
+- **Historial:** reservaciones, accesos, órdenes, pagos y envíos relacionados con esa cuenta.
+
+Si en una orden falta teléfono o nombre completo, primero revise **Clientes** y después el domicilio guardado o capturado en la orden. El domicilio de entrega y el perfil del cliente están ligados, pero se revisan por separado.
+
 ### Domicilios de envío
 
 | Botón | Qué hace |
@@ -447,10 +514,32 @@ Nunca interprete sólo la pantalla del teléfono como conciliación final. La re
 - El número indica avisos sin leer.
 - Tocar una notificación la marca como leída y abre la reservación, orden o contenido relacionado cuando existe un destino.
 
+### Mis boletos y accesos
+
+| Botón | Qué hace |
+|---|---|
+| **Ver boleto QR** | Abre el pase con folio, fecha, titular, estado y código QR. |
+| **QR 1 de 2 / QR 2 de 2** | Abre el pase específico cuando una compra o reservación generó más de un acceso. |
+| **Descargar PDF** | Guarda el pase como archivo para reenviarlo o imprimirlo. |
+| **Compartir** | Usa las opciones del teléfono para enviar el pase. |
+| **Cerrar** | Cierra la vista del boleto. |
+
+El cliente puede abrir o compartir el QR. El acceso sólo queda usado cuando personal autorizado confirma entrada, llegada o check-in.
+
+### Mis reservaciones
+
+| Botón o control | Qué hace |
+|---|---|
+| **Actualizar** | Vuelve a cargar reservaciones y accesos. |
+| **Completar pago** | Abre Checkout cuando la reservación tiene una orden pendiente. |
+| **Reprogramar a...** | Cambia una experiencia a otro horario disponible, si el estado lo permite. |
+| **Cancelar** | Solicita cancelación de una reservación pendiente o confirmada cuando todavía es elegible. |
+
 ### Mis órdenes
 
 - Cada tarjeta muestra folio, fecha, total, pago y envío.
 - **Continuar pago** aparece si todavía existe una orden recuperable.
+- **Rastrear pedido** abre el enlace de seguimiento cuando Logística ya capturó guía.
 - La guía y los estados de envío se actualizan desde Órdenes/Logística.
 
 ### Privacidad y sesión
@@ -458,7 +547,7 @@ Nunca interprete sólo la pantalla del teléfono como conciliación final. La re
 | Botón | Qué hace |
 |---|---|
 | **Privacidad y cuenta** | Abre preferencias, políticas y opciones de cuenta. |
-| **Eliminar mi cuenta** | Inicia una solicitud formal de eliminación. |
+| **Eliminar mi cuenta** | Inicia la eliminación con confirmación por correo. |
 | **Cerrar sesión** | Sale de la cuenta del dispositivo. |
 
 ---
@@ -467,15 +556,17 @@ Nunca interprete sólo la pantalla del teléfono como conciliación final. La re
 
 1. Lea qué información puede eliminarse y qué información puede conservarse por obligación.
 2. Marque la confirmación solicitada.
-3. Pulse **Solicitar eliminación de cuenta**.
-4. En la ventana final, pulse **Sí, enviar**.
+3. Pulse **Eliminar definitivamente mi cuenta**.
+4. En la ventana final, pulse **Enviar correo**.
+5. Abra el correo recibido y pulse **Confirmar eliminación de cuenta**.
 
 | Botón | Qué hace |
 |---|---|
 | **Volver a Perfil** | Regresa sin crear otra solicitud. |
-| **Solicitar eliminación de cuenta** | Abre la confirmación final. |
+| **Eliminar definitivamente mi cuenta** | Abre la confirmación final. |
 | **Cancelar / X** | Cierra la confirmación sin enviar. |
-| **Sí, enviar** | Crea el expediente en el Centro de Control. |
+| **Enviar correo** | Envía el enlace seguro de confirmación. |
+| **Confirmar eliminación de cuenta** | Convierte el caso en orden confirmada y pendiente de procesar. |
 
 ---
 
@@ -650,11 +741,29 @@ Controla compras de vinos y boletos desde su creación hasta su cierre o entrega
 | **Completar** | Cierra una orden cuyo servicio o entrega ya fue atendido. |
 | **Cancelar** | Cancela una orden elegible y registra el motivo. |
 | **Marcar preparando** | Inicia preparación y empaque. |
-| **Capturar guía** | Registra empresa, número o enlace de seguimiento. |
+| **Campos de guía** | Capturan paquetería, número de guía y enlace de rastreo. |
+| **Guardar guía** | Conserva la guía y permite que el cliente consulte el seguimiento cuando exista enlace. |
 | **Marcar enviado** | Informa que el pedido salió a entrega. |
 | **Marcar entregado** | Confirma la entrega. |
+| **Historial** | Abre el detalle de cambios: qué pasó, quién lo hizo y cuándo. |
+| **Crear cliente nuevo** | Da de alta un cliente desde el formulario de orden. |
+| **Agregar partida** | Añade una línea de vino, experiencia, evento, hospedaje, alimentos, servicio o concepto libre. |
+| **Quitar partida** | Retira una línea antes de crear la orden. |
+| **Crear orden** | Guarda la orden administrativa con sus partidas y relaciones. |
 
 No marque **Entregado** antes de contar con evidencia operativa.
+
+### Cliente, domicilio y orden
+
+La orden muestra datos del cliente, pero también conserva datos propios del pedido.
+
+- **Cliente relacionado:** identifica quién compró o a quién se atiende.
+- **Correo del cliente:** ayuda a localizar la cuenta y enviar avisos cuando aplica.
+- **Domicilio de envío:** pertenece a la entrega de esa orden; puede venir de un domicilio guardado o de lo capturado durante checkout.
+- **Partidas:** son los productos, boletos o servicios vendidos.
+- **Historial:** conserva cambios operativos aunque después se edite el perfil del cliente.
+
+Si un pedido aparece con datos incompletos, revise primero si la orden tiene cliente relacionado, después el domicilio de envío y por último el expediente en **Clientes**.
 
 ---
 
@@ -761,6 +870,8 @@ Valida boletos, impide su reutilización y registra quién ingresó.
 | **Registrar check-in** | Consume el pase válido y registra la entrada. |
 | **Revocar pase** | Invalida un pase antes de su uso. |
 | **Revertir** | Revierte un check-in autorizado y exige motivo. |
+| **Editar evento** | Abre el evento relacionado para corregir datos editoriales o de cupo. |
+| **Confirmar llegada / Confirmar check-in / Confirmar entrada** | Botón de confirmación según el tipo de acceso: restaurante, cabaña o evento/experiencia. |
 
 ### Resultado esperado
 
@@ -814,7 +925,14 @@ Consulta cobros, referencias, métodos, incidencias y reembolsos.
 | **Pago manual** | Registra un pago externo autorizado y lo vincula con su orden. |
 | **Buscar / filtros** | Localiza referencia, orden, método o estado. |
 | **Fila de pago** | Abre monto, historial, orden y comprobante. |
+| **Abrir orden** | Lleva a la orden relacionada con ese pago. |
+| **Comprobante** | Abre el comprobante cuando fue cargado o generado. |
 | **Reembolsar** | Registra una devolución sobre un pago elegible. Requiere monto y motivo. |
+| **Orden relacionada** | Selecciona la orden pendiente que recibirá el pago manual. |
+| **Método** | Define transferencia, efectivo, terminal, depósito o cortesía autorizada. |
+| **Referencia** | Captura número, folio, autorización o explicación del pago externo. |
+| **Registrar pago** | Guarda el pago manual y lo liga con la orden. |
+| **Registrar reembolso** | Guarda monto y motivo de la devolución. |
 
 Antes de registrar un pago manual o reembolso, confirme orden, monto, moneda, referencia y evidencia.
 
@@ -887,6 +1005,11 @@ Estos módulos comparten una forma de trabajo editorial.
 | **Registro de la lista** | Abre el editor. |
 | **Guardar** | Conserva cambios como el estado indicado. |
 | **Vista previa** | Abre una revisión antes de publicar. |
+| **Elegir administrador** | Selecciona quién debe revisar una publicación sensible. |
+| **Nota para autorización** | Agrega contexto para quien aprueba o rechaza. |
+| **Enviar preview** | Envía la vista previa al administrador seleccionado. |
+| **Autorizar** | Marca el contenido como aprobado para publicación, cuando el rol lo permite. |
+| **Rechazar** | Registra que el contenido requiere cambios antes de publicarse. |
 | **Versiones** | Muestra el historial del registro. |
 | **Restaurar versión** | Recupera una versión anterior después de confirmar. |
 | **Más acciones** | Abre publicación, programación, duplicado y retiro. |
@@ -1001,33 +1124,83 @@ Permite abrir una referencia navegable de la experiencia del cliente desde el Ce
 
 ### Para qué sirve
 
-Recibe solicitudes de privacidad enviadas desde la app o la página pública.
+Procesa órdenes de eliminación confirmadas por correo desde la app o la página pública.
 
 | Botón o control | Qué hace |
 |---|---|
-| **Actualizar** | Consulta casos nuevos. |
+| **Actualizar** | Consulta órdenes nuevas. |
 | **Buscar** | Filtra por folio, correo o nombre. |
-| **Caso de la lista** | Abre el expediente. |
-| **Siguiente estado** | Avanza el proceso permitido. |
-| **Notas operativas** | Registra validación, contacto y acciones. |
+| **Orden de la lista** | Abre el expediente. |
+| **Procesar eliminación** | Ejecuta eliminación, anonimización, revocación de sesión y correo final. |
+| **Estado operativo** | Marca En proceso o Error técnico cuando aplique. |
+| **Notas operativas** | Registra acciones, obligación de conservación o error técnico. |
 | **Información que debe conservarse** | Documenta obligación y plazo de conservación, si existe. |
-| **Guardar expediente** | Conserva estado y trazabilidad. |
+| **Guardar notas/estado** | Conserva estado operativo y trazabilidad. |
 
 No elimine datos manualmente desde distintas pantallas. Atienda el expediente conforme al procedimiento de privacidad y a las obligaciones aplicables.
 
 ---
 
-## 42. Configuración
+## 42. Usuarios y permisos
+
+### Para qué sirve
+
+Administra accesos del personal, módulos visibles, permisos por acción, sedes asignadas y acceso financiero reservado.
+
+Use este módulo sólo con autorización de dirección. Un cambio incorrecto puede dejar a una persona sin acceso operativo o permitir acciones que no le corresponden.
+
+| Botón o control | Qué hace | Se liga con |
+|---|---|---|
+| **Sincronizar** | Actualiza usuarios, permisos y sedes disponibles. | Directorio de staff y permisos activos. |
+| **Nombre / Apellido / Correo** | Captura la identidad del nuevo usuario. | Cuenta administrativa y bitácora de acciones. |
+| **Contraseña** | Define la clave temporal o administrada. | Acceso inicial del staff. |
+| **Generar** | Crea una contraseña segura para el alta o cambio. | Credenciales administradas. |
+| **Rol base** | Define Operación, Marketing, Administración sin dinero o Sólo lectura. | Menú visible y permisos iniciales. |
+| **Sedes asignadas** | Limita la operación por Hacienda, restaurante o todas las sedes. | Reservaciones, órdenes, logística, inventario y check-in. |
+| **Plantilla** | Aplica un paquete rápido: Boutique, Rest. Teodoro, Rest. Nieto, Puerta/Eventos, Reservaciones, Logística o Contenido. | Permisos y sedes recomendadas por puesto. |
+| **Acceso financiero** | Permite o restringe importes, pagos, exportaciones y acciones financieras. | Pagos, Órdenes, Reportes y conciliación. |
+| **Permisos personalizados** | Abre el listado detallado de módulos y acciones. | Permisos finos de consulta, edición, escaneo y administración. |
+| **Crear usuario** | Guarda el nuevo acceso de staff. | Inicio de sesión y auditoría. |
+| **Buscar usuario** | Filtra por nombre o correo para editar una cuenta existente. | Directorio administrativo. |
+| **Usuario para editar** | Selecciona la cuenta que se va a modificar. | Rol, permisos, sedes y contraseña. |
+| **Guardar permisos** | Conserva los cambios del usuario seleccionado. | Menú y acciones disponibles en el próximo acceso. |
+| **Nueva contraseña / Actualizar** | Rota la contraseña de una cuenta administrada. | Acceso del usuario seleccionado. |
+
+### Plantillas disponibles
+
+| Plantilla | Uso recomendado |
+|---|---|
+| **Boutique** | Inventario, órdenes, logística básica, reservaciones y entradas de Hacienda. |
+| **Rest. Teodoro** | Reservaciones, órdenes, logística, entradas y clientes del restaurante Teodoro. |
+| **Rest. Nieto** | Reservaciones, órdenes, logística, entradas y clientes del restaurante Nieto. |
+| **Puerta/Eventos** | Escaneo y conteo de accesos para eventos o experiencias. |
+| **Reservaciones** | Atención de agenda, disponibilidad, clientes y cotizaciones. |
+| **Logística** | Órdenes, entregas, guías e inventario de consulta. |
+| **Contenido** | Publicación de vinos, experiencias, eventos, servicios, promociones y campañas. |
+
+### Reglas de seguridad
+
+- No cree usuarios genéricos para varias personas.
+- No entregue acceso financiero si el puesto no lo requiere.
+- Use sedes asignadas para limitar restaurantes, boutique o puntos operativos.
+- Después de crear o cambiar una contraseña, pida al usuario que entre y confirme acceso.
+- Si un usuario no ve un módulo, revise rol, permisos personalizados y sedes antes de reportarlo como falla.
+
+---
+
+## 43. Configuración
 
 | Botón o control | Qué hace |
 |---|---|
+| **Nombre completo / Rol / Correo** | Muestra la identidad administrativa actual. Son campos de consulta en esta pantalla. |
 | **Idioma** | Define la preferencia administrativa Español/Inglés. |
-| **Límite diario Sommelier** | Establece el máximo diario configurado. |
-| **Abandono de carrito en minutos** | Define cuándo se considera que un carrito requiere seguimiento. |
+| **Límite diario Sommelier** | Establece el máximo diario configurado para consultas del asistente de vinos. |
+| **Abandono de carrito en minutos** | Define cuándo se considera que un carrito requiere seguimiento comercial. |
 | **Email transaccional** | Habilita o deshabilita comunicaciones operativas por correo. |
 | **Push transaccional** | Habilita o deshabilita avisos operativos móviles. |
 | **Push marketing** | Habilita comunicaciones comerciales cuando existe consentimiento. |
-| **Guardar** | Persiste la configuración. |
+| **Guardar cambios** | Persiste la configuración. |
+| **Preferencias actualizadas** | Confirma visualmente que el guardado terminó. |
 
 Cambie estas opciones sólo con autorización de los responsables del negocio.
 
@@ -1035,7 +1208,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 # PARTE III — PROCESOS COMPLETOS
 
-## 43. Publicar una experiencia y recibir una reservación
+## 44. Publicar una experiencia y recibir una reservación
 
 1. Centro de Control → **Experiencias** → **Nueva experiencia**.
 2. Complete información, precio, capacidad e imágenes → **Guardar**.
@@ -1050,7 +1223,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 ---
 
-## 44. Habilitar reservaciones de restaurante
+## 45. Habilitar reservaciones de restaurante
 
 1. Centro de Control → **Servicios y sedes → Restaurantes**.
 2. Cree o edite el restaurante.
@@ -1064,7 +1237,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 ---
 
-## 45. Publicar cabañas y recibir una solicitud
+## 46. Publicar cabañas y recibir una solicitud
 
 1. **Servicios y sedes → Cabañas → Nueva cabaña**: publique el paquete comercial.
 2. **Disponibilidad → Cabañas → Agregar cabaña**: cree la unidad física.
@@ -1075,7 +1248,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 ---
 
-## 46. Vender un boleto y validar el QR
+## 47. Vender un boleto y validar el QR
 
 1. **Eventos → Nuevo evento** → complete y publique.
 2. Dentro del evento cree por lo menos un tipo de boleto publicado, visible, vigente y con cupo.
@@ -1088,7 +1261,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 ---
 
-## 47. Vender vino, obtener comprobante QR y completar la entrega
+## 48. Vender vino, obtener comprobante QR y completar la entrega
 
 1. **Vinos**: publique la ficha y precio.
 2. **Inventario**: registre ubicación, producto y entrada de existencia cuando exista control de stock.
@@ -1101,7 +1274,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 ---
 
-## 48. Atender una solicitud de Celebra
+## 49. Atender una solicitud de Celebra
 
 1. El cliente completa Celebra → **Solicitar cotización**.
 2. La campana del Centro de Control abre el folio.
@@ -1112,7 +1285,21 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 ---
 
-## 49. Uso de notificaciones
+## 50. Publicar una promoción y usarla en checkout
+
+1. Centro de Control → **Promociones** → **Nueva promoción**.
+2. Capture nombre, descripción, tipo de descuento, valor, código, mínimo de compra, vigencia y condiciones.
+3. Revise **Vista previa**. Si aplica revisión interna, use **Elegir administrador → Enviar preview**.
+4. Cuando esté autorizada, use **Más acciones → Publicar**.
+5. En la app, abra **Inicio → Promociones de la semana** o **Menú → Promociones**.
+6. Si la promoción tiene código, el cliente lo captura en **Checkout → Código de promoción** antes de **Crear orden**.
+7. Revise el resultado en **Órdenes**, **Pagos** y **Reportes**.
+
+Si el descuento no se refleja, revise vigencia, código exacto, mínimo de compra, estado publicado y visibilidad.
+
+---
+
+## 51. Uso de notificaciones
 
 ### En el Centro de Control
 
@@ -1129,7 +1316,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 # PARTE IV — OPERACIÓN RECOMENDADA
 
-## 50. Rutina diaria de apertura
+## 52. Rutina diaria de apertura
 
 1. Entrar al Centro de Control.
 2. Abrir **Campana** y atender avisos nuevos.
@@ -1140,7 +1327,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 7. Revisar Check-in para eventos o experiencias del día.
 8. Revisar pedidos en preparación y logística.
 
-## 51. Rutina diaria de cierre
+## 53. Rutina diaria de cierre
 
 1. Confirmar que todas las reservaciones atendidas tengan estado correcto.
 2. Revisar pagos procesando o fallidos.
@@ -1149,7 +1336,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 5. Verificar bloqueos o disponibilidad del día siguiente.
 6. Cerrar sesión si el equipo es compartido.
 
-## 52. Rutina antes de publicar contenido
+## 54. Rutina antes de publicar contenido
 
 1. Revisar ortografía y fechas.
 2. Confirmar precio, capacidad e imagen.
@@ -1163,7 +1350,7 @@ Cambie estas opciones sólo con autorización de los responsables del negocio.
 
 # PARTE V — SOLUCIÓN DE PROBLEMAS
 
-## 53. “Guardé, pero no aparece en la app”
+## 55. “Guardé, pero no aparece en la app”
 
 Revise, en orden:
 
@@ -1174,7 +1361,7 @@ Revise, en orden:
 5. disponibilidad o inventario, según el módulo;
 6. pulse **Actualizar** en el Centro de Control y vuelva a abrir la pantalla de la app.
 
-## 54. “No hay horarios en una experiencia”
+## 56. “No hay horarios en una experiencia”
 
 Revise **Disponibilidad → Experiencias y eventos**:
 
@@ -1185,7 +1372,7 @@ Revise **Disponibilidad → Experiencias y eventos**:
 - lugares disponibles;
 - sin bloqueo activo.
 
-## 55. “No abre el horario del restaurante”
+## 57. “No abre el horario del restaurante”
 
 Revise:
 
@@ -1195,7 +1382,7 @@ Revise:
 - formato HH:mm;
 - **Guardar horarios** ejecutado.
 
-## 56. “No se puede solicitar una cabaña”
+## 58. “No se puede solicitar una cabaña”
 
 Revise:
 
@@ -1205,7 +1392,7 @@ Revise:
 - fechas sin reservación o bloqueo;
 - estado de la unidad distinto de Fuera de servicio.
 
-## 57. “El botón está gris”
+## 59. “El botón está gris”
 
 Las causas más comunes son:
 
@@ -1216,18 +1403,18 @@ Las causas más comunes son:
 - se está procesando otra operación;
 - el rol del usuario es sólo de consulta o no tiene permiso.
 
-## 58. “El QR abre una búsqueda en Google al escanearlo”
+## 60. “El QR abre una búsqueda en Google al escanearlo”
 
 Los boletos nuevos abren una página segura de Hacienda de Letras con el folio, estado y opciones para descargar PDF o compartir. Si un QR antiguo muestra en cambio un texto que comienza con `hdl_pass_`, corresponde al formato anterior: el Centro de Control todavía puede leerlo desde **Check-in → Escanear QR** durante la transición.
 
-## 59. “El cliente no ve un cambio de estado”
+## 61. “El cliente no ve un cambio de estado”
 
 1. Confirme que el Centro de Control mostró el mensaje de guardado.
 2. Pulse **Actualizar** en el módulo.
 3. En la app, pulse Actualizar en Mis reservaciones o vuelva a Perfil/Mis órdenes.
 4. Confirme que se está consultando el mismo folio y la misma cuenta.
 
-## 60. “No llegó una notificación”
+## 62. “No llegó una notificación”
 
 1. Revise primero la campana interna del Centro de Control o la bandeja del Perfil.
 2. Confirme que el aviso corresponde a un hecho operativo, no a una simple visita.
@@ -1236,7 +1423,7 @@ Los boletos nuevos abren una página segura de Hacienda de Letras con el folio, 
 
 ---
 
-## 61. Glosario breve
+## 63. Glosario breve
 
 | Término | Significado |
 |---|---|
@@ -1254,7 +1441,7 @@ Los boletos nuevos abren una página segura de Hacienda de Letras con el folio, 
 
 ---
 
-## 62. Regla final de operación
+## 64. Regla final de operación
 
 Antes de comunicar al cliente que una acción quedó confirmada, revise el folio y el estado en el módulo correspondiente. El Centro de Control es la referencia operativa para Hacienda; la app es la vista del cliente y refleja la misma información central.
 

@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { AppHeader } from './AppHeader'
 import { AppBottomNavigation } from './BottomTabs'
 import { AppEdgePanel } from './AppEdgePanel'
+import { MobileGuestAccessProvider } from './MobileGuestAccess'
 import { useCartCount } from '../../hooks/useCartCount'
 import { appActivityEventKey, trackAppActivity } from '../../../services/appActivity.service'
 
@@ -22,13 +23,15 @@ export function MobileShell() {
   }, [appPath])
 
   return (
-    <div className="app-preview-shell relative flex h-[100dvh] min-h-[100dvh] w-full touch-pan-y flex-col overflow-hidden overscroll-none">
-      {showAppChrome ? <AppHeader /> : null}
-      <main className={`mobile-shell-scroll app-scrollbar-none min-h-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain ${showAppChrome ? 'pb-[calc(82px+var(--safe-bottom))]' : ''}`}>
-        <Outlet />
-      </main>
-      {showAppChrome ? <AppBottomNavigation cartCount={cartCount} /> : null}
-      {showAppChrome ? <AppEdgePanel /> : null}
-    </div>
+    <MobileGuestAccessProvider>
+      <div className="app-preview-shell relative flex h-[100dvh] min-h-[100dvh] w-full touch-pan-y flex-col overflow-hidden overscroll-none">
+        {showAppChrome ? <AppHeader /> : null}
+        <main className={`mobile-shell-scroll app-scrollbar-none min-h-0 flex-1 touch-pan-y overflow-x-hidden overflow-y-auto overscroll-contain ${showAppChrome ? 'pb-[calc(82px+var(--safe-bottom))]' : ''}`}>
+          <Outlet />
+        </main>
+        {showAppChrome ? <AppBottomNavigation cartCount={cartCount} /> : null}
+        {showAppChrome ? <AppEdgePanel /> : null}
+      </div>
+    </MobileGuestAccessProvider>
   )
 }

@@ -14,7 +14,7 @@ export function PrivacyAccountScreen() {
       <section className="rounded-[1.45rem] border border-[rgba(220,202,181,0.78)] bg-white p-5 shadow-[0_18px_38px_rgba(74,32,28,0.08)]">
         <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#f8eee5] text-[var(--color-burgundy)]"><LockKeyhole size={21} /></span>
         <div className="mt-5">
-          <AppSectionHeader eyebrow={en ? 'My account' : 'Mi cuenta'} title={en ? 'Privacy and account' : 'Privacidad y cuenta'} subtitle={en ? 'Review how we process your data and manage your account deletion request.' : 'Consulta cómo tratamos tus datos y administra la eliminación de tu cuenta.'} />
+          <AppSectionHeader eyebrow={en ? 'My account' : 'Mi cuenta'} title={en ? 'Privacy and account' : 'Privacidad y cuenta'} subtitle={en ? 'See how we process your data and manage account deletion.' : 'Consulta cómo tratamos tus datos y administra la eliminación de tu cuenta.'} />
         </div>
       </section>
 
@@ -32,14 +32,14 @@ export function PrivacyAccountScreen() {
         <div className="border-t border-[rgba(220,202,181,0.52)] px-4 py-4">
           <div className="flex items-start gap-3 rounded-[1rem] bg-[#fff8f1] p-4">
             <ShieldCheck size={18} className="mt-0.5 shrink-0 text-[#a07845]" />
-            <p className="text-[11px] leading-5 text-[var(--color-muted)]">{en ? 'Deletion requires confirmation and review. Certain information may be retained only when required for legal, tax, security or fraud-prevention purposes.' : 'La eliminación requiere confirmación y revisión. Cierta información podrá conservarse únicamente por obligación legal, fiscal, de seguridad o prevención de fraude.'}</p>
+            <p className="text-[11px] leading-5 text-[var(--color-muted)]">{en ? 'Deletion requires email confirmation and operational processing. Certain information may be retained only when required for legal, tax, security or fraud-prevention purposes.' : 'La eliminación requiere confirmación por correo y procesamiento operativo. Cierta información podrá conservarse únicamente por obligación legal, fiscal, de seguridad o prevención de fraude.'}</p>
           </div>
         </div>
       </section>
 
       <Link to={appPath('/eliminar-cuenta')} className="flex min-h-14 items-center gap-3 rounded-[1.1rem] border border-[#e4bdb5] bg-[#fff4f1] px-4 text-[#963e32] shadow-[0_12px_24px_rgba(108,36,30,0.06)]">
         <Trash2 size={18} />
-        <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">{en ? 'Delete my account' : 'Eliminar mi cuenta'}</span><span className="mt-1 block text-[11px] leading-4 text-[#8b625b]">{en ? 'Start a request; your account is not deleted immediately.' : 'Inicia una solicitud; tu cuenta no se elimina de inmediato.'}</span></span>
+        <span className="min-w-0 flex-1"><span className="block text-[13px] font-semibold">{en ? 'Delete my account' : 'Eliminar mi cuenta'}</span><span className="mt-1 block text-[11px] leading-4 text-[#8b625b]">{en ? 'Start deletion with email confirmation.' : 'Inicia la eliminación con confirmación por correo.'}</span></span>
         <ChevronRight size={16} />
       </Link>
     </div>

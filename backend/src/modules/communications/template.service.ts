@@ -53,6 +53,9 @@ const detailLabels: Record<CommunicationLocale, Record<string, string>> = {
     trackingNumber: 'Número de guía',
     shippingStatus: 'Estado del envío',
     estimatedDeliveryAt: 'Entrega estimada',
+    requestNumber: 'Folio',
+    processingWindow: 'Plazo máximo',
+    confirmationExpiresAt: 'Vigencia del enlace',
   },
   'en-US': {
     customerName: 'Customer',
@@ -86,6 +89,9 @@ const detailLabels: Record<CommunicationLocale, Record<string, string>> = {
     trackingNumber: 'Tracking number',
     shippingStatus: 'Shipping status',
     estimatedDeliveryAt: 'Estimated delivery',
+    requestNumber: 'Reference',
+    processingWindow: 'Maximum processing time',
+    confirmationExpiresAt: 'Link expiration',
   },
 }
 
@@ -203,6 +209,20 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'Tu contraseña fue modificada correctamente. Si no reconoces este cambio, contacta a soporte.',
       cta: 'Ir a soporte',
     },
+    'account_deletion.confirmation': {
+      subject: 'Confirma la eliminación de tu cuenta de Hacienda de Letras',
+      preheader: 'Confirma desde este correo para iniciar el procesamiento de eliminación.',
+      title: 'Confirma la eliminación de tu cuenta',
+      body: 'Recibimos la solicitud para eliminar definitivamente tu cuenta. Para protegerla, confirma desde este correo. Después de confirmar, la eliminación de tu cuenta y de los datos personales asociados entrará a procesamiento.',
+      cta: 'Confirmar eliminación de cuenta',
+    },
+    'account_deletion.completed': {
+      subject: 'Tu cuenta de Hacienda de Letras ha sido eliminada',
+      preheader: 'La eliminación de tu cuenta fue completada.',
+      title: 'Tu cuenta ha sido eliminada',
+      body: 'La cuenta fue eliminada y los datos personales correspondientes fueron eliminados o anonimizados. Sólo conservaremos información que deba mantenerse por obligaciones legales o fiscales.',
+      cta: 'Ir a Hacienda de Letras',
+    },
   },
   'en-US': {
     'customer.welcome': {
@@ -317,6 +337,20 @@ const copies: Record<CommunicationLocale, Record<CommunicationEventType, Templat
       body: 'Your password was updated successfully. If you do not recognize this change, contact support.',
       cta: 'Contact support',
     },
+    'account_deletion.confirmation': {
+      subject: 'Confirm deletion of your Hacienda de Letras account',
+      preheader: 'Confirm from this email to start account deletion processing.',
+      title: 'Confirm account deletion',
+      body: 'We received a request to permanently delete your account. To protect your account, confirm from this email. After confirmation, your account and associated personal data will enter deletion processing.',
+      cta: 'Confirm account deletion',
+    },
+    'account_deletion.completed': {
+      subject: 'Your Hacienda de Letras account has been deleted',
+      preheader: 'Your account deletion has been completed.',
+      title: 'Your account has been deleted',
+      body: 'The account was deleted and the corresponding personal data was deleted or anonymized. We will only retain information that must be kept for legal or tax obligations.',
+      cta: 'Open Hacienda de Letras',
+    },
   },
 }
 
@@ -358,7 +392,7 @@ function formatPayloadValue(key: string, value: unknown, locale: CommunicationLo
     return statusLabels[locale][String(value)] ?? String(value).replace(/_/g, ' ')
   }
 
-  if (['startAt', 'renewalDate', 'expiresAt', 'preferredDate', 'estimatedDeliveryAt', 'reservationDate', 'checkIn', 'checkOut'].includes(key)) {
+  if (['startAt', 'renewalDate', 'expiresAt', 'confirmationExpiresAt', 'preferredDate', 'estimatedDeliveryAt', 'reservationDate', 'checkIn', 'checkOut'].includes(key)) {
     const date = new Date(value)
     if (!Number.isNaN(date.getTime())) {
       return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: key === 'startAt' ? 'short' : undefined, timeZone: mexicoTimeZone }).format(date)
@@ -437,6 +471,7 @@ function defaultCustomerUrl(eventType: CommunicationEventType, payload: Communic
   }
   if (eventType.startsWith('membership.')) return appUrl('/membresias')
   if (eventType === 'security.password_changed') return appUrl('/perfil')
+  if (eventType === 'account_deletion.completed') return publicSiteUrl
   return appUrl('/home')
 }
 
@@ -456,6 +491,21 @@ function copyForPayload(
   payload: CommunicationPayload,
   locale: CommunicationLocale,
 ): TemplateCopy {
+  if (eventType === 'account_deletion.confirmation') {
+    const window = payloadString(payload, 'processingWindow')
+    return locale === 'en-US'
+      ? {
+          ...copy,
+          body: `We received a request to permanently delete your account. To protect it, confirm from this email. Once confirmed, account deletion will be processed within a maximum of ${window ?? '30 calendar days'}. We will only retain information required for legal or tax obligations.`,
+        }
+      : {
+          ...copy,
+          body: `Recibimos la solicitud para eliminar definitivamente tu cuenta. Para protegerla, confirma desde este correo. Una vez confirmada, la eliminación se procesará en un plazo máximo de ${window ?? '30 días naturales'}. Conservaremos únicamente información que deba mantenerse por obligaciones legales o fiscales.`,
+        }
+  }
+  if (eventType === 'account_deletion.completed') {
+    return copy
+  }
   if (eventType === 'order.paid' && (payload.requiresShipping === false || payload.shippingStatus === 'not_required')) {
     return locale === 'en-US'
       ? {

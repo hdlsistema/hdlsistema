@@ -3,15 +3,18 @@ import { sendOperationError } from '../operations/operationErrors'
 import {
   accountDeletionListQuerySchema,
   authenticatedAccountDeletionRequestSchema,
+  confirmAccountDeletionSchema,
   patchAccountDeletionRequestSchema,
   publicAccountDeletionRequestSchema,
 } from './privacy.schemas'
 import {
+  confirmAccountDeletion,
   createAuthenticatedAccountDeletionRequest,
   createPublicAccountDeletionRequest,
   getAccountDeletionRequest,
   listAccountDeletionRequests,
   patchAccountDeletionRequest,
+  processAccountDeletionRequest,
 } from './privacy.service'
 
 function userContext(req: Request) {
@@ -48,6 +51,15 @@ export async function createCustomerAccountDeletion(req: Request, res: Response)
   }
 }
 
+export async function confirmPublicAccountDeletion(req: Request, res: Response): Promise<void> {
+  try {
+    const payload = confirmAccountDeletionSchema.parse(req.body)
+    res.status(200).json({ ok: true, ...(await confirmAccountDeletion(payload)) })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
 export async function listAccountDeletionAdmin(req: Request, res: Response): Promise<void> {
   try {
     const query = accountDeletionListQuerySchema.parse(req.query)
@@ -70,6 +82,14 @@ export async function patchAccountDeletionAdmin(req: Request, res: Response): Pr
   try {
     const payload = patchAccountDeletionRequestSchema.parse(req.body)
     res.json({ ok: true, ...(await patchAccountDeletionRequest(req.params.id, payload, userContext(req))) })
+  } catch (error) {
+    sendOperationError(res, error)
+  }
+}
+
+export async function processAccountDeletionAdmin(req: Request, res: Response): Promise<void> {
+  try {
+    res.json({ ok: true, ...(await processAccountDeletionRequest(req.params.id, userContext(req))) })
   } catch (error) {
     sendOperationError(res, error)
   }

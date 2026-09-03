@@ -51,6 +51,12 @@ function normalizeError(error: unknown): AuthServiceError {
     const status = (error as ApiFetchError).status
     const apiMessage = typeof body?.error?.message === 'string' ? body.error.message : ''
     if (status === 409) return { code: 'email_exists', message: apiMessage || 'La cuenta ya existe.' }
+    if (status === 423 || body?.error?.code === 'ACCOUNT_DELETION_IN_PROGRESS') {
+      return {
+        code: 'account_deletion_in_progress',
+        message: apiMessage || 'La eliminación de esta cuenta fue confirmada y está en proceso.',
+      }
+    }
     if (status === 422) return { code: 'invalid_registration', message: 'Revisa los datos de registro.' }
   }
 
@@ -84,6 +90,17 @@ function normalizeError(error: unknown): AuthServiceError {
   }
   return { code: 'auth_error', message: 'No fue posible completar la operación.' }
 }
+
+export type AccountDeletionAccessState =
+  | { blocked: false }
+  | {
+      blocked: true
+      requestId: string
+      requestNumber: string
+      status: 'pending_processing' | 'in_progress' | 'technical_error'
+      processingDueAt?: string | null
+      confirmedAt?: string | null
+    }
 
 function assertNoPrivilegedPayload(input: Record<string, unknown>) {
   for (const key of ['role', 'roles', 'is_admin', 'permissions', 'service_role']) {
@@ -130,10 +147,51 @@ export async function signIn(email: string, password: string, options: SignInOpt
       password,
     })
     if (error) throw error
+    if (data.session?.access_token) await assertAccountDeletionAccessAllowed(data.session.access_token)
     return data
   } catch (error) {
     throw normalizeError(error)
   }
+}
+
+export async function getAccountDeletionAccess(accessToken: string) {
+  const response = await apiFetch<{ ok: true; data: AccountDeletionAccessState }>('/api/auth/account-deletion-access', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  return response.data
+}
+
+export async function assertAccountDeletionAccessAllowed(accessToken: string) {
+  const state = await getAccountDeletionAccess(accessToken)
+  if (!state.blocked) return state
+  await supabase.auth.signOut().catch(() => undefined)
+  const error: ApiFetchError = new Error('La eliminación de esta cuenta fue confirmada y está en proceso.')
+  error.status = 423
+  error.body = {
+    error: {
+      code: 'ACCOUNT_DELETION_IN_PROGRESS',
+      message: 'La eliminación de esta cuenta fue confirmada y está en proceso. No es posible iniciar sesión mientras se completa.',
+    },
+  }
+  throw error
+}
+
+async function storeAppleAuthorizationForRevocation(accessToken: string, credential: {
+  identityToken: string
+  authorizationCode?: string
+}) {
+  if (!credential.authorizationCode) return
+  await apiFetch('/api/auth/apple-token', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      identityToken: credential.identityToken,
+      authorizationCode: credential.authorizationCode,
+    }),
+  }).catch(() => undefined)
 }
 
 export async function signInWithOAuth(provider: 'google' | 'apple') {
@@ -168,6 +226,9 @@ export async function signInWithAppleNative() {
     })
 
     if (error) throw error
+    if (!data.session?.access_token) throw new Error('Apple no devolvió una sesión válida.')
+    await assertAccountDeletionAccessAllowed(data.session.access_token)
+    await storeAppleAuthorizationForRevocation(data.session.access_token, credential)
 
     const userData: Record<string, string> = {}
     if (credential.givenName) {
@@ -188,7 +249,6 @@ export async function signInWithAppleNative() {
       const { error: updateError } = await supabase.auth.updateUser({ data: userData })
       if (updateError) throw updateError
 
-      if (!data.session?.access_token) throw new Error('Apple no devolvió una sesión válida.')
       await apiFetch('/api/customer/me', {
         method: 'PATCH',
         headers: {

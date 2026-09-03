@@ -2,9 +2,11 @@ import { CircleUserRound, GlassWater, House, ShoppingCart, Wine } from 'lucide-r
 import { NavLink } from 'react-router-dom'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
+import { useMobileGuestAccess } from './MobileGuestAccessContext'
 
 export function AppBottomNavigation({ cartCount = 0 }: { cartCount?: number }) {
   const { t, isEnglish } = useAppPreferences()
+  const { guardLink } = useMobileGuestAccess()
 
   const tabs = [
     { to: appPath('/home'), label: t('app.nav.home'), icon: House },
@@ -20,6 +22,7 @@ export function AppBottomNavigation({ cartCount = 0 }: { cartCount?: number }) {
         <NavLink
           key={to}
           to={to}
+          onClick={(event) => guardLink(event, to)}
           className={({ isActive }) => `app-bottom-nav__item ${isActive ? 'is-active' : ''}`}
         >
           <span className="app-bottom-nav__content">

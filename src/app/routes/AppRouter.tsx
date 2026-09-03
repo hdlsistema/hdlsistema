@@ -28,6 +28,7 @@ import { UserPermissionsPage } from '../pages/control/UserPermissionsPage'
 import { LandingPage } from '../pages/public/LandingPage'
 import { LegalPage } from '../pages/public/LegalPage'
 import { AccountDeletionPage } from '../pages/public/AccountDeletionPage'
+import { AccountDeletionConfirmationPage } from '../pages/public/AccountDeletionConfirmationPage'
 import { ContentPreviewPage } from '../pages/public/ContentPreviewPage'
 import { AccessPassPage } from '../pages/public/AccessPassPage'
 import {
@@ -56,6 +57,7 @@ import { PaymentStatusScreen } from '../pages/mobile/PaymentStatusScreen'
 import { WineDetailScreen } from '../pages/mobile/WineDetailScreen'
 import { EventDetailScreen } from '../pages/mobile/EventDetailScreen'
 import { EventVenuesScreen } from '../pages/mobile/EventVenuesScreen'
+import { PromotionsScreen } from '../pages/mobile/PromotionsScreen'
 import { QuoteRequestsPage } from '../pages/control/QuoteRequestsPage'
 import { AccountDeletionRequestsPage } from '../pages/control/AccountDeletionRequestsPage'
 import { PrivacyAccountScreen } from '../pages/mobile/PrivacyAccountScreen'
@@ -97,6 +99,7 @@ export function AppRouter() {
       <Route path="/terminos" element={<LegalPage type="terms" />} />
       <Route path="/terminos-y-condiciones" element={<LegalPage type="terms" />} />
       <Route path="/eliminar-cuenta" element={<AccountDeletionPage />} />
+      <Route path="/eliminar-cuenta/confirmar" element={<AccountDeletionConfirmationPage />} />
       <Route path="/vista-previa/:token" element={<ContentPreviewPage />} />
       <Route path="/acceso/:token" element={<AccessPassPage />} />
       <Route path="/acceso" element={<AccessPassPage />} />
@@ -114,6 +117,7 @@ export function AppRouter() {
         <Route path="reset-password" element={<ResetPasswordPage />} />
         <Route path="auth/callback" element={<AppAuthCallbackPage />} />
         <Route path="home" element={<HomeScreen />} />
+        <Route path="promociones" element={<PromotionsScreen />} />
         <Route path="tienda" element={<StoreScreen />} />
         <Route path="tienda/:wineId" element={<WineDetailScreen />} />
         <Route path="vinos" element={<StoreScreen />} />
@@ -161,7 +165,7 @@ export function AppRouter() {
             </ProtectedRoute>
           }
         />
-        <Route path="sommelier" element={<SommelierScreen />} />
+        <Route path="sommelier" element={<ProtectedRoute><SommelierScreen /></ProtectedRoute>} />
         <Route
           path="carrito"
           element={
@@ -211,9 +215,10 @@ export function AppRouter() {
           }
         />
         <Route path="privacidad-cuenta" element={<ProtectedRoute><PrivacyAccountScreen /></ProtectedRoute>} />
-        <Route path="politica-de-privacidad" element={<ProtectedRoute><MobileLegalScreen kind="privacy" /></ProtectedRoute>} />
-        <Route path="terminos-y-condiciones" element={<ProtectedRoute><MobileLegalScreen kind="terms" /></ProtectedRoute>} />
+        <Route path="politica-de-privacidad" element={<MobileLegalScreen kind="privacy" />} />
+        <Route path="terminos-y-condiciones" element={<MobileLegalScreen kind="terms" />} />
         <Route path="eliminar-cuenta" element={<ProtectedRoute><DeleteAccountScreen /></ProtectedRoute>} />
+        <Route path="eliminar-cuenta/confirmar" element={<AccountDeletionConfirmationPage />} />
       </Route>
 
       {/* Centro de Control administrativo */}
@@ -259,6 +264,7 @@ export function AppRouter() {
 
         {/* Redirecciones temporales: rutas antiguas /control/app/* → /app/* */}
         <Route path="app/home" element={<Navigate to="/app/home" replace />} />
+        <Route path="app/promociones" element={<Navigate to="/app/promociones" replace />} />
         <Route path="app/tienda" element={<Navigate to="/app/tienda" replace />} />
         <Route path="app/tienda/:wineId" element={<RedirectWineDetail />} />
         <Route path="app/experiencias" element={<Navigate to="/app/experiencias" replace />} />

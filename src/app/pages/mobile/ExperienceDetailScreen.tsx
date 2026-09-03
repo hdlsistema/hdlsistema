@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, Clock3, MapPin, Users } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
@@ -13,6 +13,7 @@ import {
   LoadingState,
   PrimaryButton,
 } from '../../components/mobile/PremiumMobileUi'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 import { formatCurrency, formatPublicDate, formatPublicTimeRange, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
@@ -31,6 +32,8 @@ export function ExperienceDetailScreen() {
   const { experienceId } = useParams()
   const { t, locale } = useAppPreferences()
   const { session } = useAuth()
+  const navigate = useNavigate()
+  const { requestAuth } = useMobileGuestAccess()
   const [experience, setExperience] = useState<ContentRecord | null>(null)
   const [slots, setSlots] = useState<ReturnType<typeof normalizeSlot>[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,6 +104,14 @@ export function ExperienceDetailScreen() {
   const price = numberField(experience, 'base_price')
   const location = textField(experience, 'location', 'Hacienda de Letras')
   const gallery = galleryImages(experience, 'experience_images', imageField(experience, ''))
+  const reservationPath = `${appPath('/reservacion')}?experience=${encodeURIComponent(String(experience.slug ?? experience.id))}`
+  const reserveExperience = () => {
+    if (!session?.access_token) {
+      requestAuth({ from: reservationPath })
+      return
+    }
+    navigate(reservationPath, { state: { experienceId: String(experience.slug ?? experience.id) } })
+  }
 
   return (
     <div className="ipad-experience-detail app-page space-y-6">
@@ -179,8 +190,7 @@ export function ExperienceDetailScreen() {
       </section>
 
       <PrimaryButton
-        to={`${appPath('/reservacion')}?experience=${encodeURIComponent(String(experience.slug ?? experience.id))}`}
-        state={{ experienceId: String(experience.slug ?? experience.id) }}
+        onClick={reserveExperience}
       >
         <CalendarDays size={16} />
         {t('app.reserveLive')}

@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock3, FileClock, Loader2, RefreshCw, Save, Search, ShieldAlert, Smartphone, UserCheck, Webhook } from 'lucide-react'
+import { CheckCircle2, Clock3, FileClock, Loader2, PlayCircle, RefreshCw, Save, Search, ShieldAlert, Smartphone, TriangleAlert, Webhook } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
@@ -9,13 +9,10 @@ import { dateTime } from './controlCopy'
 
 const statusOptions = [
   { value: '', label: 'Todos los estados' },
-  { value: 'requested', label: 'Solicitud recibida' },
-  { value: 'identity_verification', label: 'Validando identidad' },
-  { value: 'confirmed', label: 'Identidad confirmada' },
-  { value: 'in_progress', label: 'En proceso de eliminación' },
+  { value: 'pending_processing', label: 'Pendiente de procesar' },
+  { value: 'in_progress', label: 'En proceso' },
   { value: 'completed', label: 'Completada' },
-  { value: 'rejected', label: 'Rechazada' },
-  { value: 'cancelled', label: 'Cancelada' },
+  { value: 'technical_error', label: 'Error técnico' },
 ] as const
 
 const sourceOptions = [
@@ -26,13 +23,11 @@ const sourceOptions = [
 ]
 
 const transitions: Record<AccountDeletionStatus, AccountDeletionStatus[]> = {
-  requested: ['identity_verification', 'confirmed', 'rejected', 'cancelled'],
-  identity_verification: ['confirmed', 'rejected', 'cancelled'],
-  confirmed: ['in_progress', 'rejected', 'cancelled'],
-  in_progress: ['completed', 'rejected', 'cancelled'],
+  awaiting_email_confirmation: [],
+  pending_processing: ['in_progress', 'technical_error'],
+  in_progress: ['technical_error'],
   completed: [],
-  rejected: [],
-  cancelled: [],
+  technical_error: ['in_progress'],
 }
 
 function statusLabel(status: string) {
@@ -45,8 +40,8 @@ function sourceLabel(source: string) {
 
 function statusTone(status: AccountDeletionStatus) {
   if (status === 'completed') return 'border-[rgba(37,47,55,0.24)] bg-[rgba(37,47,55,0.08)] text-[#252F37]'
-  if (['rejected', 'cancelled'].includes(status)) return 'border-[#e1bcb4] bg-[#fff0ed] text-[#994638]'
-  if (['confirmed', 'in_progress'].includes(status)) return 'border-[#d7c29b] bg-[#fff7e8] text-[#896126]'
+  if (status === 'technical_error') return 'border-[#e1bcb4] bg-[#fff0ed] text-[#994638]'
+  if (status === 'in_progress') return 'border-[#d7c29b] bg-[#fff7e8] text-[#896126]'
   return 'border-[#d8c6b2] bg-[#f8f0e7] text-[#705746]'
 }
 
@@ -70,6 +65,7 @@ export function AccountDeletionRequestsPage() {
   const [retentionNotes, setRetentionNotes] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
 
@@ -106,7 +102,7 @@ export function AccountDeletionRequestsPage() {
     } catch {
       setItems([])
       syncSelected(null)
-      setError('No fue posible cargar las solicitudes de eliminación de cuenta.')
+      setError('No fue posible cargar las órdenes de eliminación de cuenta.')
     } finally {
       setLoading(false)
     }
@@ -115,9 +111,9 @@ export function AccountDeletionRequestsPage() {
   useEffect(() => { void load() }, [load])
 
   const metrics = useMemo(() => ({
-    open: items.filter((item) => !['completed', 'rejected', 'cancelled'].includes(item.status)).length,
-    verifying: items.filter((item) => item.status === 'identity_verification').length,
+    pending: items.filter((item) => item.status === 'pending_processing').length,
     processing: items.filter((item) => item.status === 'in_progress').length,
+    error: items.filter((item) => item.status === 'technical_error').length,
     completed: items.filter((item) => item.status === 'completed').length,
   }), [items])
 
@@ -131,8 +127,8 @@ export function AccountDeletionRequestsPage() {
 
   async function save() {
     if (!selected || !writable || saving) return
-    if (nextStatus && ['completed', 'rejected', 'cancelled'].includes(nextStatus) && !adminNotes.trim()) {
-      setError('Agrega una nota operativa antes de cerrar la solicitud.')
+    if (nextStatus === 'technical_error' && !adminNotes.trim()) {
+      setError('Agrega una nota operativa antes de marcar Error técnico.')
       return
     }
     setSaving(true)
@@ -144,26 +140,43 @@ export function AccountDeletionRequestsPage() {
         adminNotes: adminNotes.trim() || null,
         retentionNotes: retentionNotes.trim() || null,
       })
-      setNotice('Expediente actualizado y cambio registrado en el historial.')
+      setNotice('Orden actualizada y cambio registrado en el historial.')
       await load(selected.id)
     } catch {
-      setError('No fue posible guardar el expediente. Revisa la transición y las notas requeridas.')
+      setError('No fue posible guardar la orden. Revisa la transición y las notas requeridas.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function processOrder() {
+    if (!selected || !writable || processing) return
+    setProcessing(true)
+    setError('')
+    setNotice('')
+    try {
+      await adminPrivacyClient.process(token, selected.id)
+      setNotice('Orden procesada. La cuenta fue eliminada o anonimizada y se envió el correo final.')
+      await load(selected.id)
+    } catch {
+      setError('No fue posible procesar la eliminación. La orden queda disponible para consultar el error técnico y reintentar.')
+      await load(selected.id)
+    } finally {
+      setProcessing(false)
     }
   }
 
   return (
     <div className="control-page control-page--account-deletion min-w-0 space-y-6 pb-8">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <SectionTitle eyebrow="Privacidad operativa" title="Eliminación de cuentas" subtitle="Cola real de solicitudes recibidas desde la web pública y la app. Validación, seguimiento, conservación limitada y cierre con trazabilidad." />
+        <SectionTitle eyebrow="Privacidad operativa" title="Eliminación de cuentas" subtitle="Órdenes confirmadas por correo para ejecutar eliminación, anonimización, conservación limitada y cierre con trazabilidad." />
         <button type="button" onClick={() => void load()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-4 text-xs font-semibold text-[var(--color-burgundy)]"><RefreshCw size={15} />Actualizar</button>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={FileClock} label="Casos abiertos" value={metrics.open} />
-        <Metric icon={UserCheck} label="Validando identidad" value={metrics.verifying} />
+        <Metric icon={FileClock} label="Pendientes" value={metrics.pending} />
         <Metric icon={Clock3} label="En proceso" value={metrics.processing} />
+        <Metric icon={TriangleAlert} label="Error técnico" value={metrics.error} />
         <Metric icon={CheckCircle2} label="Completadas" value={metrics.completed} />
       </section>
 
@@ -178,18 +191,18 @@ export function AccountDeletionRequestsPage() {
 
       <section className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(460px,0.92fr)_minmax(520px,1.08fr)]">
         <div className="min-w-0 overflow-hidden rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] shadow-[var(--shadow-card)]">
-          <div className="border-b border-[var(--color-line)] px-5 py-4"><h2 className="text-base font-semibold">Solicitudes</h2><p className="mt-1 text-xs text-[var(--color-muted)]">{items.length} registro(s) en la vista actual</p></div>
-          {loading ? <div className="p-14"><Loader2 className="mx-auto animate-spin text-[var(--color-burgundy)]" /></div> : items.length === 0 ? <p className="p-12 text-center text-sm text-[var(--color-muted)]">No hay solicitudes con estos filtros.</p> : <div className="max-h-[760px] overflow-y-auto">{items.map((item) => <button key={item.id} type="button" onClick={() => void loadDetail(item.id)} className={`w-full border-b border-[var(--color-line)] px-5 py-4 text-left transition last:border-b-0 ${selected?.id === item.id ? 'bg-[var(--color-soft)]' : 'hover:bg-white/70'}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-[var(--color-ink)]">{item.requestNumber}</p><p className="mt-1 truncate text-xs text-[var(--color-muted)]">{item.requestedName || 'Nombre no proporcionado'} · {item.email}</p></div><span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusTone(item.status)}`}>{statusLabel(item.status)}</span></div><div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-muted)]"><span className="inline-flex items-center gap-1">{item.source === 'mobile_app' ? <Smartphone size={12} /> : <Webhook size={12} />}{sourceLabel(item.source)}</span><span>{dateTime(item.createdAt)}</span><span>{item.userId ? 'Usuario identificado' : 'Sin sesión'}</span></div></button>)}</div>}
+          <div className="border-b border-[var(--color-line)] px-5 py-4"><h2 className="text-base font-semibold">Órdenes</h2><p className="mt-1 text-xs text-[var(--color-muted)]">{items.length} registro(s) en la vista actual</p></div>
+          {loading ? <div className="p-14"><Loader2 className="mx-auto animate-spin text-[var(--color-burgundy)]" /></div> : items.length === 0 ? <p className="p-12 text-center text-sm text-[var(--color-muted)]">No hay órdenes con estos filtros.</p> : <div className="max-h-[760px] overflow-y-auto">{items.map((item) => <button key={item.id} type="button" onClick={() => void loadDetail(item.id)} className={`w-full border-b border-[var(--color-line)] px-5 py-4 text-left transition last:border-b-0 ${selected?.id === item.id ? 'bg-[var(--color-soft)]' : 'hover:bg-white/70'}`}><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-semibold text-[var(--color-ink)]">{item.requestNumber}</p><p className="mt-1 truncate text-xs text-[var(--color-muted)]">{item.requestedName || 'Nombre no proporcionado'} · {item.email}</p></div><span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold ${statusTone(item.status)}`}>{statusLabel(item.status)}</span></div><div className="mt-3 flex flex-wrap items-center gap-3 text-[10px] text-[var(--color-muted)]"><span className="inline-flex items-center gap-1">{item.source === 'mobile_app' ? <Smartphone size={12} /> : <Webhook size={12} />}{sourceLabel(item.source)}</span><span>{dateTime(item.createdAt)}</span><span>{item.userId ? 'Usuario identificado' : 'Sin sesión'}</span></div></button>)}</div>}
         </div>
 
         <div className="min-w-0 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)] p-5 shadow-[var(--shadow-card)]">
-          {!selected ? <div className="flex min-h-[440px] items-center justify-center text-center"><div><ShieldAlert className="mx-auto text-[var(--color-muted)]" /><p className="mt-3 text-sm text-[var(--color-muted)]">Selecciona una solicitud para operar el expediente.</p></div></div> : <div className="space-y-5">
+          {!selected ? <div className="flex min-h-[440px] items-center justify-center text-center"><div><ShieldAlert className="mx-auto text-[var(--color-muted)]" /><p className="mt-3 text-sm text-[var(--color-muted)]">Selecciona una orden para operar el expediente.</p></div></div> : <div className="space-y-5">
             <div className="flex flex-col gap-3 border-b border-[var(--color-line)] pb-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-gold)]">Expediente de privacidad</p><h2 className="mt-2 break-all text-xl text-[var(--color-burgundy)]" style={{ fontFamily: 'var(--font-display)' }}>{selected.requestNumber}</h2></div><span className={`w-fit rounded-full border px-3 py-1.5 text-xs font-semibold ${statusTone(selected.status)}`}>{statusLabel(selected.status)}</span></div>
-            <div className="grid gap-3 sm:grid-cols-2"><Detail label="Solicitante" value={selected.requestedName || 'No proporcionado'} /><Detail label="Correo asociado" value={selected.email} /><Detail label="Canal" value={sourceLabel(selected.source)} /><Detail label="Identidad de sesión" value={selected.userId ? 'Vinculada a usuario autenticado' : 'Pendiente de validación'} /><Detail label="Confirmación explícita" value={dateTime(selected.explicitConfirmationAt)} /><Detail label="Aviso de conservación" value={dateTime(selected.legalRetentionAcknowledgedAt)} /></div>
+            <div className="grid gap-3 sm:grid-cols-2"><Detail label="Solicitante" value={selected.requestedName || 'No proporcionado'} /><Detail label="Correo asociado" value={selected.email} /><Detail label="Canal" value={sourceLabel(selected.source)} /><Detail label="Identidad de sesión" value={selected.userId ? 'Vinculada a usuario autenticado' : 'Sin usuario autenticado'} /><Detail label="Confirmación por correo" value={dateTime(selected.confirmedAt)} /><Detail label="Plazo máximo" value={dateTime(selected.processingDueAt)} /></div>
 
-            <div className="rounded-xl border border-[#dfccb3] bg-[#fff9f1] p-4"><p className="text-xs font-semibold text-[var(--color-burgundy)]">Alcance solicitado</p><p className="mt-2 text-xs leading-6 text-[var(--color-muted)]">Cuenta, perfil, preferencias, direcciones guardadas, registros de dispositivos y actividad no requerida. La información obligatoria se conserva solo por el plazo legal, fiscal, de seguridad o prevención de fraude aplicable.</p></div>
+            <div className="rounded-xl border border-[#dfccb3] bg-[#fff9f1] p-4"><p className="text-xs font-semibold text-[var(--color-burgundy)]">Alcance de ejecución</p><p className="mt-2 text-xs leading-6 text-[var(--color-muted)]">Centro de Control procesa la orden confirmada: elimina cuenta de acceso, datos personales no requeridos y anonimiza información transaccional cuando corresponda. La información obligatoria se conserva solo por el plazo legal, fiscal, de seguridad o prevención de fraude aplicable.</p></div>
 
-            {writable ? <div className="space-y-4 rounded-xl border border-[var(--color-line)] bg-white/70 p-4"><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Siguiente estado</p><CrystalSelect value={nextStatus} onChange={setNextStatus} options={transitionOptions} disabled={transitionOptions.length <= 1} ariaLabel="Siguiente estado" /></div><label className="block"><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Notas operativas</span><textarea value={adminNotes} onChange={(event) => setAdminNotes(event.target.value)} maxLength={5000} className="mt-2 min-h-[110px] w-full rounded-xl border border-[var(--color-line)] bg-white p-3 text-sm outline-none" placeholder="Validación de identidad, contacto, acciones realizadas y motivo de cierre…" /></label><label className="block"><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Información que debe conservarse</span><textarea value={retentionNotes} onChange={(event) => setRetentionNotes(event.target.value)} maxLength={5000} className="mt-2 min-h-[92px] w-full rounded-xl border border-[var(--color-line)] bg-white p-3 text-sm outline-none" placeholder="Indica obligación y plazo aplicable, o registra que no existe conservación adicional…" /></label><button type="button" onClick={() => void save()} disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-xs font-semibold text-white disabled:opacity-60"><Save size={15} />{saving ? 'Guardando…' : 'Guardar expediente'}</button></div> : <p className="rounded-xl bg-[var(--color-soft)] p-4 text-xs text-[var(--color-muted)]">Tu rol permite consultar, pero no modificar solicitudes de privacidad.</p>}
+            {writable ? <div className="space-y-4 rounded-xl border border-[var(--color-line)] bg-white/70 p-4"><button type="button" onClick={() => void processOrder()} disabled={processing || selected.status === 'completed'} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--color-burgundy)] px-5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"><PlayCircle size={15} />{processing ? 'Procesando…' : selected.status === 'completed' ? 'Orden completada' : 'Procesar eliminación'}</button><div><p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Estado operativo</p><CrystalSelect value={nextStatus} onChange={setNextStatus} options={transitionOptions} disabled={transitionOptions.length <= 1} ariaLabel="Estado operativo" /></div><label className="block"><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Notas operativas</span><textarea value={adminNotes} onChange={(event) => setAdminNotes(event.target.value)} maxLength={5000} className="mt-2 min-h-[110px] w-full rounded-xl border border-[var(--color-line)] bg-white p-3 text-sm outline-none" placeholder="Acciones realizadas, obligación de conservación, error técnico o seguimiento operativo…" /></label><label className="block"><span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-muted)]">Información que debe conservarse</span><textarea value={retentionNotes} onChange={(event) => setRetentionNotes(event.target.value)} maxLength={5000} className="mt-2 min-h-[92px] w-full rounded-xl border border-[var(--color-line)] bg-white p-3 text-sm outline-none" placeholder="Indica obligación y plazo aplicable, o registra que no existe conservación adicional…" /></label><button type="button" onClick={() => void save()} disabled={saving} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] bg-white px-5 text-xs font-semibold text-[var(--color-burgundy)] disabled:opacity-60"><Save size={15} />{saving ? 'Guardando…' : 'Guardar notas/estado'}</button></div> : <p className="rounded-xl bg-[var(--color-soft)] p-4 text-xs text-[var(--color-muted)]">Tu rol permite consultar, pero no modificar órdenes de privacidad.</p>}
 
             <div><h3 className="text-sm font-semibold">Historial de estado</h3><div className="mt-3 space-y-2">{selected.history?.map((event) => <div key={event.id} className="flex gap-3 rounded-lg bg-[var(--color-soft)] p-3"><span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-[var(--color-burgundy)]" /><div className="min-w-0"><p className="text-xs font-semibold">{event.fromStatus ? `${statusLabel(event.fromStatus)} → ` : ''}{statusLabel(event.toStatus)}</p><p className="mt-1 text-[10px] text-[var(--color-muted)]">{dateTime(event.createdAt)}</p></div></div>)}{!selected.history?.length ? <p className="text-xs text-[var(--color-muted)]">Historial pendiente de carga.</p> : null}</div></div>
           </div>}

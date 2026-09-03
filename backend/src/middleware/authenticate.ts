@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import type { User } from '@supabase/supabase-js'
 import { supabaseUserClient } from '../config/supabase'
+import { assertAccountDeletionAccessAllowed } from '../modules/privacy/accountDeletionAccess.service'
 
 declare global {
   namespace Express {
@@ -12,10 +13,11 @@ declare global {
   }
 }
 
-export async function authenticate(
+async function authenticateRequest(
   req: Request,
   res: Response,
   next: NextFunction,
+  options: { enforceAccountDeletionBlock: boolean },
 ): Promise<void> {
   const header = req.header('Authorization') ?? ''
   const [scheme, token] = header.split(' ')
@@ -38,9 +40,49 @@ export async function authenticate(
     return
   }
 
+  if (options.enforceAccountDeletionBlock) {
+    try {
+      await assertAccountDeletionAccessAllowed({
+        userId: data.user.id,
+        email: data.user.email,
+      })
+    } catch (error) {
+      const statusCode =
+        error && typeof error === 'object' && 'statusCode' in error
+          ? Number((error as { statusCode?: unknown }).statusCode)
+          : 423
+      res.status(statusCode).json({
+        ok: false,
+        error: {
+          code: 'ACCOUNT_DELETION_IN_PROGRESS',
+          message: error instanceof Error
+            ? error.message
+            : 'La eliminación de esta cuenta está en proceso.',
+        },
+      })
+      return
+    }
+  }
+
   req.authUser = data.user
   req.authToken = token
   next()
+}
+
+export async function authenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  return authenticateRequest(req, res, next, { enforceAccountDeletionBlock: true })
+}
+
+export async function authenticateSessionOnly(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  return authenticateRequest(req, res, next, { enforceAccountDeletionBlock: false })
 }
 
 /**

@@ -77,6 +77,34 @@ const emptyPassForm: PassForm = {
 }
 
 const MEXICO_TIME_ZONE = 'America/Mexico_City'
+const cameraUnavailableMessage = 'No fue posible usar la cámara en este dispositivo. Captura el código manualmente.'
+const cameraNotSupportedMessage = 'Este dispositivo o WebView no permite usar la cámara desde esta pantalla. Captura el código manualmente.'
+
+export function cameraErrorMessage(error: unknown) {
+  const errorName = error && typeof error === 'object' && 'name' in error
+    ? String((error as { name?: unknown }).name)
+    : ''
+  if (errorName === 'NotAllowedError' || errorName === 'SecurityError') {
+    return 'El permiso de cámara fue denegado o está bloqueado. Captura el código manualmente.'
+  }
+  if (errorName === 'NotFoundError' || errorName === 'OverconstrainedError') {
+    return 'No se encontró una cámara disponible. Captura el código manualmente.'
+  }
+  if (errorName === 'NotReadableError' || errorName === 'AbortError') {
+    return 'El WebView no pudo activar la cámara. Cierra otras apps que puedan usarla o captura el código manualmente.'
+  }
+  return cameraUnavailableMessage
+}
+
+async function getCameraPermissionState() {
+  if (!navigator.permissions?.query) return null
+  try {
+    const status = await navigator.permissions.query({ name: 'camera' as PermissionName })
+    return status.state
+  } catch {
+    return null
+  }
+}
 
 function dateLabel(value?: string | null) {
   if (!value) return 'Sin fecha'
@@ -284,6 +312,7 @@ export function CheckInPage() {
   const scannerCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const scannerStreamRef = useRef<MediaStream | null>(null)
   const scannerFrameRef = useRef<number | null>(null)
+  const codeInputRef = useRef<HTMLInputElement | null>(null)
 
   const eventGroups = useMemo(() => buildCheckinEventGroups(passes, checkins), [checkins, passes])
 
@@ -362,7 +391,7 @@ export function CheckInPage() {
     }
   }
 
-  const validateCode = async (candidate = code) => {
+  const validateCode = useCallback(async (candidate = code) => {
     const normalizedCode = normalizeAccessQrCode(candidate)
     if (!normalizedCode) {
       setValidation(null)
@@ -383,7 +412,7 @@ export function CheckInPage() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [code, saving, token])
 
   const stopScannerMedia = useCallback(() => {
     if (scannerFrameRef.current !== null) {
@@ -395,69 +424,112 @@ export function CheckInPage() {
     if (scannerVideoRef.current) scannerVideoRef.current.srcObject = null
   }, [])
 
+  const focusManualCapture = useCallback(() => {
+    stopScannerMedia()
+    setScannerOpen(false)
+    setScannerError('')
+    window.requestAnimationFrame(() => codeInputRef.current?.focus())
+  }, [stopScannerMedia])
+
   useEffect(() => {
     if (!scannerOpen) return
     let cancelled = false
 
     const scanFrame = () => {
       if (cancelled) return
-      const video = scannerVideoRef.current
-      const canvas = scannerCanvasRef.current
-      if (video && canvas && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-        const width = Math.min(video.videoWidth, 960)
-        const height = Math.round((video.videoHeight / video.videoWidth) * width)
-        canvas.width = width
-        canvas.height = height
-        const context = canvas.getContext('2d', { willReadFrequently: true })
-        if (context) {
-          context.drawImage(video, 0, 0, width, height)
-          const image = context.getImageData(0, 0, width, height)
-          const result = jsQR(image.data, width, height, { inversionAttempts: 'attemptBoth' })
-          if (result?.data) {
-            const normalizedCode = normalizeAccessQrCode(result.data)
-            if (normalizedCode) {
-              stopScannerMedia()
-              setScannerOpen(false)
-              setToast('Código QR capturado. Validando pase...')
-              void validateCode(normalizedCode)
-              return
+      try {
+        const video = scannerVideoRef.current
+        const canvas = scannerCanvasRef.current
+        if (video && canvas && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0) {
+          const width = Math.min(video.videoWidth, 960)
+          const height = Math.round((video.videoHeight / video.videoWidth) * width)
+          canvas.width = width
+          canvas.height = height
+          const context = canvas.getContext('2d', { willReadFrequently: true })
+          if (context) {
+            context.drawImage(video, 0, 0, width, height)
+            const image = context.getImageData(0, 0, width, height)
+            const result = jsQR(image.data, width, height, { inversionAttempts: 'attemptBoth' })
+            if (result?.data) {
+              const normalizedCode = normalizeAccessQrCode(result.data)
+              if (normalizedCode) {
+                stopScannerMedia()
+                setScannerOpen(false)
+                setToast('Código QR capturado. Validando pase...')
+                void validateCode(normalizedCode)
+                return
+              }
             }
           }
         }
-      }
-      scannerFrameRef.current = window.requestAnimationFrame(scanFrame)
-    }
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setScannerError('Este navegador no permite usar la cámara. Captura el código manualmente.')
-      return () => {
-        cancelled = true
+      } catch {
+        if (!cancelled) setScannerError('El escáner no pudo leer la imagen de la cámara. Captura el código manualmente.')
         stopScannerMedia()
-      }
-    }
-
-    navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: { ideal: 'environment' } },
-    }).then(async (stream) => {
-      if (cancelled) {
-        stream.getTracks().forEach((track) => track.stop())
         return
       }
-      scannerStreamRef.current = stream
-      if (!scannerVideoRef.current) return
-      scannerVideoRef.current.srcObject = stream
-      await scannerVideoRef.current.play()
       scannerFrameRef.current = window.requestAnimationFrame(scanFrame)
-    }).catch(() => {
-      if (!cancelled) setScannerError('No fue posible abrir la cámara. Revisa el permiso del navegador o captura el código manualmente.')
-    })
+    }
+
+    async function startScanner() {
+      try {
+        setScannerError('')
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setScannerError(cameraNotSupportedMessage)
+          return
+        }
+
+        const permissionState = await getCameraPermissionState()
+        if (cancelled) return
+        if (permissionState === 'denied') {
+          setScannerError('El permiso de cámara está bloqueado para esta app. Captura el código manualmente.')
+          return
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        })
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop())
+          return
+        }
+        if (!stream.getVideoTracks().some((track) => track.readyState === 'live')) {
+          stream.getTracks().forEach((track) => track.stop())
+          setScannerError(cameraUnavailableMessage)
+          return
+        }
+
+        const video = scannerVideoRef.current
+        if (!video) {
+          stream.getTracks().forEach((track) => track.stop())
+          setScannerError(cameraUnavailableMessage)
+          return
+        }
+
+        scannerStreamRef.current = stream
+        video.muted = true
+        video.playsInline = true
+        video.srcObject = stream
+        await video.play()
+        if (cancelled) return
+        scannerFrameRef.current = window.requestAnimationFrame(scanFrame)
+      } catch (error) {
+        stopScannerMedia()
+        if (!cancelled) setScannerError(cameraErrorMessage(error))
+      }
+    }
+
+    void startScanner()
 
     return () => {
       cancelled = true
       stopScannerMedia()
     }
-  }, [scannerOpen, stopScannerMedia])
+  }, [scannerOpen, stopScannerMedia, validateCode])
 
   const closeScanner = () => {
     stopScannerMedia()
@@ -573,7 +645,7 @@ export function CheckInPage() {
         <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
           <label className="flex min-h-11 items-center gap-3 rounded-xl border border-[var(--color-line)] bg-[var(--color-panel-strong)] px-4">
             <QrCode size={16} className="text-[var(--color-muted)]" />
-            <input value={code} onChange={(event) => setCode(event.target.value)} placeholder="Captura manual de código QR" className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
+            <input ref={codeInputRef} value={code} onChange={(event) => setCode(event.target.value)} placeholder="Captura manual de código QR" className="min-w-0 flex-1 bg-transparent text-sm text-[var(--color-ink)] outline-none" />
           </label>
           <button type="button" onClick={() => { setScannerError(''); setScannerOpen(true) }} disabled={!writable || saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><Camera size={16} />Escanear QR</button>
           <button type="button" onClick={() => void validateCode()} disabled={!writable || !code.trim() || saving} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--color-line)] px-5 text-sm font-semibold text-[var(--color-burgundy)] disabled:opacity-50"><KeyRound size={16} />Validar</button>
@@ -724,7 +796,14 @@ export function CheckInPage() {
                 <div className="pointer-events-none absolute inset-[12%] rounded-2xl border-2 border-white/90 shadow-[0_0_0_999px_rgba(20,5,10,0.28)]" />
               </div>
               <canvas ref={scannerCanvasRef} className="hidden" aria-hidden="true" />
-              {scannerError ? <p className="mt-4 rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-3 text-sm text-[#8a4b16]">{scannerError}</p> : <p className="mt-4 text-center text-sm text-[var(--color-muted)]">Coloca el código completo dentro del recuadro. La validación inicia automáticamente.</p>}
+              {scannerError ? (
+                <div className="mt-4 space-y-3 rounded-xl border border-[#ead8c5] bg-[#fff7ed] p-3">
+                  <p className="text-sm text-[#8a4b16]">{scannerError}</p>
+                  <button type="button" onClick={focusManualCapture} className="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-[var(--color-burgundy)] px-4 text-xs font-semibold text-white">
+                    Usar captura manual
+                  </button>
+                </div>
+              ) : <p className="mt-4 text-center text-sm text-[var(--color-muted)]">Coloca el código completo dentro del recuadro. La validación inicia automáticamente.</p>}
             </div>
           </section>
         </div>

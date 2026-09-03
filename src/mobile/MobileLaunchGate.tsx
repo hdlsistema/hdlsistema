@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { MOBILE_ONBOARDING_REPLAY_EVENT } from './mobileOnboardingReplay'
 
 const MINIMUM_SPLASH_MS = 1650
 const ONBOARDING_KEY = 'hdl-mobile-onboarding-v3'
@@ -41,6 +42,15 @@ function completeOnboarding() {
   }
 }
 
+function resetOnboarding() {
+  try {
+    window.localStorage.removeItem(ONBOARDING_KEY)
+    window.localStorage.removeItem(IOS_ONBOARDING_KEY)
+  } catch {
+    // The app can replay onboarding even when local storage is not writable.
+  }
+}
+
 export function MobileLaunchGate({ children }: { children: ReactNode }) {
   const { isLoading } = useAuth()
   const [minimumElapsed, setMinimumElapsed] = useState(false)
@@ -52,6 +62,16 @@ export function MobileLaunchGate({ children }: { children: ReactNode }) {
       setShowOnboarding(!onboardingComplete())
     }, MINIMUM_SPLASH_MS)
     return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    const replayOnboarding = () => {
+      resetOnboarding()
+      setMinimumElapsed(true)
+      setShowOnboarding(true)
+    }
+    window.addEventListener(MOBILE_ONBOARDING_REPLAY_EVENT, replayOnboarding)
+    return () => window.removeEventListener(MOBILE_ONBOARDING_REPLAY_EVENT, replayOnboarding)
   }, [])
 
   if (isLoading || !minimumElapsed) return <MobileBrandSplash />

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { Check, SlidersHorizontal } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
@@ -13,6 +12,7 @@ import {
   Skeleton,
   WineCard,
 } from '../../components/mobile/PremiumMobileUi'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
@@ -42,7 +42,7 @@ const WINE_FILTER_TERMS: Record<number, string[]> = {
 export function StoreScreen() {
   const { t, isEnglish, locale } = useAppPreferences()
   const { session } = useAuth()
-  const navigate = useNavigate()
+  const { requestAuth } = useMobileGuestAccess()
   const { records: wines, loading, error, retry } = usePublicContent('wines')
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState(0)
@@ -127,7 +127,7 @@ export function StoreScreen() {
 
   const addWineToCart = async (wineId: string) => {
     if (!session?.access_token) {
-      navigate(appPath('/login'))
+      requestAuth({ from: appPath('/vinos') })
       return
     }
     if (addingId) return

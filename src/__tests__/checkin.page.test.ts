@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   buildCheckinEventGroups,
+  cameraErrorMessage,
   occupancyPercent,
   sourceLabel,
   type CheckinEventGroup,
@@ -104,5 +105,15 @@ describe('CheckInPage event dashboard', () => {
     expect(checkinStyles).toContain('#E8D8C8')
     expect(`${source}\n${checkinStyles}`).not.toContain('linear-gradient')
     expect(`${source}\n${checkinStyles}`.toLowerCase()).not.toContain('green')
+  })
+
+  it('devuelve mensajes seguros para errores de camara en Check-in', () => {
+    expect(cameraErrorMessage({ name: 'NotAllowedError' })).toContain('permiso de cámara')
+    expect(cameraErrorMessage({ name: 'SecurityError' })).toContain('denegado')
+    expect(cameraErrorMessage({ name: 'NotFoundError' })).toContain('No se encontró una cámara')
+    expect(cameraErrorMessage({ name: 'OverconstrainedError' })).toContain('No se encontró una cámara')
+    expect(cameraErrorMessage({ name: 'NotReadableError' })).toContain('WebView')
+    expect(cameraErrorMessage({ name: 'AbortError' })).toContain('WebView')
+    expect(cameraErrorMessage(new Error('boom'))).toContain('Captura el código manualmente')
   })
 })

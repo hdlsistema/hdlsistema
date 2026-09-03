@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { MessageCircleMore, Send, Wine } from 'lucide-react'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
 import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, WineCard } from '../../components/mobile/PremiumMobileUi'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
@@ -61,7 +62,7 @@ function renderSommelierMarkdown(content: string): ReactNode {
 export function SommelierScreen() {
   const { t, locale } = useAppPreferences()
   const { session } = useAuth()
-  const navigate = useNavigate()
+  const { requestAuth } = useMobileGuestAccess()
   const { records: wines, loading, error, retry } = usePublicContent('wines')
   const [sessionId, setSessionId] = useState<string | undefined>()
   const [prompt, setPrompt] = useState('')
@@ -73,7 +74,7 @@ export function SommelierScreen() {
     const value = prompt.trim()
     if (!value || sending) return
     if (!session?.access_token) {
-      navigate(appPath('/login'))
+      requestAuth({ from: appPath('/sommelier') })
       return
     }
     const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: value }

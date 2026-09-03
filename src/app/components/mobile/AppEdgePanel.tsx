@@ -23,11 +23,12 @@ import {
   Wine,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState, type ComponentType, type PointerEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ComponentType, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useAppPreferences, type AppLanguage } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
+import { useMobileGuestAccess } from './MobileGuestAccessContext'
 
 type NavItem = {
   to: string
@@ -41,6 +42,7 @@ const isNativeMobileBuild = import.meta.env.VITE_HDL_APP_TARGET === 'mobile'
 export function AppEdgePanel() {
   const { t, language, setLanguage } = useAppPreferences()
   const { isAuthenticated, profile, user, roles, signOut } = useAuth()
+  const { guardLink } = useMobileGuestAccess()
   const location = useLocation()
   const handleRef = useRef<HTMLButtonElement | null>(null)
   const panelRef = useRef<HTMLElement | null>(null)
@@ -106,6 +108,11 @@ export function AppEdgePanel() {
   }
 
   const panelWidth = () => panelRef.current?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.88, 356)
+
+  const navigateFromPanel = (event: MouseEvent<HTMLElement>, to: string) => {
+    guardLink(event, to)
+    closePanel(false)
+  }
 
   const onPointerDown = (event: PointerEvent<HTMLElement>) => {
     const initialOffset = open ? 0 : panelWidth()
@@ -223,7 +230,7 @@ export function AppEdgePanel() {
                     key={`${section.label}-${item.to}-${item.label}`}
                     item={item}
                     active={location.pathname === item.to || location.pathname.startsWith(`${item.to}/`)}
-                    onNavigate={() => closePanel(false)}
+                    onNavigate={navigateFromPanel}
                   />
                 ))}
               </EdgeSection>
@@ -232,7 +239,7 @@ export function AppEdgePanel() {
 
           <div className="mt-6 border-t border-[#E8DDCE] pt-4">
             <EdgeLanguageSwitcher language={language} setLanguage={setLanguage} />
-            <Link to={appPath('/perfil')} onClick={() => closePanel(false)} className="mt-3 flex min-h-11 items-center gap-3 px-1 text-[13px] text-[#252F37]">
+            <Link to={appPath('/perfil')} onClick={(event) => navigateFromPanel(event, appPath('/perfil'))} className="mt-3 flex min-h-11 items-center gap-3 px-1 text-[13px] text-[#252F37]">
               <HelpCircle size={18} strokeWidth={1.5} className="text-[#675f59]" />
               {isEnglish ? 'Help / contact' : 'Ayuda / contacto'}
             </Link>
@@ -258,10 +265,10 @@ function EdgeSection({ label, children }: { label: string; children: ReactNode }
   )
 }
 
-function EdgeNavItem({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate: () => void }) {
+function EdgeNavItem({ item, active, onNavigate }: { item: NavItem; active: boolean; onNavigate: (event: MouseEvent<HTMLElement>, to: string) => void }) {
   const Icon = item.icon
   return (
-    <Link to={item.to} onClick={onNavigate} className={`flex min-h-[46px] items-center gap-3 rounded-[14px] px-2.5 text-[13px] transition ${active ? 'border border-[rgba(180,138,85,0.36)] bg-[rgba(247,242,234,0.72)] text-[var(--color-burgundy)] shadow-[0_9px_24px_rgba(37,47,55,.08)]' : 'text-[var(--color-ink)]'}`}>
+    <Link to={item.to} onClick={(event) => onNavigate(event, item.to)} className={`flex min-h-[46px] items-center gap-3 rounded-[14px] px-2.5 text-[13px] transition ${active ? 'border border-[rgba(180,138,85,0.36)] bg-[rgba(247,242,234,0.72)] text-[var(--color-burgundy)] shadow-[0_9px_24px_rgba(37,47,55,.08)]' : 'text-[var(--color-ink)]'}`}>
       <span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${active ? 'border-[#d8b986] bg-[#6a102a] text-white' : 'border-white/80 bg-white/55 text-[#80644d]'}`}><Icon size={16} strokeWidth={1.45} /></span>
       <span className="min-w-0 flex-1 truncate">{item.label}</span>
       <ChevronRight size={15} strokeWidth={1.45} className="text-[#B48A55]" />

@@ -12,6 +12,7 @@ import {
   PrimaryButton,
   QuantitySelector,
 } from '../../components/mobile/PremiumMobileUi'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
 import { formatCurrency, galleryImages, imageField, numberField, textField } from '../../utils/publicContent'
@@ -21,6 +22,7 @@ export function WineDetailScreen() {
   const { t, locale, isEnglish } = useAppPreferences()
   const { session } = useAuth()
   const navigate = useNavigate()
+  const { requestAuth } = useMobileGuestAccess()
   const [wine, setWine] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -75,7 +77,7 @@ export function WineDetailScreen() {
 
   const addToCart = async () => {
     if (!session?.access_token) {
-      navigate(appPath('/login'))
+      requestAuth({ from: appPath(`/vinos/${wineId ?? ''}`) })
       return
     }
     if (adding || soldOut) return

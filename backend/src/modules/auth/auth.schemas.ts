@@ -18,3 +18,8 @@ export const customerRegistrationSchema = z.object({
   phone: z.string().trim().max(30).optional(),
   preferredLanguage: z.enum(['es', 'en']).default('es'),
 }).strict()
+
+export const appleSignInTokenSchema = z.object({
+  identityToken: z.string().trim().min(20).max(12000).optional(),
+  authorizationCode: z.string().trim().min(8).max(4096),
+}).strict()

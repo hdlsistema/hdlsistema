@@ -3,6 +3,7 @@ import { Check, Clock3, Coffee, Grape, Loader2, MapPin, Moon, Navigation, Users,
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerCommercialClient } from '../../../services/commercial.service'
 import { BackButton, EmptyState, ErrorState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 import { CrystalDateField } from '../../components/shared/CrystalDateField'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServices'
@@ -49,6 +50,7 @@ function normalizeText(value: string) {
 export function CabinsScreen() {
   const { locale, isEnglish } = useAppPreferences()
   const { session, isAuthenticated } = useAuth()
+  const { requestAuth } = useMobileGuestAccess()
   const [selected, setSelected] = useState('')
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
@@ -138,7 +140,8 @@ export function CabinsScreen() {
 
   const submit = async () => {
     if (!isAuthenticated) {
-      setMessage(isEnglish ? 'Sign in to request a cabin.' : 'Inicia sesión para solicitar una cabaña.')
+      setMessage('')
+      requestAuth({ from: appPath('/cabanas') })
       return
     }
     if (!selectedPackage || !checkIn || !checkOut) {
@@ -383,7 +386,11 @@ export function CabinsScreen() {
         {message ? <p className="mt-3 text-[12px] leading-5 text-[var(--color-burgundy)]">{message}</p> : null}
       </section>
 
-      {!isAuthenticated ? <PrimaryButton to={appPath('/login')}>{isEnglish ? 'Sign in' : 'Iniciar sesión'}</PrimaryButton> : null}
+      {!isAuthenticated ? (
+        <PrimaryButton onClick={() => requestAuth({ from: appPath('/cabanas') })}>
+          {isEnglish ? 'Sign in to book' : 'Iniciar sesión para reservar'}
+        </PrimaryButton>
+      ) : null}
 
       {showDirections ? <OfficialDirectionsSheet poi={OFFICIAL_CABINS_POI} onClose={() => setShowDirections(false)} /> : null}
     </div>

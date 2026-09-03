@@ -71,7 +71,12 @@ function safePayload(payload: CommunicationPayload = {}): CommunicationPayload {
   return Object.fromEntries(
     Object.entries(payload)
       .filter(([key]) => !/(token|secret|password|authorization|header|key)/i.test(key))
-      .map(([key, value]) => [key, typeof value === 'string' ? value.slice(0, 500) : value]),
+      .map(([key, value]) => [
+        key,
+        typeof value === 'string' && /([?&]token=|account_deletion_confirm)/i.test(value)
+          ? '[redacted]'
+          : typeof value === 'string' ? value.slice(0, 500) : value,
+      ]),
   )
 }
 
@@ -159,9 +164,9 @@ async function findOutboxById(id: string) {
 
 export async function enqueueTransactionalEmail(input: EnqueueTransactionalEmailInput) {
   const recipientEmail = normalizeEmail(input.recipientEmail)
-  const payload = safePayload(input.payload)
   const locale = normalizeLocale(input.locale)
-  const template = renderEmailTemplate(input.eventType, payload, locale)
+  const template = renderEmailTemplate(input.eventType, input.payload, locale)
+  const payload = safePayload(input.payload)
   const idempotencyKey = input.idempotencyKey ??
     `${input.eventType}:${input.aggregateType}:${input.aggregateId ?? 'none'}:${recipientEmail || 'no-recipient'}`
 

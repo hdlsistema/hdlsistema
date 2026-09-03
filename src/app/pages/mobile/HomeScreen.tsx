@@ -11,6 +11,7 @@ import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { usePublicCommercialServices } from '../../hooks/usePublicCommercialServices'
 import { usePublicContent } from '../../hooks/usePublicContent'
 import { appPath } from '../../utils/appRoutes'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 import {
   contentRouteId,
   formatCurrency,
@@ -21,6 +22,7 @@ import {
 
 export function HomeScreen() {
   const { t, locale, language, isEnglish, setLanguage } = useAppPreferences()
+  const { guardLink } = useMobileGuestAccess()
   const { records: wines, loading: loadingWines, error: winesError, retry: retryWines } = usePublicContent('wines')
   const { records: experiences, loading: loadingExperiences, error: experiencesError, retry: retryExperiences } = usePublicContent('experiences')
   const { records: promotions } = usePublicContent('promotions')
@@ -302,6 +304,7 @@ export function HomeScreen() {
               <Link
                 key={item.to}
                 to={item.to}
+                onClick={(event) => guardLink(event, item.to)}
                 className="grid min-h-[104px] grid-cols-[40px_1fr_auto] items-center gap-3 rounded-[20px] border border-[rgba(180,138,85,0.28)] bg-[linear-gradient(145deg,rgba(247,242,234,0.9),rgba(232,216,200,0.66))] p-4 shadow-[0_14px_34px_rgba(37,47,55,.07),inset_0_1px_0_rgba(255,255,255,.72)] backdrop-blur-xl"
               >
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgba(180,138,85,0.34)] bg-[rgba(37,47,55,0.08)] text-[var(--color-burgundy)] shadow-[0_8px_18px_rgba(37,47,55,.08)]">

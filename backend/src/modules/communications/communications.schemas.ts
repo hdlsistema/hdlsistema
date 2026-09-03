@@ -17,6 +17,8 @@ export const communicationEventTypes = [
   'membership.renewed',
   'membership.expiring',
   'security.password_changed',
+  'account_deletion.confirmation',
+  'account_deletion.completed',
 ] as const
 
 export const communicationListQuerySchema = z.object({

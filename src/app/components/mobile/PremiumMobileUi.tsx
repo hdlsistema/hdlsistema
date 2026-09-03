@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAppPreferences } from '../../context/AppPreferencesContext'
 import { appPath } from '../../utils/appRoutes'
+import { useMobileGuestAccess } from './MobileGuestAccessContext'
 
 type ButtonTone = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -301,9 +302,12 @@ export function BackButton({
 
 export function FloatingCartButton({ count = 0 }: { count?: number }) {
   const { t } = useAppPreferences()
+  const { guardLink } = useMobileGuestAccess()
+  const cartPath = appPath('/carrito')
   return (
     <Link
-      to={appPath('/carrito')}
+      to={cartPath}
+      onClick={(event) => guardLink(event, cartPath)}
       className="absolute bottom-[calc(var(--safe-bottom)+4.6rem)] right-[var(--app-pad)] z-40 inline-flex h-[3.25rem] min-h-[3.25rem] w-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-[var(--color-burgundy)] text-white shadow-[var(--shadow-float)]"
       aria-label={t('app.premium.openCart')}
     >

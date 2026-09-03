@@ -6,9 +6,11 @@ import { rateLimit } from '../../middleware/rateLimit'
 import {
   createCustomerAccountDeletion,
   createPublicAccountDeletion,
+  confirmPublicAccountDeletion,
   getAccountDeletionAdmin,
   listAccountDeletionAdmin,
   patchAccountDeletionAdmin,
+  processAccountDeletionAdmin,
 } from './privacy.controller'
 
 const publicRouter = Router()
@@ -20,6 +22,7 @@ const privacyReadRoles = ['super_admin', 'admin', 'operations', 'finance']
 const privacyWriteRoles = ['super_admin', 'admin', 'operations']
 
 publicRouter.post('/account-deletion-requests', rateLimit(6, 60 * 60_000), createPublicAccountDeletion)
+publicRouter.post('/account-deletion-requests/confirm', rateLimit(12, 60 * 60_000), confirmPublicAccountDeletion)
 customerRouter.post(
   '/account-deletion-requests',
   rateLimit(12, 60 * 60_000),
@@ -50,6 +53,14 @@ adminRouter.patch(
   authorize(privacyWriteRoles),
   requireControlPermission('privacy.manage'),
   patchAccountDeletionAdmin,
+)
+adminRouter.post(
+  '/account-deletion-requests/:id/process',
+  rateLimit(60, 60_000),
+  authenticate,
+  authorize(privacyWriteRoles),
+  requireControlPermission('privacy.manage'),
+  processAccountDeletionAdmin,
 )
 
 export {

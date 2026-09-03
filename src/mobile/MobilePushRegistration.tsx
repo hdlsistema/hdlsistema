@@ -90,7 +90,13 @@ export function MobilePushRegistration() {
             : typeof data?.url === 'string'
               ? data.url
               : ''
-          if (deepLink.startsWith('/app/')) window.location.assign(deepLink)
+          if (deepLink.startsWith('/app/')) {
+            const nativeDeepLink = deepLink.replace(/^\/app(?=\/|$)/, '') || '/'
+            const nativePath = nativeDeepLink.split('#')[0]?.split('?')[0] || '/'
+            if (nativePath !== '/control' && !nativePath.startsWith('/control/')) {
+              window.location.assign(nativeDeepLink)
+            }
+          }
         })
         await PushNotifications.register()
       } catch {

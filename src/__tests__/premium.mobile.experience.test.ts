@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { isMobileGuestPublicPath, normalizeMobileGuestPath } from '../app/components/mobile/MobileGuestAccessContext'
 import { imageField } from '../app/utils/publicContent'
 
 describe('premium customer app experience', () => {
@@ -47,13 +48,23 @@ describe('premium customer app experience', () => {
   it('mantiene el router movil aislado del OS y del Centro de Control', () => {
     const mobileRouter = readFileSync(resolve(__dirname, '../mobile/MobileRouter.tsx'), 'utf8')
     const mobileEntry = readFileSync(resolve(__dirname, '../mobile/main.tsx'), 'utf8')
+    const mobileAuth = readFileSync(resolve(__dirname, '../mobile/MobileAuthPages.tsx'), 'utf8')
 
     expect(mobileEntry).toContain("import AppMobile from './AppMobile'")
     expect(mobileRouter).toContain('<MobileShell />')
     expect(mobileRouter).toContain('path="home"')
     expect(mobileRouter).toContain('path="checkout"')
-    expect(mobileRouter).not.toMatch(/LandingPage|ControlLayout|RoleRoute|DashboardPage|AppRouter/)
-    expect(mobileRouter).not.toMatch(/\/control/)
+    expect(mobileRouter).toContain('NativeControlRouteRedirect')
+    expect(mobileRouter).toContain('path="control/*"')
+    expect(mobileRouter).toContain('path="app/control/*"')
+    expect(mobileRouter).toContain("to={isAuthenticated ? '/home' : '/login'}")
+    expect(mobileRouter).toContain('path="sommelier" element={protectedScreen(<SommelierScreen />)}')
+    expect(mobileRouter).toContain('path="politica-de-privacidad" element={<MobileLegalScreen kind="privacy" />}')
+    expect(mobileRouter).toContain('path="terminos-y-condiciones" element={<MobileLegalScreen kind="terms" />}')
+    expect(mobileRouter).not.toMatch(/LandingPage|ControlLayout|RoleRoute|DashboardPage|CheckInPage|AppRouter/)
+    expect(mobileAuth).toContain("normalizedPath === '/control'")
+    expect(mobileAuth).toContain("replace(/^\\/app(?=\\/|$)/, '')")
+    expect(mobileAuth).toContain("normalizedPath.startsWith('/control/')")
   })
 
   it('mantiene disponibles las rutas de navegacion de toda la app movil', () => {
@@ -78,15 +89,70 @@ describe('premium customer app experience', () => {
     expect(globalStyles).toContain('html.hdl-mobile-app .mobile-shell-scroll')
   })
 
+  it('implementa modo invitado limitado con modal de cuenta requerida', () => {
+    const guestAccess = readFileSync(resolve(__dirname, '../app/components/mobile/MobileGuestAccess.tsx'), 'utf8')
+    const guestAccessContext = readFileSync(resolve(__dirname, '../app/components/mobile/MobileGuestAccessContext.ts'), 'utf8')
+    const protectedRoute = readFileSync(resolve(__dirname, '../mobile/MobileProtectedRoute.tsx'), 'utf8')
+    const header = readFileSync(resolve(__dirname, '../app/components/mobile/AppHeader.tsx'), 'utf8')
+    const edgePanel = readFileSync(resolve(__dirname, '../app/components/mobile/AppEdgePanel.tsx'), 'utf8')
+    const quickActions = readFileSync(resolve(__dirname, '../app/components/mobile/QuickActions.tsx'), 'utf8')
+    const home = readFileSync(resolve(__dirname, '../app/pages/mobile/HomeScreen.tsx'), 'utf8')
+    const store = readFileSync(resolve(__dirname, '../app/pages/mobile/StoreScreen.tsx'), 'utf8')
+    const wineDetail = readFileSync(resolve(__dirname, '../app/pages/mobile/WineDetailScreen.tsx'), 'utf8')
+    const eventDetail = readFileSync(resolve(__dirname, '../app/pages/mobile/EventDetailScreen.tsx'), 'utf8')
+    const experienceDetail = readFileSync(resolve(__dirname, '../app/pages/mobile/ExperienceDetailScreen.tsx'), 'utf8')
+    const cabins = readFileSync(resolve(__dirname, '../app/pages/mobile/CabinsScreen.tsx'), 'utf8')
+    const restaurants = readFileSync(resolve(__dirname, '../app/pages/mobile/RestaurantsScreen.tsx'), 'utf8')
+    const sommelier = readFileSync(resolve(__dirname, '../app/pages/mobile/SommelierScreen.tsx'), 'utf8')
+    const ui = readFileSync(resolve(__dirname, '../app/components/mobile/PremiumMobileUi.tsx'), 'utf8')
+
+    for (const route of ['/home', '/vinos', '/experiencias', '/eventos', '/promociones', '/cabanas', '/restaurantes', '/mapa']) {
+      expect(guestAccessContext).toContain(route)
+    }
+    for (const route of ['/carrito', '/checkout', '/pago', '/perfil', '/reservacion', '/membresias', '/sommelier', '/control']) {
+      expect(guestAccessContext).toContain(route)
+    }
+    expect(guestAccessContext).toContain('isMobileGuestPublicPath')
+    expect(guestAccess).toContain('Inicia sesión o crea tu cuenta para continuar')
+    expect(guestAccess).toContain('Crear cuenta')
+    expect(guestAccess).toContain('Cancelar')
+    expect(protectedRoute).toContain('requestAuth({ from: targetPath })')
+    expect(protectedRoute).toContain('<Navigate to="/home" replace />')
+    expect(protectedRoute).not.toContain('to="/login"')
+    for (const source of [header, edgePanel, quickActions, home, ui]) {
+      expect(source).toContain('guardLink')
+    }
+    for (const source of [store, wineDetail, eventDetail, experienceDetail, cabins, restaurants, sommelier]) {
+      expect(source).toContain('requestAuth')
+    }
+    expect(normalizeMobileGuestPath('/app/control/check-in?manual=true#qr')).toBe('/control/check-in')
+    expect(isMobileGuestPublicPath('/home')).toBe(true)
+    expect(isMobileGuestPublicPath('/app/vinos/gran-reserva')).toBe(true)
+    expect(isMobileGuestPublicPath('/experiencias/cata')).toBe(true)
+    expect(isMobileGuestPublicPath('/restaurantes')).toBe(true)
+    expect(isMobileGuestPublicPath('/app/mapa')).toBe(true)
+    expect(isMobileGuestPublicPath('/carrito')).toBe(false)
+    expect(isMobileGuestPublicPath('/checkout?orderId=demo')).toBe(false)
+    expect(isMobileGuestPublicPath('/perfil#orders')).toBe(false)
+    expect(isMobileGuestPublicPath('/reservacion')).toBe(false)
+    expect(isMobileGuestPublicPath('/membresias')).toBe(false)
+    expect(isMobileGuestPublicPath('/app/control/check-in')).toBe(false)
+  })
+
   it('incluye splash y onboarding nativos con el logotipo oficial, sin marcas inventadas', () => {
     const mobileApp = readFileSync(resolve(__dirname, '../mobile/AppMobile.tsx'), 'utf8')
     const mobileEntry = readFileSync(resolve(__dirname, '../mobile/main.tsx'), 'utf8')
     const launchGate = readFileSync(resolve(__dirname, '../mobile/MobileLaunchGate.tsx'), 'utf8')
+    const onboardingReplay = readFileSync(resolve(__dirname, '../mobile/mobileOnboardingReplay.ts'), 'utf8')
 
     expect(mobileApp).toContain('<MobileLaunchGate>')
     expect(launchGate).toContain('MobileBrandSplash')
     expect(launchGate).toContain('/hacienda de letras logo 2.png')
     expect(launchGate).toContain("const ONBOARDING_KEY = 'hdl-mobile-onboarding-v3'")
+    expect(launchGate).toContain('MOBILE_ONBOARDING_REPLAY_EVENT')
+    expect(launchGate).toContain('window.localStorage.removeItem(ONBOARDING_KEY)')
+    expect(onboardingReplay).toContain('requestMobileOnboardingReplay')
+    expect(onboardingReplay).toContain('hdl:mobile-onboarding-replay')
     expect(launchGate).toContain('MobileOnboarding')
     expect(launchGate).toContain('mobile-onboarding')
     expect(launchGate).not.toContain('mobile-launch-screen__mark')
@@ -101,11 +167,13 @@ describe('premium customer app experience', () => {
     const styles = readFileSync(resolve(__dirname, '../app/styles/globals.css'), 'utf8')
 
     expect(shell).toContain('h-[100dvh]')
+    expect(shell).toContain('<MobileGuestAccessProvider>')
     expect(shell).toContain('const showAppChrome = !isAuthRoute')
     expect(shell).toContain('{showAppChrome ? <AppBottomNavigation cartCount={cartCount} /> : null}')
     expect(shell).toContain('{showAppChrome ? <AppEdgePanel /> : null}')
     expect(shell).toContain('overflow-x-hidden')
     expect(tabs).toContain("isEnglish ? 'Main navigation' : 'Navegación principal'")
+    expect(tabs).toContain('guardLink(event, to)')
     expect(tabs).toContain('z-[90]')
     expect(tabs).toContain('app-bottom-nav__item')
     expect(tabs).toContain('app-bottom-nav__content')
@@ -131,6 +199,17 @@ describe('premium customer app experience', () => {
     expect(edgePanel).not.toContain('Sparkles')
   })
 
+  it('muestra modal cristal cuando se envia el correo de eliminacion de cuenta', () => {
+    const deleteAccount = readFileSync(resolve(__dirname, '../app/pages/mobile/DeleteAccountScreen.tsx'), 'utf8')
+
+    expect(deleteAccount).toContain('mobile-delete-success-title')
+    expect(deleteAccount).toContain('Revisa tu correo')
+    expect(deleteAccount).toContain('Confirmar eliminación de cuenta')
+    expect(deleteAccount).toContain('bg-[linear-gradient(145deg,rgba(255,253,248,.94),rgba(244,234,224,.88))]')
+    expect(deleteAccount).toContain('backdrop-blur-2xl')
+    expect(deleteAccount).toContain('Folio de seguimiento')
+  })
+
   it('refina la app nativa con tipografía editorial contenida e iconografía contextual', () => {
     const ui = readFileSync(resolve(__dirname, '../app/components/mobile/PremiumMobileUi.tsx'), 'utf8')
     const home = readFileSync(resolve(__dirname, '../app/pages/mobile/HomeScreen.tsx'), 'utf8')
@@ -152,6 +231,9 @@ describe('premium customer app experience', () => {
     const styles = readFileSync(resolve(__dirname, '../app/styles/globals.css'), 'utf8')
 
     expect(auth).toContain('SocialAuthActions')
+    expect(auth).toContain('requestMobileOnboardingReplay')
+    expect(auth).toContain('native-auth-screen__back')
+    expect(auth).toContain('Explorar Hacienda')
     expect(auth).toContain('CheckControl name="remember"')
     expect(auth).toContain('CheckControl name="terms"')
     expect(auth).toContain('signInWithAppleNative')
@@ -162,6 +244,8 @@ describe('premium customer app experience', () => {
     expect(authService).toContain('nonce: credential.nonce')
     expect(styles).toContain('.native-auth-check__mark')
     expect(styles).toContain('.native-auth-social')
+    expect(styles).toContain('.native-auth-explore')
+    expect(styles).toContain('.mobile-guest-lock')
     expect(styles).toContain('.app-bottom-nav__item.is-active')
   })
 
@@ -178,6 +262,7 @@ describe('premium customer app experience', () => {
     expect(nativePlugin).toContain('ASAuthorizationAppleIDProvider')
     expect(nativePlugin).toContain('request.nonce = sha256(nonce)')
     expect(nativePlugin).toContain('"identityToken": identityToken')
+    expect(nativePlugin).toContain('result["authorizationCode"] = authorizationCode')
     expect(nativePlugin).toContain('"nonce": nonce')
     expect(nativePlugin).toContain('"appleErrorCode": appleErrorCode')
     expect(nativePlugin).toContain('"appleErrorRawValue": authError.code.rawValue')
@@ -194,6 +279,7 @@ describe('premium customer app experience', () => {
     expect(xcodeProject).toContain('CODE_SIGN_ENTITLEMENTS = App/App.entitlements')
     expect(xcodeProject).toContain('com.apple.SignInWithApple')
     expect(xcodeProject).toContain('com.apple.Push')
+    expect(nativeAppleAuth).toContain('authorizationCode?: string')
     expect(nativeAppleAuth).not.toMatch(/p8|private[_-]?key|client[_-]?secret/i)
     expect(nativePlugin).not.toMatch(/p8|private[_-]?key|client[_-]?secret/i)
   })
@@ -407,12 +493,22 @@ describe('premium customer app experience', () => {
 
   it('captura QR con cámara en Check-in y conserva captura manual', () => {
     const checkin = readFileSync(resolve(__dirname, '../app/pages/control/CheckInPage.tsx'), 'utf8')
+    const infoPlist = readFileSync(resolve(__dirname, '../../ios/App/App/Info.plist'), 'utf8')
 
     expect(checkin).toContain("from 'jsqr'")
     expect(checkin).toContain('navigator.mediaDevices.getUserMedia')
+    expect(checkin).toContain('getCameraPermissionState')
+    expect(checkin).toContain('cameraErrorMessage')
+    expect(checkin).toContain('NotAllowedError')
+    expect(checkin).toContain('NotFoundError')
+    expect(checkin).toContain('NotReadableError')
     expect(checkin).toContain('Escanear QR')
     expect(checkin).toContain('Captura manual de código QR')
+    expect(checkin).toContain('Usar captura manual')
+    expect(checkin).toContain('codeInputRef')
     expect(checkin).toContain('accessPassClient.validate')
+    expect(infoPlist).toContain('NSCameraUsageDescription')
+    expect(infoPlist).toContain('Hacienda de Letras utiliza la cámara para escanear códigos QR durante el proceso de check-in.')
   })
 
   it('sincroniza el nombre único de Apple con Auth y el perfil de cliente', () => {

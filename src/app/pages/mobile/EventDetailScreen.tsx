@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, Clock3, MapPin, Minus, Plus, ShoppingCart, Ticket } from 'lucide-react'
 import { publicContentClient, type ContentRecord } from '../../../services/content.service'
 import { AppSectionHeader, BackButton, EmptyState, ErrorState, HeroEditorial, LoadingState, PrimaryButton, StatusBadge } from '../../components/mobile/PremiumMobileUi'
@@ -9,6 +9,7 @@ import { appPath } from '../../utils/appRoutes'
 import { eventKindLabel, eventMetadata, eventVenueForRecord } from '../../utils/eventVenues'
 import { useAuth } from '../../../contexts/AuthContext'
 import { customerClient } from '../../../services/customer.service'
+import { useMobileGuestAccess } from '../../components/mobile/MobileGuestAccessContext'
 
 type EventTicketType = {
   id: string
@@ -134,8 +135,10 @@ function variantSchemaItems(record: ContentRecord) {
 export function EventDetailScreen() {
   const { eventId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { t, locale } = useAppPreferences()
   const { session } = useAuth()
+  const { requestAuth } = useMobileGuestAccess()
   const [event, setEvent] = useState<ContentRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -196,7 +199,7 @@ export function EventDetailScreen() {
   const addTicketToCart = async (ticket: EventTicketType) => {
     const token = session?.access_token
     if (!token) {
-      navigate(appPath('/login'))
+      requestAuth({ from: `${location.pathname}${location.search}${location.hash}` })
       return
     }
     const maxQuantity = Math.max(Math.min(ticketAvailable(ticket), eventAvailable), 0)

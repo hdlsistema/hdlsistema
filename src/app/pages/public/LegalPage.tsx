@@ -52,7 +52,7 @@ const sections = {
       {
         title: '8. Derechos, eliminación de cuenta y contacto',
         body:
-          'Para solicitar acceso, rectificación, cancelación, oposición, aclaraciones o eliminación de cuenta o datos cuando proceda, escribe al correo de contacto indicado en esta página. Atenderemos la solicitud conforme a los requisitos de identificación y conservación aplicables.',
+          'Para ejercer derechos de acceso, rectificación, cancelación u oposición, usa el correo de contacto indicado en esta página. Para eliminar tu cuenta, puedes iniciar el flujo desde la app o desde el enlace de eliminación de cuenta; confirmaremos por correo y procesaremos la eliminación conforme a los requisitos de identificación y conservación aplicables.',
       },
     ],
   },
@@ -163,7 +163,7 @@ export function LegalPage({ type }: LegalPageProps) {
             </p>
             {type === 'privacy' ? (
               <Link to="/eliminar-cuenta" className="mt-3 inline-flex rounded-full border border-[#d8bf9c] bg-white px-4 py-2 text-xs font-semibold text-[#5B0B1F]">
-                Solicitar eliminación de cuenta
+                Eliminar cuenta
               </Link>
             ) : null}
           </div>

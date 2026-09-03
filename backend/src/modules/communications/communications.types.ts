@@ -15,6 +15,8 @@ export type CommunicationEventType =
   | 'membership.renewed'
   | 'membership.expiring'
   | 'security.password_changed'
+  | 'account_deletion.confirmation'
+  | 'account_deletion.completed'
 
 export type CommunicationLocale = 'es-MX' | 'en-US'
 

@@ -1,13 +1,11 @@
 import { apiFetch } from './api'
 
 export type AccountDeletionStatus =
-  | 'requested'
-  | 'identity_verification'
-  | 'confirmed'
+  | 'awaiting_email_confirmation'
+  | 'pending_processing'
   | 'in_progress'
   | 'completed'
-  | 'rejected'
-  | 'cancelled'
+  | 'technical_error'
 
 export type AccountDeletionRecord = {
   id: string
@@ -24,9 +22,25 @@ export type AccountDeletionRecord = {
   reviewedAt?: string | null
   completedAt?: string | null
   cancelledAt?: string | null
+  confirmationSentAt?: string | null
+  confirmationExpiresAt?: string | null
+  confirmationUsedAt?: string | null
+  confirmedAt?: string | null
+  processingStartedAt?: string | null
+  processingDueAt?: string | null
+  technicalErrorAt?: string | null
+  technicalErrorCode?: string | null
+  sessionsRevokedAt?: string | null
+  authDeletedAt?: string | null
+  appleTokenRevokedAt?: string | null
+  appleTokenRevokeStatus?: string | null
+  personalDataErasedAt?: string | null
+  completionEmailSentAt?: string | null
+  processingWindowDays?: number
   adminNotes?: string | null
   retentionNotes?: string | null
   deletionScope?: Record<string, unknown>
+  deletionSummary?: Record<string, unknown>
   createdAt: string
   updatedAt: string
   history?: Array<{
@@ -68,6 +82,22 @@ export const publicPrivacyClient = {
       body: JSON.stringify(payload),
     })
   },
+  confirmAccountDeletion(token: string) {
+    return apiFetch<{
+      ok: true
+      data: {
+        requestNumber: string
+        status: 'pending_processing'
+        confirmedAt: string
+        processingDueAt: string
+        processingWindowDays: number
+      }
+    }>('/api/public/account-deletion-requests/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    })
+  },
 }
 
 export const customerPrivacyClient = {
@@ -77,7 +107,7 @@ export const customerPrivacyClient = {
     retentionAcknowledged: true
     locale?: 'es' | 'en'
   }) {
-    return apiFetch<{ ok: true; data: AccountDeletionRecord; duplicate: boolean }>('/api/customer/account-deletion-requests', {
+    return apiFetch<{ ok: true; data: AccountDeletionRecord; duplicate: boolean; confirmationEmailStatus?: string | null }>('/api/customer/account-deletion-requests', {
       method: 'POST',
       headers: authHeaders(token),
       body: JSON.stringify(payload),
@@ -109,6 +139,12 @@ export const adminPrivacyClient = {
       method: 'PATCH',
       headers: authHeaders(token),
       body: JSON.stringify(payload),
+    })
+  },
+  process(token: string | null | undefined, id: string) {
+    return apiFetch<{ ok: true; data: AccountDeletionRecord }>(`/api/admin/account-deletion-requests/${encodeURIComponent(id)}/process`, {
+      method: 'POST',
+      headers: authHeaders(token),
     })
   },
 }

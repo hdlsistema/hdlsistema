@@ -62,6 +62,23 @@ export const env = {
   RESEND_REPLY_TO_EMAIL: optionalEnv('RESEND_REPLY_TO_EMAIL', ''),
   RESEND_WEBHOOK_SECRET: optionalEnv('RESEND_WEBHOOK_SECRET', ''),
 
+  // Eliminación de cuenta — token firmado, plazo visible y URL pública de confirmación.
+  // Si ACCOUNT_DELETION_TOKEN_SECRET no está configurado, se usa service_role como
+  // secreto server-side de respaldo para entornos existentes.
+  ACCOUNT_DELETION_PROCESSING_DAYS: optionalEnv('ACCOUNT_DELETION_PROCESSING_DAYS', '30'),
+  ACCOUNT_DELETION_CONFIRMATION_TTL_HOURS: optionalEnv('ACCOUNT_DELETION_CONFIRMATION_TTL_HOURS', '24'),
+  ACCOUNT_DELETION_TOKEN_SECRET: optionalEnv('ACCOUNT_DELETION_TOKEN_SECRET', ''),
+  ACCOUNT_DELETION_CONFIRM_BASE_URL: optionalEnv('ACCOUNT_DELETION_CONFIRM_BASE_URL', ''),
+
+  // Sign in with Apple — sólo backend. Necesario para intercambiar authorizationCode
+  // y revocar refresh/access tokens durante la eliminación de cuenta.
+  APPLE_SIGN_IN_CLIENT_ID: optionalEnv('APPLE_SIGN_IN_CLIENT_ID', ''),
+  APPLE_SIGN_IN_TEAM_ID: optionalEnv('APPLE_SIGN_IN_TEAM_ID', ''),
+  APPLE_SIGN_IN_KEY_ID: optionalEnv('APPLE_SIGN_IN_KEY_ID', ''),
+  APPLE_SIGN_IN_PRIVATE_KEY: optionalEnv('APPLE_SIGN_IN_PRIVATE_KEY', ''),
+  APPLE_SIGN_IN_REDIRECT_URI: optionalEnv('APPLE_SIGN_IN_REDIRECT_URI', ''),
+  APPLE_SIGN_IN_TOKEN_ENCRYPTION_KEY: optionalEnv('APPLE_SIGN_IN_TOKEN_ENCRYPTION_KEY', ''),
+
   // Firebase Cloud Messaging — entrega push nativa mediante HTTP v1.
   // Las credenciales permanecen exclusivamente en Railway/backend.
   FIREBASE_PROJECT_ID: optionalEnv('FIREBASE_PROJECT_ID', ''),

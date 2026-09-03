@@ -66,6 +66,11 @@ class NativeAppleAuthPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationControl
             "nonce": nonce
         ]
 
+        if let authorizationCodeData = credential.authorizationCode,
+           let authorizationCode = String(data: authorizationCodeData, encoding: .utf8) {
+            result["authorizationCode"] = authorizationCode
+        }
+
         if let email = credential.email {
             result["email"] = email
         }
