@@ -458,7 +458,7 @@ async function markAccountPendingInAuth(row: DeletionRequestRow, confirmedAt: st
   if (current.error || !current.data.user) return { status: 'auth_user_not_found' as const }
 
   const update = await supabaseAdminClient.auth.admin.updateUserById(row.user_id, {
-    ban_duration: `${processingDays()}d`,
+    ban_duration: `${processingDays() * 24}h`,
     app_metadata: {
       ...(current.data.user.app_metadata ?? {}),
       account_deletion_status: 'pending_processing',

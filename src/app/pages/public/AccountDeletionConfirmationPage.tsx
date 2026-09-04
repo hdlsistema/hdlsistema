@@ -91,7 +91,11 @@ export function AccountDeletionConfirmationPage() {
               </span>
               <h1 className="mt-6 text-3xl text-[#963e32]" style={{ fontFamily: 'var(--font-display)' }}>No pudimos confirmar el enlace</h1>
               <p className="mt-4 text-sm leading-7 text-[#6f5a4d]">{state.message}</p>
-              <Link to="/eliminar-cuenta" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-sm font-semibold text-white">
+              <Link
+                to="/eliminar-cuenta"
+                className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-[#5B0B1F] px-5 text-sm font-semibold !text-white"
+                style={{ color: '#FFFFFF' }}
+              >
                 Iniciar nuevamente
               </Link>
             </>

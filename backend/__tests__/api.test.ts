@@ -13,6 +13,7 @@ import {
 } from '../src/modules/communications/communications.service'
 import { renderEmailTemplate } from '../src/modules/communications/template.service'
 import { communicationEventTypes } from '../src/modules/communications/communications.schemas'
+import { createSignedAccountDeletionToken, sha256 } from '../src/modules/privacy/privacyCrypto'
 import { execSync } from 'child_process'
 import { createHmac } from 'crypto'
 import { resolve } from 'path'
@@ -277,6 +278,8 @@ const originalSupabaseServiceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY
 const originalStripeSecretKey = env.STRIPE_SECRET_KEY
 const originalStripeWebhookSecret = env.STRIPE_WEBHOOK_SECRET
 const originalStripeEnvironment = env.STRIPE_ENVIRONMENT
+const originalAccountDeletionProcessingDays = env.ACCOUNT_DELETION_PROCESSING_DAYS
+const originalAccountDeletionTokenSecret = env.ACCOUNT_DELETION_TOKEN_SECRET
 
 beforeEach(() => {
   vi.unstubAllGlobals()
@@ -313,6 +316,10 @@ beforeEach(() => {
   ;(env as Record<string, string>).STRIPE_SECRET_KEY = originalStripeSecretKey
   ;(env as Record<string, string>).STRIPE_WEBHOOK_SECRET = originalStripeWebhookSecret
   ;(env as Record<string, string>).STRIPE_ENVIRONMENT = originalStripeEnvironment
+  ;(env as Record<string, string>).ACCOUNT_DELETION_PROCESSING_DAYS =
+    originalAccountDeletionProcessingDays
+  ;(env as Record<string, string>).ACCOUNT_DELETION_TOKEN_SECRET =
+    originalAccountDeletionTokenSecret
 })
 
 // ─── 1. GET /api/health devuelve 200 ────────────────────────────────────────
@@ -4462,6 +4469,64 @@ describe('Fase 8E communications API', () => {
     }, 'es-MX')
 
     expect(template.html).toContain(`href="${marketingUrl}"`)
+  })
+
+  it('confirma eliminacion usando ban_duration en horas para Supabase Auth', async () => {
+    ;(env as Record<string, string>).ACCOUNT_DELETION_PROCESSING_DAYS = '30'
+    ;(env as Record<string, string>).ACCOUNT_DELETION_TOKEN_SECRET = 'test-account-deletion-token-secret'
+    const requestId = '11111111-1111-4111-8111-111111111901'
+    const customerId = '22222222-2222-4222-8222-222222222901'
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+    const token = createSignedAccountDeletionToken({ requestId, expiresAt })
+
+    supabaseMock.authUsers = [{
+      ...customerUser,
+      app_metadata: { provider: 'email', providers: ['email'] },
+    }]
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: requestId,
+      request_number: 'DEL-20260904-TEST',
+      user_id: customerUser.id,
+      customer_id: customerId,
+      email: customerUser.email,
+      requested_name: 'Cliente QA',
+      source: 'mobile_app',
+      status: 'awaiting_email_confirmation',
+      explicit_confirmation_at: '2026-09-04T00:00:00.000Z',
+      legal_retention_acknowledged_at: '2026-09-04T00:00:00.000Z',
+      confirmation_token_hash: sha256(token),
+      confirmation_expires_at: expiresAt.toISOString(),
+      confirmation_used_at: null,
+      confirmed_at: null,
+      identity_verified_at: null,
+      processing_due_at: null,
+      sessions_revoked_at: null,
+      session_token_ciphertext: null,
+      deletion_summary: {},
+      request_context: { locale: 'es' },
+      created_at: '2026-09-04T00:00:00.000Z',
+      updated_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .post('/api/public/account-deletion-requests/confirm')
+      .set('Origin', 'https://admhaciendadeletras.com')
+      .send({ token })
+
+    expect(res.status).toBe(200)
+    expect(res.body.data.status).toBe('pending_processing')
+    expect(supabaseMock.updateUserPayload).toMatchObject({
+      ban_duration: '720h',
+      app_metadata: {
+        account_deletion_status: 'pending_processing',
+        account_deletion_request_id: requestId,
+      },
+    })
+    const updatedRequest = supabaseMock.tableData.account_deletion_requests[0] as Record<string, unknown>
+    expect(updatedRequest.status).toBe('pending_processing')
+    expect(updatedRequest.confirmation_token_hash).toBeNull()
+    expect(updatedRequest.confirmation_used_at).toBeTruthy()
+    expect(updatedRequest.processing_due_at).toBeTruthy()
   })
 
   const adminUser = {
