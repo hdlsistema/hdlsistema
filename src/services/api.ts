@@ -31,6 +31,32 @@ function apiErrorMessage(body: unknown): string | null {
   return typeof message === 'string' && message.trim() ? message.trim() : null
 }
 
+function isAccountDeletionBlocked(status: number, body: unknown): boolean {
+  if (status !== 423 || !body || typeof body !== 'object' || !('error' in body)) return false
+  const payload = (body as { error?: unknown }).error
+  if (!payload || typeof payload !== 'object') return false
+  return (payload as { code?: unknown }).code === 'ACCOUNT_DELETION_IN_PROGRESS'
+}
+
+async function clearAccountDeletionSession(): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    const { supabase } = await import('../lib/supabase')
+    await supabase.auth.signOut()
+  } catch {
+    // La navegación también saca al usuario del área autenticada.
+  }
+
+  window.dispatchEvent(new CustomEvent('hacienda:account-deletion-blocked'))
+  const { pathname, search } = window.location
+  const target = pathname.startsWith('/app')
+    ? '/app/login?accountDeletion=blocked'
+    : pathname.startsWith('/control')
+      ? '/login?accountDeletion=blocked'
+      : null
+  if (target && `${pathname}${search}` !== target) window.location.assign(target)
+}
+
 /**
  * Wrapper sobre fetch que:
  * - Construye la URL completa a partir de API_BASE
@@ -73,6 +99,9 @@ export async function apiFetch<T = unknown>(
       body = await response.json()
     } catch {
       // Respuesta sin cuerpo válido: body queda null.
+    }
+    if (isAccountDeletionBlocked(response.status, body)) {
+      await clearAccountDeletionSession()
     }
     const error: ApiFetchError = new Error(
       apiErrorMessage(body) ?? `HTTP ${response.status}: ${response.statusText}`,

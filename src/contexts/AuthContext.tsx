@@ -164,6 +164,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     mounted.current = true
 
+    const handleAccountDeletionBlocked = () => {
+      if (!mounted.current) return
+      setSession(null)
+      setUser(null)
+      setProfile(null)
+      setRoles([])
+      setPermissions([])
+      setControlScopes([])
+      setControlScopeCodes([])
+      setFinancialAccess(false)
+      setPasswordChangeCompletedFor(null)
+    }
+    window.addEventListener('hacienda:account-deletion-blocked', handleAccountDeletionBlocked)
+
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted.current) return
       loadIdentity(data.session).finally(() => {
@@ -179,6 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted.current = false
+      window.removeEventListener('hacienda:account-deletion-blocked', handleAccountDeletionBlocked)
       data.subscription.unsubscribe()
     }
   }, [loadIdentity])

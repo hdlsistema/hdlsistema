@@ -13,7 +13,7 @@ import {
 } from '../src/modules/communications/communications.service'
 import { renderEmailTemplate } from '../src/modules/communications/template.service'
 import { communicationEventTypes } from '../src/modules/communications/communications.schemas'
-import { createSignedAccountDeletionToken, sha256 } from '../src/modules/privacy/privacyCrypto'
+import { createSignedAccountDeletionToken, encryptServerSecret, sha256 } from '../src/modules/privacy/privacyCrypto'
 import { execSync } from 'child_process'
 import { createHmac } from 'crypto'
 import { resolve } from 'path'
@@ -29,6 +29,8 @@ const supabaseMock = vi.hoisted(() => ({
   createdAuthUser: null as { id: string; email: string } | null,
   createUserPayload: null as Record<string, unknown> | null,
   updateUserPayload: null as Record<string, unknown> | null,
+  signOutPayload: null as { accessToken: string; scope: string } | null,
+  signOutError: null as { message?: string } | null,
   tableData: {} as Record<string, unknown[]>,
   selectQueries: [] as string[],
 }))
@@ -85,6 +87,10 @@ vi.mock('@supabase/supabase-js', () => ({
           const index = supabaseMock.authUsers.findIndex((candidate) => candidate.id === id)
           if (nextUser && index >= 0) supabaseMock.authUsers[index] = nextUser
           return { data: { user: nextUser }, error: null }
+        }),
+        signOut: vi.fn(async (accessToken: string, scope = 'global') => {
+          supabaseMock.signOutPayload = { accessToken, scope }
+          return { data: null, error: supabaseMock.signOutError }
         }),
       },
     },
@@ -293,6 +299,8 @@ beforeEach(() => {
   supabaseMock.createdAuthUser = null
   supabaseMock.createUserPayload = null
   supabaseMock.updateUserPayload = null
+  supabaseMock.signOutPayload = null
+  supabaseMock.signOutError = null
   supabaseMock.tableData = {}
   supabaseMock.selectQueries = []
   stripeMock.paymentIntentsCreate.mockReset()
@@ -511,6 +519,114 @@ describe('Fase 3 auth API', () => {
     })
     expect(JSON.stringify(res.body)).not.toContain('valid-token')
     expect(JSON.stringify(res.body)).not.toContain('refresh')
+  })
+
+  it.each(['pending_processing', 'in_progress', 'completed'])('/api/auth/me bloquea JWT vigente cuando Account Deletion esta %s', async (status) => {
+    const userId = '00000000-0000-0000-0000-000000000021'
+    supabaseMock.authUser = {
+      id: userId,
+      email: 'cliente.bloqueado@alqia.tech',
+      created_at: '2026-09-04T00:00:00.000Z',
+      email_confirmed_at: '2026-09-04T00:00:00.000Z',
+    }
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: '00000000-0000-0000-0000-000000000121',
+      request_number: 'DEL-20260904-BLOCK',
+      user_id: userId,
+      email: 'cliente.bloqueado@alqia.tech',
+      status,
+      processing_due_at: '2026-10-04T00:00:00.000Z',
+      confirmed_at: '2026-09-04T00:00:00.000Z',
+      created_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer stale-but-valid-token')
+
+    expect(res.status).toBe(423)
+    expect(res.body.error).toMatchObject({
+      code: 'ACCOUNT_DELETION_IN_PROGRESS',
+    })
+  })
+
+  it('/api/auth/account-deletion-access permite consultar estado bloqueado sin rechazar la ruta publica de sesion', async () => {
+    const userId = '00000000-0000-0000-0000-000000000022'
+    supabaseMock.authUser = {
+      id: userId,
+      email: 'cliente.estado@alqia.tech',
+      created_at: '2026-09-04T00:00:00.000Z',
+      email_confirmed_at: '2026-09-04T00:00:00.000Z',
+    }
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: '00000000-0000-0000-0000-000000000122',
+      request_number: 'DEL-20260904-STATE',
+      user_id: userId,
+      email: 'cliente.estado@alqia.tech',
+      status: 'pending_processing',
+      processing_due_at: '2026-10-04T00:00:00.000Z',
+      confirmed_at: '2026-09-04T00:00:00.000Z',
+      created_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .get('/api/auth/account-deletion-access')
+      .set('Authorization', 'Bearer stale-but-valid-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.data).toMatchObject({
+      blocked: true,
+      requestNumber: 'DEL-20260904-STATE',
+      status: 'pending_processing',
+    })
+  })
+
+  it('/api/auth/me no bloquea a un admin por una orden ajena', async () => {
+    supabaseMock.authUser = {
+      id: '00000000-0000-0000-0000-000000000023',
+      email: 'admin.qa@alqia.tech',
+      created_at: '2026-09-04T00:00:00.000Z',
+      email_confirmed_at: '2026-09-04T00:00:00.000Z',
+    }
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: '00000000-0000-0000-0000-000000000123',
+      request_number: 'DEL-20260904-OTHER',
+      user_id: '00000000-0000-0000-0000-000000000999',
+      email: 'otra.cuenta@alqia.tech',
+      status: 'pending_processing',
+      created_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer admin-token')
+
+    expect(res.status).toBe(200)
+    expect(res.body.email).toBe('admin.qa@alqia.tech')
+  })
+
+  it('/api/auth/register bloquea crear de nuevo una cuenta con eliminacion confirmada', async () => {
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: '00000000-0000-0000-0000-000000000124',
+      request_number: 'DEL-20260904-LOGIN',
+      user_id: null,
+      email: 'cliente.relogin@alqia.tech',
+      status: 'pending_processing',
+      created_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'cliente.relogin@alqia.tech',
+        password: 'Password123!',
+        firstName: 'Cliente',
+        lastName: 'Relogin',
+      })
+
+    expect(res.status).toBe(423)
+    expect(res.body.error.message).toContain('eliminación')
+    expect(supabaseMock.createUserPayload).toBeNull()
   })
 
   it('/api/auth/welcome cubre OAuth y evita duplicar la bienvenida', async () => {
@@ -978,6 +1094,34 @@ describe('Trazabilidad App a Centro de Control', () => {
       event_name: 'wine_list_viewed',
       module: 'content',
     }])
+  })
+
+  it('rechaza actividad con Bearer viejo de una cuenta en eliminacion confirmada', async () => {
+    authenticateAs('customer')
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: '00000000-0000-0000-0000-000000000043',
+      request_number: 'DEL-20260904-TRACE',
+      user_id: customerUser.id,
+      email: customerUser.email,
+      status: 'pending_processing',
+      processing_due_at: '2026-10-04T00:00:00.000Z',
+      confirmed_at: '2026-09-04T00:00:00.000Z',
+      created_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const res = await request(app)
+      .post('/api/customer/activity')
+      .set('Authorization', 'Bearer stale-but-valid-token')
+      .send({
+        sessionId: 'app-blocked-session',
+        eventName: 'cart_viewed',
+        eventKey: 'app-blocked-session:cart:1',
+        metadata: { route: '/app/cart' },
+      })
+
+    expect(res.status).toBe(423)
+    expect(res.body.error.code).toBe('ACCOUNT_DELETION_IN_PROGRESS')
+    expect(supabaseMock.tableData.customer_app_events ?? []).toHaveLength(0)
   })
 
   it('vincula al customer autenticado, deduplica y lo expone solo a roles administrativos', async () => {
@@ -4527,6 +4671,82 @@ describe('Fase 8E communications API', () => {
     expect(updatedRequest.confirmation_token_hash).toBeNull()
     expect(updatedRequest.confirmation_used_at).toBeTruthy()
     expect(updatedRequest.processing_due_at).toBeTruthy()
+  })
+
+  it('mantiene pending_processing y bloqueo central cuando signOut global falla por JWT expirado', async () => {
+    ;(env as Record<string, string>).ACCOUNT_DELETION_PROCESSING_DAYS = '30'
+    ;(env as Record<string, string>).ACCOUNT_DELETION_TOKEN_SECRET = 'test-account-deletion-token-secret'
+    const requestId = '11111111-1111-4111-8111-111111111902'
+    const customerId = '22222222-2222-4222-8222-222222222902'
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000)
+    const token = createSignedAccountDeletionToken({ requestId, expiresAt })
+
+    supabaseMock.signOutError = {
+      message: 'invalid JWT: unable to parse or verify signature, token has invalid claims: token is expired',
+    }
+    supabaseMock.authUser = customerUser
+    supabaseMock.authUsers = [{
+      ...customerUser,
+      app_metadata: { provider: 'email', providers: ['email'] },
+    }]
+    supabaseMock.tableData.account_deletion_requests = [{
+      id: requestId,
+      request_number: 'DEL-20260904-EXPIRED',
+      user_id: customerUser.id,
+      customer_id: customerId,
+      email: customerUser.email,
+      requested_name: 'Cliente QA',
+      source: 'mobile_app',
+      status: 'awaiting_email_confirmation',
+      explicit_confirmation_at: '2026-09-04T00:00:00.000Z',
+      legal_retention_acknowledged_at: '2026-09-04T00:00:00.000Z',
+      confirmation_token_hash: sha256(token),
+      confirmation_expires_at: expiresAt.toISOString(),
+      confirmation_used_at: null,
+      confirmed_at: null,
+      identity_verified_at: null,
+      processing_due_at: null,
+      sessions_revoked_at: null,
+      session_token_ciphertext: encryptServerSecret('expired-access-token'),
+      deletion_summary: {},
+      request_context: { locale: 'es' },
+      created_at: '2026-09-04T00:00:00.000Z',
+      updated_at: '2026-09-04T00:00:00.000Z',
+    }]
+
+    const confirmed = await request(app)
+      .post('/api/public/account-deletion-requests/confirm')
+      .set('Origin', 'https://admhaciendadeletras.com')
+      .send({ token })
+
+    expect(confirmed.status).toBe(200)
+    expect(supabaseMock.signOutPayload).toEqual({ accessToken: 'expired-access-token', scope: 'global' })
+    const updatedRequest = supabaseMock.tableData.account_deletion_requests[0] as Record<string, unknown>
+    expect(updatedRequest.status).toBe('pending_processing')
+    expect(updatedRequest.confirmation_token_hash).toBeNull()
+    expect(updatedRequest.sessions_revoked_at).toBeNull()
+    expect(updatedRequest.deletion_summary).toMatchObject({
+      authSession: {
+        status: 'metadata_marked_signout_failed',
+        errorCode: expect.stringContaining('expired'),
+      },
+    })
+
+    const staleAccess = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', 'Bearer stale-but-valid-token')
+
+    expect(staleAccess.status).toBe(423)
+    expect(staleAccess.body.error.code).toBe('ACCOUNT_DELETION_IN_PROGRESS')
+  })
+
+  it('mantiene la confirmacion publica sin requerir Authorization', async () => {
+    const res = await request(app)
+      .post('/api/public/account-deletion-requests/confirm')
+      .send({ token: 'token-invalido' })
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.code).not.toBe('UNAUTHORIZED')
   })
 
   const adminUser = {

@@ -1,11 +1,21 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { apiFetch, API_BASE, checkBackendStatus } from '../services/api'
 
+const supabaseAuthMock = vi.hoisted(() => ({
+  signOut: vi.fn(async () => ({ error: null })),
+}))
+
+vi.mock('../lib/supabase', () => ({
+  supabase: { auth: supabaseAuthMock },
+}))
+
 // El BASE_URL se inyecta en tiempo de build desde vitest.config.ts define
 // → import.meta.env.VITE_API_BASE_URL = 'http://localhost:3001'
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  supabaseAuthMock.signOut.mockClear()
 })
 
 // ─── 12. apiFetch construye correctamente la URL ───────────────────────────
@@ -116,6 +126,50 @@ describe('apiFetch — respuestas HTTP de error', () => {
     }
 
     expect(caughtError?.body).toMatchObject(errorBody)
+  })
+
+  it('limpia sesion local y sale de /app cuando el backend bloquea Account Deletion', async () => {
+    const errorBody = {
+      ok: false,
+      error: {
+        code: 'ACCOUNT_DELETION_IN_PROGRESS',
+        message: 'La eliminación de esta cuenta fue confirmada y está en proceso.',
+      },
+    }
+    const mockFetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(errorBody), {
+        status: 423,
+        statusText: 'Locked',
+      }),
+    )
+    const assign = vi.fn()
+    const dispatchEvent = vi.fn()
+    vi.stubGlobal('fetch', mockFetch)
+    vi.stubGlobal('CustomEvent', class {
+      type: string
+      constructor(type: string) {
+        this.type = type
+      }
+    })
+    vi.stubGlobal('window', {
+      location: {
+        pathname: '/app/home',
+        search: '',
+        assign,
+      },
+      dispatchEvent,
+    })
+
+    await expect(apiFetch('/api/customer/me')).rejects.toMatchObject({
+      status: 423,
+      message: 'La eliminación de esta cuenta fue confirmada y está en proceso.',
+    })
+
+    expect(supabaseAuthMock.signOut).toHaveBeenCalledOnce()
+    expect(dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'hacienda:account-deletion-blocked',
+    }))
+    expect(assign).toHaveBeenCalledWith('/app/login?accountDeletion=blocked')
   })
 
   it('checkBackendStatus retorna reachable:false ante error de red', async () => {

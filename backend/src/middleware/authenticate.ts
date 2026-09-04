@@ -92,7 +92,7 @@ export async function authenticateSessionOnly(
  */
 export async function optionalAuthenticate(
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction,
 ): Promise<void> {
   const header = req.header('Authorization') ?? ''
@@ -104,6 +104,27 @@ export async function optionalAuthenticate(
 
   const { data, error } = await supabaseUserClient.auth.getUser(token)
   if (!error && data.user) {
+    try {
+      await assertAccountDeletionAccessAllowed({
+        userId: data.user.id,
+        email: data.user.email,
+      })
+    } catch (accessError) {
+      const statusCode =
+        accessError && typeof accessError === 'object' && 'statusCode' in accessError
+          ? Number((accessError as { statusCode?: unknown }).statusCode)
+          : 423
+      res.status(statusCode).json({
+        ok: false,
+        error: {
+          code: 'ACCOUNT_DELETION_IN_PROGRESS',
+          message: accessError instanceof Error
+            ? accessError.message
+            : 'La eliminación de esta cuenta está en proceso.',
+        },
+      })
+      return
+    }
     req.authUser = data.user
     req.authToken = token
   }

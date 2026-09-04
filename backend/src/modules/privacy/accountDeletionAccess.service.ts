@@ -1,7 +1,7 @@
 import { supabaseAdminClient } from '../../config/supabase'
 import { assertNoError, httpError } from '../operations/operationErrors'
 
-export const accountDeletionBlockingStatuses = ['pending_processing', 'in_progress', 'technical_error'] as const
+export const accountDeletionBlockingStatuses = ['pending_processing', 'in_progress', 'technical_error', 'completed'] as const
 
 type AccountDeletionBlockingStatus = typeof accountDeletionBlockingStatuses[number]
 
@@ -81,8 +81,11 @@ export async function assertAccountDeletionAccessAllowed(input: {
   if (!state.blocked) return state
 
   const due = state.processingDueAt ? ` antes de ${state.processingDueAt}` : ''
+  const statusMessage = state.status === 'completed'
+    ? 'La eliminación de esta cuenta fue completada'
+    : `La eliminación de esta cuenta fue confirmada y está en proceso${due}`
   throw httpError(
     423,
-    `La eliminación de esta cuenta fue confirmada y está en proceso${due}. No es posible iniciar sesión ni operar la cuenta.`,
+    `${statusMessage}. No es posible iniciar sesión ni operar la cuenta.`,
   )
 }

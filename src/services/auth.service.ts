@@ -97,7 +97,7 @@ export type AccountDeletionAccessState =
       blocked: true
       requestId: string
       requestNumber: string
-      status: 'pending_processing' | 'in_progress' | 'technical_error'
+      status: 'pending_processing' | 'in_progress' | 'technical_error' | 'completed'
       processingDueAt?: string | null
       confirmedAt?: string | null
     }
