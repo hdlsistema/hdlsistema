@@ -440,6 +440,23 @@ function safeCustomerUrl(value: unknown) {
   return url
 }
 
+function safeAccountDeletionConfirmationUrl(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return null
+  try {
+    const parsed = new URL(value.trim())
+    const queryKeys = Array.from(parsed.searchParams.keys())
+    if (parsed.protocol !== 'https:') return null
+    if (parsed.hostname.toLowerCase() !== 'admhaciendadeletras.com') return null
+    if (parsed.pathname !== '/eliminar-cuenta/confirmar') return null
+    if (parsed.hash) return null
+    if (queryKeys.length !== 1 || queryKeys[0] !== 'token') return null
+    if (!parsed.searchParams.get('token')?.trim()) return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
+}
+
 function appUrl(path: string) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`
   try {
@@ -479,6 +496,11 @@ function ctaUrl(eventType: CommunicationEventType, payload: CommunicationPayload
   if (eventType === 'order.tracking_assigned' || eventType === 'order.shipped') {
     const trackingUrl = safeCustomerUrl(payload.trackingUrl)
     if (trackingUrl) return trackingUrl
+  }
+  if (eventType === 'account_deletion.confirmation') {
+    const confirmationUrl = safeAccountDeletionConfirmationUrl(payload.ctaUrl)
+    if (confirmationUrl) return confirmationUrl
+    return defaultCustomerUrl(eventType, payload)
   }
   const explicit = safeCustomerUrl(payload.ctaUrl)
   if (explicit) return explicit

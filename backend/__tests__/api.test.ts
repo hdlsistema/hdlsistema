@@ -4416,6 +4416,54 @@ describe('Fase 8E communications API', () => {
     expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com/)
   })
 
+  it('acepta el CTA publico de confirmacion de eliminacion de cuenta', () => {
+    const confirmationUrl = 'https://admhaciendadeletras.com/eliminar-cuenta/confirmar?token=signed-token-for-test'
+    const template = renderEmailTemplate('account_deletion.confirmation', {
+      customerName: 'QA Hacienda',
+      requestNumber: 'DEL-20260904-TEST',
+      processingWindow: '30 dias naturales',
+      confirmationExpiresAt: '2026-09-05T00:00:00.000Z',
+      ctaUrl: confirmationUrl,
+    }, 'es-MX')
+
+    expect(template.html).toContain(`href="${confirmationUrl}"`)
+    expect(template.html).toContain('Confirmar eliminaci')
+    expect(template.html).not.toContain('href="https://www.haciendadeletras.com/app/home"')
+  })
+
+  it('mantiene bloqueados CTAs peligrosos para confirmacion de eliminacion de cuenta', () => {
+    const unsafeUrls = [
+      'https://admhaciendadeletras.com/control/dashboard?token=signed-token-for-test',
+      'https://evil.example/eliminar-cuenta/confirmar?token=signed-token-for-test',
+      'http://admhaciendadeletras.com/eliminar-cuenta/confirmar?token=signed-token-for-test',
+      'https://admhaciendadeletras.com.evil.example/eliminar-cuenta/confirmar?token=signed-token-for-test',
+      'javascript:alert(1)',
+      'https://admhaciendadeletras.com/eliminar-cuenta/confirmar?token=signed-token-for-test&next=/control/dashboard',
+    ]
+
+    for (const unsafeUrl of unsafeUrls) {
+      const template = renderEmailTemplate('account_deletion.confirmation', {
+        ctaUrl: unsafeUrl,
+      }, 'es-MX')
+
+      expect(template.html).toContain('href="https://www.haciendadeletras.com/app/home"')
+      expect(template.html).not.toContain(`href="${unsafeUrl}"`)
+      expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com\/control/)
+      expect(template.html).not.toMatch(/href="http:\/\//)
+      expect(template.html).not.toMatch(/href="https:\/\/admhaciendadeletras\.com\.evil\.example/)
+      expect(template.html).not.toMatch(/href="javascript:/)
+    }
+  })
+
+  it('mantiene CTAs publicos https existentes fuera de Account Deletion', () => {
+    const marketingUrl = 'https://www.haciendadeletras.com/promociones'
+    const template = renderEmailTemplate('campaign.marketing', {
+      ctaUrl: marketingUrl,
+    }, 'es-MX')
+
+    expect(template.html).toContain(`href="${marketingUrl}"`)
+  })
+
   const adminUser = {
     id: '99999999-9999-4999-8999-999999999901',
     email: 'admin@alqia.tech',
